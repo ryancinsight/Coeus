@@ -1,17 +1,13 @@
 # Coeus Gap Audit
 
-## CTC boundary and precision contract
+## Sequence losses need an independent gradient boundary
 
-At `19e5ac0a`, `ops/nn/loss/ctc.rs` treats an empty target as zero loss,
-clamps forward input lengths while storing the original backward lengths,
-and computes generic inputs through fixed `f64` state. The five CTC tests
-instantiate only `f64`; their backward case checks shape/nonzero values.
-The all-blank path gives a direct independent oracle: one frame with blank
-probability one-half has loss ln(2) and log-input derivative [-1,0].
-[Graves et al., section 3.1, equations 2–3](https://www.cs.toronto.edu/~graves/icml_2006.pdf)
-defines alignment probabilities; section 4.2 distinguishes output-probability
-and pre-softmax derivatives. A log-probability API must state its own boundary.
-Tracking: [CTC sequence correctness](backlog.md#coeus-ctc-sequence-contract).
+A forward parity test does not establish the derivative of an independently
+supplied log probability. The CTC failure class is guarded by path enumeration,
+analytical empty-target gradients, all supported scalar/backend instantiations,
+and separate composed-logit parity. The contract and derivation live in
+[ADR 0072](adr/0072-ctc-sequence-loss.md). Re-open when another sequence-loss
+family lacks these oracles or changes its reduction or differentiation boundary.
 
 ## CUDA context creation failure remains unclassified
 
@@ -1224,19 +1220,12 @@ existing `_assert_activation_parity` helper). MS-187 corrected the regression
 where gradient operators evaluated on `grad_out` instead of the saved input and
 where pair-parameter decoding treated truncated halves as `f64` bit patterns.
 
-### ~~G-038: Loss and distance surface remains below PyTorch coverage~~ **CLOSED**
-**Location**: `crates/coeus-nn/src/loss.rs`, `crates/coeus-python/src/losses.rs`,
-`crates/coeus-autograd/src/ops/nn/loss/`
-**Compared against**: PyTorch loss and distance families.
-**Closed by**: MS-219 (22/23 losses) + **MS-225** (CTCLoss — final item).
-- MS-225: Added `CtcLossNode` autograd node with log-space forward-backward DP
-  (α and β tables), exposed as `coeus_nn::ctc_loss` and `pycoeus.ctc_loss`.
-  5 analytical Rust tests (single-frame oracle, two-frame oracle, batch oracle,
-  gradient propagation, nn/autograd consistency). PyTorch parity test at f64
-  atol=1e-6 against `torch.nn.functional.ctc_loss(reduction='mean')`.
-- **All 23/23 PyTorch loss/distance families now have Coeus parity.**
-**Evidence tier**: analytical/value-semantic Rust tests + differential PyTorch
-parity (1/1 CTC test at f64).
+### G-038: Loss and distance evidence
+
+MS-219 and MS-225 add the 23 API families. The old CTC forward-only PyTorch
+comparison does not establish its empty-target, invalid-length, or gradient
+contracts. Current evidence belongs to
+[CTC sequence correctness](backlog.md#coeus-ctc-sequence-contract).
 
 ### ~~G-037: Activation surface remains incomplete versus Burn/PyTorch~~ **CLOSED**
 **Location**: `crates/coeus-nn/src/activation.rs`, `crates/coeus-python/src/activation.rs`
@@ -1589,7 +1578,7 @@ Evidence tier: differential/empirical (PyTorch f64).
 | Risk | Evidence Tier | Status |
 |------|--------------|--------|
 | G-036 pool1d/adaptive pooling/unfold/fold family gaps — **CLOSED** via MS-206, MS-211, MS-212, MS-213. Pool1d (Max/Avg), adaptive pooling (Avg/Max 1d/2d), unfold/fold 1d/2d all implemented with autograd backward, Rust value-semantic tests, and Python bindings with PyTorch parity. | value-semantic + differential | **closed** |
-| G-038 loss and distance surface — **CLOSED** via MS-219 (22/23) + MS-225 (CTCLoss). All 23 PyTorch loss/distance families now have Coeus parity. | analytical/value-semantic + differential | **closed** |
+| G-038: API families exist; [CTC correctness and provider delivery](backlog.md#coeus-ctc-sequence-contract) require the current boundary and gradient checks. | analytical + differential | review |
 | G-040 recurrent parity — **CLOSED** via MS-206/MS-219. Vanilla RNN/RNNCell, GRU/GRUCell, LSTM/LSTMCell and Bidirectional wrapper with PyO3 bindings and parity tests. | source-surface + differential | **closed** |
 | G-041 regularization/sparse/local-response — **CLOSED** via MS-208/MS-209. AlphaDropout, FeatureAlphaDropout, EmbeddingBag, GaussianNoise, LocalResponseNorm with PyO3 bindings. | source-surface + differential | **closed** |
 | G-042 quantized/lazy parity policy — **CLOSED** via MS-212. Recorded as explicit non-goal for v0.x; natural extension point via typed `Scalar` + `BackendOps<T>` for quantized numerics. | design decision | **closed** |

@@ -3,7 +3,7 @@ mod normalization;
 pub use normalization::{batch_norm_1d, group_norm, layer_norm, rms_norm};
 
 use crate::{
-    nn::error::{map_backend_error, map_module_error},
+    error::{map_backend_error, map_module_error},
     tensor::PyTensor,
 };
 use pyo3::exceptions::PyValueError;

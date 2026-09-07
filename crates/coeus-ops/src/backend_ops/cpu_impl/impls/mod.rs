@@ -1,6 +1,7 @@
 mod attention;
 mod conv;
 mod cross_entropy;
+mod ctc;
 mod elementwise;
 mod finite_difference;
 mod matmul;

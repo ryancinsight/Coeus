@@ -72,3 +72,4 @@
 | [0069](0069-provider-owned-wgpu-fusion.md) | Provider-owned WGPU fusion | Accepted |
 | [0070](0070-provider-owned-cuda-fusion.md) | Provider-owned CUDA fusion | Accepted |
 | [0071](0071-provider-owned-accelerator-backends.md) | Provider-owned accelerator backends | Accepted |
+| [0072](0072-ctc-sequence-loss.md) | Provider-owned CTC sequence loss | Accepted |

@@ -1,132 +1,263 @@
-/// CTC (Connectionist Temporal Classification) Loss tests.
-///
-/// Analytical oracles derived from the log-space forward-backward DP.
-///
-/// # Test case 1: single frame, single label
-/// T=1, N=1, C=3 (blank=0, labels: 1, 2)
-/// log_probs = [[log(0.1), log(0.6), log(0.3)]]
-/// target = [1], input_len=[1], target_len=[1]
-/// Extended: [blank=0, 1, blank=0] → ls=3
-/// α(0,0)=log(0.1), α(0,1)=log(0.6), α(0,2)=-inf (need 2 frames for ls=3)
-/// Wait — with T=1 and ls=3, actually: init only α[0]=log p(blank), α[1]=log p(label)
-/// log P = log_sum_exp(α[0, ls-1], α[0, ls-2]) = log_sum_exp(-inf, log(0.6)) = log(0.6)
-/// CTC loss = -log(0.6)
-///
-/// # Test case 2: gradient propagates
+//! CTC likelihood and derivatives from exhaustive short alignment enumeration.
+
+#[path = "ctc_loss_tests/invalid.rs"]
+mod invalid;
+#[path = "ctc_loss_tests/layouts.rs"]
+mod layouts;
+#[path = "ctc_loss_tests/oracle.rs"]
+mod oracle;
+
 use coeus_autograd::{ctc_loss, log_softmax, Var};
-use coeus_core::SequentialBackend;
+use coeus_core::{BackendError, Float, MoiraiBackend, Scalar, SequentialBackend};
 use coeus_nn::ctc_loss as nn_ctc_loss;
+use coeus_ops::{BackendOps, CtcBatch, CtcOps};
 use coeus_tensor::Tensor;
+use eunomia::{Bf16, F16};
 
-type B = SequentialBackend;
+use oracle::{close, count, enumerate, BinaryPrecision};
 
-fn t3(data: &[f64], shape: [usize; 3]) -> Var<f64, B> {
-    Var::new(Tensor::<f64, B>::from_slice(shape.to_vec(), data), true)
+fn variable<T: Float, B: BackendOps<T> + Default>(values: &[T], shape: [usize; 3]) -> Var<T, B> {
+    Var::new(Tensor::from_slice(shape, values), true)
 }
 
-fn lp(data: &[f64], shape: [usize; 3]) -> Var<f64, B> {
-    Var::new(Tensor::<f64, B>::from_slice(shape.to_vec(), data), false)
+fn probability_logs<T: Float>(values: &[f64]) -> Vec<T> {
+    values
+        .iter()
+        .map(|&value| Float::ln(<T as Scalar>::from_f64(value)))
+        .collect()
 }
 
-fn get_loss_val(v: &Var<f64, B>) -> f64 {
-    v.tensor.as_slice()[0]
+fn seeded_backward<T: Float, B: BackendOps<T> + Default>(loss: &Var<T, B>, seed: T) {
+    loss.backward_with_seed(Tensor::from_slice([1], &[seed]))
+        .expect("invariant: a finite CTC fixture has a defined derivative");
 }
 
-#[test]
-fn ctc_loss_single_frame_single_label() {
-    // T=1, N=1, C=3, blank=0, target=[1]
-    // log_probs: ln(0.1), ln(0.6), ln(0.3)
-    // log P = ln(0.6) → CTC loss = -ln(0.6)
-    let x = lp(&[0.1_f64.ln(), 0.6_f64.ln(), 0.3_f64.ln()], [1, 1, 3]);
-    let loss = ctc_loss(&x, &[1usize], &[1], &[1], 0);
-    let expected = -0.6_f64.ln();
-    assert!(
-        (get_loss_val(&loss) - expected).abs() < 1e-10,
-        "CTC single frame: got {:.10}, expected {:.10}",
-        get_loss_val(&loss),
-        expected
+fn alignment_case<T, B>(
+    probabilities: &[f64],
+    shape: [usize; 3],
+    targets: &[usize],
+    input_lengths: &[usize],
+    target_lengths: &[usize],
+    blank: usize,
+) where
+    T: BinaryPrecision,
+    B: BackendOps<T> + CtcOps<T> + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
+{
+    let logs = probability_logs::<T>(probabilities);
+    let seed = <T as Scalar>::from_f64(2.5);
+    let expected = enumerate(
+        &logs,
+        shape,
+        CtcBatch {
+            targets,
+            input_lengths,
+            target_lengths,
+            blank,
+        },
+        seed,
+    );
+    let input = variable::<T, B>(&logs, shape);
+    let loss = ctc_loss(&input, targets, input_lengths, target_lengths, blank)
+        .expect("invariant: finite alignment fixture satisfies CTC input contracts");
+    let operations = 12 * shape[0] + 2 * expected.path_count + 2 * shape[2] + 8;
+    close(loss.tensor.as_slice()[0], expected.loss, operations);
+    seeded_backward(&loss, seed);
+    let gradient = input
+        .grad()
+        .expect("invariant: tracked CTC input receives a gradient");
+    assert_eq!(gradient.shape(), &shape);
+    for (index, (&actual, &reference)) in gradient
+        .as_slice()
+        .iter()
+        .zip(&expected.gradient)
+        .enumerate()
+    {
+        let time = index / (shape[1] * shape[2]);
+        let sample = index / shape[2] % shape[1];
+        if time >= input_lengths[sample] {
+            assert_eq!(actual, T::zero(), "padded frame {time}, sample {sample}");
+        } else {
+            close(actual, reference, operations);
+        }
+    }
+    let untracked = Var::new(Tensor::<T, B>::from_slice(shape, &logs), false);
+    let wrapper = nn_ctc_loss(&untracked, targets, input_lengths, target_lengths, blank)
+        .expect("invariant: NN wrapper accepts the same valid CTC fixture");
+    assert_eq!(wrapper.tensor.as_slice(), loss.tensor.as_slice());
+}
+
+fn empty_target_retains_the_blank_path_probability<T, B>()
+where
+    T: BinaryPrecision,
+    B: BackendOps<T> + CtcOps<T> + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
+{
+    let half = <T as Scalar>::from_f64(0.5);
+    let log_half = Float::ln(half);
+    let input = variable::<T, B>(&[log_half, log_half], [1, 1, 2]);
+    let loss = ctc_loss(&input, &[], &[1], &[0], 0)
+        .expect("invariant: an empty target has the all-blank alignment");
+    assert_eq!(loss.tensor.as_slice(), &[-log_half]);
+    seeded_backward(&loss, count::<T>(2));
+    assert_eq!(
+        input
+            .grad()
+            .expect("invariant: blank path is tracked")
+            .as_slice(),
+        &[-count::<T>(2), T::zero()]
     );
 }
 
-#[test]
-fn ctc_loss_two_frames_single_label() {
-    // T=2, N=1, C=3, blank=0, target=[1]
-    // Extended: [0, 1, 0], ls=3
-    // α(0,0)=ln0.5, α(0,1)=ln0.3, α(0,2)=-inf
-    // α(1,0) = ln0.5 + ln0.4 = ln(0.2)
-    // α(1,1) = log_sum_exp(ln0.3, ln0.5) + ln0.4 = ln(0.8) + ln0.4 = ln(0.32)
-    // α(1,2) = log_sum_exp(-inf, ln0.3) + ln0.4 = ln(0.12)
-    //   (ext[2]=0==ext[0]=0 so no skip)
-    // log P = log_sum_exp(ln0.12, ln0.32) = ln(0.44)
-    let data = [
-        0.5_f64.ln(),
-        0.3_f64.ln(),
-        0.2_f64.ln(),
-        0.4_f64.ln(),
-        0.4_f64.ln(),
-        0.2_f64.ln(),
-    ];
-    let x = lp(&data, [2, 1, 3]);
-    let loss = ctc_loss(&x, &[1usize], &[2], &[1], 0);
-    let expected = -(0.44_f64.ln());
-    assert!(
-        (get_loss_val(&loss) - expected).abs() < 1e-8,
-        "CTC two frames: got {:.10}, expected {:.10}",
-        get_loss_val(&loss),
-        expected
+fn exact_seed_and_accumulation<T, B>()
+where
+    T: BinaryPrecision,
+    B: BackendOps<T> + CtcOps<T> + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
+{
+    // One frame forces the target symbol. Independent log inputs may be zero
+    // without normalization; posterior [0,1,0] and dyadic seed are exact.
+    let input = variable::<T, B>(&[T::zero(); 3], [1, 1, 3]);
+    let initial = <T as Scalar>::from_f64(0.75);
+    input.set_grad(Tensor::from_slice([1, 1, 3], &[initial; 3]));
+    let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
+        .expect("invariant: a one-frame target has one alignment");
+    assert_eq!(loss.tensor.as_slice(), &[T::zero()]);
+    seeded_backward(&loss, <T as Scalar>::from_f64(2.5));
+    assert_eq!(
+        input
+            .grad()
+            .expect("invariant: seeded leaf gradient exists")
+            .as_slice(),
+        &[initial, <T as Scalar>::from_f64(-1.75), initial]
     );
 }
 
-#[test]
-fn ctc_loss_batch_two_samples() {
-    // Two samples, mean loss = -ln(0.6)
-    // Sample 0: target=[1], p(1)=0.6 → loss=-ln(0.6)
-    // Sample 1: target=[2], p(2)=0.6 → loss=-ln(0.6)
-    let data = [
-        0.1_f64.ln(),
-        0.6_f64.ln(),
-        0.3_f64.ln(), // frame0, sample0
-        0.1_f64.ln(),
-        0.3_f64.ln(),
-        0.6_f64.ln(), // frame0, sample1
-    ];
-    let x = lp(&data, [1, 2, 3]);
-    let loss = ctc_loss(&x, &[1usize, 2], &[1, 1], &[1, 1], 0);
-    let expected = -0.6_f64.ln();
-    assert!(
-        (get_loss_val(&loss) - expected).abs() < 1e-10,
-        "CTC batch: got {:.10}, expected {:.10}",
-        get_loss_val(&loss),
-        expected
+fn logits_follow_the_softmax_chain_rule<T, B>()
+where
+    T: BinaryPrecision,
+    B: BackendOps<T> + CtcOps<T> + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
+{
+    let shape = [2, 1, 3];
+    let logits = [0., 1., -1., 1., 0., -1.].map(<T as Scalar>::from_f64);
+    let mut logs = Vec::new();
+    let mut probabilities = Vec::new();
+    for row in logits.chunks_exact(3) {
+        let weights = row.iter().copied().map(Float::exp).collect::<Vec<_>>();
+        let total = weights
+            .iter()
+            .copied()
+            .fold(T::zero(), |sum, value| sum + value);
+        for weight in weights {
+            let probability = weight / total;
+            probabilities.push(probability);
+            logs.push(Float::ln(probability));
+        }
+    }
+    let seed = <T as Scalar>::from_f64(-1.5);
+    let mut expected = enumerate(
+        &logs,
+        shape,
+        CtcBatch {
+            targets: &[1],
+            input_lengths: &[2],
+            target_lengths: &[1],
+            blank: 0,
+        },
+        seed,
     );
+    for row in expected
+        .gradient
+        .chunks_exact_mut(3)
+        .zip(probabilities.chunks_exact(3))
+    {
+        let (gradient, probability) = row;
+        let total = gradient
+            .iter()
+            .copied()
+            .fold(T::zero(), |sum, value| sum + value);
+        for (value, &probability) in gradient.iter_mut().zip(probability) {
+            *value -= probability * total;
+        }
+    }
+    let input = variable::<T, B>(&logits, shape);
+    let log_probs = log_softmax(&input, 2);
+    let loss = ctc_loss(&log_probs, &[1], &[2], &[1], 0)
+        .expect("invariant: finite logits define a positive target likelihood");
+    let operations = 12 * shape[0] + 2 * expected.path_count + 4 * shape[2] + 8;
+    close(loss.tensor.as_slice()[0], expected.loss, operations);
+    seeded_backward(&loss, seed);
+    let gradient = input
+        .grad()
+        .expect("invariant: log-softmax propagates to its tracked logits");
+    for (&actual, &expected) in gradient.as_slice().iter().zip(&expected.gradient) {
+        close(actual, expected, operations);
+    }
+}
+
+fn cases<T, B>()
+where
+    T: BinaryPrecision,
+    B: BackendOps<T> + CtcOps<T> + Default + coeus_core::ComputeBackend<Error = BackendError>,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
+{
+    empty_target_retains_the_blank_path_probability::<T, B>();
+    exact_seed_and_accumulation::<T, B>();
+    alignment_case::<T, B>(&[0.125, 0.75, 0.125], [1, 1, 3], &[1], &[1], &[1], 0);
+    alignment_case::<T, B>(
+        &[0.5, 0.25, 0.25, 0.25, 0.5, 0.25],
+        [2, 1, 3],
+        &[1],
+        &[2],
+        &[1],
+        0,
+    );
+    alignment_case::<T, B>(&[0.5; 6], [3, 1, 2], &[1, 1], &[3], &[2], 0);
+    alignment_case::<T, B>(
+        &[0.5, 0.25, 0.25, 0.25, 0.25, 0.5],
+        [2, 1, 3],
+        &[0],
+        &[2],
+        &[1],
+        2,
+    );
+    alignment_case::<T, B>(
+        &[
+            0.5,
+            0.5,
+            0.25,
+            0.75,
+            0.25,
+            0.75,
+            f64::NAN,
+            f64::INFINITY,
+            0.5,
+            0.5,
+            2.,
+            0.5,
+        ],
+        [3, 2, 2],
+        &[1, 1],
+        &[3, 1],
+        &[2, 0],
+        0,
+    );
+    alignment_case::<T, B>(&[], [0, 1, 2], &[], &[0], &[0], 0);
+    alignment_case::<T, B>(&[1., 0.], [1, 1, 2], &[], &[1], &[0], 0);
+    logits_follow_the_softmax_chain_rule::<T, B>();
+    invalid::cases::<T, B>();
+    layouts::cases::<T, B>();
 }
 
 #[test]
-fn ctc_loss_backward_runs() {
-    // Verify gradients propagate through log_softmax -> ctc_loss.
-    let logits = t3(&[1.0, 2.0, 0.5, 0.8, 1.5, 0.3], [2, 1, 3]);
-    let log_probs = log_softmax(&logits, 2);
-    let loss = ctc_loss(&log_probs, &[1usize], &[2], &[1], 0);
-    loss.backward()
-        .expect("invariant: valid autograd fixture completes backward");
-    assert!(
-        logits.grad().is_some(),
-        "gradient must propagate through ctc_loss"
-    );
-    let grad = logits.grad().unwrap();
-    assert_eq!(grad.shape(), &[2, 1, 3]);
-    let nonzero = grad.as_slice().iter().any(|&v: &f64| v.abs() > 1e-15);
-    assert!(nonzero, "CTC gradient must have at least one nonzero entry");
-}
-
-#[test]
-fn nn_ctc_loss_matches_autograd() {
-    let data = [0.1_f64.ln(), 0.6_f64.ln(), 0.3_f64.ln()];
-    let x1 = lp(&data, [1, 1, 3]);
-    let x2 = lp(&data, [1, 1, 3]);
-    let l1 = ctc_loss(&x1, &[1usize], &[1], &[1], 0);
-    let l2 = nn_ctc_loss(&x2, &[1usize], &[1], &[1], 0);
-    let v1 = get_loss_val(&l1);
-    let v2 = get_loss_val(&l2);
-    assert_eq!(v1, v2, "nn and autograd ctc_loss must match: {v1} != {v2}");
+fn likelihood_and_gradient_match_alignment_enumeration() {
+    cases::<f32, SequentialBackend>();
+    cases::<f64, SequentialBackend>();
+    cases::<F16, SequentialBackend>();
+    cases::<Bf16, SequentialBackend>();
+    cases::<f32, MoiraiBackend>();
+    cases::<f64, MoiraiBackend>();
+    cases::<F16, MoiraiBackend>();
+    cases::<Bf16, MoiraiBackend>();
 }

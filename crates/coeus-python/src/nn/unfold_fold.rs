@@ -1,4 +1,4 @@
-use crate::{nn::error::map_module_error, tensor::PyTensor};
+use crate::{error::map_module_error, tensor::PyTensor};
 use pyo3::prelude::*;
 
 /// Python-exposed Unfold2d layer (sliding-window extraction).

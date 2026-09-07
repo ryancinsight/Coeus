@@ -11,6 +11,7 @@ static GLOBAL: mnemosyne::Mnemosyne = mnemosyne::Mnemosyne;
 pub mod activations;
 /// Distributed training communicators.
 pub mod dist;
+mod error;
 mod grad_mode;
 /// Weight initialization functions (uniform, normal, xavier, kaiming).
 pub mod init;

@@ -1,4 +1,4 @@
-use crate::{nn::error::map_backend_error, tensor::PyTensor};
+use crate::{error::map_backend_error, tensor::PyTensor};
 use pyo3::prelude::*;
 
 /// Mean Squared Error loss.
@@ -251,7 +251,9 @@ pub fn gaussian_nll_loss(
 /// `target_lengths`: list of target sequence lengths per sample.
 /// `blank`: index of the blank class (default 0).
 ///
-/// Returns a scalar `Tensor` holding the mean CTC loss.
+/// Returns a scalar `Tensor` holding the mean CTC loss. Empty targets retain
+/// the all-blank alignment. Invalid sequence inputs raise `ValueError`.
+/// Impossible alignments produce infinite loss and an error on backward.
 #[pyfunction]
 #[pyo3(signature = (log_probs, targets, input_lengths, target_lengths, blank = 0))]
 pub fn ctc_loss(
@@ -261,7 +263,7 @@ pub fn ctc_loss(
     target_lengths: Vec<usize>,
     blank: usize,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| {
         coeus_nn::loss::ctc_loss(
             &log_probs.inner,
@@ -271,7 +273,7 @@ pub fn ctc_loss(
             blank,
         )
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Sum of all finite elements, treating NaN as zero (`torch.nansum`).

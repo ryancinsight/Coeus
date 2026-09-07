@@ -8,7 +8,6 @@ pub mod conv;
 pub mod dropout;
 /// Embedding lookup layer.
 pub mod embedding;
-pub(crate) mod error;
 /// Feed-forward and Transformer building blocks.
 pub mod feedforward;
 /// Linear (fully-connected) layer.

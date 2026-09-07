@@ -1,9 +1,9 @@
 mod construction;
 
 use super::super::PyFeedForward;
+use crate::error::map_module_error;
 use crate::init::map_initialization_error;
 use crate::nn::attention::PyMultiHeadAttention;
-use crate::nn::error::map_module_error;
 use crate::nn::normalization::layernorm::PyLayerNorm;
 use crate::tensor::PyTensor;
 use pyo3::exceptions::PyValueError;

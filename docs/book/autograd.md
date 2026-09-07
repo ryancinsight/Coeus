@@ -51,4 +51,20 @@ Or use the functional API: `no_grad_guard()` / `push_no_grad()` / `pop_no_grad()
 `multi_label_margin_loss` (delivered via `feat/mlm-provider`) owns the
 pairwise `[N, C, C]` active tensor computation via broadcast, target gather
 with safe flattened indexing, masked positive hinge, and target/sibling scatter
-backward. CTC remains the sole sequential-DP exception.
+backward.
+
+## Temporal label alignment
+
+CTC sums frame-level alignment paths that collapse to a target label sequence.
+Repeated adjacent labels merge before blank labels are removed, so two equal
+target labels require an intervening blank frame. An empty target retains only
+the all-blank path. The loss divides each sample's negative log path probability
+by its target length (one for an empty target), then averages across the batch.
+
+`ctc_loss` delegates the recurrence to Leto through `CtcOps` and returns a
+`Result`. Invalid lengths and labels return typed errors. A sequence with no
+possible alignment has infinite loss; differentiating it returns an error.
+For independent log probabilities the gradient is negative posterior occupancy.
+Composing CTC with log-softmax converts this into the gradient at the logits.
+The runnable example in `coeus_autograd::ctc_loss` checks the one-frame,
+empty-target case: loss ln(2), log-input gradient `[-1, 0]`.

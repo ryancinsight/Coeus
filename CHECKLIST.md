@@ -3,7 +3,8 @@
 ## Current integration
 
 Execution steps: [active checklist](docs/checklist.md#codex-01a079ad).
-Acceptance and findings: [GPU integration](docs/backlog.md#coeus-hephaestus-cuda-fusion-001).
+Acceptance and findings: [CTC sequence correctness](docs/backlog.md#coeus-ctc-sequence-contract).
+GPU integration is merged in [PR #368](https://github.com/ryancinsight/Coeus/pull/368).
 The historical completed-phase labels below do not establish current gate status.
 
 

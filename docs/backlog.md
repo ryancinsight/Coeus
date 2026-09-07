@@ -3,28 +3,81 @@
 <a id="coeus-ctc-sequence-contract"></a>
 ## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
 
-- Status: in-progress; integrator: codex-01a079ad; priority: correctness; [major] [arch].
+- Status: review; integrator: codex-01a079ad; priority: correctness; [major] [arch].
+- Branch: `codex/coeus-ctc-sequences`; last-update: 2026-09-07.
+- Delivery: [PR #380](https://github.com/ryancinsight/Coeus/pull/380), ready against
+  `main` after GPU merge `f5ccfd68`; source `4275bae1` is unchanged.
 - Outcome: CTC loss and gradients obey the log-probability sequence contract.
-- Scope: Leto loss provider, Coeus autograd/NN/Python callers, tests and migration;
-  preserve the existing CPU-addressable capability boundary.
-- Findings at `19e5ac0a`: empty targets return zero; forward clamps lengths that
-  backward indexes unmodified; generic arithmetic widens through fixed `f64`.
-- Acceptance: empty-target all-blank loss, typed invalid-length/index rejection,
-  native scalar arithmetic, defined impossible-path behavior, and exact seeded
-  short-path gradients; no compatibility wrappers or copied recurrences.
-- Oracle: enumerate short alignments independently; one frame with blank
-  probability one-half and empty target has loss ln(2), log-input gradient [-1,0].
-- Dependency: add the missing CTC family in Leto; document log-input versus
-  logits derivatives before the fallible caller migration and SemVer check.
+- Scope: provider recurrence, CPU seam, shared layouts, Rust/Python callers and migration.
+- Acceptance: native scalar path sums/gradients, empty/impossible semantics,
+  typed invalid input, and unchanged gradient destinations on failure.
+- Oracle: short-path enumeration and analytical large-gap posterior weights.
+- Provider: [Leto CTC](../../leto/backlog.md#leto-ctc-loss), merged PR #177,
+  merge `ba8a879b`; 950 workspace tests, release CTC 10/10, independent review pass.
+- Consumer: native `461dbdc4` passes 1,144 with eight existing skips; the final
+  wheel passes 10/10. Regressions `77051874` and `69a19362` fail before correction.
+- Gates: release `ab0ee790`, 155 doctests, strict Clippy/docs and compatibility
+  classification pass; [migration](adr/0072-ctc-sequence-loss.md#migration) records the break.
+- Devices: required CUDA/WGPU `a2dc2625` passes 234/234 with no skips;
+  source/build/lock hashes remain unchanged across tracking merge `0d40a8c6`.
 - Parent: [remaining loss families](#coeus-autograd-host-staging-residuals-001).
-- ADR reservation: 0072; upstream: [Leto CTC](../../leto/backlog.md#leto-ctc-loss).
-- Lease: codex-01a079ad and delegated contributors; CTC source/callers/tests,
-  backend error mapping and documentation; 2026-09-07T04:55:00Z.
+- Design/migration: [ADR 0072](adr/0072-ctc-sequence-loss.md).
+
+<a id="coeus-fallible-unary-execution"></a>
+## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
+
+- Status: todo; priority: correctness; [major] [arch].
+- Scope: shared unary autograd execution and its Rust/Python callers.
+- Evidence: `d1c5ca4c` on `codex/coeus-comparison-parity-comparisons`
+  contains unique fallible execution; current ReLU still returns `Var`.
+- Outcome: provider failures reach callers without input-dependent panics.
+- Acceptance: complete caller migration, typed failure/gradient tests,
+  full native/device gates, and SemVer classification with an updated ADR.
+- Dependency: land GPU/CTC integration; recover against current contracts.
+- Non-goal: resurrect superseded dependency pins or storage implementations.
+
+<a id="coeus-workspace-lint-floor"></a>
+## COEUS-WORKSPACE-LINT-FLOOR — Recover the inherited lint floor
+
+- Status: todo; priority: verification; [patch].
+- Scope: workspace lint inheritance and measured existing suppressions.
+- Evidence: unique `74fd5c11` survives on `perf/coeus-ops-index-decode`
+  and `fix/coeus-autograd-honest-cache`; current manifest lacks its floor.
+- Outcome: one workspace policy governs every member; preserve both refs
+  until their shared surviving change is integrated once.
+- Acceptance: strict all-target Clippy, non-increasing residual counts,
+  native/doc gates, and no blanket suppression growth.
+- Dependency: land GPU/CTC integration; exclude superseded cache/lock changes.
+
+<a id="coeus-autodiff-cache-modules"></a>
+## COEUS-AUTODIFF-CACHE-MODULES — Integrate the cache decomposition
+
+- Status: todo; priority: structure; [patch].
+- Scope: unique cache decomposition `da2598ea` in PR #367.
+- Review: current cache source matches its parent blob; preserve the extraction,
+  then move the remaining 539-line implementation-bearing `mod.rs` into leaves.
+- Outcome: operation families own leaf modules; manifests contain no cache logic.
+- Acceptance: preserve cache behavior, run cache and workspace gates, and
+  integrate the decomposition against current main without obsolete Cutile pins.
+- Dependency: land GPU/CTC integration; preserve the PR branch until integration.
+- Failed hosted checks compile duplicate Eunomia/Leto identities before cache
+  tests execute; integrate the source extraction against the current single graph.
+
+<a id="coeus-private-rustdoc-links"></a>
+## COEUS-PRIVATE-RUSTDOC-LINKS — Disambiguate the cumulative-sum link
+
+- Status: todo; priority: documentation; [patch].
+- Scope: `coeus-autograd/src/ops/shape/util/diff.rs` function link.
+- Finding: private-item Rustdoc reports `super::cumsum` as both module/function.
+- Acceptance: link the function explicitly; warning-denied private and public
+  Rustdoc resolve it, with the existing difference doctest unchanged.
 
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
-- Status: todo; scope: `.githooks/pre-commit` and `.githooks/pre-push`; [patch].
+- Status: in-progress; integrator: codex-01a079ad/integration_judge; [patch].
+- Scope: `.githooks/pre-commit`, `.githooks/pre-push`, and executable hook tests.
+- Lease: integration_judge; scoped hook/test files; 2026-09-07T06:48:49Z.
 - Finding: missing checker/interpreter and `SKIP_LOCKFILE_CHECK=1` return success.
 - Outcome: configured hooks fail when their required verification cannot execute.
 - Acceptance: remove the bypass, preserve command diagnostics, and reject each
@@ -83,17 +136,9 @@
 <a id="coeus-hephaestus-cuda-fusion-001"></a>
 ## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned GPU kernels
 
-- Status: review; integrator: codex-01a079ad; risk: [major] [arch]; branch: `arch/coeus-hephaestus-cuda-fusion-001`; last-update: 2026-09-07.
-- Outcome: Hephaestus owns CUDA/WGPU kernels, metadata, resources and dispatch; Coeus owns tensor/expression/layout adaptation and typed errors.
-- Acceptance: delete superseded implementations, migrate callers, preserve staggered operations, and pass native/device/error, locked build, documentation and SemVer gates.
-- Design and migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md).
-- Provider: `68ab691f` classifies only CUDA's documented stub-library initialization result as absence; [Hephaestus PR #287](https://github.com/ryancinsight/hephaestus/pull/287) is enqueued, not merged at collection. Earlier provider PRs #272, #274, #283 and #285 are merged.
-- Verified input: source `fb0c3150`, lock SHA256 `8991c176d2a04cef9b8a708ac3022cbc501f41ff56d30e1f0d7517b654930f00`; five provider source IDs and five Windows dependency edges change.
-- Native run `c3369369-123a-4286-aaf5-5296f93760b9`: 1,143 pass, eight existing ignored cache timing cases. Required-device CUDA/WGPU run `f811b763-fec3-4598-b47a-db5738b19701`: 234 pass, zero skips.
-- Other gates: workspace format and strict CUDA-enabled all-target Clippy, 151 workspace doctests plus five WGPU doctests, and warning-denied workspace Rustdoc pass. Two existing NN sequence doctests remain ignored; seven lockfile-tool tests retain their unchanged `fb0c3150` evidence.
-- API comparison against `01d3e9d0`: core/bridge pass; CUDA has seven and WGPU three intentional major checks covered by the migration. Enabled-CUDA baseline stalls in removed Cutile bindgen; manual public-source review complements the default comparison without an automated enabled verdict.
-- Limits: [unclassified CUDA context fault](gap_audit.md) remains unexplained by later passing device/lifecycle runs; physical HIP/Metal are unavailable. Independent source review finds no actionable blocker.
-- Delivery: [Coeus PR #368](https://github.com/ryancinsight/Coeus/pull/368) remains enqueued pending the provider merge and exact-head hosted gates; local gate commands, run IDs and environment are in its body.
+- Status: done; [PR #368](https://github.com/ryancinsight/Coeus/pull/368), merge `f5ccfd68`; Hephaestus owns GPU execution and resources.
+- Evidence: all hosted gates pass; local native 1,143/1,143 and required-device 234/234 pass. Commands and compatibility limits remain in the PR.
+- Migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md); [unclassified CUDA fault](gap_audit.md) remains open.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 
@@ -350,10 +395,8 @@
   ranking, pairwise distance, nll, binary cross-entropy, cosine embedding,
   multi margin) with 45 value-semantic tests; a following slice migrated
   multi_label_margin via gather + one-hot scatter with 4 more tests. The sole
-  remaining host-staged family is CTC, whose log-space forward-backward DP is
-  a sequential algorithm not expressible as a tensor composition; per the
-  umbrella's outcome it requires an upstream Leto/Hephaestus CTC kernel
-  (the `upstream capability` path), now specified in
+  remaining family is CTC. Leto PR #177 supplies its sequence recurrence;
+  consumer integration and boundary coverage are tracked in
   [CTC sequence correctness](#coeus-ctc-sequence-contract). The norm/product
   children own their current delivery and remaining evidence; their historical
   blocked labels are not an umbrella-level blocker.
@@ -2415,8 +2458,8 @@ value and failure-contract tests pass on Sequential and Moirai.
 - [x] [minor] G-037: CLOSED — All target families (PReLU, CELU, hardshrink,
   softshrink, softsign, threshold, GLU, SwiGLU) implemented with autograd
   backward, nn wrappers, Python bindings, and PyTorch/JAX differential parity.
-- [x] [minor] G-038: Extend loss and distance parity (23/23 implemented, fully CLOSED).
-  CTCLoss added via MS-225 (log-space DP, full backward, Python binding, PyTorch parity).
+- [x] [minor] G-038: Add the 23 loss/distance API families. CTC correctness and
+  provider delivery are tracked in [the current item](#coeus-ctc-sequence-contract).
 - [x] [minor] G-040: Add vanilla and bidirectional recurrent module parity
   (RNNCell, Rnn, GRUCell, Gru, LSTMCell, Lstm, Bidirectional wrapper — all with
   Python bindings via PyBidirectional/PyGRUCell/PyLSTMCell/PyRNNCell)
@@ -2565,7 +2608,8 @@ value and failure-contract tests pass on Sequential and Moirai.
   `multi_label_soft_margin_loss`, `gaussian_nll_loss`.
 - [x] Evidence: `cargo clippy` clean on coeus-nn + coeus-python; 426/426
   nextest tests passing across coeus-autograd + coeus-nn + coeus-optim.
-- [x] G-038 status: 22/23 implemented. Remaining: CTCLoss (forward-backward DP).
+- [x] G-038: MS-219 adds 22 loss families; CTC delivery is tracked in
+  [the current item](#coeus-ctc-sequence-contract).
 
 ## Sprint MS-217: PReLU/LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
 

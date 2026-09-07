@@ -481,6 +481,7 @@ dependencies = [
  "coeus-optim",
  "coeus-tensor",
  "criterion",
+ "eunomia",
  "smallvec",
  "thiserror 2.0.20",
 ]
@@ -1155,7 +1156,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 [[package]]
 name = "leto"
 version = "0.43.0"
-source = "git+https://github.com/ryancinsight/leto.git#f07ba29f1a8a138854b87dd896b67f4a0d6851ed"
+source = "git+https://github.com/ryancinsight/leto.git#ba8a879b683df1b8928e22aa4c725bbae0aa7db5"
 dependencies = [
  "aequitas",
  "eunomia",
@@ -1167,7 +1168,7 @@ dependencies = [
 [[package]]
 name = "leto-ops"
 version = "0.43.0"
-source = "git+https://github.com/ryancinsight/leto.git#f07ba29f1a8a138854b87dd896b67f4a0d6851ed"
+source = "git+https://github.com/ryancinsight/leto.git#ba8a879b683df1b8928e22aa4c725bbae0aa7db5"
 dependencies = [
  "eunomia",
  "hermes-simd",
