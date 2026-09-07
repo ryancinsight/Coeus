@@ -70,9 +70,14 @@
 - Acceptance: bounded convergence, unchanged second generation, diagnostic
   preservation, and removal of temporary drive mappings after every outcome.
 - Verification: local Cargo fixture plus the Coeus standalone locked graph.
-- Evidence: `python -m unittest discover -s scripts/tests -v` passes 6/6;
+- Evidence: `python -m unittest discover -s scripts/tests -v` passes 7/7;
   removing all-feature checks makes the optional-source regression fail.
   `python scripts/lockfile.py --check` accepts both Coeus activation sets.
+- Hosted run `34083487139` exposed an empty-cache precondition: hydrate with
+  bounded `cargo fetch --locked` before both offline checks. The local-Git
+  cold-cache regression preserves lock bytes and acquisition diagnostics.
+- Verification lane: existing `worktrees/coeus-autodiff-cache-split`, leased
+  for the lockfile correction while CTC remains uncommitted in the primary tree.
 - Non-goal: migrate the incompatible upstream Moirai/Leto version requirements.
 
 <a id="coeus-hephaestus-cuda-fusion-001"></a>

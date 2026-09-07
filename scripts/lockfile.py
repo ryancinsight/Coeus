@@ -6,7 +6,9 @@ Resolving there can remove the git sources needed by standalone consumers and
 CI. Cargo runs from a neutral directory here; Windows also maps the repository
 to a temporary drive root, which is removed before each invocation returns.
 
-Checks resolve default and all-feature activation offline under --locked.
+Checks first fetch locked dependencies, then resolve default and all-feature
+activation offline under --locked. Fetching permits a cold Cargo cache without
+changing the committed dependency selection.
 Regeneration resolves both activation sets until a bounded full pass leaves the
 lock unchanged, then checks both under --locked. Missing cached dependencies,
 network failures, and incompatible source requirements retain Cargo's original
@@ -141,6 +143,19 @@ def unused_windows_drive() -> str | None:
 
 
 def check_resolution(manifest: Path | None = None) -> int:
+    """Hydrate the committed dependency graph before checking both activations."""
+    completed = run_outside_the_overlay(["fetch", "--locked"], manifest)
+    if completed.returncode != 0:
+        print(
+            "error: locked dependency hydration failed.\n"
+            f"cargo said:\n{completed.stderr.strip()}",
+            file=sys.stderr,
+        )
+        return 1
+    return check_cached_resolution(manifest)
+
+
+def check_cached_resolution(manifest: Path | None = None) -> int:
     """Require both gate activation sets to accept the existing lock offline."""
     for activation in ACTIVATIONS:
         completed = run_outside_the_overlay(
@@ -175,7 +190,7 @@ def stabilize_resolution(manifest: Path) -> int:
                 )
                 return 1
         if lockfile.read_bytes() == before:
-            return check_resolution(manifest)
+            return check_cached_resolution(manifest)
     print(
         f"error: Cargo.lock changed after each of {RESOLUTION_PASSES} activation passes",
         file=sys.stderr,

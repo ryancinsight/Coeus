@@ -66,6 +66,60 @@ class CargoResolutionTests(unittest.TestCase):
             self.assertEqual(active, expected)
         self.assertEqual(self.manifest.with_name("Cargo.lock").read_bytes(), before)
 
+    def test_cold_git_cache_hydrates_without_changing_the_lock(self) -> None:
+        # A local Git dependency exercises the same checkout/cache boundary as
+        # hosted first-party dependencies without requiring a network service.
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            root = Path(directory).resolve()
+            dependency = root / "dependency"
+            (dependency / "src").mkdir(parents=True)
+            for name in ("Cargo.toml", "src/lib.rs"):
+                (dependency / name).write_bytes((self.root / "optional" / name).read_bytes())
+            for arguments in (
+                ["git", "init", "-q", str(dependency)],
+                ["git", "-C", str(dependency), "add", "Cargo.toml", "src/lib.rs"],
+                ["git", "-C", str(dependency), "-c", "user.name=Coeus tests",
+                 "-c", "user.email=tests@localhost", "commit", "-qm", "Add fixture dependency"],
+            ):
+                result = lockfile.run_command(arguments, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+            self.manifest.write_text(
+                self.manifest.read_text(encoding="utf-8").replace(
+                    'path = "optional"', f'git = "{dependency.as_uri()}"'
+                ), encoding="utf-8",
+            )
+            previous = os.environ.get("CARGO_HOME")
+            try:
+                os.environ["CARGO_HOME"] = str(root / "producer-cache")
+                result = lockfile.run_outside_the_overlay(["generate-lockfile"], self.manifest)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                before = self.manifest.with_name("Cargo.lock").read_bytes()
+                os.environ["CARGO_HOME"] = str(root / "consumer-cache")
+                self.assertFalse(Path(os.environ["CARGO_HOME"]).exists())
+                diagnostic = io.StringIO()
+                with contextlib.redirect_stderr(diagnostic):
+                    self.assertEqual(lockfile.check_cached_resolution(self.manifest), 1)
+                self.assertIn("offline", diagnostic.getvalue())
+                self.assertEqual(lockfile.check_resolution(self.manifest), 0)
+                self.assertEqual(lockfile.check_cached_resolution(self.manifest), 0)
+                self.assertEqual(self.manifest.with_name("Cargo.lock").read_bytes(), before)
+
+                # A missing source must retain its acquisition error rather than
+                # silently falling back to the old offline-only check.
+                dependency.rename(root / "unavailable-dependency")
+                os.environ["CARGO_HOME"] = str(root / "unavailable-cache")
+                diagnostic = io.StringIO()
+                with contextlib.redirect_stderr(diagnostic):
+                    self.assertEqual(lockfile.check_resolution(self.manifest), 1)
+                self.assertIn("locked dependency hydration failed", diagnostic.getvalue())
+                self.assertIn(dependency.as_uri(), diagnostic.getvalue())
+                self.assertEqual(self.manifest.with_name("Cargo.lock").read_bytes(), before)
+            finally:
+                if previous is None:
+                    os.environ.pop("CARGO_HOME", None)
+                else:
+                    os.environ["CARGO_HOME"] = previous
+
     def test_stale_lock_is_rejected_then_stabilized_idempotently(self) -> None:
         path = self.manifest.with_name("Cargo.lock")
         before = path.read_bytes()
@@ -76,7 +130,7 @@ class CargoResolutionTests(unittest.TestCase):
         diagnostic = io.StringIO()
         with contextlib.redirect_stderr(diagnostic):
             self.assertEqual(lockfile.check_resolution(self.manifest), 1)
-        self.assertIn("default features", diagnostic.getvalue())
+        self.assertIn("locked dependency hydration failed", diagnostic.getvalue())
         self.assertIn("lock file", diagnostic.getvalue())
         self.assertEqual(path.read_bytes(), before)
         self.assertEqual(lockfile.stabilize_resolution(self.manifest), 0)
@@ -173,7 +227,7 @@ class CargoResolutionTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 diagnostic = io.StringIO()
                 with contextlib.redirect_stderr(diagnostic):
-                    self.assertEqual(lockfile.check_resolution(self.manifest), 1)
+                    self.assertEqual(lockfile.check_cached_resolution(self.manifest), 1)
                 self.assertIn("all features", diagnostic.getvalue())
                 self.assertIn("failed to download `optional v0.1.0", diagnostic.getvalue())
                 self.assertEqual(self.manifest.with_name("Cargo.lock").read_bytes(), before)
