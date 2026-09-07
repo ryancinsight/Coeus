@@ -18,19 +18,15 @@ coeus-ops    = { workspace = true, default-features = false }
 coeus-hephaestus = { workspace = true }
 leto         = { workspace = true }
 leto-ops     = { workspace = true }
-libloading   = "0.8"
 bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
 eunomia     = { workspace = true }
 hephaestus-cuda = { workspace = true }
 hephaestus-core = { workspace = true }
 themis = { workspace = true, optional = true }
-cutile       = { git = "https://github.com/NVlabs/cutile-rs", version = "0.3.1", optional = true }
-cuda-core    = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-core", version = "0.3.1", optional = true }
-cuda-async   = { git = "https://github.com/NVlabs/cutile-rs", package = "cuda-async", version = "0.3.1", optional = true }
 
 [features]
-cuda = ["dep:cutile", "dep:cuda-core", "dep:cuda-async", "dep:themis", "hephaestus-cuda/cuda"]
+cuda = ["dep:themis", "hephaestus-cuda/cuda"]
 
 [dev-dependencies]
 coeus-autograd = { path = "../coeus-autograd", default-features = false }

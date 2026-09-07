@@ -128,8 +128,6 @@ def main():
         print('WARNING: PyTorch is not installed. Skipping autodiff comparison test.', file=sys.stderr)
         return
 
-    import time
-
     try:
         # 1. Warm-up and basic correctness check
         data_x = [float(i) * 0.01 for i in range(128 * 256)]
@@ -189,41 +187,7 @@ def main():
         for i in range(len(x_pyc_grad)):
             assert abs(x_pyc_grad[i] - x_torch.grad.flatten()[i].item()) < 1e-4
 
-        print('\n[BENCHMARK] AUTODIFF PARITY VERIFIED SUCCESSFULLY!', flush=True)
-
-        # 2. Timing benchmarks
-        iters = 100
-
-        # Benchmark PyTorch
-
-        start_torch = time.perf_counter()
-        for _ in range(iters):
-            x_torch.grad = None
-            w_torch.grad = None
-            b_torch.grad = None
-            loss = run_torch()
-        end_torch = time.perf_counter()
-        time_torch = (end_torch - start_torch) / iters
-
-        # Benchmark PyCoeus
-        start_pyc = time.perf_counter()
-        for _ in range(iters):
-            x_pyc.zero_grad()
-            linear_pyc.weight.zero_grad()
-            if linear_pyc.bias:
-                linear_pyc.bias.zero_grad()
-            loss = run_pycoeus()
-        end_pyc = time.perf_counter()
-        time_pyc = (end_pyc - start_pyc) / iters
-
-        print('\n======================================================', flush=True)
-        print('          AUTODIFF COMPARISON BENCHMARK RESULT        ', flush=True)
-        print('======================================================', flush=True)
-        print(f'PyTorch average step time: {time_torch * 1000.0:.3f} ms', flush=True)
-        print(f'PyCoeus average step time: {time_pyc * 1000.0:.3f} ms', flush=True)
-        speedup = time_torch / time_pyc
-        print(f'Monomorphized PyCoeus vs PyTorch Speedup: {speedup:.2f}x', flush=True)
-        print('======================================================\n', flush=True)
+        print('\n[TEST] AUTODIFF PARITY VERIFIED SUCCESSFULLY!', flush=True)
     except Exception as e:
         import traceback
         traceback.print_exc()

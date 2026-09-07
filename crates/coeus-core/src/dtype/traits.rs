@@ -2,14 +2,15 @@
 // Sealed trait hierarchy for numeric scalar types used in tensors.
 //
 // Design notes:
-// - `Scalar` is the base: Copy + Pod + Send + Sync + 'static
+// - `Scalar` is the base: Copy + bytemuck::Pod + eunomia::Pod + Send + Sync +
+//   'static
 // - `Float` extends Scalar with transcendental and rounding ops
 // - `Int` extends Scalar with bitwise and modular ops
 // - All traits are sealed (private Sealed supertrait) for monomorphization
-// - bytemuck::Pod guarantees safe transmutation to/from [u8]
+// - bytemuck::Pod and eunomia::Pod guarantee safe host/device byte layouts
 
 use bytemuck::Pod;
-use eunomia::NumericElement;
+use eunomia::{NumericElement, Pod as EunomiaPod};
 use std::fmt::Debug;
 use std::ops::Rem;
 
@@ -266,16 +267,29 @@ impl CpuUnaryOp {
 
     /// Decode the two runtime parameters carried by a parameterized activation.
     ///
-    /// The low and high halves of the packed value are interpreted as the
-    /// first and second `f32` bit patterns, respectively. Non-parameterized
-    /// operations return `None`.
+    /// Hardtanh and threshold store two `f32` bit patterns. Single-parameter
+    /// activations store one `f64` bit pattern, converted to the provider's
+    /// `f32` parameter representation here; their unused second parameter is
+    /// zero. Non-parameterized operations return `None`.
     #[must_use]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the provider parameter ABI is f32; single activation parameters enter as f64 bit patterns"
+    )]
     pub const fn parameter_pair(self) -> Option<[f32; 2]> {
         let bits = match self {
             Self::Hardtanh(bits)
             | Self::HardtanhGrad(bits)
             | Self::Threshold(bits)
             | Self::ThresholdGrad(bits) => bits,
+            Self::LeakyRelu(bits)
+            | Self::LeakyReluGrad(bits)
+            | Self::Hardshrink(bits)
+            | Self::HardshrinkGrad(bits)
+            | Self::Softshrink(bits)
+            | Self::SoftshrinkGrad(bits)
+            | Self::Celu(bits)
+            | Self::CeluGrad(bits) => return Some([f64::from_bits(bits) as f32, 0.0]),
             _ => return None,
         };
         Some(Self::decode_parameter_pair(bits))
@@ -294,6 +308,9 @@ pub trait CpuUnaryDispatch: private::Sealed {
 ///
 /// # Safety / Design
 /// - `Pod` enables zero-copy byte transmutation (bytemuck).
+/// - `EunomiaPod` is the canonical device-buffer layout contract consumed by
+///   Hephaestus; keeping it on `Scalar` prevents backend seams from accepting
+///   a host-only numeric type that cannot cross a device boundary.
 /// - `NumericElement` is the eunomia SSOT element vocabulary (constants
 ///   `ZERO`/`ONE`/etc., `abs`/`sqrt`/`is_finite`/`is_nan`/`to_f64`/`from_f64`/
 ///   `from_usize`, plus `Add`/`Sub`/`Mul`/`Div`/`Assigns`/`Copy`/`Send`/`Sync`/
@@ -323,7 +340,7 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
 /// ```
 pub trait Scalar:
-    NumericElement + CpuUnaryDispatch + Pod + eunomia::Pod + Rem<Output = Self> + Clone
+    NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone
 {
     /// Additive identity.
     fn zero() -> Self;

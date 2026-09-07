@@ -1,33 +1,8 @@
 name: CI
 
-# This repository ran no general verification. `backend-parity.yml` exercises
-# the WGPU, CUDA and Metal provider contracts on device-specific runners, and
-# the rest of the workflows publish or build the book -- so the workspace's
-# native tests and doctests were committed, maintained, and executed by
-# nothing. This runs 1130 of them; the two exclusions below account for the
-# rest and are covered by the workflows named there.
-#
-# All of them pass, and so now do `cargo fmt --check`, `cargo doc` with
-# `RUSTDOCFLAGS=-D warnings`, and clippy at `-D warnings` across the workspace.
-# Clippy did not when this workflow landed: 41 diagnostics stood, 31 of them a
-# mechanical `.get(0)` to `.first()` across 23 files, so it ran without `-D
-# warnings` while the burn-down was tracked separately. That is finished, and
-# the gate is a gate.
-#
-# The work is split across two jobs because it is compile-bound, not test-bound:
-# the first attempt ran everything in one job and was killed at the 30-minute
-# limit inside `cargo doc`, having spent 26m52s compiling the workspace at the
-# `test` profile to then run all 1130 tests in 4.1 seconds. The `test`, `doc`
-# and clippy profiles each need their own compile, so serially they do not fit
-# any reasonable bound; in parallel each job carries one and does. Splitting
-# also gives each job its own cache entry, which is why `save-if` matters below:
-# no pull-request run may write one, so the entries come from `main`, and until
-# `main` has run this workflow once every job here pays a cold compile.
-#
-# The 45-minute bounds are sized for that cold compile, not for steady state:
-# a restored cache should put both jobs in single digits. If it does not once
-# `main` has populated one, the bound is hiding something and the job is owed
-# an investigation rather than more minutes.
+# Device-specific contracts run in backend-parity.yml. Native tests and
+# documentation compile in separate jobs to retain their existing cache and
+# time budgets. Pull requests restore caches; only main updates them.
 
 on:
   push:
@@ -62,7 +37,7 @@ jobs:
   # Atlas ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28.
   semver:
     name: SemVer gate
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@fcbc5202c9205a25c3f5f8a38999aa02e9e95453
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@1ba4a8a4ffba9aa06b8f9192cbe43423cd34985a
     with:
       package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-hephaestus,coeus-leto,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-rocm,coeus-sparse,coeus-tensor,coeus-wgpu
       rust-toolchain: 1.97.0
@@ -78,8 +53,7 @@ jobs:
     with:
       strict: true
 
-  # Cheapest gate on its own runner: a formatting slip reports in under a
-  # minute instead of behind a compile.
+  # Formatting and lockfile-tool failures report before native compilation.
   format:
     name: Format
     runs-on: ubuntu-latest
@@ -93,6 +67,8 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt
       - run: cargo fmt --all -- --check
+      - name: Lockfile tool contracts
+        run: python3 -m unittest discover -s scripts/tests -v
 
   test:
     name: Tests

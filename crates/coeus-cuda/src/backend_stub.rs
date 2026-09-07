@@ -1,41 +1,14 @@
 use crate::storage::CudaStorage;
 use coeus_core::{Backend, BackendError, ComputeBackend, Scalar, Storage, StorageMut};
 
-/// Trait mapping CPU scalar types to their CUDA type representation.
-///
-/// # Examples
-///
-/// ```
-/// use coeus_cuda::CudaScalar;
-///
-/// assert_eq!(f32::CUDA_TYPE, "float");
-/// assert_eq!(f64::CUDA_TYPE, "double");
-/// assert_eq!(i32::CUDA_TYPE, "int");
-/// ```
-pub trait CudaScalar: Scalar + leto_ops::Scalar {
-    /// CUDA type name string used in NVRTC kernel compilation.
-    const CUDA_TYPE: &'static str;
-}
+/// Scalar types supported by the CUDA backend and Hephaestus fusion.
+pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
 
-impl CudaScalar for f32 {
-    const CUDA_TYPE: &'static str = "float";
-}
-
-impl CudaScalar for f64 {
-    const CUDA_TYPE: &'static str = "double";
-}
-
-impl CudaScalar for eunomia::F16 {
-    const CUDA_TYPE: &'static str = "__half";
-}
-
-impl CudaScalar for eunomia::Bf16 {
-    const CUDA_TYPE: &'static str = "__nv_bfloat16";
-}
-
-impl CudaScalar for i32 {
-    const CUDA_TYPE: &'static str = "int";
-}
+impl CudaScalar for f32 {}
+impl CudaScalar for f64 {}
+impl CudaScalar for eunomia::F16 {}
+impl CudaScalar for eunomia::Bf16 {}
+impl CudaScalar for i32 {}
 
 /// CUDA metadata backend compiled without CUDA provider support.
 ///

@@ -1,22 +1,14 @@
 # Global Progress Checklist: Coeus
 
-## COEUS-LAYERNORM-SHAPE-001 — Multi-dimensional trailing-shape LayerNorm
+## codex-01a079ad
 
-- [x] Replace the final-axis-only contract with a validated
-      `NormalizedShape` and flatten/restore the configured suffix through the
-      existing provider kernel.
-- [x] Restore affine parameter gradients to the configured multi-dimensional
-      shape in the autograd node.
-- [x] Extend the Rust and Python module/functional surfaces without retaining
-      a deferred or placeholder path.
-- [x] Synchronize the `pycoeus.pyi` type stub with integer-or-sequence
-      normalized-shape inputs.
-- [x] Add CPU and Python value-semantic tests for multi-dimensional forward,
-      backward shape restoration, and mismatch rejection.
-- [ ] Pass focused Nextest, warning-denied Clippy, doctests, rustdoc, and
-      exact-head hosted provider checks.
-- [ ] Update this item and `COEUS-LAYERNORM-SHAPE-001` in `gap_audit.md` with
-      the final revision and exact evidence.
+- [x] [Integrate current main and repair dependency identities](backlog.md#coeus-hephaestus-cuda-fusion-001).
+- [x] [Preserve staggered dispatch through the consolidated provider](backlog.md#coeus-hephaestus-cuda-fusion-001).
+- [x] [Check both lockfile activation sets with real Cargo regression tests](backlog.md#coeus-lockfile-script-narrow).
+- [x] [Make device-test guards surface faults and record the unclassified CUDA failure](backlog.md#coeus-hephaestus-cuda-fusion-001).
+- [x] [Run the merged result through package and workspace gates, then independent review](backlog.md#coeus-hephaestus-cuda-fusion-001).
+
+- [ ] [Integrate fetched main and land the reviewed GPU phase](backlog.md#coeus-hephaestus-cuda-fusion-001).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 

@@ -10,12 +10,11 @@
 //!
 //! ## Dispatch architecture
 //!
-//! Each `BackendOps<T>` method dispatches to a WGSL compute shader in the
-//! `kernels` module. Shaders are generated as `T::WGSL_TYPE`-templated source
-//! strings, compiled once and cached by the pipeline cache, then bound against
-//! the raw `wgpu::Buffer` behind each [`WgpuStorage`]. The element type is
-//! resolved through [`WgpuScalar`] (`f32`/`i32`/`u32`); float-only kernels such
-//! as attention are written for `f32`, the only `Float + WgpuScalar` type.
+//! Backend operations delegate to provider-owned Hephaestus kernels. Coeus
+//! supplies tensor layouts and operation contracts; Hephaestus owns WGSL
+//! source generation, metadata, pipeline caching, and command submission.
+//! The element type is resolved through [`WgpuScalar`] (`f32`/`i32`/`u32`);
+//! float-only operations such as attention remain constrained to `f32`.
 //!
 //! ## CPU-reference boundaries
 //!
@@ -26,10 +25,10 @@
 //! the on-device speedup over that reference is tracked in `benches/`.
 
 mod backend;
-mod kernels;
+mod fusion;
 mod storage;
 
-pub use backend::{LayoutError, WgpuBackend, WgpuBackendError, WgpuScalar};
+pub use backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 pub use storage::WgpuStorage;
 
 use coeus_core::{BackendError, ComputeBackend, Layout};
@@ -44,7 +43,10 @@ use coeus_tensor::Tensor;
 pub fn add<T: WgpuScalar>(
     a: &Tensor<T, WgpuBackend>,
     b: &Tensor<T, WgpuBackend>,
-) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError>
+where
+    WgpuBackend: coeus_ops::ElementwiseOps<T>,
+{
     if a.shape() != b.shape() {
         return Err(BackendError::ShapeMismatch {
             operation: "add",
@@ -53,22 +55,7 @@ pub fn add<T: WgpuScalar>(
         }
         .into());
     }
-    let len = a.numel();
-
-    let c_storage = WgpuStorage::new(len);
-
-    kernels::dispatch_contiguous_binary::<T>(
-        coeus_ops::BinaryOp::Add,
-        a.storage().buffer.raw(),
-        b.storage().buffer.raw(),
-        c_storage.buffer.raw(),
-        len,
-    )?;
-
-    Ok(Tensor::from_raw_parts(
-        c_storage,
-        Layout::new(a.shape_cloned()),
-    ))
+    coeus_ops::elementwise_binary(a, b, &WgpuBackend, coeus_ops::BinaryOp::Add)
 }
 
 /// Matrix multiplication of two WebGPU tensors: c = a x b.
@@ -164,7 +151,7 @@ pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     let out_layout = Layout::new(out_shape);
     let mut out_storage = WgpuStorage::new(out_layout.numel());
 
-    kernels::dispatch_fused(expr, &mut out_storage, &out_layout);
+    fusion::dispatch_fused(expr, &mut out_storage, &out_layout)?;
 
     Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }
@@ -232,19 +219,7 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     })?;
     *output_axis = 1;
     let out_layout = Layout::new(out_shape.clone());
-    let context = backend::get_wgpu_context();
-    kernels::reduce::validation::validate_reduction(
-        &expr_shape,
-        op,
-        axis,
-        &out_layout,
-        &context.device.limits(),
-    )?;
     let out_numel = backend::checked_numel(OPERATION, out_layout.shape())?;
-    kernels::reduce::validation::validate_output_allocation::<T>(
-        out_numel,
-        &context.device.limits(),
-    )?;
     let mut out_storage = WgpuStorage::new(out_numel);
 
     if axis_len == 0 {
@@ -254,14 +229,18 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
             coeus_ops::ReductionOp::Mean
             | coeus_ops::ReductionOp::Max
             | coeus_ops::ReductionOp::Min => {
-                unreachable!("invariant: undefined empty reductions were rejected")
+                return Err(BackendError::EmptyReduction {
+                    operation: OPERATION,
+                    reduction: op,
+                }
+                .into());
             }
         };
         WgpuBackend::new().fill(&mut out_storage, identity);
         return Ok(Tensor::from_raw_parts(out_storage, out_layout));
     }
 
-    kernels::dispatch_fused_reduce(expr, op, axis, &mut out_storage, &out_layout)?;
+    fusion::dispatch_fused_reduce(expr, op, axis, &mut out_storage, &out_layout)?;
 
     Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }

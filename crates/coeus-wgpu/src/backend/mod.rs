@@ -1,17 +1,13 @@
 use crate::storage::WgpuStorage;
 use coeus_core::{ComputeBackend, Scalar, Storage};
-use hephaestus_core::{CommandStream, KernelDevice};
-use hephaestus_wgpu::ComputeDevice;
+use hephaestus_core::{CommandStream, ComputeDevice, KernelDevice};
 use std::sync::OnceLock;
 
 mod error;
 pub mod ops;
 
-pub(crate) use error::{checked_numel, checked_u32_parameter, checked_workgroup_count};
-pub use error::{LayoutError, WgpuBackendError};
-
-pub(crate) const METADATA_BUFFER_SIZE: u64 = 1024;
-const METADATA_POOL_CAPACITY: usize = 64;
+pub(crate) use error::checked_numel;
+pub use error::WgpuBackendError;
 
 /// Trait mapping CPU types to their WGSL representation types on the GPU.
 ///
@@ -30,7 +26,7 @@ const METADATA_POOL_CAPACITY: usize = 64;
 /// assert_eq!(u32::WGSL_TYPE, "u32");
 /// assert_eq!(u32::WGSL_ZERO, "0u");
 /// ```
-pub trait WgpuScalar: Scalar + bytemuck::Pod {
+pub trait WgpuScalar: Scalar + hephaestus_wgpu::WgpuFusionScalar {
     /// WGSL type name string (e.g. `"f32"`).
     const WGSL_TYPE: &'static str;
     /// WGSL zero literal string (e.g. `"0.0"`).
@@ -70,72 +66,6 @@ impl WgpuScalar for u32 {
 /// Context holding the active wgpu connection.
 pub struct WgpuContext {
     pub hephaestus_device: hephaestus_wgpu::WgpuDevice,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub metadata_pool: std::sync::Mutex<Vec<wgpu::Buffer>>,
-}
-
-impl WgpuContext {
-    /// Retrieve a metadata buffer from the pool, or create a new one.
-    pub fn get_metadata_buffer(&self) -> wgpu::Buffer {
-        if let Ok(mut pool) = self.metadata_pool.try_lock() {
-            if let Some(buf) = pool.pop() {
-                return buf;
-            }
-        }
-        self.create_metadata_buffer()
-    }
-
-    /// Recycle a metadata buffer back to the pool.
-    pub fn recycle_metadata_buffer(&self, buf: wgpu::Buffer) {
-        if let Ok(mut pool) = self.metadata_pool.try_lock() {
-            if pool.len() < METADATA_POOL_CAPACITY {
-                pool.push(buf);
-            }
-        }
-    }
-
-    fn create_metadata_buffer(&self) -> wgpu::Buffer {
-        self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("coeus-wgpu-metadata-buffer"),
-            size: METADATA_BUFFER_SIZE,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        })
-    }
-}
-
-/// RAII guard that manages a pooled WebGPU metadata buffer.
-pub struct PooledMetadataBuffer {
-    buffer: Option<wgpu::Buffer>,
-}
-
-impl PooledMetadataBuffer {
-    /// Get a buffer from the global metadata pool.
-    pub fn new() -> Self {
-        let ctx = get_wgpu_context();
-        let buffer = ctx.get_metadata_buffer();
-        Self {
-            buffer: Some(buffer),
-        }
-    }
-}
-
-impl std::ops::Deref for PooledMetadataBuffer {
-    type Target = wgpu::Buffer;
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.buffer.as_ref().unwrap()
-    }
-}
-
-impl Drop for PooledMetadataBuffer {
-    #[inline]
-    fn drop(&mut self) {
-        if let Some(buf) = self.buffer.take() {
-            get_wgpu_context().recycle_metadata_buffer(buf);
-        }
-    }
 }
 
 static WGPU_CONTEXT: OnceLock<WgpuContext> = OnceLock::new();
@@ -154,23 +84,22 @@ pub fn try_get_wgpu_context() -> hephaestus_core::Result<&'static WgpuContext> {
     if let Some(context) = WGPU_CONTEXT.get() {
         return Ok(context);
     }
-    // No backend is forced here. Hephaestus already tries DX12 before Vulkan on
-    // Windows, and it takes that ladder only when no `WGPU_BACKEND` variable is
-    // set; setting one to request DX12 therefore disables the very path it was
-    // asking for, and acquisition fails outright on a host where it otherwise
-    // succeeds. Backend selection belongs to the provider and to whoever runs
-    // the process, not to this library.
-    let hephaestus_device = hephaestus_wgpu::WgpuDevice::try_default_with_limits(
-        "coeus-wgpu-device",
-        wgpu::Limits::default(),
-    )?;
-    let device = (**hephaestus_device.device()).clone();
-    let queue = (**hephaestus_device.queue()).clone();
+    // No backend is forced here. Hephaestus selects the compiled backend set
+    // unless the process explicitly sets `WGPU_BACKEND`; a request for an
+    // unavailable backend therefore fails through the provider's typed
+    // acquisition error. Backend selection belongs to the provider and to
+    // whoever runs the process, not to this library.
     let candidate = WgpuContext {
-        hephaestus_device,
-        device,
-        queue,
-        metadata_pool: std::sync::Mutex::new(Vec::new()),
+        // Fused expressions bind the tensor inputs, output, and layout table.
+        // The provider's downlevel baseline exposes only four storage slots,
+        // while Coeus' public fusion contract permits three tensor inputs.
+        hephaestus_device:
+            hephaestus_wgpu::WgpuDevice::try_with_device_preference_and_optional_device_features_and_limits(
+            "coeus-wgpu-device",
+            hephaestus_core::DevicePreference::HighPerformance,
+            &[],
+            hephaestus_wgpu::WgpuDevice::default_device_limits(),
+        )?,
     };
     let _ = WGPU_CONTEXT.set(candidate);
     WGPU_CONTEXT

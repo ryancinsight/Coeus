@@ -31,13 +31,10 @@ pub(super) const CUDA_TOL: f32 = 1e-4;
 pub(super) const CUDA_ACC_TOL: f32 = 1e-3;
 
 pub(super) fn backends() -> Option<(SequentialBackend, CudaBackend)> {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return None;
     }
     let cuda_b = CudaBackend::new();
-    if coeus_cuda::CudaDriver::get().is_none() || coeus_cuda::get_cuda_context().is_none() {
-        return None;
-    }
     Some((SequentialBackend::new(), cuda_b))
 }
 

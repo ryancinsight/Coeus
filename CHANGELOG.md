@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+
+- [major] CUDA and WGPU operations use Hephaestus-owned kernels and device
+  resources. Removed the public CUDA driver/kernel modules, `CudaDriver`,
+  `get_cuda_context`, `CudaScalar::CUDA_TYPE`, WGPU `LayoutError`, and consumer
+  kernel error variants. Scalar bounds now include provider fusion capabilities.
+  See [ADR 0071](docs/adr/0071-provider-owned-accelerator-backends.md#migration)
+  for migration instructions.
+
 ### Added
 
 - [minor] `coeus_autograd::gradcheck` — verify a backward pass against central
@@ -39,6 +48,20 @@
   wrapper is retained.
 
 ### Fixed
+
+- [patch] GPU unary activations decode single parameters from their public
+  `f64` bit encoding. Staggered preparation rejects invalid spacing before
+  device acquisition; dispatch rejects unequal shapes, offsets, and strides
+  that the provider parameter block cannot represent.
+
+- [patch] `coeus_core::Scalar` and the generic Hephaestus storage/dispatch
+  surfaces now carry Eunomia's `Pod` device-layout contract alongside the
+  existing bytemuck host-layout contract, satisfying the provider's
+  `ComputeDevice::Buffer<T>` requirement. Coeus no longer depends directly on Cutile.
+  See [ADR 0068](docs/adr/0068-coeus-eunomia-device-layout.md).
+
+- [patch] Coeus now follows Hephaestus PR #270's Leto/Moirai source identity,
+  preventing duplicate `leto::Layout` types at the provider boundary.
 
 - [patch] `coeus-wgpu` no longer sets `WGPU_BACKEND=dx12` from inside
   `try_get_wgpu_context`. Hephaestus tries DX12 before Vulkan on Windows only

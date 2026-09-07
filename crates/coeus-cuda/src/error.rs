@@ -5,14 +5,6 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CudaBackendError {
-    /// The fused CUDA operation rejected its expression or launch contract.
-    #[error("CUDA {operation} fusion failed: {reason}")]
-    Fusion {
-        /// Operation family being fused.
-        operation: &'static str,
-        /// Validation, compilation, or launch detail.
-        reason: String,
-    },
     /// The operation rejected a backend-independent contract before dispatch.
     #[error("CUDA operation validation failed: {source}")]
     Validation {
@@ -111,14 +103,6 @@ impl From<coeus_hephaestus::HephaestusBackendError> for CudaBackendError {
 }
 
 impl CudaBackendError {
-    #[cfg(feature = "cuda")]
-    pub(crate) fn fusion(operation: &'static str, reason: impl Into<String>) -> Self {
-        Self::Fusion {
-            operation,
-            reason: reason.into(),
-        }
-    }
-
     pub(crate) fn validation(source: BackendError) -> Self {
         Self::Validation { source }
     }

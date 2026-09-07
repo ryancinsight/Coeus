@@ -5,8 +5,10 @@ use crate::reduction::{HephaestusProvider, RankedOperand};
 use coeus_core::{Float, Scalar};
 use coeus_ops::{BinaryOp, UnaryOp};
 use hephaestus_core::{
-    ComputeDevice, ElementwiseOps as HephaestusElementwiseOps, HardtanhGradOp, HardtanhOp,
-    ParameterizedUnaryExpr, ParameterizedUnaryOps, StridedView, ThresholdGradOp, ThresholdOp,
+    CeluGradOp, CeluOp, ComputeDevice, ElementwiseOps as HephaestusElementwiseOps,
+    HardshrinkGradOp, HardshrinkOp, HardtanhGradOp, HardtanhOp, LeakyReluGradOp, LeakyReluOp,
+    ParameterizedUnaryExpr, ParameterizedUnaryOps, SoftshrinkGradOp, SoftshrinkOp, StridedView,
+    ThresholdGradOp, ThresholdOp,
 };
 
 /// Provider implementation of the common ranked elementwise operation set.
@@ -92,6 +94,21 @@ where
         ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
     HardtanhGradOp:
         ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    LeakyReluOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    LeakyReluGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    HardshrinkOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    HardshrinkGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    SoftshrinkOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    SoftshrinkGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    CeluOp: ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    CeluGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
     ThresholdOp:
         ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
     ThresholdGradOp:
@@ -113,6 +130,51 @@ where
             output,
         ),
         UnaryOp::HardtanhGrad(_) => operations.parameterized_unary_into::<HardtanhGradOp, N>(
+            P::device(),
+            input,
+            parameters,
+            output,
+        ),
+        UnaryOp::LeakyRelu(_) => operations.parameterized_unary_into::<LeakyReluOp, N>(
+            P::device(),
+            input,
+            parameters,
+            output,
+        ),
+        UnaryOp::LeakyReluGrad(_) => operations.parameterized_unary_into::<LeakyReluGradOp, N>(
+            P::device(),
+            input,
+            parameters,
+            output,
+        ),
+        UnaryOp::Hardshrink(_) => operations.parameterized_unary_into::<HardshrinkOp, N>(
+            P::device(),
+            input,
+            parameters,
+            output,
+        ),
+        UnaryOp::HardshrinkGrad(_) => operations.parameterized_unary_into::<HardshrinkGradOp, N>(
+            P::device(),
+            input,
+            parameters,
+            output,
+        ),
+        UnaryOp::Softshrink(_) => operations.parameterized_unary_into::<SoftshrinkOp, N>(
+            P::device(),
+            input,
+            parameters,
+            output,
+        ),
+        UnaryOp::SoftshrinkGrad(_) => operations.parameterized_unary_into::<SoftshrinkGradOp, N>(
+            P::device(),
+            input,
+            parameters,
+            output,
+        ),
+        UnaryOp::Celu(_) => {
+            operations.parameterized_unary_into::<CeluOp, N>(P::device(), input, parameters, output)
+        }
+        UnaryOp::CeluGrad(_) => operations.parameterized_unary_into::<CeluGradOp, N>(
             P::device(),
             input,
             parameters,

@@ -5,10 +5,10 @@
 //! both and compare, which is the claim the seam exists to support: a consumer
 //! binds the trait, not a device.
 
-use coeus_core::{ComputeBackend, Layout, SequentialBackend};
+use coeus_core::{BackendError, ComputeBackend, Layout, SequentialBackend};
 use coeus_ops::{Axis, StaggeredPairOps};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{WgpuBackend, WgpuBackendError};
 
 const SHAPE: [usize; 3] = [8, 6, 10];
 const AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
@@ -239,4 +239,96 @@ fn wgpu_staggered_rejects_a_grid_thinner_than_the_stencil() {
         &thin_layout,
     )
     .is_err());
+}
+
+#[test]
+fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
+    let sequential = SequentialBackend;
+    let wgpu = WgpuBackend::new();
+    let pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 4, SPACING)
+        .expect("wgpu staggered preparation");
+    let host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &field());
+    let input = host.to_backend_on(&sequential, &wgpu);
+    let strided = Layout::from_shape_strides(SHAPE.into(), [60, 1, 6].as_slice().into(), 0);
+    let offset = Layout::from_shape_strides(SHAPE.into(), [60, 10, 1].as_slice().into(), 1);
+    let input_strides = "staggered input layout must be contiguous with zero offset, got strides [60, 1, 6] and offset 0";
+    let output_strides = "staggered output layout must be contiguous with zero offset, got strides [60, 1, 6] and offset 0";
+    let input_offset = "staggered input layout must be contiguous with zero offset, got strides [60, 10, 1] and offset 1";
+    let output_offset = "staggered output layout must be contiguous with zero offset, got strides [60, 10, 1] and offset 1";
+    let shape_mismatch = "staggered input shape [6, 8, 10] must equal output shape [8, 6, 10]";
+    for (input_layout, output_layout, expected_reason) in [
+        (strided.clone(), layout(), input_strides),
+        (layout(), strided, output_strides),
+        (offset.clone(), layout(), input_offset),
+        (layout(), offset, output_offset),
+        (Layout::new([6, 8, 10].into()), layout(), shape_mismatch),
+    ] {
+        // Equal buffer lengths cannot detect a shape permutation, and the
+        // sentinel confirms refusal leaves the destination untouched.
+        let sentinel = vec![13.0_f32; cells()];
+        let initial = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &sentinel);
+        let mut output = initial.to_backend_on(&sequential, &wgpu);
+        for (expected_operation, result) in [
+            (
+                "staggered_gradient",
+                StaggeredPairOps::<f32>::staggered_gradient(
+                    &wgpu,
+                    &pair,
+                    Axis::X,
+                    input.storage(),
+                    &input_layout,
+                    output.storage_mut(),
+                    &output_layout,
+                ),
+            ),
+            (
+                "staggered_divergence",
+                StaggeredPairOps::<f32>::staggered_divergence(
+                    &wgpu,
+                    &pair,
+                    Axis::X,
+                    input.storage(),
+                    &input_layout,
+                    output.storage_mut(),
+                    &output_layout,
+                ),
+            ),
+        ] {
+            match result {
+                Err(WgpuBackendError::Validation(BackendError::Storage { operation, reason })) => {
+                    assert_eq!(operation, expected_operation);
+                    assert_eq!(reason, expected_reason);
+                }
+                other => panic!("expected a layout rejection, got {other:?}"),
+            }
+        }
+        let actual = output.to_backend_on(&wgpu, &sequential);
+        assert_eq!(actual.as_slice(), sentinel.as_slice());
+    }
+}
+
+#[test]
+fn staggered_preparation_rejects_invalid_spacing_without_a_device() {
+    // Backend construction is a ZST operation; invalid preparation must not
+    // reach device discovery or kernel compilation.
+    let wgpu = WgpuBackend::new();
+    for axis in 0..3 {
+        for value in [0.0, -0.0, -1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let mut spacing = SPACING;
+            spacing[axis] = value;
+            match StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 4, spacing) {
+                Err(WgpuBackendError::Validation(BackendError::Storage { operation, reason })) => {
+                    assert_eq!(operation, "prepare_staggered_pair");
+                    assert_eq!(
+                        reason,
+                        format!(
+                            "staggered spacing axis {axis} must be finite and positive, got {value}",
+                        ),
+                    );
+                }
+                Err(other) => panic!("expected a spacing rejection, got {other:?}"),
+                Ok(_) => panic!("accepted invalid spacing on axis {axis}: {value}"),
+            }
+        }
+    }
 }

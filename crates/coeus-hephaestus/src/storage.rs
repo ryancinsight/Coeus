@@ -30,7 +30,7 @@ where
 impl<P, T> HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: Scalar + eunomia::Pod,
+    T: Scalar,
 {
     /// Adopt an initialized provider buffer without copying its contents.
     #[must_use]
@@ -106,7 +106,7 @@ where
 impl<P, T> Storage<T> for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: Scalar + eunomia::Pod,
+    T: Scalar,
 {
     fn len(&self) -> usize {
         self.buffer.len()
@@ -124,7 +124,7 @@ where
 impl<P, T> StorageMut<T> for HephaestusStorage<P, T>
 where
     P: HephaestusProvider,
-    T: Scalar + eunomia::Pod,
+    T: Scalar,
 {
     fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
         None

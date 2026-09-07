@@ -31,7 +31,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.release.tag_name, 'crate-')
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@fcbc5202c9205a25c3f5f8a38999aa02e9e95453
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@1ba4a8a4ffba9aa06b8f9192cbe43423cd34985a
     with:
       release-gate: true
       package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-hephaestus,coeus-leto,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-rocm,coeus-sparse,coeus-tensor,coeus-wgpu

@@ -1,36 +1,19 @@
 use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
-use hephaestus_core::{CommandStream, KernelDevice};
-use hephaestus_cuda::{ComputeDevice, CudaDevice};
+use hephaestus_core::CommandStream;
+use hephaestus_cuda::{ComputeDevice, CudaDevice, KernelDevice};
 use std::sync::OnceLock;
 
 pub mod ops;
 
-/// Trait combining [`Scalar`] with the CUDA type-name mapping required for kernel codegen.
-pub trait CudaScalar: Scalar + leto_ops::Scalar {
-    /// CUDA C type name string used in NVRTC-compiled kernel source.
-    const CUDA_TYPE: &'static str;
-}
+/// Scalar types supported by the CUDA backend and Hephaestus fusion.
+pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
 
-impl CudaScalar for f32 {
-    const CUDA_TYPE: &'static str = "float";
-}
-
-impl CudaScalar for f64 {
-    const CUDA_TYPE: &'static str = "double";
-}
-
-impl CudaScalar for eunomia::F16 {
-    const CUDA_TYPE: &'static str = "__half";
-}
-
-impl CudaScalar for eunomia::Bf16 {
-    const CUDA_TYPE: &'static str = "__nv_bfloat16";
-}
-
-impl CudaScalar for i32 {
-    const CUDA_TYPE: &'static str = "int";
-}
+impl CudaScalar for f32 {}
+impl CudaScalar for f64 {}
+impl CudaScalar for eunomia::F16 {}
+impl CudaScalar for eunomia::Bf16 {}
+impl CudaScalar for i32 {}
 
 static CUDA_DEVICE: OnceLock<CudaDevice> = OnceLock::new();
 
@@ -104,47 +87,6 @@ impl ComputeBackend for CudaBackend {
         if val.has_zero_bit_pattern() {
             self.fill_zero(dst);
             return;
-        }
-
-        let device = get_cuda_device();
-        device.bind().expect("fill: failed to bind CUDA device");
-
-        // If T is 32-bit, use cuMemsetD32_v2
-        if std::mem::size_of::<T>() == 4 {
-            let val_u32 = unsafe {
-                let mut tmp = 0u32;
-                std::ptr::copy_nonoverlapping(
-                    &val as *const T as *const u8,
-                    &mut tmp as *mut u32 as *mut u8,
-                    4,
-                );
-                tmp
-            };
-            unsafe {
-                let res = cuda_core::sys::cuMemsetD32_v2(dst.cu_deviceptr(), val_u32, size);
-                if res == 0 {
-                    return;
-                }
-            }
-        }
-
-        // If T is 16-bit, use cuMemsetD16_v2
-        if std::mem::size_of::<T>() == 2 {
-            let val_u16 = unsafe {
-                let mut tmp = 0u16;
-                std::ptr::copy_nonoverlapping(
-                    &val as *const T as *const u8,
-                    &mut tmp as *mut u16 as *mut u8,
-                    2,
-                );
-                tmp
-            };
-            unsafe {
-                let res = cuda_core::sys::cuMemsetD16_v2(dst.cu_deviceptr(), val_u16, size);
-                if res == 0 {
-                    return;
-                }
-            }
         }
 
         let data = vec![val; size];
