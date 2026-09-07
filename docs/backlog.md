@@ -11,7 +11,7 @@
   through Hephaestus; consumer-owned CUDA/WGPU runtime/source/cache/launch code
   is deleted with all callers migrated; exact locked compile, Clippy, Nextest,
   doctest, format, diff, and lockfile checks pass.
-- **Status:** review; integrator: atlas-session; branch:
+- **Status:** in-progress; integrator: codex-01a079ad; branch:
   `arch/coeus-hephaestus-cuda-fusion-001`; dependency:
   `HEPH-CUDA-FUSION-2026-09-04`.
 - **Evidence:** Hephaestus revision `1d3d5df` passes combined no-feature
@@ -29,7 +29,13 @@
   before merge.
 - **ADR claim:** `0070` covers CUDA; `0071` records the provider-owned CUDA and
   WGPU accelerator cutover.
-- **Last-update:** 2026-09-04.
+- **Review 2026-09-06:** baseline `32e39fd2` fails before compilation because
+  Moirai is pinned to the nonexistent revision `f532b0e`; CI run `33943891279`
+  reports the same failure. Provider PR #274 is merged. Integrate `01d3e9d0`
+  from main, preserve staggered dispatch, and repeat the acceptance gates.
+- **Lease:** codex-01a079ad; integration conflicts, provider manifests,
+  staggered dispatch, and tracking artifacts; 2026-09-07T00:00:00Z.
+- **Last-update:** 2026-09-06.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 

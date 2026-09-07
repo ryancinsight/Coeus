@@ -1,5 +1,11 @@
 # Global Progress Checklist: Coeus
 
+## codex-01a079ad
+
+- [ ] [Integrate current main and repair dependency identities](backlog.md#coeus-hephaestus-cuda-fusion-001).
+- [ ] [Preserve staggered dispatch through the consolidated provider](backlog.md#coeus-hephaestus-cuda-fusion-001).
+- [ ] [Run the merged result through package and workspace gates, then independent review](backlog.md#coeus-hephaestus-cuda-fusion-001).
+
 ## COEUS-LAYERNORM-SHAPE-001 — Multi-dimensional trailing-shape LayerNorm
 
 - [x] Replace the final-axis-only contract with a validated
