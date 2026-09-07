@@ -2,14 +2,6 @@
 
 ## codex-01a079ad
 
-- [x] [Check both lockfile activation sets with real Cargo regression tests](backlog.md#coeus-lockfile-script-narrow).
-
-- [x] [Land the reviewed GPU phase after provider #287 and exact-head hosted gates](backlog.md#coeus-hephaestus-cuda-fusion-001).
-- [x] [Collect the cold-cache guard correction and CUDA stub classification](backlog.md#coeus-lockfile-script-narrow).
-- [x] [Verify CTC path weights and native-scalar posterior normalization in Leto](backlog.md#coeus-ctc-sequence-contract).
-- [x] [Integrate the fallible CTC seam, autograd graph, and Python binding](backlog.md#coeus-ctc-sequence-contract).
-- [x] [Run generic CPU, Python, workspace, and compatibility checks before CTC delivery](backlog.md#coeus-ctc-sequence-contract).
-- [ ] [Publish and land the CTC phase after the GPU integration base](backlog.md#coeus-ctc-sequence-contract).
 - [ ] [Land the tested lockfile hook prerequisite and executable-mode correction](backlog.md#coeus-lockfile-hook-enforcement-2026-09-07).
 - [ ] [Resolve and verify the private cumulative-sum documentation link](backlog.md#coeus-private-rustdoc-links).
 
