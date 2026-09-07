@@ -5,8 +5,8 @@
 
 - Status: review; integrator: codex-01a079ad; priority: correctness; [major] [arch].
 - Branch: `codex/coeus-ctc-sequences`; last-update: 2026-09-07.
-- Delivery: [PR #380](https://github.com/ryancinsight/Coeus/pull/380), draft on
-  [GPU PR #368](https://github.com/ryancinsight/Coeus/pull/368); source `4275bae1`.
+- Delivery: [PR #380](https://github.com/ryancinsight/Coeus/pull/380), ready against
+  `main` after GPU merge `f5ccfd68`; source `4275bae1` is unchanged.
 - Outcome: CTC loss and gradients obey the log-probability sequence contract.
 - Scope: provider recurrence, CPU seam, shared layouts, Rust/Python callers and migration.
 - Acceptance: native scalar path sums/gradients, empty/impossible semantics,
@@ -54,10 +54,14 @@
 
 - Status: todo; priority: structure; [patch].
 - Scope: unique cache decomposition `da2598ea` in PR #367.
+- Review: current cache source matches its parent blob; preserve the extraction,
+  then move the remaining 539-line implementation-bearing `mod.rs` into leaves.
 - Outcome: operation families own leaf modules; manifests contain no cache logic.
 - Acceptance: preserve cache behavior, run cache and workspace gates, and
   integrate the decomposition against current main without obsolete Cutile pins.
 - Dependency: land GPU/CTC integration; preserve the PR branch until integration.
+- Failed hosted checks compile duplicate Eunomia/Leto identities before cache
+  tests execute; integrate the source extraction against the current single graph.
 
 <a id="coeus-private-rustdoc-links"></a>
 ## COEUS-PRIVATE-RUSTDOC-LINKS — Disambiguate the cumulative-sum link
@@ -71,7 +75,9 @@
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
-- Status: todo; scope: `.githooks/pre-commit` and `.githooks/pre-push`; [patch].
+- Status: in-progress; integrator: codex-01a079ad/integration_judge; [patch].
+- Scope: `.githooks/pre-commit`, `.githooks/pre-push`, and executable hook tests.
+- Lease: integration_judge; scoped hook/test files; 2026-09-07T06:48:49Z.
 - Finding: missing checker/interpreter and `SKIP_LOCKFILE_CHECK=1` return success.
 - Outcome: configured hooks fail when their required verification cannot execute.
 - Acceptance: remove the bypass, preserve command diagnostics, and reject each
@@ -130,17 +136,9 @@
 <a id="coeus-hephaestus-cuda-fusion-001"></a>
 ## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned GPU kernels
 
-- Status: review; integrator: codex-01a079ad; risk: [major] [arch]; branch: `arch/coeus-hephaestus-cuda-fusion-001`; last-update: 2026-09-07.
-- Outcome: Hephaestus owns CUDA/WGPU kernels, metadata, resources and dispatch; Coeus owns tensor/expression/layout adaptation and typed errors.
-- Acceptance: delete superseded implementations, migrate callers, preserve staggered operations, and pass native/device/error, locked build, documentation and SemVer gates.
-- Design and migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md).
-- Provider: `68ab691f` classifies only CUDA's documented stub-library initialization result as absence; [Hephaestus PR #287](https://github.com/ryancinsight/hephaestus/pull/287) merged on 2026-09-07. Earlier provider PRs #272, #274, #283 and #285 are merged.
-- Verified input: source `fb0c3150`, lock SHA256 `8991c176d2a04cef9b8a708ac3022cbc501f41ff56d30e1f0d7517b654930f00`; five provider source IDs and five Windows dependency edges change.
-- Native run `c3369369-123a-4286-aaf5-5296f93760b9`: 1,143 pass, eight existing ignored cache timing cases. Required-device CUDA/WGPU run `f811b763-fec3-4598-b47a-db5738b19701`: 234 pass, zero skips.
-- Other gates: workspace format and strict CUDA-enabled all-target Clippy, 151 workspace doctests plus five WGPU doctests, and warning-denied workspace Rustdoc pass. Two existing NN sequence doctests remain ignored; seven lockfile-tool tests retain their unchanged `fb0c3150` evidence.
-- API comparison against `01d3e9d0`: core/bridge pass; CUDA has seven and WGPU three intentional major checks covered by the migration. Enabled-CUDA baseline stalls in removed Cutile bindgen; manual public-source review complements the default comparison without an automated enabled verdict.
-- Limits: [unclassified CUDA context fault](gap_audit.md) remains unexplained by later passing device/lifecycle runs; physical HIP/Metal are unavailable. Independent source review finds no actionable blocker.
-- Delivery: [Coeus PR #368](https://github.com/ryancinsight/Coeus/pull/368) remains enqueued pending the provider merge and exact-head hosted gates; local gate commands, run IDs and environment are in its body.
+- Status: done; [PR #368](https://github.com/ryancinsight/Coeus/pull/368), merge `f5ccfd68`; Hephaestus owns GPU execution and resources.
+- Evidence: all hosted gates pass; local native 1,143/1,143 and required-device 234/234 pass. Commands and compatibility limits remain in the PR.
+- Migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md); [unclassified CUDA fault](gap_audit.md) remains open.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 
