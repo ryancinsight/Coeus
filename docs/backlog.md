@@ -75,15 +75,16 @@
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
-- Status: in-progress; integrator: codex-01a079ad/integration_judge; [patch].
-- Scope: `.githooks/pre-commit`, `.githooks/pre-push`, and executable hook tests.
-- Lease: integration_judge; scoped hook/test files; 2026-09-07T06:48:49Z.
-- Finding: missing checker/interpreter and `SKIP_LOCKFILE_CHECK=1` return success.
+- Status: review; integrator: codex-01a079ad; [patch]; last-update: 2026-09-07.
+- Branch: `codex/coeus-lockfile-hooks`; follows CTC PR #380.
+- Scope: Git hook entry points, shared checker invocation, and executable tests.
+- Finding: missing prerequisites/bypass return success; mode 100644 disables Unix hooks.
 - Outcome: configured hooks fail when their required verification cannot execute.
 - Acceptance: remove the bypass, preserve command diagnostics, and reject each
   missing prerequisite; ordinary valid staged-lock and push checks still pass.
-- Verification: execute installed hooks with controlled prerequisite failures and
-  real Cargo fixtures; no skipped hooks or simulated checker success.
+- Verification: 14 automation tests pass, including real Git/Cargo execution and
+  index mode 100755; three Bash syntax checks pass. Both defects reproduce first.
+- Limit: Windows Git Bash verified; Linux execution lacks the registered WSL disk.
 - Non-goal: replace the existing lockfile tool or alter dependency requirements.
 
 <a id="coeus-provider-resolution-2026-09-07"></a>
