@@ -17,7 +17,7 @@
 //!
 //! The coefficients of an order-`2N` staggered stencil come from solving a
 //! Taylor system; deriving them per sweep would put a linear solve inside an
-//! FDTD timestep. [`FiniteDifference3DOps::prepare_staggered_pair`] does that
+//! FDTD timestep. [`StaggeredPairOps::prepare_staggered_pair`] does that
 //! once and returns whatever the backend needs to cache — taps on the CPU, a
 //! compiled kernel and an uploaded coefficient buffer on a device.
 //!
