@@ -16,6 +16,8 @@
   merge `ba8a879b`; 950 workspace tests, release CTC 10/10, independent review pass.
 - Consumer: native `461dbdc4` passes 1,144 with eight existing skips; the final
   wheel passes 10/10. Regressions `77051874` and `69a19362` fail before correction.
+- Review follow-up: PR #382 removes unused Python test path mutation and documents
+  wheel prerequisites; unchanged test bodies pass 10/10 against the verified extension.
 - Gates: release `ab0ee790`, 155 doctests, strict Clippy/docs and compatibility
   classification pass; [migration](adr/0072-ctc-sequence-loss.md#migration) records the break.
 - Devices: required CUDA/WGPU `a2dc2625` passes 234/234 with no skips;
@@ -50,7 +52,7 @@
   alloc_on/zeros_on call them before unary dispatch can return its existing error.
 - Acceptance: no provider-error expects on the migrated paths; real malformed-size,
   layout and device error tests; no partial writes claimed as whole-graph rollback.
-- Dependencies: CTC integration; [unary consumer](#coeus-fallible-unary-execution).
+- Dependency: CTC integration. Driver: [unary consumer](#coeus-fallible-unary-execution).
 - Authority: change through merge; no release. Reserve an ADR before implementation.
 - Verification: focused storage/provider tests, native/device gates, Python wheel,
   caller/doc synchronization and SemVer; classify allocation limits explicitly.
@@ -87,6 +89,7 @@
 
 - Status: review; integrator: codex-01a079ad; priority: documentation; [patch].
 - Branch: `codex/coeus-private-rustdoc`; last-update: 2026-09-07.
+- Delivery: [PR #382](https://github.com/ryancinsight/Coeus/pull/382), following hooks #381.
 - Scope: `coeus-autograd/src/ops/shape/util/diff.rs` function link.
 - Finding: private-item Rustdoc reports `super::cumsum` as both module/function.
 - Acceptance: link the function explicitly; warning-denied private and public

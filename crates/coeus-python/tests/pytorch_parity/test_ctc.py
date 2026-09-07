@@ -1,16 +1,10 @@
 """CTC value and gradient parity at the logit boundary."""
 
-from pathlib import Path
 import math
 import sys
 
 import pytest
-
-_TEST_ROOT = Path(__file__).resolve().parents[1]
-if str(_TEST_ROOT) not in sys.path:
-    sys.path.insert(0, str(_TEST_ROOT))
-
-import pycoeus  # noqa: E402
+import pycoeus
 
 torch = pytest.importorskip("torch")
 
