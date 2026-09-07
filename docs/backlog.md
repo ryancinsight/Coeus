@@ -1,5 +1,26 @@
 # Coeus Development Backlog
 
+<a id="coeus-ctc-sequence-contract"></a>
+## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
+
+- Status: in-progress; integrator: codex-01a079ad; priority: correctness; [major] [arch].
+- Outcome: CTC loss and gradients obey the log-probability sequence contract.
+- Scope: Leto loss provider, Coeus autograd/NN/Python callers, tests and migration;
+  preserve the existing CPU-addressable capability boundary.
+- Findings at `19e5ac0a`: empty targets return zero; forward clamps lengths that
+  backward indexes unmodified; generic arithmetic widens through fixed `f64`.
+- Acceptance: empty-target all-blank loss, typed invalid-length/index rejection,
+  native scalar arithmetic, defined impossible-path behavior, and exact seeded
+  short-path gradients; no compatibility wrappers or copied recurrences.
+- Oracle: enumerate short alignments independently; one frame with blank
+  probability one-half and empty target has loss ln(2), log-input gradient [-1,0].
+- Dependency: add the missing CTC family in Leto; document log-input versus
+  logits derivatives before the fallible caller migration and SemVer check.
+- Parent: [remaining loss families](#coeus-autograd-host-staging-residuals-001).
+- ADR reservation: 0072; upstream: [Leto CTC](../../leto/backlog.md#leto-ctc-loss).
+- Lease: codex-01a079ad and delegated contributors; CTC source/callers/tests,
+  backend error mapping and documentation; 2026-09-07T04:55:00Z.
+
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
@@ -65,7 +86,7 @@
   preserve main's staggered operations; native/device/error contracts and
   locked compilation, Clippy, doctests, docs, format, and SemVer classification hold.
 - Delivery: [Coeus PR #368](https://github.com/ryancinsight/Coeus/pull/368);
-  provider PRs #272, #274 and #283 are merged; #285 preserves device-request errors.
+  provider PRs #272, #274, #283 and #285 are merged; #285 preserves device-request errors.
 - Design and migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md).
 - Final graph: lock SHA256 `0c678d26` and provider `f7c747a8`; strict
   workspace Clippy passes. Native run `c41062db` passes 1,143 tests with eight
@@ -78,8 +99,8 @@
   complements the default comparison without an automated enabled verdict.
 - Residual: [unclassified CUDA context fault](gap_audit.md); later passing
   device/lifecycle runs do not establish its cause. Physical HIP/Metal unavailable.
-- Pending: provider PR #285 and consumer merge. Source and run evidence are
-  recorded in PR #368.
+- Delivery in flight: source `19e5ac0a` is enqueued in PR #368 after provider
+  #285 merged as `ae871dc`; local evidence and limits are in the PR body.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 
@@ -258,27 +279,11 @@
   rc=0, fmt/diff-check clean, and the version-guard scan on the delivery
   range reports 0 defects.
 
-## COEUS-HEPHAESTUS-METAL-ROCM-001 — Delete duplicated accelerator routing [major] [arch]
+<a id="coeus-hephaestus-metal-rocm-001"></a>
+## COEUS-HEPHAESTUS-METAL-ROCM-001 — Delete duplicated accelerator routing
 
-- Owner: Codex; scope: the Coeus Hephaestus bridge plus Metal and ROCm
-  provider declarations, deleted vendor operation modules, tests, ADR, and
-  changelog.
-- Outcome: Metal and ROCm use `HephaestusBackend<P>` directly and retain only
-  provider/device wiring; ordinary elementwise, scalar-power, reductions,
-  scans, initialization, rotate-half, stateful updates, and cross-entropy have
-  one generic consumer bridge.
-- Non-goals: CUDA/WGPU migration, release publication, hardware performance
-  claims, or host/CPU fallback paths.
-- Acceptance: the deleted modules have no callers; provider bundles compile
-  for f32/u32/i32 where previously supported; value-semantic tests and
-  warning-denied focused gates pass; Hephaestus and Coeus exact-head hosted
-  provider contracts remain required before merge.
-- Risk/change class: `[major] [arch]`; the removed `MetalBackend` and
-  `RocmBackend` names require external consumers to migrate to the generic
-  `HephaestusBackend<P>` surface. See [ADR 0065](adr/0065-provider-owned-metal-rocm-bridge.md).
-- Status: local implementation and focused gates complete on
-  `codex/coeus-provider-deletion-metal-rocm`; exact-head hosted provider
-  contracts remain pending after Hephaestus seam delivery.
+- Status: done; merged [PR #318](https://github.com/ryancinsight/Coeus/pull/318),
+  `de08cf50`; Metal/ROCm use the generic bridge described in [ADR 0065](adr/0065-provider-owned-metal-rocm-bridge.md). Physical device execution remains separate evidence.
 
 ## COEUS-WGPU-ELEMENTWISE-LEAVES-001 — Split provider dispatch leaves [patch] [arch]
 
@@ -326,6 +331,7 @@
   constraint because dirty provider trees cannot satisfy Coeus's committed
   lockfile under local `--locked` resolution.
 
+<a id="coeus-autograd-host-staging-residuals-001"></a>
 ## COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001 — Migrate remaining host-staged autograd families [arch]
 
 - Owner: shared queue; last-update: 2026-08-08; scope: the remaining
@@ -354,9 +360,10 @@
   remaining host-staged family is CTC, whose log-space forward-backward DP is
   a sequential algorithm not expressible as a tensor composition; per the
   umbrella's outcome it requires an upstream Leto/Hephaestus CTC kernel
-  (the `upstream capability` path), tracked separately. The norm/product
-  children retain their blocked/todo status until their hosted evidence is
-  available.
+  (the `upstream capability` path), now specified in
+  [CTC sequence correctness](#coeus-ctc-sequence-contract). The norm/product
+  children own their current delivery and remaining evidence; their historical
+  blocked labels are not an umbrella-level blocker.
 
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Keep L1 loss on the selected provider [patch] [arch]
 

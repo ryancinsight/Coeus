@@ -1,5 +1,18 @@
 # Coeus Gap Audit
 
+## CTC boundary and precision contract
+
+At `19e5ac0a`, `ops/nn/loss/ctc.rs` treats an empty target as zero loss,
+clamps forward input lengths while storing the original backward lengths,
+and computes generic inputs through fixed `f64` state. The five CTC tests
+instantiate only `f64`; their backward case checks shape/nonzero values.
+The all-blank path gives a direct independent oracle: one frame with blank
+probability one-half has loss ln(2) and log-input derivative [-1,0].
+[Graves et al., section 3.1, equations 2–3](https://www.cs.toronto.edu/~graves/icml_2006.pdf)
+defines alignment probabilities; section 4.2 distinguishes output-probability
+and pre-softmax derivatives. A log-probability API must state its own boundary.
+Tracking: [CTC sequence correctness](backlog.md#coeus-ctc-sequence-contract).
+
 ## CUDA context creation failure remains unclassified
 
 Consumer run `87532469-ce04-4b9a-8225-f53e7ea000a2` fails in

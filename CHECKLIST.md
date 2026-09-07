@@ -7,103 +7,13 @@ Acceptance and findings: [GPU integration](docs/backlog.md#coeus-hephaestus-cuda
 The historical completed-phase labels below do not establish current gate status.
 
 
-## COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE — the lock cannot be advanced [patch] — review <a id="coeus-cutile-requirement-unresolvable"></a>
+## COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE — Restore Cutile requirement resolution [patch] — done <a id="coeus-cutile-requirement-unresolvable"></a>
 
-- **Symptom:** any resolution that re-resolves the whole graph fails with
-  `failed to select a version for the requirement cuda-async = "^0.2.0";
-  candidate versions found which didn't match: 0.3.1`. That includes
-  `scripts/lockfile.py --regenerate` and, after any partial `cargo update`,
-  the `--locked` doc and doctest targets — which resolve a wider set than
-  clippy and nextest and so are the first to need a re-resolve.
-- **Cause:** `crates/coeus-cuda/Cargo.toml` requires `cutile`, `cuda-core`, and
-  `cuda-async` at `version = "0.2.0"` from the `NVlabs/cutile-rs` git repo,
-  whose branch tip now publishes `0.3.1`. A git dependency resolves against the
-  tip, so the requirement no longer matches anything reachable. The committed
-  lock still holds the older resolution, which is why `main` stays green: CI
-  consumes the lock as-is and never re-resolves.
-- **Why it matters now:** the lock is frozen. Any first-party advance —
-  including the one `COEUS-STAGGERED-BACKEND-BINDING` needs to pick up the
-  Hephaestus staggered seam — perturbs the lock enough that the doc targets
-  demand a re-resolve, which then hits this wall. Measured, not inferred:
-  `cargo update -p leto -p leto-ops` left clippy and `nextest` green
-  (1141/1141) while `cargo test --locked --doc --workspace` and
-  `cargo doc --locked --workspace` both failed on the lock, and the full
-  regeneration failed on the requirement itself. The lock advance was reverted
-  rather than landed, because landing it would turn a green `main` red.
-- **Scope:** widen the three requirements to the version the tip provides and
-  absorb the `0.2` to `0.3` API change in `coeus-cuda`, or pin the `cutile-rs`
-  revision that still provides `0.2` as explicit quarantine with a removal
-  trigger. The first is preferred — a pin against a moving third-party branch
-  is what produced this — and ADR 0071's thinning of the vendor crates may
-  reduce how much of the `0.3` surface is actually touched.
-- **Probed 2026-09-06, and the fix works:** widening the three requirements to
-  `0.3.1` makes `scripts/lockfile.py --regenerate` succeed — the lock is
-  resolvable again. Two things surface behind it, so the widening is filed
-  rather than landed half-verified:
-  1. `cuda-bindings 0.3.1`'s build script needs `libclang`, which this Windows
-     host does not provide, so `--features cuda` cannot be compiled here. Not a
-     version-change defect: CI checks `coeus-cuda --no-default-features` on the
-     normal runners and the real feature inside an `nvidia/cuda` container, so
-     this is a local coverage limit to state, not a blocker.
-  2. With the lock regenerated, `coeus-hephaestus` fails to compile with 246
-     errors of the form ``the trait bound `T: eunomia::layout::marker::Pod` is
-     not satisfied``, rustc noting "`T` implements similarly named trait
-     `bytemuck::Pod`". This is **not** the Eunomia diamond — the lock holds
-     exactly one Eunomia — it is a co-evolution gap: `hephaestus-core` at
-     `425bdc05` tightened `ComputeDevice::Buffer<T: Pod>` to Eunomia's marker
-     and Coeus's generic bounds have not followed.
-- **Delivered 2026-09-06:** the three requirements move to `0.3.1` and the lock
-  regenerates. `--features cuda` still cannot be compiled on this Windows host —
-  `cuda-bindings 0.3.1`'s build script needs `libclang` — which is a local
-  coverage limit, not a version-change defect: CI checks
-  `coeus-cuda --no-default-features` on the normal runners and the real feature
-  inside an `nvidia/cuda` container, and
-  `cargo check --locked -p coeus-cuda --no-default-features --all-targets`
-  passes here.
-- **Lockfile-script finding:** `scripts/lockfile.py --regenerate` resolves a
-  narrower set than `cargo doc --workspace` needs, so its output failed the doc
-  targets under `--locked` until the resolution was iterated to a fixpoint (two
-  passes). The lock landing here is that fixpoint. Filed separately below as
-  `COEUS-LOCKFILE-SCRIPT-NARROW`, since a regeneration whose output the gate
-  then rejects is what made this lock fragile in the first place.
-- **Blocks:** `COEUS-STAGGERED-BACKEND-BINDING`.
-- **Last-update:** 2026-09-06.
+- Raised the three Cutile requirements to 0.3.1 and restored lock resolution in [PR #374](https://github.com/ryancinsight/Coeus/pull/374), merge `a557743e`.
 
-## COEUS-HEPHAESTUS-POD-BOUND — Follow the provider's tightened buffer bound [major] — review <a id="coeus-hephaestus-pod-bound"></a>
+## COEUS-HEPHAESTUS-POD-BOUND — Follow the provider's tightened buffer bound [major] — done <a id="coeus-hephaestus-pod-bound"></a>
 
-- **Symptom:** advancing the Hephaestus pin to `425bdc05` or later fails
-  `coeus-hephaestus` with 246 errors of ``the trait bound
-  `T: eunomia::layout::marker::Pod` is not satisfied``, at
-  `convolution/provider.rs`, `elementwise/dispatch.rs`, `matmul/provider.rs`
-  and their siblings.
-- **Cause:** `hephaestus_core::ComputeDevice::Buffer<T: Pod>` now requires
-  Eunomia's `Pod` marker — the stack's datatype law — where Coeus's generic
-  functions bound only `T: Scalar + leto_ops::Scalar`. rustc names the fix at
-  every site: add `eunomia::layout::marker::Pod` to the bound.
-- **Delivered 2026-09-06, at the root rather than site by site.** 230 errors
-  became 9 by adding Eunomia's `Pod` as a supertrait of `coeus_core::Scalar` —
-  one line, and the architecturally correct one: Eunomia owns the datatype law
-  the provider states its buffer contract in, and Coeus already depended on it
-  while bounding the same concept through bytemuck. bytemuck's marker stays
-  alongside because `Scalar::has_zero_bit_pattern` uses `bytemuck::bytes_of`.
-  The remaining 9 sites bounded `bytemuck::Pod` directly to satisfy the device
-  contract; those now bound the provider's marker, and the test doubles moved to
-  Eunomia's byte helpers (`eunomia::layout::cast_slice`) so their `ComputeDevice`
-  impls are not stricter than the trait. `coeus-hephaestus` no longer references
-  bytemuck at all.
-- **Evidence:** `cargo fmt --check`, `cargo check --locked -p coeus-cuda
-  --no-default-features --all-targets`, `cargo clippy --locked --workspace
-  --all-targets -- -D warnings`, `cargo nextest run --locked --workspace
-  --exclude coeus-python --exclude coeus-wgpu` **1141/1141**, `cargo test
-  --locked --doc --workspace ...`, `cargo doc --locked --workspace --no-deps`
-  warning-free. The lock holds exactly one Eunomia.
-- **Residual:** Coeus still carries bytemuck for `Scalar`'s byte predicate while
-  the stack's datatype law is Eunomia's. Filed as
-  `COEUS-BYTEMUCK-RESIDUE` rather than widened into this change.
-- **Why it is blocking now:** every first-party lock advance in Coeus goes
-  through a Hephaestus revision at or past `425bdc05`, so this gates the
-  staggered binding as much as the cutile requirement does.
-- **Last-update:** 2026-09-06.
+- Coeus scalar and buffer bounds follow Eunomia's `Pod` contract in [PR #374](https://github.com/ryancinsight/Coeus/pull/374), merge `a557743e`; the [bytemuck residual](#coeus-bytemuck-residue) remains open.
 
 ## Lockfile resolution
 
@@ -122,89 +32,20 @@ The historical completed-phase labels below do not establish current gate status
   implementing `Scalar` outside the workspace.
 - **Last-update:** 2026-09-06.
 
-## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [major] — review <a id="coeus-staggered-backend-binding"></a>
+## COEUS-STAGGERED-BACKEND-BINDING — Bind the device staggered pair [major] — done <a id="coeus-staggered-backend-binding"></a>
 
-- **Outcome:** the Hephaestus-backed backend implements
-  `FiniteDifference3DOps<T>`, so a consumer binding
-  `<B: ComputeBackend + FiniteDifference3DOps<T>>` reaches a GPU staggered pair
-  through the same call sites the CPU implementation already serves. Completes
-  the seam Coeus PR #369 opened with only a CPU side.
-- **Now unblocked:** the Eunomia version diamond that broke `coeus-hephaestus`
-  on `eunomia::layout::marker::Pod` closed on 2026-09-06 at its root — an
-  expired Mnemosyne quarantine in Moirai (Moirai PR #260). Advancing the lock
-  is the first step of this item.
-- **Provider surface it binds:** `hephaestus_core::Staggered3DOps<D>` with
-  `Staggered3DParams`, implemented for WGPU and Metal (hephaestus PR #275) and
-  CUDA (PR #279). ROCm is parked upstream for want of a device.
-- **Acceptance:** the seam's existing contract tests instantiate against the
-  accelerator backend and match the CPU implementation within the derived
-  reduction-order tolerance, on every axis; the adjoint identity holds through
-  the seam; the taps come from the provider derivation, not a second copy.
-- **Unblocked 2026-09-06.** Both prior blockers are cleared: the Eunomia
-  diamond closed at its root (Moirai PR #260), and the frozen lock plus the
-  provider's `Pod` contract closed together in
-  `COEUS-CUTILE-REQUIREMENT-UNRESOLVABLE` / `COEUS-HEPHAESTUS-POD-BOUND`. The
-  seam is reachable from the pin already committed: `hephaestus-core` at
-  `1779c788` exports `Staggered3DOps`, so no dependency work precedes the
-  implementation.
-- **Note the topology caveat below:** this lands in the crate
-  `COEUS-SIBLING-NAMED-CRATES` renames, and moves with it.
-- **Delivered 2026-09-06.** `coeus_ops::StaggeredPairOps` is implemented for the
-  Hephaestus-backed backend and for the WGPU backend, so one call site reaches
-  either device. Generic machinery lives once in `coeus-hephaestus::staggered`
-  (provider marker, backend binding, layout-to-parameters dispatch); the WGPU
-  crate supplies only its provider wiring.
-- **The trait was split, not extended.** `FiniteDifference3DOps` bundled the
-  fixed central/Yee schemes with the staggered pair, and the two capabilities do
-  not arrive together: the provider has the pair and not the fixed 3-D family.
-  Keeping them bundled would have obliged the accelerator backend to supply a
-  body for what it cannot do, which is a mock wearing a trait impl. The pair is
-  now `StaggeredPairOps`; the CPU backend implements both.
-- **`f32` at the accelerator boundary.** The provider states the pair in `f32`
-  because WGSL does not guarantee `f64` storage, so the device impl binds that
-  scalar concretely. A generic impl there would be falsely generic; the CPU
-  impl stays generic over `T`.
-- **Taps derive once.** `PreparedStaggeredPair` holds the compiled kernels and
-  the provider-derived taps. The grid is deliberately not part of preparation:
-  the provider's parameter block binds dimensions and axis with the taps, and
-  both are known only at dispatch, from the operand layout and the caller's axis.
-- **Evidence, on a live adapter:** four tests call the same trait methods on the
-  CPU backend and the WGPU backend and compare — gradient and divergence on
-  every axis at orders 2 and 4, the adjoint identity measured on the device's
-  own outputs with a non-degeneracy guard, and the typed rejection of a grid
-  thinner than the stencil. **4/4.** Gate: `cargo fmt --check`,
-  `cargo check --locked -p coeus-cuda --no-default-features --all-targets`,
-  `cargo clippy --locked --workspace --all-targets -- -D warnings`,
-  `cargo nextest run --locked --workspace --exclude coeus-python --exclude
-  coeus-wgpu` **1141/1141**, `cargo test --locked --doc --workspace ...`,
-  `cargo doc --locked --workspace --no-deps` warning-free.
-- **The seam tests were proven live:** mapping `Axis::X` to the provider's `Y`
-  failed the gradient differential, the divergence differential, and the
-  thin-grid rejection. The adjoint clause correctly stayed green — the identity
-  holds for any *consistent* axis choice, since both operators used the same
-  wrong one, which is precisely why the differential and the adjoint check
-  different things and both are kept.
-- **CUDA and Metal wiring deferred, with a reason:** each is the same ~80 lines
-  of provider wiring, neither is verifiable on this host, and ADR 0071's
-  thinning of the vendor crates may remove the per-crate duplication entirely.
-  Writing three unverifiable near-copies ahead of a decided refactor is work the
-  refactor deletes. Filed as `COEUS-STAGGERED-VENDOR-WIRING`.
-- **Last-update:** 2026-09-06.
+- `StaggeredPairOps` reaches the generic Hephaestus and WGPU backends in [PR #377](https://github.com/ryancinsight/Coeus/pull/377), merge `ad578e41`; [CUDA and Metal provider binding](#coeus-staggered-vendor-wiring) remains open.
 
 ## COEUS-STAGGERED-VENDOR-WIRING — Bind the remaining vendor backends [minor] — todo <a id="coeus-staggered-vendor-wiring"></a>
 
-- **Outcome:** `StaggeredPairOps<f32>` for the CUDA and Metal backends, whose
-  Hephaestus providers already have the kernels (`CudaStaggered3DOps`,
-  `MetalStaggered3DOps`). ROCm has no provider kernels yet and is upstream work.
-- **Sequencing:** check ADR 0071's vendor-crate thinning first. Each backend
-  currently needs its own `StaggeredBackend` and `StaggeredPairOps` impl because
-  it is a standalone backend type rather than `HephaestusBackend<P>`; if the
-  thinning collapses that, the wiring is one impl instead of three.
-- **Verification:** CUDA is verifiable on a host with a working `libclang` for
-  `cuda-bindings`; Metal needs Apple hardware or the container CI job.
-- **Last-update:** 2026-09-06.
+- **Outcome:** bind `StaggeredPairOps<f32>` for CUDA and Metal through the existing provider-owned kernels and shared staggered dispatch; both bindings remain open.
+- **CUDA:** `coeus-cuda` now uses the Hephaestus CUDA provider and carries no Cutile or `cuda-bindings` dependency; `libclang` is not a prerequisite for this binding. Add the missing provider/backend binding without duplicating dispatch.
+- **Metal:** `HephaestusBackend<MetalProvider>` already uses the generic bridge. Add `StaggeredProvider` for `MetalProvider` to obtain its existing generic staggered implementation.
+- **Provider capability:** `CudaStaggered3DOps` and `MetalStaggered3DOps` exist upstream; ROCm still requires upstream staggered kernels.
+- **Verification:** exercise the shared gradient/divergence, axis, adjoint, and invalid-grid oracles on real CUDA and Apple Metal devices; preserve typed acquisition failures. CUDA needs a working NVIDIA driver/device, and Metal device execution needs Apple hardware.
+- **Last-update:** 2026-09-07.
 
-## COEUS-SIBLING-NAMED-CRATES — Crates named after their dependencies [minor] [arch] — todo <a id="coeus-sibling-named-crates"></a>
+## COEUS-SIBLING-NAMED-CRATES — Crates named after their dependencies [major] [arch] — todo <a id="coeus-sibling-named-crates"></a>
 
 - **Finding:** `coeus-leto` and `coeus-hephaestus` name stack members. The
   agent instruction set now states the rule directly: "A stack member's name
@@ -223,12 +64,12 @@ The historical completed-phase labels below do not establish current gate status
   the concern it owns — the CPU array adaptation and the accelerator
   adaptation — so the manifest, not the crate name, records which provider
   supplies it. A rename is a mechanical transform over every call site in one
-  change (no re-export bridge), and it is `[minor]` for consumers only because
-  the crate names are the published surface.
+  change (no re-export bridge). This is `[major]`: published package/import
+  names are consumer-facing contracts, so the rename requires a migration note.
 - **Why filed rather than executed now:** it is `[arch]`, so an ADR with a
   recommended option is its first planning step, and it touches the crate
-  topology `COEUS-STAGGERED-BACKEND-BINDING` is about to add code to —
-  sequencing the binding first keeps the rename a pure move.
+  topology containing the completed [staggered binding](#coeus-staggered-backend-binding);
+  the rename remains separate from that delivered behavior.
 - **Last-update:** 2026-09-06.
 
 ## COEUS-ALLOC-BUDGET-INTERMITTENT — the scatter_add allocation budget fails intermittently on Linux CI [patch] — todo
