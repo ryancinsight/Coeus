@@ -1,17 +1,16 @@
 //! Finite-difference sub-trait.
 //!
-//! [`FiniteDifference3DOps`] is the interface-segregated sub-trait for
-//! three-dimensional first-derivative stencils: the fixed central and Yee
-//! schemes, and the arbitrary-even-order staggered gradient/divergence pair a
-//! conservative leapfrog needs.
+//! [`FiniteDifference3DOps`] provides fixed central and Yee first-derivative
+//! stencils. [`StaggeredPairOps`] provides the arbitrary-even-order staggered
+//! gradient/divergence pair used by a conservative leapfrog.
 //!
 //! # Why this is not part of [`BackendOps`]
 //!
 //! [`BackendOps`] is the set every backend must satisfy. A backend that has no
 //! stencil kernels yet would have to supply stubs to join it, and a stub that
 //! returns zeros or an error is a mock wearing a trait impl. Consumers bind
-//! `B: FiniteDifference3DOps<T>` directly instead, so a backend advertises the
-//! capability exactly when it has one.
+//! `B: FiniteDifference3DOps<T>` or `B: StaggeredPairOps<T>` directly, so a
+//! backend advertises each capability when it implements that family.
 //!
 //! # Preparation
 //!
@@ -36,8 +35,9 @@ pub use leto_ops::{Axis, FiniteDifference3DScheme};
 /// what it cannot do, and a body that returns an error is a mock wearing a
 /// trait impl.
 ///
-/// Buffers are row-major `[nx, ny, nz]` fields. Every method writes into a
-/// caller-supplied destination; none allocates.
+/// Dispatch operands have matching row-major `[nx, ny, nz]` layouts with zero
+/// offsets. Gradient and divergence write into caller-supplied destinations;
+/// preparation derives coefficients and acquires provider resources.
 pub trait StaggeredPairOps<T: Scalar>: ComputeBackend {
     /// Backend-side form of a prepared staggered gradient/divergence pair.
     type StaggeredPair;

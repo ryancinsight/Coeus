@@ -29,14 +29,7 @@ fn random_initialization_dispatches_with_seeded_provider_parity() {
         }
     ));
 
-    #[cfg(target_os = "windows")]
-    std::env::set_var("WGPU_BACKEND", "dx12");
-    if hephaestus_wgpu::WgpuDevice::try_default_with_limits(
-        "coeus-wgpu-random-init-test",
-        wgpu::Limits::default(),
-    )
-    .is_err()
-    {
+    if !crate::availability::device_available("coeus-wgpu-random-init-test") {
         return;
     }
     let layout = Layout::new([2, 3].into());

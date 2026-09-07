@@ -4,7 +4,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_backend_transfer_roundtrip() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -27,7 +27,7 @@ fn test_cuda_backend_transfer_roundtrip() {
 )]
 #[test]
 fn test_cuda_backend_ops() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -54,28 +54,21 @@ fn test_cuda_backend_ops() {
     let mish_cuda = coeus_ops::mish(&a_cuda, &cuda_b);
     let mish_seq = mish_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(c_seq.as_slice(), &[11.0, 22.0, 33.0, 44.0]);
-        assert_eq!(m_seq.as_slice(), &[70.0, 100.0, 150.0, 220.0]);
-        assert!((s_seq.as_slice()[0] - 0.7310586).abs() < 1e-5);
-        assert!((s_seq.as_slice()[1] - 1.7615942).abs() < 1e-5);
-        assert!((s_seq.as_slice()[2] - 2.8577224).abs() < 1e-5);
-        assert!((s_seq.as_slice()[3] - 3.9280551).abs() < 1e-5);
-        assert!((mish_seq.as_slice()[0] - 0.8656606).abs() < 1e-3);
-        assert!((mish_seq.as_slice()[1] - 1.943866).abs() < 1e-3);
-        assert!((mish_seq.as_slice()[2] - 2.986349).abs() < 1e-3);
-        assert!((mish_seq.as_slice()[3] - 3.997317).abs() < 1e-3);
-    } else {
-        assert_eq!(c_seq.shape(), &[2, 2]);
-        assert_eq!(m_seq.shape(), &[2, 2]);
-        assert_eq!(s_seq.shape(), &[2, 2]);
-        assert_eq!(mish_seq.shape(), &[2, 2]);
-    }
+    assert_eq!(c_seq.as_slice(), &[11.0, 22.0, 33.0, 44.0]);
+    assert_eq!(m_seq.as_slice(), &[70.0, 100.0, 150.0, 220.0]);
+    assert!((s_seq.as_slice()[0] - 0.7310586).abs() < 1e-5);
+    assert!((s_seq.as_slice()[1] - 1.7615942).abs() < 1e-5);
+    assert!((s_seq.as_slice()[2] - 2.8577224).abs() < 1e-5);
+    assert!((s_seq.as_slice()[3] - 3.9280551).abs() < 1e-5);
+    assert!((mish_seq.as_slice()[0] - 0.8656606).abs() < 1e-3);
+    assert!((mish_seq.as_slice()[1] - 1.943866).abs() < 1e-3);
+    assert!((mish_seq.as_slice()[2] - 2.986349).abs() < 1e-3);
+    assert!((mish_seq.as_slice()[3] - 3.997317).abs() < 1e-3);
 }
 
 #[test]
 fn test_cuda_norm_p_provider_dispatch() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
 

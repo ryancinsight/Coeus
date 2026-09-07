@@ -24,8 +24,8 @@ Foundation and CPU stack:
 Accelerator and integration crates — the current development focus:
 
 - **[coeus-hephaestus](crates/coeus-hephaestus/README.md)**: Vendor-neutral bridge owning device storage, host/device transfer, layout validation, and dispatch once, against the `HephaestusProvider` trait family.
-- **[coeus-wgpu](crates/coeus-wgpu/README.md)**: WebGPU backend with WGSL compute kernels for unary, binary, matmul, reduction, pooling, unfold/fold, and fused ops.
-- **[coeus-cuda](crates/coeus-cuda/README.md)**: CUDA backend with CUDA C kernels, gated behind the `cuda` feature.
+- **[coeus-wgpu](crates/coeus-wgpu/README.md)**: WebGPU backend adapting Coeus tensors and expressions to Hephaestus' provider-owned WGSL operations. Contains no device kernels.
+- **[coeus-cuda](crates/coeus-cuda/README.md)**: CUDA backend adapting Coeus storage and operation contracts to Hephaestus' provider-owned CUDA implementations, gated behind the `cuda` feature. Contains no device kernels.
 - **[coeus-rocm](crates/coeus-rocm/README.md)**: Provider wiring binding Coeus operations to `hephaestus-rocm`. Contains no kernels of its own.
 - **[coeus-metal](crates/coeus-metal/README.md)**: Provider wiring binding Coeus operations to `hephaestus-metal`. Contains no kernels of its own.
 - **[coeus-dist](crates/coeus-dist/README.md)**: Collective communication over a `Communicator` trait, with thread-local and TCP implementations.
@@ -127,7 +127,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 The default `coeus-cuda` build exposes storage and capability types but no
-mathematical CPU fallback. Native Hephaestus/Cutile CUDA execution is explicit:
+mathematical CPU fallback. Native Hephaestus CUDA execution is explicit:
 ```bash
 cargo test -p coeus-cuda --features cuda
 ```

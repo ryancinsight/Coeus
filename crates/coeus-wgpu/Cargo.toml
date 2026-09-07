@@ -18,7 +18,6 @@ coeus-ops    = { workspace = true, default-features = false }
 coeus-hephaestus = { workspace = true }
 hephaestus-wgpu = { workspace = true }
 hephaestus-core = { workspace = true }
-wgpu         = { workspace = true }
 bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
 leto-ops     = { workspace = true }

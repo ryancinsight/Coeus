@@ -12,9 +12,13 @@ plus the per-operation provider traits and inherits the rest.
 
 - `HephaestusProvider` and the per-operation provider trait family:
   elementwise, reduction, attention, convolution, cross-entropy, random init,
-  rotate-half, and stateful update.
+  rotate-half, stateful update, and staggered gradient/divergence.
 - Device storage and host/device transfer.
 - Layout validation and dispatch shared by every vendor backend.
+
+Staggered dispatch accepts matching contiguous rank-three layouts with zero
+offsets. Preparation rejects non-finite or non-positive grid spacings before
+acquiring a device; dispatch rejects unsupported layouts before submitting work.
 
 ## Vendor crates
 

@@ -4,7 +4,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_evaluate_fused() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -32,14 +32,12 @@ fn test_cuda_evaluate_fused() {
     }
 
     assert_eq!(out_seq.shape(), &[2, 2]);
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(out_seq.as_slice(), &expected);
-    }
+    assert_eq!(out_seq.as_slice(), &expected);
 }
 
 #[test]
 fn test_cuda_jit_fusion_correctness() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -74,24 +72,22 @@ fn test_cuda_jit_fusion_correctness() {
     }
 
     assert_eq!(out_seq.shape(), &[2, 3]);
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        let out_slice = out_seq.as_slice();
-        for i in 0..6 {
-            let diff = (out_slice[i] - expected[i]).abs();
-            assert!(
-                diff < 1e-5,
-                "Mismatch at index {}: {} vs expected {}",
-                i,
-                out_slice[i],
-                expected[i]
-            );
-        }
+    let out_slice = out_seq.as_slice();
+    for i in 0..6 {
+        let diff = (out_slice[i] - expected[i]).abs();
+        assert!(
+            diff < 1e-5,
+            "Mismatch at index {}: {} vs expected {}",
+            i,
+            out_slice[i],
+            expected[i]
+        );
     }
 }
 
 #[test]
 fn test_cuda_jit_reductions() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -110,16 +106,14 @@ fn test_cuda_jit_reductions() {
     let min_cuda = coeus_ops::min_axis(&a_cuda, 1, &cuda_b).expect("valid CUDA min axis");
     let min_seq = min_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(sum_seq.as_slice(), &[6.0, 11.0]);
-        assert_eq!(max_seq.as_slice(), &[3.0, 10.0]);
-        assert_eq!(min_seq.as_slice(), &[1.0, -5.0]);
-    }
+    assert_eq!(sum_seq.as_slice(), &[6.0, 11.0]);
+    assert_eq!(max_seq.as_slice(), &[3.0, 10.0]);
+    assert_eq!(min_seq.as_slice(), &[1.0, -5.0]);
 }
 
 #[test]
 fn test_cuda_evaluate_fused_reduce() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -148,9 +142,7 @@ fn test_cuda_evaluate_fused_reduce() {
     assert_eq!(max_seq.shape(), &[2, 1]);
     assert_eq!(min_seq.shape(), &[2, 1]);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(sum_seq.as_slice(), &[8.0, 32.0]);
-        assert_eq!(max_seq.as_slice(), &[6.0, 20.0]);
-        assert_eq!(min_seq.as_slice(), &[0.0, 0.0]);
-    }
+    assert_eq!(sum_seq.as_slice(), &[8.0, 32.0]);
+    assert_eq!(max_seq.as_slice(), &[6.0, 20.0]);
+    assert_eq!(min_seq.as_slice(), &[0.0, 0.0]);
 }

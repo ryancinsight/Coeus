@@ -140,11 +140,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The committed lock pins provider git revisions; the runner checks
-          # out each provider at its current default-branch head, so normalize
-          # the ephemeral lock before --locked builds (mirrors the benchmark
-          # gate's baseline normalization).
-          cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
+          cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-leto --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-leto --all-targets --no-deps -- -D warnings
@@ -164,7 +160,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
             -E "test(cumulative_scans_match_cpu_on_rank_two_device_tensors) or test(product_axis_matches_cpu_on_rank_two_device_tensors) or test(norm_p_dispatches_with_wgpu_provider_parity) or test(test_wgpu_conv) or test(test_wgpu_conv_backward) or test(test_wgpu_conv3d) or test(test_wgpu_conv3d_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv3d_backward) or test(test_wgpu_conv3d_backward_stride_padding_dilation_matches_cpu) or test(test_wgpu_conv_transpose1d) or test(test_wgpu_conv_transpose2d) or test(test_wgpu_conv_transpose1d_backward_matches_cpu_autograd) or test(test_wgpu_conv_transpose2d_backward_matches_cpu_autograd) or test(test_wgpu_parity_conv1d_forward) or test(test_wgpu_parity_conv2d_forward) or test(test_wgpu_parity_sum_axis0) or test(test_wgpu_parity_sum_axis1) or test(test_wgpu_parity_mean_axis) or test(test_wgpu_parity_max_axis) or test(test_wgpu_parity_min_axis) or test(test_wgpu_parity_prod_axis) or test(test_wgpu_parity_rank_one_sum) or test(test_wgpu_parity_rank_one_scan) or test(test_wgpu_reduction_rejects_unsupported_rank) or test(test_wgpu_parity_add) or test(test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer) or test(cosine_similarity_dispatches_with_wgpu_parity) or test(bce_with_logits_dispatches_with_wgpu_value_and_gradient_parity) or test(test_wgpu_elu_parity) or test(test_wgpu_parity_elu) or test(test_wgpu_strided_elu_transposed_matches_cpu) or test(test_wgpu_strided_elu_gradient_transposed_matches_cpu) or test(test_wgpu_aliasing_elu_rejects_provider_bypass) or test(test_wgpu_parity_gelu_tanh) or test(test_wgpu_parity_softplus) or test(wgpu_attention_forward_unmasked_matches_cpu_on_device) or test(wgpu_attention_forward_causal_matches_cpu_on_device) or test(wgpu_attention_forward_matches_cpu_with_mask_and_causal) or test(wgpu_attention_backward_matches_cpu) or test(test_wgpu_parameterized_activations_match_cpu) or test(random_initialization_dispatches_with_seeded_provider_parity)"
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
-            -E "test(fusion) or test(rotate_half_dispatches_with_wgpu_parity) or test(cross_entropy_dispatches_with_wgpu_value_and_gradient_parity) or test(test_wgpu_assign_compacts_shared_rank_five_view) or test(test_wgpu_unary_assign_detaches_shared_view) or test(test_wgpu_partial_update_preserves_parent_and_shared_source)"
+            -E "test(fusion) or test(staggered) or test(parameterized_activations_match_sequential) or test(rotate_half_dispatches_with_wgpu_parity) or test(cross_entropy_dispatches_with_wgpu_value_and_gradient_parity) or test(test_wgpu_assign_compacts_shared_rank_five_view) or test(test_wgpu_unary_assign_detaches_shared_view) or test(test_wgpu_partial_update_preserves_parent_and_shared_source)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-wgpu --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --no-default-features --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --no-default-features --all-targets --no-deps -- -D warnings
@@ -280,7 +276,7 @@ jobs:
                 ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
               fi
               export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/compat:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
-              cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
+              cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
@@ -421,7 +417,7 @@ jobs:
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
               rustup toolchain install stable --profile minimal
               cargo +stable install cargo-nextest --locked
-              cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
+              cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
@@ -530,7 +526,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo "+$RUST_TOOLCHAIN" metadata --format-version 1 --all-features > /dev/null
+          cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings

@@ -1,5 +1,51 @@
 # Coeus Gap Audit
 
+## CTC boundary and precision contract
+
+At `19e5ac0a`, `ops/nn/loss/ctc.rs` treats an empty target as zero loss,
+clamps forward input lengths while storing the original backward lengths,
+and computes generic inputs through fixed `f64` state. The five CTC tests
+instantiate only `f64`; their backward case checks shape/nonzero values.
+The all-blank path gives a direct independent oracle: one frame with blank
+probability one-half has loss ln(2) and log-input derivative [-1,0].
+[Graves et al., section 3.1, equations 2–3](https://www.cs.toronto.edu/~graves/icml_2006.pdf)
+defines alignment probabilities; section 4.2 distinguishes output-probability
+and pre-softmax derivatives. A log-probability API must state its own boundary.
+Tracking: [CTC sequence correctness](backlog.md#coeus-ctc-sequence-contract).
+
+## CUDA context creation failure remains unclassified
+
+Consumer run `87532469-ce04-4b9a-8225-f53e7ea000a2` fails in
+`cuCtxCreate_v2` with status 999 after releasing a successful temporary device.
+No pooling arithmetic executes on that failure path. The isolated reproduction
+`a9de0fe8-ed4f-4d41-8a59-dd908f5d27a0` passes with guards that surface driver
+faults; this does not establish a fix. Driver health inspection finds no matching
+Windows driver event. A provider regression isolates final context release and
+immediate reacquisition with traced cleanup. Re-open on a captured driver fault
+or a reproducible failing lifecycle; retain the original failure as evidence.
+Tracking: [GPU integration](backlog.md#coeus-hephaestus-cuda-fusion-001).
+
+## Device tests must preserve acquisition diagnostics
+
+An `is_err()` hardware guard hid the reason four Windows WGPU tests could not
+acquire a device. Run `d35ba0d6-233f-43b2-98d0-60ee25ad7823` exposes the cause:
+the tests requested DX12 while the provider compiled Vulkan and Metal. Test
+guards now retain typed failures and the obsolete overrides are removed.
+Provider device-request failures must remain distinct from absent adapters so
+optional-device tests cannot silently skip a runtime fault. Keep required-device
+execution in the gate; a successful host-only run cannot establish device parity.
+
+## Backend rank limits must cover every instantiated branch
+
+The 2026-09-07 integration passes workspace `cargo check` but fails native-test
+compilation with `E0080`: the generic bridge instantiates ranks 1 through 8,
+while the locked ROCm provider permits only 1 through 4. A runtime match still
+instantiates each reachable specialization, including its const assertions.
+Guard: compile the native tests for every shipped provider whenever dispatch
+rank coverage changes; provider metadata and generated indexing must cover the
+same rank bound. Host ABI tests establish representation, not GPU execution.
+Tracking: [GPU integration](backlog.md#coeus-hephaestus-cuda-fusion-001).
+
 ## Slop pattern: per-element coordinate buffer in flat-index decode loops
 
 **Shape**: a kernel walks a flat output index, decodes it into multi-dimensional

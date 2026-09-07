@@ -1,4 +1,3 @@
-use crate::driver::CUdeviceptr;
 use coeus_core::{Scalar, Storage, StorageMut};
 use hephaestus_cuda::{ComputeDevice, CudaBuffer, DeviceBuffer};
 use std::sync::Arc;
@@ -61,7 +60,7 @@ impl<T: Scalar> CudaStorage<T> {
 
     /// Retrieve the raw CUDA device pointer.
     #[inline]
-    pub fn cu_deviceptr(&self) -> CUdeviceptr {
+    pub fn cu_deviceptr(&self) -> u64 {
         self.buffer.raw()
     }
 }

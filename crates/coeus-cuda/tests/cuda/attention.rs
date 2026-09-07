@@ -22,10 +22,7 @@ const D_V: usize = 3;
 const TOL: f32 = 1e-3;
 
 fn backends() -> Option<(SequentialBackend, CudaBackend)> {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
-        return None;
-    }
-    if coeus_cuda::CudaDriver::get().is_none() || coeus_cuda::get_cuda_context().is_none() {
+    if !crate::availability::device_available() {
         return None;
     }
     Some((SequentialBackend::new(), CudaBackend::new()))

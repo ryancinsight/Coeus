@@ -1,47 +1,30 @@
 #!/usr/bin/env python3
-"""Regenerate or check `Cargo.lock` against the source set CI actually resolves.
+"""Check or regenerate Cargo.lock outside the Atlas dependency overlay.
 
-# The trap this exists for
+The stack overlay redirects first-party git dependencies to local checkouts.
+Resolving there can remove the git sources needed by standalone consumers and
+CI. Cargo runs from a neutral directory here; Windows also maps the repository
+to a temporary drive root, which is removed before each invocation returns.
 
-This repository is normally worked on inside the Atlas stack, whose
-`.cargo/config.toml` carries a `[patch]` overlay redirecting every first-party
-dependency to a local working tree. Cargo discovers that config by walking up
-from the *current directory*, so any `cargo` command run from inside the stack
-picks it up -- including anything that rewrites the lock.
+Checks first fetch locked dependencies, then resolve default and all-feature
+activation offline under --locked. Fetching permits a cold Cargo cache without
+changing the committed dependency selection.
+Regeneration resolves both activation sets until a bounded full pass leaves the
+lock unchanged, then checks both under --locked. Missing cached dependencies,
+network failures, and incompatible source requirements retain Cargo's original
+diagnostic; they are not classified as lock staleness without evidence.
 
-A lock written with the overlay active has every `source = "git+..."` line
-**stripped**, because those dependencies resolved to local paths rather than to
-git. Committing it replaces all 87 git sources with nothing. CI has no overlay,
-so it re-resolves, and every `--locked` job fails with
-
-    error: cannot update the lock file ... because --locked was passed
-
-which names neither the cause nor the fix. That message is also what a merely
-*stale* lock produces -- one pinning first-party revisions whose versions no
-longer satisfy the manifests -- so the two failures are indistinguishable from
-the log alone (KW-CI-087).
-
-This is not limited to deliberate regeneration. *Any* cargo invocation that
-updates the lock while the overlay is active flattens it -- an ordinary
-`cargo check` inside the stack is enough, which is how it happens in practice:
-nobody sets out to rewrite the lock. Treat a modified `Cargo.lock` after routine
-work as suspect and run `--check` before staging it.
-
-Both are fixed the same way: regenerate from outside the overlay. This script
-does that by running cargo from a temporary directory that is not underneath the
-stack root, which is the whole mechanism -- there is no flag that disables config
-discovery.
-
-# Usage
-
-    scripts/lockfile.py --check         # verify the committed lock, offline
-    scripts/lockfile.py --check-staged  # fast index-only check, for pre-commit
-    scripts/lockfile.py --regenerate    # rewrite it correctly (needs network)
+Usage:
+    scripts/lockfile.py --check
+    scripts/lockfile.py --check-staged
+    scripts/lockfile.py --regenerate
 """
 
 from __future__ import annotations
 
 import argparse
+import ctypes
+import os
 import re
 import subprocess
 import sys
@@ -56,29 +39,163 @@ MANIFEST = REPOSITORY / "Cargo.toml"
 # them has been flattened by the overlay.
 FIRST_PARTY_SOURCE = re.compile(r'^source = "git\+https://github\.com/ryancinsight/', re.M)
 
+# Metadata performs resolution rather than compilation. The deadline bounds a
+# blocked registry/file-cache acquisition as well as network access.
+RESOLUTION_TIMEOUT_SECONDS = 60
+LOCAL_COMMAND_TIMEOUT_SECONDS = 10
+ACTIVATIONS = ((), ("--all-features",))
+# Allow one pass per activation and a final stability check. Non-convergence
+# remains an error rather than silently accepting the final written lock.
+RESOLUTION_PASSES = len(ACTIVATIONS) + 1
 
-def run_outside_the_overlay(arguments: list[str]) -> subprocess.CompletedProcess[str]:
-    """Run cargo with a working directory outside the stack root.
 
-    Cargo resolves `.cargo/config.toml` by walking up from the working
-    directory, never from `--manifest-path`, so this is what excludes the
-    overlay. Running from the repository itself would silently include it.
-    """
-    with tempfile.TemporaryDirectory() as neutral_directory:
+def run_command(
+    arguments: list[str], *, cwd: str | None = None, timeout: int
+) -> subprocess.CompletedProcess[str]:
+    """Capture a bounded command, preserving failures for the caller."""
+    try:
         return subprocess.run(
-            ["cargo", *arguments, "--manifest-path", str(MANIFEST)],
-            cwd=neutral_directory,
+            arguments,
+            cwd=cwd,
             capture_output=True,
-            # `text=True` alone decodes with the locale codepage. Cargo emits
-            # UTF-8, so on a Windows console (cp1252) subprocess's reader thread
-            # dies on the first byte it cannot map and the captured stream is
-            # lost. The verdict survives -- it comes from `returncode` -- but the
-            # message explaining a failure does not, which is the one moment it
-            # is needed.
             encoding="utf-8",
             errors="replace",
             check=False,
+            timeout=timeout,
         )
+    except subprocess.TimeoutExpired as error:
+        diagnostic = error.stderr or ""
+        if isinstance(diagnostic, bytes):
+            diagnostic = diagnostic.decode("utf-8", errors="replace")
+        return subprocess.CompletedProcess(
+            arguments, 124, "", f"command exceeded {timeout}s: {arguments!r}\n{diagnostic}"
+        )
+    except OSError as error:
+        return subprocess.CompletedProcess(arguments, 1, "", str(error))
+
+
+def run_outside_the_overlay(
+    arguments: list[str], manifest: Path | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run cargo with a working directory outside the stack root.
+
+    Cargo resolves `.cargo/config.toml` by walking up from the workspace root
+    as well as the working directory. On Windows, an absolute manifest path
+    therefore still finds the Atlas overlay even when Cargo is launched from a
+    neutral temporary directory. A temporary drive mapping makes the
+    repository itself the filesystem root for this invocation, so only the
+    repository's own configuration remains visible.
+    """
+    manifest = MANIFEST if manifest is None else manifest.resolve()
+    with tempfile.TemporaryDirectory() as neutral_directory:
+        drive = unused_windows_drive()
+        if drive is not None:
+            mapped = run_command(
+                ["subst", drive, str(manifest.parent)],
+                timeout=LOCAL_COMMAND_TIMEOUT_SECONDS,
+            )
+            if mapped.returncode != 0:
+                return subprocess.CompletedProcess(
+                    ["cargo", *arguments],
+                    mapped.returncode,
+                    mapped.stdout,
+                    f"failed to map repository drive {drive}: {mapped.stderr}",
+                )
+            manifest = Path(f"{drive}\\{manifest.name}")
+        completed = None
+        try:
+            completed = run_command(
+                ["cargo", *arguments, "--manifest-path", str(manifest)],
+                cwd=neutral_directory,
+                timeout=RESOLUTION_TIMEOUT_SECONDS,
+            )
+        finally:
+            if drive is not None:
+                remove_drive(drive, completed)
+        return completed
+
+
+def remove_drive(
+    drive: str, completed: subprocess.CompletedProcess[str] | None
+) -> None:
+    """Remove a mapping without losing a preceding command failure."""
+    cleanup = run_command(["subst", drive, "/d"], timeout=LOCAL_COMMAND_TIMEOUT_SECONDS)
+    if cleanup.returncode != 0:
+        diagnostic = f"failed to remove repository drive {drive}: {cleanup.stderr}"
+        if completed is not None and completed.returncode != 0:
+            diagnostic = (
+                f"cargo failed with status {completed.returncode}:\n"
+                f"{completed.stderr}\n{diagnostic}"
+            )
+        raise RuntimeError(diagnostic)
+
+
+def unused_windows_drive() -> str | None:
+    """Return an unused Windows drive root, or ``None`` on other hosts."""
+    if os.name != "nt":
+        return None
+
+    drive_mask = ctypes.windll.kernel32.GetLogicalDrives()
+    for index in range(25, 2, -1):
+        if drive_mask & (1 << index) == 0:
+            return f"{chr(ord('A') + index)}:"
+    raise RuntimeError("no unused Windows drive is available for overlay isolation")
+
+
+def check_resolution(manifest: Path | None = None) -> int:
+    """Hydrate the committed dependency graph before checking both activations."""
+    completed = run_outside_the_overlay(["fetch", "--locked"], manifest)
+    if completed.returncode != 0:
+        print(
+            "error: locked dependency hydration failed.\n"
+            f"cargo said:\n{completed.stderr.strip()}",
+            file=sys.stderr,
+        )
+        return 1
+    return check_cached_resolution(manifest)
+
+
+def check_cached_resolution(manifest: Path | None = None) -> int:
+    """Require both gate activation sets to accept the existing lock offline."""
+    for activation in ACTIVATIONS:
+        completed = run_outside_the_overlay(
+            ["metadata", "--locked", "--offline", "--format-version", "1", *activation],
+            manifest,
+        )
+        if completed.returncode != 0:
+            mode = "all features" if activation else "default features"
+            print(
+                f"error: locked offline resolution failed for {mode}.\n"
+                f"cargo said:\n{completed.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return 1
+    return 0
+
+
+def stabilize_resolution(manifest: Path) -> int:
+    """Resolve every gate activation until a complete pass leaves the lock unchanged."""
+    lockfile = manifest.with_name("Cargo.lock")
+    for _ in range(RESOLUTION_PASSES):
+        before = lockfile.read_bytes()
+        for activation in ACTIVATIONS:
+            completed = run_outside_the_overlay(
+                ["metadata", "--format-version", "1", *activation], manifest
+            )
+            if completed.returncode != 0:
+                mode = "all features" if activation else "default features"
+                print(
+                    f"error: resolution failed for {mode}:\n{completed.stderr.strip()}",
+                    file=sys.stderr,
+                )
+                return 1
+        if lockfile.read_bytes() == before:
+            return check_cached_resolution(manifest)
+    print(
+        f"error: Cargo.lock changed after each of {RESOLUTION_PASSES} activation passes",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def check() -> int:
@@ -100,24 +217,7 @@ def check() -> int:
         )
         return 1
 
-    completed = run_outside_the_overlay(
-        ["metadata", "--locked", "--format-version", "1", "--all-features"]
-    )
-    if completed.returncode != 0:
-        print(
-            f"error: the committed Cargo.lock does not resolve under --locked "
-            f"({sources} first-party git sources present, so it is stale rather "
-            f"than flattened).\n"
-            f"\n"
-            f"The pinned first-party revisions no longer satisfy the manifests'\n"
-            f"version requirements, so cargo must re-resolve and --locked\n"
-            f"refuses. This is what blocks the benchmark baseline alignment.\n"
-            f"\n"
-            f"Fix: scripts/lockfile.py --regenerate\n"
-            f"\n"
-            f"cargo said:\n{completed.stderr.strip()}",
-            file=sys.stderr,
-        )
+    if check_resolution() != 0:
         return 1
 
     print(f"Cargo.lock resolves under --locked; {sources} first-party git sources.")
@@ -137,25 +237,23 @@ def check_staged() -> int:
     working copy may already have been repaired while the poisoned version sits
     in the index, and it is the index that becomes the commit.
     """
-    staged = subprocess.run(
+    staged = run_command(
         ["git", "diff", "--cached", "--name-only", "--", "Cargo.lock"],
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+        timeout=LOCAL_COMMAND_TIMEOUT_SECONDS,
     )
-    if staged.returncode != 0 or not staged.stdout.strip():
+    if staged.returncode != 0:
+        print(f"error: staged paths could not be read:\n{staged.stderr}", file=sys.stderr)
+        return 1
+    if not staged.stdout.strip():
         return 0
 
-    blob = subprocess.run(
+    blob = run_command(
         ["git", "show", ":Cargo.lock"],
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+        timeout=LOCAL_COMMAND_TIMEOUT_SECONDS,
     )
     if blob.returncode != 0:
-        return 0
+        print(f"error: staged Cargo.lock could not be read:\n{blob.stderr}", file=sys.stderr)
+        return 1
 
     if len(FIRST_PARTY_SOURCE.findall(blob.stdout)) > 0:
         return 0
@@ -168,8 +266,7 @@ def check_staged() -> int:
         "paths and drops their git sources. Committing it now is what turns a\n"
         "working branch into one that can never be pushed.\n"
         "\n"
-        "Fix: scripts/lockfile.py --regenerate, then stage the result.\n"
-        "To commit anyway: SKIP_LOCKFILE_CHECK=1 git commit",
+        "Fix: scripts/lockfile.py --regenerate, then stage the result.",
         file=sys.stderr,
     )
     return 1
@@ -180,7 +277,9 @@ def regenerate() -> int:
     if completed.returncode != 0:
         print(f"error: regeneration failed:\n{completed.stderr.strip()}", file=sys.stderr)
         return 1
-    print("Cargo.lock regenerated outside the overlay.")
+    if stabilize_resolution(MANIFEST) != 0:
+        return 1
+    print("Cargo.lock regenerated outside the overlay for default and all features.")
     return check()
 
 
@@ -203,4 +302,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (OSError, RuntimeError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(1) from error

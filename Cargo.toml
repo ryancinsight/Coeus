@@ -38,10 +38,11 @@ categories = ["science", "mathematics", "data-structures"]
 moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.6.0", features = ["melinoe"] }
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.6.0" }
 mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0", rev = "e8e825f482b3f6712765364254e484dd5f6e19f5" }
-# SIMD-effect SSOT.
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0" }
-eunomia = { git = "https://github.com/ryancinsight/eunomia.git", version = "0.8.0", default-features = false }
+# Keep the Eunomia source aligned with the current Hephaestus provider graph.
+eunomia = { git = "https://github.com/ryancinsight/eunomia", version = "0.8.0", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
+# Keep the Leto source aligned with the current Hephaestus provider graph.
 leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0" }
 leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.43.0" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.27.0", default-features = false }
@@ -53,8 +54,8 @@ bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
 # than rustfft or a Coeus-local array dependency.
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
-wgpu       = { version = "30.0", default-features = false, features = ["wgsl", "vulkan", "metal"] }
 # Accelerator providers remain Git-sourced and lockfile-pinned.
+# Provider-owned fusion is merged; Cargo.lock records the provider revision.
 hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
 hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
 hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false }
@@ -113,8 +114,3 @@ debug = false
 opt-level = 1
 
 # ATLAS-PATH-DEP-AUDIT-2 round-4 closure
-
-
-
-
-

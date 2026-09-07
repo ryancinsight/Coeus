@@ -16,7 +16,7 @@ use coeus_tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 fn cuda_available() -> bool {
-    coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some()
+    hephaestus_cuda::CudaDevice::try_default().is_ok()
 }
 
 fn fill(n: usize, phase: f32) -> Vec<f32> {

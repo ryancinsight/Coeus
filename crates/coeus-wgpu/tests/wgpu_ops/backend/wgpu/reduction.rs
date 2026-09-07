@@ -4,7 +4,7 @@ use coeus_wgpu::WgpuBackend;
 
 #[test]
 fn cumulative_scans_match_cpu_on_rank_two_device_tensors() {
-    if hephaestus_wgpu::WgpuDevice::try_default("coeus-wgpu-scan-test").is_err() {
+    if !crate::availability::device_available("coeus-wgpu-scan-test") {
         return;
     }
 
@@ -43,7 +43,7 @@ fn cumulative_scans_match_cpu_on_rank_two_device_tensors() {
 
 #[test]
 fn product_axis_matches_cpu_on_rank_two_device_tensors() {
-    if hephaestus_wgpu::WgpuDevice::try_default("coeus-wgpu-product-axis-test").is_err() {
+    if !crate::availability::device_available("coeus-wgpu-product-axis-test") {
         return;
     }
 
@@ -64,7 +64,7 @@ fn product_axis_matches_cpu_on_rank_two_device_tensors() {
 
 #[test]
 fn norm_p_dispatches_with_wgpu_provider_parity() {
-    if hephaestus_wgpu::WgpuDevice::try_default("coeus-wgpu-norm-p-test").is_err() {
+    if !crate::availability::device_available("coeus-wgpu-norm-p-test") {
         return;
     }
 

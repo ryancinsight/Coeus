@@ -89,10 +89,46 @@ where
                 output,
                 output_layout,
             ),
+            5 => self.dispatch_binary_rank::<T, 5>(
+                operation,
+                lhs,
+                lhs_layout,
+                rhs,
+                rhs_layout,
+                output,
+                output_layout,
+            ),
+            6 => self.dispatch_binary_rank::<T, 6>(
+                operation,
+                lhs,
+                lhs_layout,
+                rhs,
+                rhs_layout,
+                output,
+                output_layout,
+            ),
+            7 => self.dispatch_binary_rank::<T, 7>(
+                operation,
+                lhs,
+                lhs_layout,
+                rhs,
+                rhs_layout,
+                output,
+                output_layout,
+            ),
+            8 => self.dispatch_binary_rank::<T, 8>(
+                operation,
+                lhs,
+                lhs_layout,
+                rhs,
+                rhs_layout,
+                output,
+                output_layout,
+            ),
             rank => Err(BackendError::UnsupportedRank {
                 operation: "elementwise_binary",
                 rank,
-                max_rank: 4,
+                max_rank: 8,
             }
             .into()),
         }
@@ -181,10 +217,38 @@ where
                 output,
                 output_layout,
             ),
+            5 => self.dispatch_unary_rank::<T, 5>(
+                operation,
+                input,
+                input_layout,
+                output,
+                output_layout,
+            ),
+            6 => self.dispatch_unary_rank::<T, 6>(
+                operation,
+                input,
+                input_layout,
+                output,
+                output_layout,
+            ),
+            7 => self.dispatch_unary_rank::<T, 7>(
+                operation,
+                input,
+                input_layout,
+                output,
+                output_layout,
+            ),
+            8 => self.dispatch_unary_rank::<T, 8>(
+                operation,
+                input,
+                input_layout,
+                output,
+                output_layout,
+            ),
             rank => Err(BackendError::UnsupportedRank {
                 operation: "elementwise_unary",
                 rank,
-                max_rank: 4,
+                max_rank: 8,
             }
             .into()),
         }
@@ -264,10 +328,38 @@ where
                 output,
                 output_layout,
             ),
+            5 => self.dispatch_scalar_power_rank::<T, 5>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
+            6 => self.dispatch_scalar_power_rank::<T, 6>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
+            7 => self.dispatch_scalar_power_rank::<T, 7>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
+            8 => self.dispatch_scalar_power_rank::<T, 8>(
+                input,
+                input_layout,
+                exponent,
+                output,
+                output_layout,
+            ),
             rank => Err(BackendError::UnsupportedRank {
                 operation: "elementwise scalar power",
                 rank,
-                max_rank: 4,
+                max_rank: 8,
             }
             .into()),
         }
@@ -360,18 +452,18 @@ mod tests {
     }
 
     #[test]
-    fn rank_above_four_is_rejected_as_typed_backend_error() {
-        let layout = Layout::new([1, 1, 1, 1, 1].into());
-        let error = match ranked::<4>("elementwise_binary", &layout) {
-            Ok(_) => panic!("rank five must be rejected"),
+    fn rank_above_eight_is_rejected_as_typed_backend_error() {
+        let layout = Layout::new([1, 1, 1, 1, 1, 1, 1, 1, 1].into());
+        let error = match ranked::<8>("elementwise_binary", &layout) {
+            Ok(_) => panic!("rank nine must be rejected"),
             Err(error) => error,
         };
         assert_eq!(
             error,
             BackendError::UnsupportedRank {
                 operation: "elementwise_binary",
-                rank: 5,
-                max_rank: 4,
+                rank: 9,
+                max_rank: 8,
             }
         );
     }

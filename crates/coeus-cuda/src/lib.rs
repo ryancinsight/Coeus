@@ -8,7 +8,7 @@
 //! ## Feature gating
 //!
 //! The real device path is behind the `cuda` feature (NVRTC + the CUDA driver
-//! via `hephaestus-cuda`). Without it, [`CudaBackend`] exposes metadata and
+//! through `hephaestus-cuda`). Without it, [`CudaBackend`] exposes metadata and
 //! storage types so the workspace builds on machines without a CUDA toolkit,
 //! but it implements no mathematical backend traits.
 //!
@@ -16,10 +16,10 @@
 //!
 //! Attention, convolution, and stateful optimizer updates bind directly to
 //! provider-owned Hephaestus operation markers over borrowed CUDA buffers.
-//! Other `BackendOps<T>` methods route to monomorphized on-device kernels and
-//! return typed backend errors when the selected provider rejects validation,
-//! compilation, or dispatch. No operation changes execution backend after CUDA
-//! has been selected.
+//! All mathematical operations route to monomorphized provider-owned
+//! Hephaestus kernels and return typed backend errors when the selected
+//! provider rejects validation, compilation, or dispatch. No operation changes
+//! execution backend after CUDA has been selected.
 //!
 //! Provider capability boundaries are explicit in their operation contracts
 //! and are covered by differential parity tests in `tests/cuda/`. Native and
@@ -37,29 +37,19 @@ mod backend;
 mod backend;
 
 #[cfg(feature = "cuda")]
-/// CUDA driver context management for the real device backend.
-pub mod driver;
-#[cfg(not(feature = "cuda"))]
-#[path = "driver_stub.rs"]
-/// Stub CUDA driver surface used when the `cuda` feature is disabled.
-pub mod driver;
-
-#[cfg(feature = "cuda")]
-/// CUDA kernel modules and launch helpers for on-device computation.
-pub mod kernels;
-
-#[cfg(feature = "cuda")]
 mod storage;
 #[cfg(not(feature = "cuda"))]
 #[path = "storage_stub.rs"]
 mod storage;
 
+#[cfg(feature = "cuda")]
+mod fusion;
+
 pub use backend::{CudaBackend, CudaScalar};
-pub use driver::{get_cuda_context, CudaDriver};
 pub use storage::CudaStorage;
 
 #[cfg(feature = "cuda")]
-use coeus_core::{ComputeBackend, Layout};
+use coeus_core::Layout;
 use coeus_tensor::Tensor;
 
 /// Evaluate a fused element-wise expression on the CUDA device.
@@ -109,7 +99,7 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
 
-        kernels::dispatch_fused(expr, out.storage_mut(), &out_layout)?;
+        fusion::dispatch_fused(expr, out.storage_mut(), &out_layout)?;
         Ok(out)
     }
 }
@@ -183,21 +173,7 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
 
-        if axis_len == 0 {
-            let identity = match op {
-                coeus_ops::ReductionOp::Sum => T::zero(),
-                coeus_ops::ReductionOp::Prod => T::one(),
-                coeus_ops::ReductionOp::Mean
-                | coeus_ops::ReductionOp::Max
-                | coeus_ops::ReductionOp::Min => {
-                    unreachable!("invariant: undefined empty reductions were rejected")
-                }
-            };
-            CudaBackend::new().fill(out.storage_mut(), identity);
-            return Ok(out);
-        }
-
-        kernels::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
+        fusion::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
         Ok(out)
     }
 }

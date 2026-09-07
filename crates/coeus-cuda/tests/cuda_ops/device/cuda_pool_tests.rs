@@ -6,7 +6,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_max_pool2d() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -49,9 +49,7 @@ fn test_cuda_max_pool2d() {
 
     let output_cuda_on_cpu = output_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(output_cuda_on_cpu.as_slice(), output_seq.as_slice());
-    }
+    assert_eq!(output_cuda_on_cpu.as_slice(), output_seq.as_slice());
 
     // Now test backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
@@ -96,14 +94,12 @@ fn test_cuda_max_pool2d() {
 
     let grad_in_cuda_on_cpu = grad_in_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(grad_in_cuda_on_cpu.as_slice(), grad_in_seq.as_slice());
-    }
+    assert_eq!(grad_in_cuda_on_cpu.as_slice(), grad_in_seq.as_slice());
 }
 
 #[test]
 fn test_cuda_avg_pool2d() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -146,9 +142,7 @@ fn test_cuda_avg_pool2d() {
 
     let output_cuda_on_cpu = output_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(output_cuda_on_cpu.as_slice(), output_seq.as_slice());
-    }
+    assert_eq!(output_cuda_on_cpu.as_slice(), output_seq.as_slice());
 
     // Now test backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
@@ -189,7 +183,5 @@ fn test_cuda_avg_pool2d() {
 
     let grad_in_cuda_on_cpu = grad_in_cuda.to_backend_on(&cuda_b, &seq);
 
-    if coeus_cuda::CudaDriver::get().is_some() && coeus_cuda::get_cuda_context().is_some() {
-        assert_eq!(grad_in_cuda_on_cpu.as_slice(), grad_in_seq.as_slice());
-    }
+    assert_eq!(grad_in_cuda_on_cpu.as_slice(), grad_in_seq.as_slice());
 }

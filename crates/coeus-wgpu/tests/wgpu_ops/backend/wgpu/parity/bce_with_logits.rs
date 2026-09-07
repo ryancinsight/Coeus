@@ -4,19 +4,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn bce_with_logits_dispatches_with_wgpu_value_and_gradient_parity() {
-    #[cfg(target_os = "windows")]
-    std::env::set_var("WGPU_BACKEND", "dx12");
-    if hephaestus_wgpu::WgpuDevice::try_default_with_limits(
-        "coeus-wgpu-bce-with-logits-test",
-        wgpu::Limits::default(),
-    )
-    .is_err()
-    {
-        assert_ne!(
-            std::env::var("HEPHAESTUS_WGPU_REQUIRE_DEVICE").as_deref(),
-            Ok("1"),
-            "WGPU CI requires an acquired device"
-        );
+    if !crate::availability::device_available("coeus-wgpu-bce-with-logits-test") {
         return;
     }
 
