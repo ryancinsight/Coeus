@@ -4,7 +4,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_backend_transfer_roundtrip() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -27,7 +27,7 @@ fn test_cuda_backend_transfer_roundtrip() {
 )]
 #[test]
 fn test_cuda_backend_ops() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -68,7 +68,7 @@ fn test_cuda_backend_ops() {
 
 #[test]
 fn test_cuda_norm_p_provider_dispatch() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
 

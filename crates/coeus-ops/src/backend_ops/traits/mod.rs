@@ -46,7 +46,9 @@ pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use cross_entropy::CrossEntropyOps;
 pub use elementwise::{ElementwiseOps, ScalarPowerOps};
-pub use finite_difference::{Axis, FiniteDifference3DOps, FiniteDifference3DScheme};
+pub use finite_difference::{
+    Axis, FiniteDifference3DOps, FiniteDifference3DScheme, StaggeredPairOps,
+};
 pub use matmul::MatmulOps;
 pub use optimizer::{OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 pub use pool::PoolOps;

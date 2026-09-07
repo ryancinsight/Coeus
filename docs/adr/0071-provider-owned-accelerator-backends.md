@@ -69,5 +69,62 @@ dependency. Hephaestus provider contract tests remain the upstream behavioral
 oracle; optimized accelerator results are compared with the existing Coeus
 CPU paths under their documented numerical bounds.
 
-The implementation is delivered in Coeus PR #368 against Hephaestus PR #274,
-locked to provider revision `1d3d5df`.
+Coeus PR #368 consumes the merged Hephaestus PR #274. Cargo.lock records the
+provider revision used by each verification run.
+
+The 2026-09-07 locked API comparison against main's source records no default-
+feature break in core or the bridge. CUDA and WGPU require a major release for
+the removals and scalar bounds below. CUDA-enabled baseline rustdoc generation
+stalls in the removed Cutile binding generator; that surface is compared from
+public source, without claiming an automated compatibility verdict.
+
+## Migration
+
+Tensor callers retain `CudaBackend`, `WgpuBackend`, and the public
+`evaluate_fused`/`evaluate_fused_reduce` entry points. CUDA computation still
+requires the `cuda` feature.
+
+Consumers of `coeus_cuda::driver`, `coeus_cuda::kernels`, `CudaDriver`, or
+`get_cuda_context` must use Hephaestus directly for device-level work. Acquire
+`hephaestus_cuda::CudaDevice` through its `try_default` method and use the
+provider's operation traits; Coeus no longer exposes a separate driver facade.
+
+Replace `<T as coeus_cuda::CudaScalar>::CUDA_TYPE` with
+`<T as hephaestus_core::DialectScalar<hephaestus_core::CudaC>>::TYPE_TOKEN`
+when generating CUDA source outside Coeus. `CudaScalar` now requires
+`hephaestus_cuda::CudaFusionScalar`, and `WgpuScalar` requires
+`hephaestus_wgpu::WgpuFusionScalar`. Generic callers must satisfy these provider
+bounds; the existing sealed Coeus scalar set remains the supported set.
+
+Replace matches on `CudaBackendError::Fusion` and removed WGPU kernel/layout
+error variants with the backend's `Dispatch { operation, source }` variant
+for provider failures, or `Validation` for tensor contract failures. The
+standalone WGPU `LayoutError` export is removed. Preserve a wildcard arm when
+matching these non-exhaustive backend errors.
+
+## Revision 2026-09-07
+
+Integration with main preserves the `StaggeredPairOps` contract introduced by
+PR #377. Its provider parameter block carries dimensions but no operand strides
+or offsets, so the adapter rejects non-contiguous or offset layouts and unequal
+operand shapes before dispatch. Preparation rejects invalid grid spacing before
+device acquisition. Value comparisons, typed rejection cases, and unchanged
+destination checks cover these boundaries.
+
+Parameterized unary adapters retain the public operation encoding: single
+parameters use `f64` bits and paired parameters use two packed `f32` words.
+Decoding occurs at the provider's `f32` parameter boundary. The leaky-ReLU
+derivative uses the configured slope at either signed zero on every provider.
+
+The elementwise bridge instantiates ranks one through eight. Provider tests
+must compile these instantiations, because metadata-only checks do not evaluate
+every const-generic assertion. ROCm's metadata and generated address arithmetic
+must represent the same accepted layouts; host packing tests establish the ABI,
+while execution on an AMD device remains separate behavioral evidence.
+
+Device tests honor the provider's compiled backend set. Four inherited Windows
+tests forced DX12 despite the provider compiling Vulkan and Metal; the captured
+acquisition error confirms that mismatch. The overrides are removed, and test
+guards retain typed acquisition diagnostics. Coeus also advances its direct
+Moirai requirements to 0.6 with Leto's matching dependency transition so the
+provider corrections resolve without a new Git revision quarantine.

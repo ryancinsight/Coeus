@@ -4,7 +4,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_backend_conv_and_reduce() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -86,7 +86,7 @@ fn test_cuda_backend_conv_and_reduce() {
 
 #[test]
 fn test_cuda_conv_backward() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     use coeus_core::CpuAddressableStorage;

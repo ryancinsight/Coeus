@@ -4,14 +4,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn rotate_half_dispatches_with_wgpu_parity() {
-    #[cfg(target_os = "windows")]
-    std::env::set_var("WGPU_BACKEND", "dx12");
-    if hephaestus_wgpu::WgpuDevice::try_default("coeus-wgpu-rotate-half-test").is_err() {
-        assert_ne!(
-            std::env::var("HEPHAESTUS_WGPU_REQUIRE_DEVICE").as_deref(),
-            Ok("1"),
-            "WGPU CI requires an acquired device"
-        );
+    if !crate::availability::device_available("coeus-wgpu-rotate-half-test") {
         return;
     }
     let cpu = Tensor::from_slice_on(

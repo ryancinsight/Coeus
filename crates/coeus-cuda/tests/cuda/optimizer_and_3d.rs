@@ -5,7 +5,7 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_cuda_adamw_step() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -122,7 +122,7 @@ fn test_cuda_adamw_step() {
 
 #[test]
 fn test_cuda_conv3d() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -184,7 +184,7 @@ fn test_cuda_conv3d() {
 
 #[test]
 fn test_cuda_max_pool3d_forward_backward() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();
@@ -281,7 +281,7 @@ fn test_cuda_max_pool3d_forward_backward() {
 
 #[test]
 fn test_cuda_avg_pool3d_forward_backward() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let cuda_b = CudaBackend::new();

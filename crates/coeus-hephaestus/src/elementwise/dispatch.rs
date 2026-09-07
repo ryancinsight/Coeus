@@ -22,7 +22,7 @@ fn unsupported_unary_operation(operation: UnaryOp) -> hephaestus_core::Hephaestu
 
 /// Provider-neutral binary operation dispatch over a Hephaestus elementwise
 /// seam.
-pub trait BinaryElementwiseDispatch<D: ComputeDevice, T: bytemuck::Pod + eunomia::Pod> {
+pub trait BinaryElementwiseDispatch<D: ComputeDevice, T: eunomia::Pod> {
     /// Execute one Coeus binary operation over ranked strided operands.
     fn binary<const N: usize>(
         device: &D,
@@ -36,7 +36,7 @@ pub trait BinaryElementwiseDispatch<D: ComputeDevice, T: bytemuck::Pod + eunomia
 impl<D, T, E> BinaryElementwiseDispatch<D, T> for E
 where
     D: ComputeDevice,
-    T: bytemuck::Pod + eunomia::Pod + DialectScalar<E::Dialect>,
+    T: eunomia::Pod + DialectScalar<E::Dialect>,
     E: HephaestusElementwiseOps<D, T> + Default,
     hephaestus_core::AddOp: BinaryExpr<E::Dialect>,
     hephaestus_core::SubOp: BinaryExpr<E::Dialect>,
@@ -106,7 +106,7 @@ pub struct ArithmeticUnaryOperations;
 pub struct ActivationUnaryOperations;
 
 /// Provider-neutral scalar-power dispatch over a Hephaestus elementwise seam.
-pub trait ScalarPowerDispatch<D: ComputeDevice, T: bytemuck::Pod + eunomia::Pod> {
+pub trait ScalarPowerDispatch<D: ComputeDevice, T: eunomia::Pod> {
     /// Execute `output = input.powf(exponent)` over ranked strided operands.
     fn scalar_power<const N: usize>(
         device: &D,
@@ -119,7 +119,7 @@ pub trait ScalarPowerDispatch<D: ComputeDevice, T: bytemuck::Pod + eunomia::Pod>
 impl<D, T, E> ScalarPowerDispatch<D, T> for E
 where
     D: ComputeDevice,
-    T: bytemuck::Pod + eunomia::Pod + DialectScalar<E::Dialect>,
+    T: eunomia::Pod + DialectScalar<E::Dialect>,
     E: HephaestusElementwiseOps<D, T> + Default,
     hephaestus_core::PowOp: BinaryExpr<E::Dialect>,
 {
@@ -140,7 +140,7 @@ where
 
 /// Provider-neutral unary operation dispatch over a Hephaestus elementwise
 /// seam.
-pub trait UnaryElementwiseDispatch<P, T: bytemuck::Pod + eunomia::Pod, E>
+pub trait UnaryElementwiseDispatch<P, T: eunomia::Pod, E>
 where
     P: HephaestusProvider,
     E: HephaestusElementwiseOps<P::Device, T>,
@@ -157,7 +157,7 @@ where
 impl<P, T, E> UnaryElementwiseDispatch<P, T, E> for ArithmeticUnaryOperations
 where
     P: HephaestusProvider,
-    T: bytemuck::Pod + eunomia::Pod + DialectScalar<E::Dialect>,
+    T: eunomia::Pod + DialectScalar<E::Dialect>,
     E: HephaestusElementwiseOps<P::Device, T> + Default,
     hephaestus_core::SinOp: UnaryExpr<E::Dialect>,
     hephaestus_core::CosOp: UnaryExpr<E::Dialect>,

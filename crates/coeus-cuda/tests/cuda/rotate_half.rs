@@ -4,21 +4,9 @@ use coeus_cuda::CudaBackend;
 use coeus_ops::{BinaryOp, ElementwiseOps};
 use coeus_tensor::Tensor;
 
-fn require_device() -> bool {
-    let available = hephaestus_cuda::CudaDevice::try_default().is_ok();
-    if !available {
-        assert_ne!(
-            std::env::var("HEPHAESTUS_CUDA_REQUIRE_DEVICE").as_deref(),
-            Ok("1"),
-            "CUDA CI requires an acquired device"
-        );
-    }
-    available
-}
-
 #[test]
 fn rotate_half_dispatches_with_cuda_parity() {
-    if !require_device() {
+    if !crate::availability::device_available() {
         return;
     }
     let cpu = SequentialBackend::new();
@@ -44,7 +32,7 @@ fn rotate_half_dispatches_with_cuda_parity() {
 
 #[test]
 fn unary_assignment_detaches_shared_cuda_view() {
-    if !require_device() {
+    if !crate::availability::device_available() {
         return;
     }
 
@@ -70,7 +58,7 @@ fn unary_assignment_detaches_shared_cuda_view() {
 
 #[test]
 fn partial_update_preserves_cuda_parent_and_shared_source() {
-    if !require_device() {
+    if !crate::availability::device_available() {
         return;
     }
 

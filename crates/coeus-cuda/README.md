@@ -11,7 +11,7 @@ Compute is behind the `cuda` feature. A default build exposes only the storage
 and capability types and implements no mathematical traits:
 
 ```sh
-cargo test -p coeus-cuda --features cuda
+cargo nextest run --locked -p coeus-cuda --features cuda
 ```
 
 The `cuda` feature requires `CUDA_TOOLKIT_PATH` and a working CUDA driver.

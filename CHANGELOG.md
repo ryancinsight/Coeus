@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+
+- [major] CUDA and WGPU operations use Hephaestus-owned kernels and device
+  resources. Removed the public CUDA driver/kernel modules, `CudaDriver`,
+  `get_cuda_context`, `CudaScalar::CUDA_TYPE`, WGPU `LayoutError`, and consumer
+  kernel error variants. Scalar bounds now include provider fusion capabilities.
+  See [ADR 0071](docs/adr/0071-provider-owned-accelerator-backends.md#migration)
+  for migration instructions.
+
 ### Added
 
 - [minor] `coeus_autograd::gradcheck` — verify a backward pass against central
@@ -40,12 +49,16 @@
 
 ### Fixed
 
+- [patch] GPU unary activations decode single parameters from their public
+  `f64` bit encoding. Staggered preparation rejects invalid spacing before
+  device acquisition; dispatch rejects unequal shapes, offsets, and strides
+  that the provider parameter block cannot represent.
+
 - [patch] `coeus_core::Scalar` and the generic Hephaestus storage/dispatch
   surfaces now carry Eunomia's `Pod` device-layout contract alongside the
-  existing bytemuck host-layout contract. This closes the typed
-  `ComputeDevice::Buffer<T>` boundary without a conversion shim and restores
-  all-feature CUDA compilation; `coeus-cuda` aligns its Cutile dependencies
-  on the available `0.3.1` package family. See ADR-0068.
+  existing bytemuck host-layout contract, satisfying the provider's
+  `ComputeDevice::Buffer<T>` requirement. Coeus no longer depends directly on Cutile.
+  See [ADR 0068](docs/adr/0068-coeus-eunomia-device-layout.md).
 
 - [patch] Coeus now follows Hephaestus PR #270's Leto/Moirai source identity,
   preventing duplicate `leto::Layout` types at the provider boundary.

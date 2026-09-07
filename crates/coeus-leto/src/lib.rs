@@ -40,4 +40,4 @@ pub use dispatch::{
     StatefulUpdateValidation, StatefulUpdateValidationState, WriteOperand, MAX_DISPATCH_RANK,
     MAX_STATEFUL_UPDATE_RANK,
 };
-pub use leto_ops::RealScalar as RandomScalar;
+pub use leto_ops::RealScalar;

@@ -222,7 +222,7 @@ impl<
         bias: bool,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RandomScalar,
+        T: coeus_leto::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         if H == 0 || d_model == 0 || !d_model.is_multiple_of(H) {

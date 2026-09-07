@@ -1,41 +1,85 @@
-# Coeus Project Backlog & Historical Archives
+# Coeus Development Backlog
 
-## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned GPU kernels [major] [arch] <a id="coeus-hephaestus-cuda-fusion-001"></a>
+<a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
+## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
-- **Owner:** atlas-session; scope: `coeus-cuda` fusion and `coeus-wgpu`
-  elementwise adapters, consumer kernel deletion, and provider-contract tests.
-- **Outcome:** Hephaestus owns CUDA/WGPU source generation, signed layout
-  metadata, pipeline caching, and launch; Coeus keeps tensor shape and
-  expression adaptation at the provider boundary.
-- **Acceptance:** CUDA fusion and WGPU elementwise value/error contracts pass
-  through Hephaestus; consumer-owned CUDA/WGPU runtime/source/cache/launch code
-  is deleted with all callers migrated; exact locked compile, Clippy, Nextest,
-  doctest, format, diff, and lockfile checks pass.
-- **Status:** in-progress; integrator: codex-01a079ad; branch:
-  `arch/coeus-hephaestus-cuda-fusion-001`; dependency:
-  `HEPH-CUDA-FUSION-2026-09-04`.
-- **Evidence:** Hephaestus revision `1d3d5df` passes combined no-feature
-  Nextest 142/142 and CUDA Nextest 177/177. Coeus revision `4013da45` passes
-  no-feature Nextest 134/134 and CUDA Nextest 234/234, full-workspace strict
-  Clippy in both configurations, workspace doctests, rustdoc, format, diff,
-  and standalone lockfile validation. Source audit finds no Coeus-owned WGPU
-  kernel tree, CUDA driver facade, PTX, direct raw `wgpu`/CUDA imports, or
-  direct `half` dependency; reduced precision remains on Eunomia/provider
-  contracts. Semver reports 189 pass and 7 intentional major breaks.
-- **Delivery:** consumer PR [#368](https://github.com/ryancinsight/Coeus/pull/368)
-  depends on provider PR [#274](https://github.com/ryancinsight/hephaestus/pull/274)
-  at `1d3d5df`; superseded WGPU PR #366 is closed after this branch update.
-  Both provider-boundary changes require independent architectural review
-  before merge.
-- **ADR claim:** `0070` covers CUDA; `0071` records the provider-owned CUDA and
-  WGPU accelerator cutover.
-- **Review 2026-09-06:** baseline `32e39fd2` fails before compilation because
-  Moirai is pinned to the nonexistent revision `f532b0e`; CI run `33943891279`
-  reports the same failure. Provider PR #274 is merged. Integrate `01d3e9d0`
-  from main, preserve staggered dispatch, and repeat the acceptance gates.
-- **Lease:** codex-01a079ad; integration conflicts, provider manifests,
-  staggered dispatch, and tracking artifacts; 2026-09-07T00:00:00Z.
-- **Last-update:** 2026-09-06.
+- Status: todo; scope: `.githooks/pre-commit` and `.githooks/pre-push`; [patch].
+- Finding: missing checker/interpreter and `SKIP_LOCKFILE_CHECK=1` return success.
+- Outcome: configured hooks fail when their required verification cannot execute.
+- Acceptance: remove the bypass, preserve command diagnostics, and reject each
+  missing prerequisite; ordinary valid staged-lock and push checks still pass.
+- Verification: execute installed hooks with controlled prerequisite failures and
+  real Cargo fixtures; no skipped hooks or simulated checker success.
+- Non-goal: replace the existing lockfile tool or alter dependency requirements.
+
+<a id="coeus-provider-resolution-2026-09-07"></a>
+## COEUS-PROVIDER-RESOLUTION-2026-09-07 — Restore fresh provider resolution
+
+- Status: review; integrator: codex-01a079ad; scope: dependency closure; [arch].
+- Outcome: fresh lock generation and default/all-feature locked resolution agree.
+- Reconciliation: fetched Leto now requires Moirai 0.6; the upstream blocker is
+  resolved. Coeus advances its two requirements with the locked provider graph.
+- Evidence: targeted provider update and all affected local gates pass; remote
+  freshness of an independently generated lock remains outside the offline check.
+- Acceptance: standalone regeneration is idempotent and all configured gates pass.
+- Verification: real Cargo resolution and dependent-package tests; no overlay evidence.
+- Evidence: frozen tree `421a7149` generates the same offline lock twice
+  (`f87984e9`), and both activation checks pass. Cached source choices differ
+  from the delivered lock; this proves closure/idempotence, not remote freshness.
+
+<a id="coeus-tracking-consolidation-2026-09-07"></a>
+## COEUS-TRACKING-CONSOLIDATION-2026-09-07 — Consolidate development records
+
+- Status: todo; scope: backlog, both checklists, and their incoming links; [patch].
+- Outcome: one root backlog owns status/acceptance and one root checklist owns steps.
+- Finding: active items occur in three files; historical completion labels coexist
+  with unresolved verification. LayerNorm and book delivery records are reconciled.
+- Reconciliation: 144 heading IDs recur across files; some name distinct concerns.
+  Preserve section-level residuals, including LP-norm's narrower post-merge checks.
+- Acceptance: preserve open items and unique evidence, compact closed items to
+  commit references, migrate links, and delete superseded tracking files.
+- Verification: unique item IDs, valid local links, and no pending merged items.
+
+<a id="coeus-lockfile-script-narrow"></a>
+## COEUS-LOCKFILE-SCRIPT-NARROW — Check both dependency activation sets
+
+- Status: review; integrator: codex-01a079ad; risk: [patch].
+- Scope: existing lockfile tool and its real-Cargo regression tests.
+- Outcome: default and all-feature activation both accept the generated lock.
+- Acceptance: bounded convergence, unchanged second generation, diagnostic
+  preservation, and removal of temporary drive mappings after every outcome.
+- Verification: local Cargo fixture plus the Coeus standalone locked graph.
+- Evidence: `python -m unittest discover -s scripts/tests -v` passes 6/6;
+  removing all-feature checks makes the optional-source regression fail.
+  `python scripts/lockfile.py --check` accepts both Coeus activation sets.
+- Non-goal: migrate the incompatible upstream Moirai/Leto version requirements.
+
+<a id="coeus-hephaestus-cuda-fusion-001"></a>
+## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned GPU kernels
+
+- Status: review; integrator: codex-01a079ad; risk: [major] [arch].
+- Branch: `arch/coeus-hephaestus-cuda-fusion-001`; last-update: 2026-09-07.
+- Outcome: Hephaestus owns CUDA/WGPU kernels, metadata, device resources, and
+  dispatch; Coeus owns tensor/expression/layout adaptation and typed errors.
+- Acceptance: remove superseded implementations and migrate all callers;
+  preserve main's staggered operations; native/device/error contracts and
+  locked compilation, Clippy, doctests, docs, format, and SemVer classification hold.
+- Delivery: [Coeus PR #368](https://github.com/ryancinsight/Coeus/pull/368);
+  provider PRs #272, #274 and #283 are merged; #285 preserves device-request errors.
+- Design and migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md).
+- Final graph: lock SHA256 `0c678d26` and provider `f7c747a8`; strict
+  workspace Clippy passes. Native run `c41062db` passes 1,143 tests with eight
+  existing ignored cache benchmarks; required-device run `cba3396d` passes
+  all 234 CUDA/WGPU tests with no skips. Workspace/device doctests and strict
+  documentation pass. Independent final review finds no actionable blockers.
+- API comparison against `01d3e9d0`: core/bridge pass; CUDA has seven and WGPU
+  three intentional major checks, covered by the migration. Enabled-CUDA
+  baseline stalls in removed Cutile bindgen; manual public-source review
+  complements the default comparison without an automated enabled verdict.
+- Residual: [unclassified CUDA context fault](gap_audit.md); later passing
+  device/lifecycle runs do not establish its cause. Physical HIP/Metal unavailable.
+- Pending: provider PR #285 and consumer merge. Source and run evidence are
+  recorded in PR #368.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 
@@ -133,23 +177,11 @@
   and was not benchmarked.
 - Status: complete 2026-08-13.
 
-## COEUS-LAYERNORM-SHAPE-001 — Support multi-dimensional LayerNorm [minor]
+<a id="coeus-layernorm-shape-001"></a>
+## COEUS-LAYERNORM-SHAPE-001 — Multi-dimensional LayerNorm
 
-- Owner: Codex on `codex/coeus-layernorm-shape`; scope:
-  `coeus-nn` LayerNorm, `coeus-autograd` gradient restoration,
-  `coeus-python` module and functional bindings, tests, book, changelog, and
-  audit artifacts.
-- Outcome: normalize exactly the configured non-empty positive trailing shape
-  for rank-two-or-greater inputs through the existing provider kernel, with
-  native-shape affine parameters and gradients; Python exposes the same
-  contract without domain logic in the binding.
-- Acceptance: positive multi-dimensional CPU and Python value tests, exact
-  trailing-shape mismatch rejection, boundary rank/shape coverage, formatting,
-  warning-denied Clippy, focused Nextest, doctests, rustdoc, and exact-head
-  hosted checks. No fallback, compatibility adapter, or performance claim.
-- Status: in progress; local `cargo check -p coeus-nn --tests --offline` and
-  format checks pass. Focused Nextest is pending shared-target build
-  contention.
+- Status: done; merged in PR #330 at `a2638c03`.
+- Outcome: trailing-shape normalization and affine gradient shape restoration.
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons [major]
 
@@ -358,6 +390,7 @@
   package SemVer review recorded above.
 
 
+<a id="coeus-autograd-lp-norm-provider-001"></a>
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Keep Lp norms on the selected provider [major] [arch]
 
 - Owner: Codex on `codex/coeus-lp-norm-provider`; last-update:
@@ -381,18 +414,18 @@
 - Risk/change class: `[major] [arch]`; adding scalar-power methods to public
   elementwise/provider traits is a breaking contract change. In-repository
   implementations migrate without compatibility shims.
-- Status: blocked; local implementation and package evidence are complete, but
-  locked accelerator verification is awaiting the shared overlay lock graph
-  and the peer Hephaestus checkout to restore its cross-entropy exports. Reopen
-  on a clean provider graph and exact hosted backend results. Design accepted
-  in [ADR 0056](docs/adr/0056-provider-owned-lp-norms.md).
-- Local evidence: `cargo fmt --all -- --check`, Ops and autograd warning-denied
-  Clippy, Ops Nextest 208/208, autograd Nextest 103/103, Ops doctests 22/22,
-  autograd doctests 16/16, and the focused strided/COW regression pass. Final
-  locked accelerator checks remain blocked
-  by the shared overlay's dirty provider patches and the peer-owned
-  Hephaestus cross-entropy API break; hosted WGPU/CUDA/ROCm/Metal execution is
-  still required.
+- Status: review; implementation `4b915102` and reduction-axis correction
+  `d775cd90` are incorporated in `origin/main`. The recorded provider blocker
+  was resolved in `cd36ee64`; it no longer describes pending work.
+- Historical evidence: `cd36ee64` records passing locked provider checks,
+  provider Clippy, and Hephaestus regressions, plus Backend parity run
+  `31052471989` for WGPU, CUDA, ROCm, and Metal. The existing checklist records
+  Ops Nextest 208/208, autograd Nextest 103/103, and package doctests.
+  These historical results do not verify the current revision.
+- Residual: collect workspace-doctest evidence and classify SemVer against
+  the intended baseline. The published-0.9.0 comparison found three existing
+  cumulative-scan/fusion breaks; it does not establish current compatibility.
+  Design: [ADR 0056](adr/0056-provider-owned-lp-norms.md).
 
 ## COEUS-AUTOGRAD-PROD-PROVIDER-001 — Keep global product on the selected provider [minor] [arch]
 

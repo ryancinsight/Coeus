@@ -303,7 +303,7 @@ mod tests {
                 .map_err(|_| HephaestusError::TransferFailed {
                     message: "test buffer lock poisoned".to_owned(),
                 })?;
-            out.copy_from_slice(eunomia::layout::cast_slice::<u8, T>(&bytes));
+            eunomia::layout::cast_slice_mut(out).copy_from_slice(&bytes);
             Ok(())
         }
 
@@ -319,7 +319,7 @@ mod tests {
                 .map_err(|_| HephaestusError::TransferFailed {
                     message: "test buffer lock poisoned".to_owned(),
                 })?;
-            bytes.copy_from_slice(eunomia::layout::cast_slice::<T, u8>(host));
+            bytes.copy_from_slice(eunomia::layout::cast_slice(host));
             Ok(())
         }
 
@@ -348,7 +348,7 @@ mod tests {
                     message: "test buffer lock poisoned".to_owned(),
                 })?;
             let start_bytes = offset * std::mem::size_of::<T>();
-            let host_bytes = eunomia::layout::cast_slice::<T, u8>(host);
+            let host_bytes = eunomia::layout::cast_slice(host);
             bytes[start_bytes..start_bytes + host_bytes.len()].copy_from_slice(host_bytes);
             Ok(())
         }

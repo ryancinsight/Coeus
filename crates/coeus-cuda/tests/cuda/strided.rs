@@ -4,7 +4,7 @@ use coeus_tensor::{Tensor, Transpose};
 
 #[test]
 fn test_cuda_strided_ops() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
     let seq = SequentialBackend::new();
@@ -66,7 +66,7 @@ fn test_cuda_strided_ops() {
 
 #[test]
 fn test_cuda_strided_activation_tail_matches_cpu() {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return;
     }
 
@@ -109,13 +109,7 @@ fn test_cuda_strided_activation_tail_matches_cpu() {
 
 #[test]
 fn test_cuda_f64_comparisons_match_cpu() {
-    let available = hephaestus_cuda::CudaDevice::try_default().is_ok();
-    if !available {
-        assert_ne!(
-            std::env::var("HEPHAESTUS_CUDA_REQUIRE_DEVICE").as_deref(),
-            Ok("1"),
-            "CUDA CI requires an acquired device"
-        );
+    if !crate::availability::device_available() {
         return;
     }
 
@@ -171,13 +165,7 @@ fn test_cuda_f64_comparisons_match_cpu() {
 
 #[test]
 fn test_cuda_strided_parameterized_activations_match_cpu() {
-    let available = hephaestus_cuda::CudaDevice::try_default().is_ok();
-    if !available {
-        assert_ne!(
-            std::env::var("HEPHAESTUS_CUDA_REQUIRE_DEVICE").as_deref(),
-            Ok("1"),
-            "CUDA CI requires an acquired device"
-        );
+    if !crate::availability::device_available() {
         return;
     }
     let sequential = SequentialBackend::new();

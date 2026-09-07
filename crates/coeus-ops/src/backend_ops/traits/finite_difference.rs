@@ -1,23 +1,22 @@
 //! Finite-difference sub-trait.
 //!
-//! [`FiniteDifference3DOps`] is the interface-segregated sub-trait for
-//! three-dimensional first-derivative stencils: the fixed central and Yee
-//! schemes, and the arbitrary-even-order staggered gradient/divergence pair a
-//! conservative leapfrog needs.
+//! [`FiniteDifference3DOps`] provides fixed central and Yee first-derivative
+//! stencils. [`StaggeredPairOps`] provides the arbitrary-even-order staggered
+//! gradient/divergence pair used by a conservative leapfrog.
 //!
 //! # Why this is not part of [`BackendOps`]
 //!
 //! [`BackendOps`] is the set every backend must satisfy. A backend that has no
 //! stencil kernels yet would have to supply stubs to join it, and a stub that
 //! returns zeros or an error is a mock wearing a trait impl. Consumers bind
-//! `B: FiniteDifference3DOps<T>` directly instead, so a backend advertises the
-//! capability exactly when it has one.
+//! `B: FiniteDifference3DOps<T>` or `B: StaggeredPairOps<T>` directly, so a
+//! backend advertises each capability when it implements that family.
 //!
 //! # Preparation
 //!
 //! The coefficients of an order-`2N` staggered stencil come from solving a
 //! Taylor system; deriving them per sweep would put a linear solve inside an
-//! FDTD timestep. [`FiniteDifference3DOps::prepare_staggered_pair`] does that
+//! FDTD timestep. [`StaggeredPairOps::prepare_staggered_pair`] does that
 //! once and returns whatever the backend needs to cache — taps on the CPU, a
 //! compiled kernel and an uploaded coefficient buffer on a device.
 //!
@@ -27,11 +26,19 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 
 pub use leto_ops::{Axis, FiniteDifference3DScheme};
 
-/// Three-dimensional first-derivative stencils.
+/// The staggered gradient/divergence pair at arbitrary even order.
 ///
-/// Buffers are row-major `[nx, ny, nz]` fields. Every method writes into a
-/// caller-supplied destination; none allocates.
-pub trait FiniteDifference3DOps<T: Scalar>: ComputeBackend {
+/// Split from [`FiniteDifference3DOps`] because the two capabilities do not
+/// arrive together: an accelerator can serve this pair — the operator an FDTD
+/// leapfrog actually runs — long before it has the fixed central and Yee
+/// schemes. Bundling them would oblige such a backend to supply a body for
+/// what it cannot do, and a body that returns an error is a mock wearing a
+/// trait impl.
+///
+/// Dispatch operands have matching row-major `[nx, ny, nz]` layouts with zero
+/// offsets. Gradient and divergence write into caller-supplied destinations;
+/// preparation derives coefficients and acquires provider resources.
+pub trait StaggeredPairOps<T: Scalar>: ComputeBackend {
     /// Backend-side form of a prepared staggered gradient/divergence pair.
     type StaggeredPair;
 
@@ -84,7 +91,15 @@ pub trait FiniteDifference3DOps<T: Scalar>: ComputeBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error>;
+}
 
+/// Fixed-scheme three-dimensional first derivatives.
+///
+/// The central and Yee families whose coefficients are fixed by the scheme
+/// rather than derived per order. A backend implements this when it has those
+/// kernels; the staggered pair is [`StaggeredPairOps`], which arrives first on
+/// an accelerator.
+pub trait FiniteDifference3DOps<T: Scalar>: ComputeBackend {
     /// Fixed-scheme first derivative along `axis`.
     ///
     /// The central schemes keep the field's shape; the staggered schemes

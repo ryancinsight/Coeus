@@ -3,7 +3,7 @@ use coeus_cuda::CudaBackend;
 use coeus_ops::RandomInitOps;
 
 fn backends() -> Option<(SequentialBackend, CudaBackend)> {
-    if hephaestus_cuda::CudaDevice::try_default().is_err() {
+    if !crate::availability::device_available() {
         return None;
     }
     Some((SequentialBackend::new(), CudaBackend::new()))

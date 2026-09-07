@@ -6,6 +6,46 @@ use coeus_wgpu::WgpuBackend;
 use super::{assert_parity, seq, to_cpu, to_gpu, wgpu};
 
 #[test]
+fn parameterized_activations_match_sequential() {
+    let sequential = seq();
+    let device = wgpu();
+    let input = Tensor::from_slice(vec![8], &[-2.0_f32, -0.5, -0.25, -0.0, 0.0, 0.25, 0.5, 2.0]);
+    let device_input = to_gpu(&input);
+    for (parameter, slope) in [(0.5_f64, 0.5_f32), (1.25, 1.25)] {
+        let bits = parameter.to_bits();
+        for operation in [
+            coeus_ops::UnaryOp::LeakyRelu(bits),
+            coeus_ops::UnaryOp::LeakyReluGrad(bits),
+            coeus_ops::UnaryOp::Hardshrink(bits),
+            coeus_ops::UnaryOp::HardshrinkGrad(bits),
+            coeus_ops::UnaryOp::Softshrink(bits),
+            coeus_ops::UnaryOp::SoftshrinkGrad(bits),
+            coeus_ops::UnaryOp::Celu(bits),
+            coeus_ops::UnaryOp::CeluGrad(bits),
+        ] {
+            let expected = coeus_ops::elementwise_unary(&input, &sequential, operation)
+                .expect("sequential activation dispatch");
+            let actual = coeus_ops::elementwise_unary(&device_input, &device, operation)
+                .expect("device activation dispatch");
+            if matches!(operation, coeus_ops::UnaryOp::LeakyReluGrad(_)) {
+                assert_eq!(
+                    to_cpu(&actual).as_slice(),
+                    &[slope, slope, slope, slope, slope, 1.0, 1.0, 1.0]
+                );
+            }
+            assert_parity(
+                "parameterized activation",
+                expected.as_slice(),
+                to_cpu(&actual).as_slice(),
+            );
+        }
+        let actual = to_cpu(&coeus_ops::leaky_relu(&device_input, &device, parameter));
+        let expected = coeus_ops::leaky_relu(&input, &sequential, parameter);
+        assert_eq!(actual.as_slice(), expected.as_slice());
+    }
+}
+
+#[test]
 fn test_wgpu_parity_add() {
     let s = seq();
     let a = Tensor::from_slice(vec![4, 4], &(0..16).map(|x| x as f32).collect::<Vec<_>>());

@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-readme.workspace = true
+readme = "README.md"
 description = "Python bindings for Coeus numerical tensors."
 publish = false
 

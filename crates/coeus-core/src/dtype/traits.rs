@@ -267,24 +267,29 @@ impl CpuUnaryOp {
 
     /// Decode the two runtime parameters carried by a parameterized activation.
     ///
-    /// The low and high halves of the packed value are interpreted as the
-    /// first and second `f32` bit patterns, respectively. Non-parameterized
-    /// operations return `None`.
+    /// Hardtanh and threshold store two `f32` bit patterns. Single-parameter
+    /// activations store one `f64` bit pattern, converted to the provider's
+    /// `f32` parameter representation here; their unused second parameter is
+    /// zero. Non-parameterized operations return `None`.
     #[must_use]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the provider parameter ABI is f32; single activation parameters enter as f64 bit patterns"
+    )]
     pub const fn parameter_pair(self) -> Option<[f32; 2]> {
         let bits = match self {
+            Self::Hardtanh(bits)
+            | Self::HardtanhGrad(bits)
+            | Self::Threshold(bits)
+            | Self::ThresholdGrad(bits) => bits,
             Self::LeakyRelu(bits)
             | Self::LeakyReluGrad(bits)
-            | Self::Hardtanh(bits)
-            | Self::HardtanhGrad(bits)
             | Self::Hardshrink(bits)
             | Self::HardshrinkGrad(bits)
             | Self::Softshrink(bits)
             | Self::SoftshrinkGrad(bits)
-            | Self::Threshold(bits)
-            | Self::ThresholdGrad(bits)
             | Self::Celu(bits)
-            | Self::CeluGrad(bits) => bits,
+            | Self::CeluGrad(bits) => return Some([f64::from_bits(bits) as f32, 0.0]),
             _ => return None,
         };
         Some(Self::decode_parameter_pair(bits))
