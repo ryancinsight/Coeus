@@ -11,6 +11,7 @@
 - [x] [Run generic CPU, Python, workspace, and compatibility checks before CTC delivery](backlog.md#coeus-ctc-sequence-contract).
 - [ ] [Publish and land the CTC phase after the GPU integration base](backlog.md#coeus-ctc-sequence-contract).
 - [ ] [Land the tested lockfile hook prerequisite and executable-mode correction](backlog.md#coeus-lockfile-hook-enforcement-2026-09-07).
+- [ ] [Resolve and verify the private cumulative-sum documentation link](backlog.md#coeus-private-rustdoc-links).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 

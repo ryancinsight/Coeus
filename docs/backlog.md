@@ -66,7 +66,8 @@
 <a id="coeus-private-rustdoc-links"></a>
 ## COEUS-PRIVATE-RUSTDOC-LINKS — Disambiguate the cumulative-sum link
 
-- Status: todo; priority: documentation; [patch].
+- Status: in-progress; integrator: codex-01a079ad; priority: documentation; [patch].
+- Branch: `codex/coeus-private-rustdoc`; last-update: 2026-09-07.
 - Scope: `coeus-autograd/src/ops/shape/util/diff.rs` function link.
 - Finding: private-item Rustdoc reports `super::cumsum` as both module/function.
 - Acceptance: link the function explicitly; warning-denied private and public
@@ -76,7 +77,8 @@
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
 - Status: review; integrator: codex-01a079ad; [patch]; last-update: 2026-09-07.
-- Branch: `codex/coeus-lockfile-hooks`; follows CTC PR #380.
+- Delivery: [PR #381](https://github.com/ryancinsight/Coeus/pull/381), source `03385dd4`;
+  branch `codex/coeus-lockfile-hooks` follows CTC PR #380.
 - Scope: Git hook entry points, shared checker invocation, and executable tests.
 - Finding: missing prerequisites/bypass return success; mode 100644 disables Unix hooks.
 - Outcome: configured hooks fail when their required verification cannot execute.
