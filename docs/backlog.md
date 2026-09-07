@@ -5,6 +5,8 @@
 
 - Status: review; integrator: codex-01a079ad; priority: correctness; [major] [arch].
 - Branch: `codex/coeus-ctc-sequences`; last-update: 2026-09-07.
+- Delivery: [PR #380](https://github.com/ryancinsight/Coeus/pull/380), draft on
+  [GPU PR #368](https://github.com/ryancinsight/Coeus/pull/368); source `4275bae1`.
 - Outcome: CTC loss and gradients obey the log-probability sequence contract.
 - Scope: provider recurrence, CPU seam, shared layouts, Rust/Python callers and migration.
 - Acceptance: native scalar path sums/gradients, empty/impossible semantics,
@@ -16,6 +18,8 @@
   wheel passes 10/10. Regressions `77051874` and `69a19362` fail before correction.
 - Gates: release `ab0ee790`, 155 doctests, strict Clippy/docs and compatibility
   classification pass; [migration](adr/0072-ctc-sequence-loss.md#migration) records the break.
+- Devices: required CUDA/WGPU `a2dc2625` passes 234/234 with no skips;
+  source/build/lock hashes remain unchanged across tracking merge `0d40a8c6`.
 - Parent: [remaining loss families](#coeus-autograd-host-staging-residuals-001).
 - Design/migration: [ADR 0072](adr/0072-ctc-sequence-loss.md).
 
@@ -130,7 +134,7 @@
 - Outcome: Hephaestus owns CUDA/WGPU kernels, metadata, resources and dispatch; Coeus owns tensor/expression/layout adaptation and typed errors.
 - Acceptance: delete superseded implementations, migrate callers, preserve staggered operations, and pass native/device/error, locked build, documentation and SemVer gates.
 - Design and migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md).
-- Provider: `68ab691f` classifies only CUDA's documented stub-library initialization result as absence; [Hephaestus PR #287](https://github.com/ryancinsight/hephaestus/pull/287) is enqueued, not merged at collection. Earlier provider PRs #272, #274, #283 and #285 are merged.
+- Provider: `68ab691f` classifies only CUDA's documented stub-library initialization result as absence; [Hephaestus PR #287](https://github.com/ryancinsight/hephaestus/pull/287) merged on 2026-09-07. Earlier provider PRs #272, #274, #283 and #285 are merged.
 - Verified input: source `fb0c3150`, lock SHA256 `8991c176d2a04cef9b8a708ac3022cbc501f41ff56d30e1f0d7517b654930f00`; five provider source IDs and five Windows dependency edges change.
 - Native run `c3369369-123a-4286-aaf5-5296f93760b9`: 1,143 pass, eight existing ignored cache timing cases. Required-device CUDA/WGPU run `f811b763-fec3-4598-b47a-db5738b19701`: 234 pass, zero skips.
 - Other gates: workspace format and strict CUDA-enabled all-target Clippy, 151 workspace doctests plus five WGPU doctests, and warning-denied workspace Rustdoc pass. Two existing NN sequence doctests remain ignored; seven lockfile-tool tests retain their unchanged `fb0c3150` evidence.
