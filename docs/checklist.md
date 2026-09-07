@@ -2,13 +2,9 @@
 
 ## codex-01a079ad
 
-- [x] [Integrate current main and repair dependency identities](backlog.md#coeus-hephaestus-cuda-fusion-001).
-- [x] [Preserve staggered dispatch through the consolidated provider](backlog.md#coeus-hephaestus-cuda-fusion-001).
 - [x] [Check both lockfile activation sets with real Cargo regression tests](backlog.md#coeus-lockfile-script-narrow).
-- [x] [Make device-test guards surface faults and record the unclassified CUDA failure](backlog.md#coeus-hephaestus-cuda-fusion-001).
-- [x] [Run the merged result through package and workspace gates, then independent review](backlog.md#coeus-hephaestus-cuda-fusion-001).
 
-- [ ] [Integrate fetched main and land the reviewed GPU phase](backlog.md#coeus-hephaestus-cuda-fusion-001).
+- [ ] [Land the reviewed GPU phase after provider #287 and exact-head hosted gates](backlog.md#coeus-hephaestus-cuda-fusion-001).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 

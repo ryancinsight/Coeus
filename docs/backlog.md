@@ -83,29 +83,17 @@
 <a id="coeus-hephaestus-cuda-fusion-001"></a>
 ## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned GPU kernels
 
-- Status: review; integrator: codex-01a079ad; risk: [major] [arch].
-- Branch: `arch/coeus-hephaestus-cuda-fusion-001`; last-update: 2026-09-07.
-- Outcome: Hephaestus owns CUDA/WGPU kernels, metadata, device resources, and
-  dispatch; Coeus owns tensor/expression/layout adaptation and typed errors.
-- Acceptance: remove superseded implementations and migrate all callers;
-  preserve main's staggered operations; native/device/error contracts and
-  locked compilation, Clippy, doctests, docs, format, and SemVer classification hold.
-- Delivery: [Coeus PR #368](https://github.com/ryancinsight/Coeus/pull/368);
-  provider PRs #272, #274, #283 and #285 are merged; #285 preserves device-request errors.
+- Status: review; integrator: codex-01a079ad; risk: [major] [arch]; branch: `arch/coeus-hephaestus-cuda-fusion-001`; last-update: 2026-09-07.
+- Outcome: Hephaestus owns CUDA/WGPU kernels, metadata, resources and dispatch; Coeus owns tensor/expression/layout adaptation and typed errors.
+- Acceptance: delete superseded implementations, migrate callers, preserve staggered operations, and pass native/device/error, locked build, documentation and SemVer gates.
 - Design and migration: [ADR 0071](adr/0071-provider-owned-accelerator-backends.md).
-- Final graph: lock SHA256 `0c678d26` and provider `f7c747a8`; strict
-  workspace Clippy passes. Native run `c41062db` passes 1,143 tests with eight
-  existing ignored cache benchmarks; required-device run `cba3396d` passes
-  all 234 CUDA/WGPU tests with no skips. Workspace/device doctests and strict
-  documentation pass. Independent final review finds no actionable blockers.
-- API comparison against `01d3e9d0`: core/bridge pass; CUDA has seven and WGPU
-  three intentional major checks, covered by the migration. Enabled-CUDA
-  baseline stalls in removed Cutile bindgen; manual public-source review
-  complements the default comparison without an automated enabled verdict.
-- Residual: [unclassified CUDA context fault](gap_audit.md); later passing
-  device/lifecycle runs do not establish its cause. Physical HIP/Metal unavailable.
-- Delivery in flight: source `19e5ac0a` is enqueued in PR #368 after provider
-  #285 merged as `ae871dc`; local evidence and limits are in the PR body.
+- Provider: `68ab691f` classifies only CUDA's documented stub-library initialization result as absence; [Hephaestus PR #287](https://github.com/ryancinsight/hephaestus/pull/287) is enqueued, not merged at collection. Earlier provider PRs #272, #274, #283 and #285 are merged.
+- Verified input: source `fb0c3150`, lock SHA256 `8991c176d2a04cef9b8a708ac3022cbc501f41ff56d30e1f0d7517b654930f00`; five provider source IDs and five Windows dependency edges change.
+- Native run `c3369369-123a-4286-aaf5-5296f93760b9`: 1,143 pass, eight existing ignored cache timing cases. Required-device CUDA/WGPU run `f811b763-fec3-4598-b47a-db5738b19701`: 234 pass, zero skips.
+- Other gates: workspace format and strict CUDA-enabled all-target Clippy, 151 workspace doctests plus five WGPU doctests, and warning-denied workspace Rustdoc pass. Two existing NN sequence doctests remain ignored; seven lockfile-tool tests retain their unchanged `fb0c3150` evidence.
+- API comparison against `01d3e9d0`: core/bridge pass; CUDA has seven and WGPU three intentional major checks covered by the migration. Enabled-CUDA baseline stalls in removed Cutile bindgen; manual public-source review complements the default comparison without an automated enabled verdict.
+- Limits: [unclassified CUDA context fault](gap_audit.md) remains unexplained by later passing device/lifecycle runs; physical HIP/Metal are unavailable. Independent source review finds no actionable blocker.
+- Delivery: [Coeus PR #368](https://github.com/ryancinsight/Coeus/pull/368) remains enqueued pending the provider merge and exact-head hosted gates; local gate commands, run IDs and environment are in its body.
 
 ## COEUS-HEPHAESTUS-WGPU-FUSION-001 — Remove Coeus-owned fused WGPU kernels [patch] [arch] <a id="coeus-hephaestus-wgpu-fusion-001"></a>
 
