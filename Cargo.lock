@@ -481,6 +481,7 @@ dependencies = [
  "coeus-optim",
  "coeus-tensor",
  "criterion",
+ "eunomia",
  "smallvec",
  "thiserror 2.0.20",
 ]
@@ -727,7 +728,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -962,7 +963,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hephaestus-core"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f7c747a8703a81b6247981dc882007500aa199e9"
+source = "git+https://github.com/ryancinsight/hephaestus.git#68ab691fd8f6dfeb7567a3a60fee4660e459d25d"
 dependencies = [
  "aequitas",
  "eunomia",
@@ -974,7 +975,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-cuda"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f7c747a8703a81b6247981dc882007500aa199e9"
+source = "git+https://github.com/ryancinsight/hephaestus.git#68ab691fd8f6dfeb7567a3a60fee4660e459d25d"
 dependencies = [
  "eunomia",
  "hephaestus-core",
@@ -990,7 +991,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-metal"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f7c747a8703a81b6247981dc882007500aa199e9"
+source = "git+https://github.com/ryancinsight/hephaestus.git#68ab691fd8f6dfeb7567a3a60fee4660e459d25d"
 dependencies = [
  "eunomia",
  "hephaestus-core",
@@ -1003,7 +1004,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-rocm"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f7c747a8703a81b6247981dc882007500aa199e9"
+source = "git+https://github.com/ryancinsight/hephaestus.git#68ab691fd8f6dfeb7567a3a60fee4660e459d25d"
 dependencies = [
  "cubecl-hip-sys",
  "eunomia",
@@ -1017,7 +1018,7 @@ dependencies = [
 [[package]]
 name = "hephaestus-wgpu"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/hephaestus.git#f7c747a8703a81b6247981dc882007500aa199e9"
+source = "git+https://github.com/ryancinsight/hephaestus.git#68ab691fd8f6dfeb7567a3a60fee4660e459d25d"
 dependencies = [
  "eunomia",
  "futures",
@@ -1117,7 +1118,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1155,7 +1156,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 [[package]]
 name = "leto"
 version = "0.43.0"
-source = "git+https://github.com/ryancinsight/leto.git#f07ba29f1a8a138854b87dd896b67f4a0d6851ed"
+source = "git+https://github.com/ryancinsight/leto.git#ba8a879b683df1b8928e22aa4c725bbae0aa7db5"
 dependencies = [
  "aequitas",
  "eunomia",
@@ -1167,7 +1168,7 @@ dependencies = [
 [[package]]
 name = "leto-ops"
 version = "0.43.0"
-source = "git+https://github.com/ryancinsight/leto.git#f07ba29f1a8a138854b87dd896b67f4a0d6851ed"
+source = "git+https://github.com/ryancinsight/leto.git#ba8a879b683df1b8928e22aa4c725bbae0aa7db5"
 dependencies = [
  "eunomia",
  "hermes-simd",
@@ -2578,7 +2579,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2759,7 +2760,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3192,7 +3193,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

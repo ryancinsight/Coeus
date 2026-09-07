@@ -21,6 +21,7 @@ smallvec       = { workspace = true }
 thiserror      = { workspace = true }
 
 [dev-dependencies]
+eunomia       = { workspace = true }
 coeus-autograd = { path = "../coeus-autograd", default-features = false }
 coeus-ops      = { path = "../coeus-ops", default-features = false }
 coeus-optim    = { path = "../coeus-optim" }

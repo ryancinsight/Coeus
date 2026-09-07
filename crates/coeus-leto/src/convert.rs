@@ -3,15 +3,20 @@ use leto::{ArrayView, ArrayViewMut, Layout, LetoError, Result};
 
 /// Convert a coeus dynamic-rank layout to a leto `Layout<N>`.
 ///
-/// Fails if the coeus rank exceeds `N` (the caller selects `N` via the
-/// [`crate::dispatch`] `match`), or if a `usize` stride does not fit in the
-/// signed stride leto uses. A rank smaller than `N` is left-padded with size-1
-/// dimensions. Zero-copy: only shape/stride metadata is converted.
+/// A rank smaller than `N` is left-padded with size-1 dimensions. Only
+/// shape/stride metadata is converted; element storage remains borrowed.
+///
+/// # Errors
+///
+/// Returns [`LetoError::StorageError`] if shape and stride counts differ or the
+/// coeus rank exceeds `N` (selected by [`crate::dispatch`]). Returns
+/// [`LetoError::Overflow`] if a non-singleton stride exceeds the signed range.
+/// Errors from [`Layout::try_new`] propagate if the resulting layout is invalid.
 ///
 /// # Examples
 ///
 /// Convert a contiguous rank-2 coeus layout to a leto `Layout<2>`. Only
-/// metadata is transferred, so the conversion is zero-cost:
+/// metadata is transferred, without copying elements:
 ///
 /// ```
 /// use coeus_core::Layout;
@@ -36,6 +41,15 @@ use leto::{ArrayView, ArrayViewMut, Layout, LetoError, Result};
 pub fn to_leto_layout<const N: usize>(layout: &CoeusLayout) -> Result<Layout<N>> {
     let shape = layout.shape();
     let strides = layout.strides();
+    if shape.len() != strides.len() {
+        return Err(LetoError::StorageError {
+            reason: format!(
+                "shape rank {} does not match stride count {}",
+                shape.len(),
+                strides.len()
+            ),
+        });
+    }
     if shape.len() > N {
         return Err(LetoError::StorageError {
             reason: format!("coeus rank {} exceeds leto const rank {N}", shape.len()),
@@ -45,12 +59,16 @@ pub fn to_leto_layout<const N: usize>(layout: &CoeusLayout) -> Result<Layout<N>>
     let mut shape_arr = [1usize; N];
     let mut stride_arr = [0isize; N];
     let pad_len = N - shape.len();
-    for i in 0..shape.len() {
-        shape_arr[pad_len + i] = shape[i];
-        stride_arr[pad_len + i] = if shape[i] == 1 {
+    for ((&extent, &stride), (shape_slot, stride_slot)) in shape.iter().zip(strides).zip(
+        shape_arr[pad_len..]
+            .iter_mut()
+            .zip(&mut stride_arr[pad_len..]),
+    ) {
+        *shape_slot = extent;
+        *stride_slot = if extent == 1 {
             0
         } else {
-            isize::try_from(strides[i]).map_err(|_| LetoError::Overflow {
+            isize::try_from(stride).map_err(|_| LetoError::Overflow {
                 reason: "coeus stride exceeds isize range",
             })?
         };

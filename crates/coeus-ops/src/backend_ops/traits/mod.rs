@@ -1,6 +1,6 @@
 //! Interface-segregated sub-traits for [`BackendOps`].
 //!
-//! This module exports eleven single-concern capability traits. `BackendOps`
+//! This module exports single-concern capability traits. `BackendOps`
 //! composes the six capabilities shared by every backend; attention, optimizer,
 //! random initialization, and half-vector rotation remain optional capabilities
 //! so unrelated kernels do not acquire unsupported bounds. Backends implement
@@ -20,6 +20,8 @@
 //! - [`ConvOps`] — regular convolution and 1D/2D transposed convolution
 //! - [`PoolOps`] — max/avg pool 1D/2D/3D forward+backward
 //! - [`AttentionOps`] — scaled dot-product attention forward+backward
+//! - [`CrossEntropyOps`] — mean classification loss and additive backward
+//! - [`CtcOps`] — sequence alignment loss and additive log-probability gradients
 //! - [`OptimizerOps`] — fused SGD/Adam/RMSProp/AdamW/AdaGrad steps
 //! - [`RandomInitOps`] — seeded provider-native parameter initialization
 //! - [`RotateHalfOps`] — rotary half-vector permutation
@@ -30,6 +32,7 @@
 pub mod attention;
 pub mod conv;
 pub mod cross_entropy;
+pub mod ctc;
 pub mod elementwise;
 /// Three-dimensional first-derivative stencils.
 pub mod finite_difference;
@@ -45,6 +48,7 @@ pub mod unfold_fold;
 pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use cross_entropy::CrossEntropyOps;
+pub use ctc::{CtcBatch, CtcOps};
 pub use elementwise::{ElementwiseOps, ScalarPowerOps};
 pub use finite_difference::{
     Axis, FiniteDifference3DOps, FiniteDifference3DScheme, StaggeredPairOps,

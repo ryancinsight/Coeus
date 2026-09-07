@@ -1,11 +1,21 @@
 use coeus_core::BackendError;
 use coeus_nn::ModuleError;
-use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use pyo3::exceptions::{PyMemoryError, PyRuntimeError, PyValueError};
 use pyo3::PyErr;
 
 pub(crate) fn map_backend_error(error: BackendError) -> PyErr {
     match error {
-        BackendError::UnsupportedRank { .. }
+        BackendError::Allocation { operation, source } => {
+            PyMemoryError::new_err(format!("{operation} allocation failed: {source}"))
+        }
+        BackendError::SequenceLengthCounts { .. }
+        | BackendError::SequenceInputLength { .. }
+        | BackendError::SequenceLabel { .. }
+        | BackendError::SequenceStateOverflow { .. }
+        | BackendError::AliasedLayout { .. }
+        | BackendError::InvalidLogProbability { .. }
+        | BackendError::UnrepresentableExtent { .. }
+        | BackendError::UnsupportedRank { .. }
         | BackendError::LayoutRankMismatch { .. }
         | BackendError::ShapeMismatch { .. }
         | BackendError::EmptyDimension { .. }
@@ -42,8 +52,25 @@ mod tests {
     use super::{map_backend_error, map_module_error};
     use coeus_core::BackendError;
     use coeus_nn::ModuleError;
-    use pyo3::exceptions::{PyRuntimeError, PyValueError};
+    use pyo3::exceptions::{PyMemoryError, PyRuntimeError, PyValueError};
     use pyo3::Python;
+
+    #[test]
+    fn allocation_maps_to_memory_error_with_cause() {
+        let source = Vec::<u8>::new()
+            .try_reserve(usize::MAX)
+            .expect_err("invariant: a byte vector cannot exceed isize::MAX bytes");
+        let message = format!("ctc_forward allocation failed: {source}");
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let error = map_backend_error(BackendError::Allocation {
+                operation: "ctc_forward",
+                source,
+            });
+            assert!(error.is_instance_of::<PyMemoryError>(py));
+            assert_eq!(error.value(py).to_string(), message);
+        });
+    }
 
     #[test]
     fn contract_failure_maps_to_value_error() {

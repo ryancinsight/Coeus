@@ -1,5 +1,5 @@
 use crate::nn::normalization::layernorm::parse_normalized_shape;
-use crate::{nn::error::map_module_error, tensor::PyTensor};
+use crate::{error::map_module_error, tensor::PyTensor};
 use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;

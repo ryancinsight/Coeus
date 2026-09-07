@@ -1,6 +1,6 @@
 use crate::{
+    error::map_module_error,
     init::map_initialization_error,
-    nn::error::map_module_error,
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;

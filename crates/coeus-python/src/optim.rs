@@ -1,4 +1,4 @@
-use crate::{nn::error::map_backend_error, tensor::PyTensor};
+use crate::{error::map_backend_error, tensor::PyTensor};
 use coeus_autograd::Parameter;
 use pyo3::prelude::*;
 

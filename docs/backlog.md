@@ -3,23 +3,66 @@
 <a id="coeus-ctc-sequence-contract"></a>
 ## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
 
-- Status: in-progress; integrator: codex-01a079ad; priority: correctness; [major] [arch].
+- Status: review; integrator: codex-01a079ad; priority: correctness; [major] [arch].
+- Branch: `codex/coeus-ctc-sequences`; last-update: 2026-09-07.
 - Outcome: CTC loss and gradients obey the log-probability sequence contract.
-- Scope: Leto loss provider, Coeus autograd/NN/Python callers, tests and migration;
-  preserve the existing CPU-addressable capability boundary.
-- Findings at `19e5ac0a`: empty targets return zero; forward clamps lengths that
-  backward indexes unmodified; generic arithmetic widens through fixed `f64`.
-- Acceptance: empty-target all-blank loss, typed invalid-length/index rejection,
-  native scalar arithmetic, defined impossible-path behavior, and exact seeded
-  short-path gradients; no compatibility wrappers or copied recurrences.
-- Oracle: enumerate short alignments independently; one frame with blank
-  probability one-half and empty target has loss ln(2), log-input gradient [-1,0].
-- Dependency: add the missing CTC family in Leto; document log-input versus
-  logits derivatives before the fallible caller migration and SemVer check.
+- Scope: provider recurrence, CPU seam, shared layouts, Rust/Python callers and migration.
+- Acceptance: native scalar path sums/gradients, empty/impossible semantics,
+  typed invalid input, and unchanged gradient destinations on failure.
+- Oracle: short-path enumeration and analytical large-gap posterior weights.
+- Provider: [Leto CTC](../../leto/backlog.md#leto-ctc-loss), merged PR #177,
+  merge `ba8a879b`; 950 workspace tests, release CTC 10/10, independent review pass.
+- Consumer: native `461dbdc4` passes 1,144 with eight existing skips; the final
+  wheel passes 10/10. Regressions `77051874` and `69a19362` fail before correction.
+- Gates: release `ab0ee790`, 155 doctests, strict Clippy/docs and compatibility
+  classification pass; [migration](adr/0072-ctc-sequence-loss.md#migration) records the break.
 - Parent: [remaining loss families](#coeus-autograd-host-staging-residuals-001).
-- ADR reservation: 0072; upstream: [Leto CTC](../../leto/backlog.md#leto-ctc-loss).
-- Lease: codex-01a079ad and delegated contributors; CTC source/callers/tests,
-  backend error mapping and documentation; 2026-09-07T04:55:00Z.
+- Design/migration: [ADR 0072](adr/0072-ctc-sequence-loss.md).
+
+<a id="coeus-fallible-unary-execution"></a>
+## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
+
+- Status: todo; priority: correctness; [major] [arch].
+- Scope: shared unary autograd execution and its Rust/Python callers.
+- Evidence: `d1c5ca4c` on `codex/coeus-comparison-parity-comparisons`
+  contains unique fallible execution; current ReLU still returns `Var`.
+- Outcome: provider failures reach callers without input-dependent panics.
+- Acceptance: complete caller migration, typed failure/gradient tests,
+  full native/device gates, and SemVer classification with an updated ADR.
+- Dependency: land GPU/CTC integration; recover against current contracts.
+- Non-goal: resurrect superseded dependency pins or storage implementations.
+
+<a id="coeus-workspace-lint-floor"></a>
+## COEUS-WORKSPACE-LINT-FLOOR — Recover the inherited lint floor
+
+- Status: todo; priority: verification; [patch].
+- Scope: workspace lint inheritance and measured existing suppressions.
+- Evidence: unique `74fd5c11` survives on `perf/coeus-ops-index-decode`
+  and `fix/coeus-autograd-honest-cache`; current manifest lacks its floor.
+- Outcome: one workspace policy governs every member; preserve both refs
+  until their shared surviving change is integrated once.
+- Acceptance: strict all-target Clippy, non-increasing residual counts,
+  native/doc gates, and no blanket suppression growth.
+- Dependency: land GPU/CTC integration; exclude superseded cache/lock changes.
+
+<a id="coeus-autodiff-cache-modules"></a>
+## COEUS-AUTODIFF-CACHE-MODULES — Integrate the cache decomposition
+
+- Status: todo; priority: structure; [patch].
+- Scope: unique cache decomposition `da2598ea` in PR #367.
+- Outcome: operation families own leaf modules; manifests contain no cache logic.
+- Acceptance: preserve cache behavior, run cache and workspace gates, and
+  integrate the decomposition against current main without obsolete Cutile pins.
+- Dependency: land GPU/CTC integration; preserve the PR branch until integration.
+
+<a id="coeus-private-rustdoc-links"></a>
+## COEUS-PRIVATE-RUSTDOC-LINKS — Disambiguate the cumulative-sum link
+
+- Status: todo; priority: documentation; [patch].
+- Scope: `coeus-autograd/src/ops/shape/util/diff.rs` function link.
+- Finding: private-item Rustdoc reports `super::cumsum` as both module/function.
+- Acceptance: link the function explicitly; warning-denied private and public
+  Rustdoc resolve it, with the existing difference doctest unchanged.
 
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
@@ -362,10 +405,8 @@
   ranking, pairwise distance, nll, binary cross-entropy, cosine embedding,
   multi margin) with 45 value-semantic tests; a following slice migrated
   multi_label_margin via gather + one-hot scatter with 4 more tests. The sole
-  remaining host-staged family is CTC, whose log-space forward-backward DP is
-  a sequential algorithm not expressible as a tensor composition; per the
-  umbrella's outcome it requires an upstream Leto/Hephaestus CTC kernel
-  (the `upstream capability` path), now specified in
+  remaining family is CTC. Leto PR #177 supplies its sequence recurrence;
+  consumer integration and boundary coverage are tracked in
   [CTC sequence correctness](#coeus-ctc-sequence-contract). The norm/product
   children own their current delivery and remaining evidence; their historical
   blocked labels are not an umbrella-level blocker.
@@ -2427,8 +2468,8 @@ value and failure-contract tests pass on Sequential and Moirai.
 - [x] [minor] G-037: CLOSED — All target families (PReLU, CELU, hardshrink,
   softshrink, softsign, threshold, GLU, SwiGLU) implemented with autograd
   backward, nn wrappers, Python bindings, and PyTorch/JAX differential parity.
-- [x] [minor] G-038: Extend loss and distance parity (23/23 implemented, fully CLOSED).
-  CTCLoss added via MS-225 (log-space DP, full backward, Python binding, PyTorch parity).
+- [x] [minor] G-038: Add the 23 loss/distance API families. CTC correctness and
+  provider delivery are tracked in [the current item](#coeus-ctc-sequence-contract).
 - [x] [minor] G-040: Add vanilla and bidirectional recurrent module parity
   (RNNCell, Rnn, GRUCell, Gru, LSTMCell, Lstm, Bidirectional wrapper — all with
   Python bindings via PyBidirectional/PyGRUCell/PyLSTMCell/PyRNNCell)
@@ -2577,7 +2618,8 @@ value and failure-contract tests pass on Sequential and Moirai.
   `multi_label_soft_margin_loss`, `gaussian_nll_loss`.
 - [x] Evidence: `cargo clippy` clean on coeus-nn + coeus-python; 426/426
   nextest tests passing across coeus-autograd + coeus-nn + coeus-optim.
-- [x] G-038 status: 22/23 implemented. Remaining: CTCLoss (forward-backward DP).
+- [x] G-038: MS-219 adds 22 loss families; CTC delivery is tracked in
+  [the current item](#coeus-ctc-sequence-contract).
 
 ## Sprint MS-217: PReLU/LeakyReLU subgradient parity (G-037 closure) [COMPLETE]
 

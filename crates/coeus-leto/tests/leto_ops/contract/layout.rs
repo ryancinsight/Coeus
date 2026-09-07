@@ -7,6 +7,63 @@ use super::{
 use coeus_core::CpuAddressableStorage;
 
 #[test]
+fn layout_conversion_rejects_missing_strides() {
+    assert_stride_count_error(&[1, 1, 2], &[]);
+    assert_stride_count_error(&[1, 1, 2], &[2, 2]);
+}
+
+#[test]
+fn layout_conversion_rejects_extra_strides() {
+    assert_stride_count_error(&[1, 1, 2], &[2, 2, 1, 1]);
+}
+
+#[test]
+fn layout_conversion_checks_singleton_and_scalar_strides() {
+    assert_stride_count_error(&[1], &[]);
+    assert_stride_count_error(&[1], &[1, 1]);
+    assert_stride_count_error(&[], &[1]);
+}
+
+fn assert_stride_count_error(shape: &[usize], strides: &[usize]) {
+    let descriptor =
+        Layout::from_shape_strides(Shape::from(shape.to_vec()), Strides::from_slice(strides), 0);
+    let error = coeus_leto::to_leto_layout::<3>(&descriptor)
+        .expect_err("unequal shape and stride counts cannot describe a layout");
+    let leto::LetoError::StorageError { reason } = error else {
+        panic!("expected StorageError for unequal counts, got {error:?}");
+    };
+    assert_eq!(
+        reason,
+        format!(
+            "shape rank {} does not match stride count {}",
+            shape.len(),
+            strides.len()
+        )
+    );
+}
+
+#[test]
+fn layout_conversion_preserves_padding_singletons_and_offset() {
+    let descriptor = Layout::from_shape_strides(
+        Shape::from(vec![1, 2]),
+        Strides::from_slice(&[usize::MAX, 3]),
+        4,
+    );
+    let converted = coeus_leto::to_leto_layout::<3>(&descriptor)
+        .expect("singleton strides do not contribute to the footprint");
+    assert_eq!(converted.shape(), [1, 1, 2]);
+    assert_eq!(converted.strides(), [0, 0, 3]);
+    assert_eq!(converted.offset(), 4);
+
+    let scalar = Layout::from_shape_strides(Shape::from(vec![]), Strides::from_slice(&[]), 2);
+    let converted = coeus_leto::to_leto_layout::<3>(&scalar)
+        .expect("an empty shape and stride list describes a scalar");
+    assert_eq!(converted.shape(), [1, 1, 1]);
+    assert_eq!(converted.strides(), [0, 0, 0]);
+    assert_eq!(converted.offset(), 2);
+}
+
+#[test]
 fn pad_dispatch_covers_strided_input_view() {
     let storage = vec![1.0f64, 4.0, 2.0, 5.0, 3.0, 6.0];
     let transposed = Layout::from_shape_strides(

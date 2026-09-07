@@ -4,6 +4,15 @@
 
 ### Changed
 
+- [major] CTC loss returns typed errors for invalid sequence inputs and uses
+  provider-owned native-scalar recurrences. Empty targets retain the all-blank
+  loss and gradient; impossible alignments have infinite loss and an undefined
+  gradient error. Log-input derivatives remain negative posterior occupancy.
+  See [ADR 0072](docs/adr/0072-ctc-sequence-loss.md#migration) for the fallible
+  Rust API, backend capability, and Python exception migration.
+  Shared Leto view conversion rejects mismatched shape/stride counts before
+  accessing metadata, including singleton and scalar descriptors.
+
 - [major] CUDA and WGPU operations use Hephaestus-owned kernels and device
   resources. Removed the public CUDA driver/kernel modules, `CudaDriver`,
   `get_cuda_context`, `CudaScalar::CUDA_TYPE`, WGPU `LayoutError`, and consumer
@@ -160,9 +169,8 @@
   columns via the axis sum. The node retains only provider tensors; the
   `target: &[isize]` slice is a boundary upload. Added 4 value-semantic tests
   (single/multi-target forward, target-column scatter backward, padding
-  validation). CTC remains the sole sequential-DP exception (its log-space
-  forward-backward recurrence is not tensor-composable; the umbrella's
-  upstream-capability path applies).
+  validation). The separate CTC sequence recurrence now belongs to Leto,
+  reached through the `CtcOps` capability described above.
 
 - [patch] Migrate the remaining host-staged `coeus-autograd` loss families to
   provider-resident forward/backward with no input-sized `copy_to_host`

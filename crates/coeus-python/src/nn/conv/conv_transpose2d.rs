@@ -1,4 +1,4 @@
-use crate::{init::map_initialization_error, nn::error::map_backend_error, tensor::PyTensor};
+use crate::{error::map_backend_error, init::map_initialization_error, tensor::PyTensor};
 
 /// Python-exposed 2-D Transposed Convolution layer.
 #[pyo3::pyclass(name = "ConvTranspose2d")]

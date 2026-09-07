@@ -6,7 +6,7 @@
 // weights (e.g. for PyTorch parity testing).
 
 use crate::nn::linear::PyLinear;
-use crate::{nn::error::map_module_error, tensor::PyTensor};
+use crate::{error::map_module_error, tensor::PyTensor};
 use coeus_nn::Module;
 use pyo3::prelude::*;
 

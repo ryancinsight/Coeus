@@ -1,5 +1,5 @@
 use crate::{
-    nn::error::map_module_error,
+    error::map_module_error,
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;

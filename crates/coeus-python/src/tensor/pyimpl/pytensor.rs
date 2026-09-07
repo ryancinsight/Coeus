@@ -1,7 +1,7 @@
 // ── PyTensor struct definition and single #[pymethods] block ──
 
+use crate::error::map_backend_error;
 use coeus_autograd::Var;
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 
 /// Closed-set dispatch tag for Python binary operators.
@@ -801,11 +801,9 @@ impl PyTensor {
         Self { inner }
     }
 
-    // ── Grad utilities ──
-
     fn backward(&self, py: Python<'_>) -> PyResult<()> {
         py.allow_threads(|| self.inner.backward())
-            .map_err(|error| PyRuntimeError::new_err(error.to_string()))
+            .map_err(map_backend_error)
     }
 
     fn detach(&self) -> Self {

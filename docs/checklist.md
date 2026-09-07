@@ -9,6 +9,11 @@
 - [x] [Run the merged result through package and workspace gates, then independent review](backlog.md#coeus-hephaestus-cuda-fusion-001).
 
 - [ ] [Integrate fetched main and land the reviewed GPU phase](backlog.md#coeus-hephaestus-cuda-fusion-001).
+- [ ] [Collect the cold-cache guard correction and CUDA stub classification](backlog.md#coeus-lockfile-script-narrow).
+- [x] [Verify CTC path weights and native-scalar posterior normalization in Leto](backlog.md#coeus-ctc-sequence-contract).
+- [x] [Integrate the fallible CTC seam, autograd graph, and Python binding](backlog.md#coeus-ctc-sequence-contract).
+- [x] [Run generic CPU, Python, workspace, and compatibility checks before CTC delivery](backlog.md#coeus-ctc-sequence-contract).
+- [ ] [Publish and land the CTC phase after the GPU integration base](backlog.md#coeus-ctc-sequence-contract).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 

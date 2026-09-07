@@ -17,7 +17,8 @@ pub use trait_def::BackendOps;
 pub use traits::Axis;
 pub use traits::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward,
-    CrossEntropyOps, ElementwiseOps, FiniteDifference3DOps, FiniteDifference3DScheme, MatmulOps,
-    OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation, PoolOps,
-    RandomInitOps, ReductionOps, RotateHalfOps, ScalarPowerOps, StaggeredPairOps, UnfoldFoldOps,
+    CrossEntropyOps, CtcBatch, CtcOps, ElementwiseOps, FiniteDifference3DOps,
+    FiniteDifference3DScheme, MatmulOps, OptimizerOps, OptimizerStateRef, OptimizerStepRule,
+    OptimizerStepValidation, PoolOps, RandomInitOps, ReductionOps, RotateHalfOps, ScalarPowerOps,
+    StaggeredPairOps, UnfoldFoldOps,
 };
