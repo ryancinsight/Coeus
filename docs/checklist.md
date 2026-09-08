@@ -2,76 +2,10 @@
 
 ## codex-01a079ad
 
-- [ ] [Reproduce direct kernel output corruption and enumerate every mutable provider output](backlog.md#coeus-device-output-ownership).
-- [ ] [Use generic provider storage throughout CUDA/WGPU and preserve owned outputs across dispatch](backlog.md#coeus-device-output-ownership).
-
-- [x] [Reproduce direct backend clone/write corruption with shared CPU/device cases](backlog.md#coeus-backend-write-ownership).
-- [x] [Detach at the backend write boundary, adopt verified upstream byte extents and run native/device gates](backlog.md#coeus-backend-write-ownership).
-- [ ] [Collect Apollo integration, advance the final lock and merge the verified correction](backlog.md#coeus-backend-write-ownership).
-
-## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
-
-- [x] Add provider-owned `TypedBinaryExpr<CudaC, f64>` implementations for
-      equality, inequality, and the four ordered comparisons in Hephaestus.
-- [x] Restore `ElementwiseProvider<f64>` in Coeus with native arithmetic unary
-      dispatch and no fallback path.
-- [x] Add exact CPU/CUDA parity coverage for all six comparisons over a
-      transposed rank-two tensor.
-- [x] Pass the locked Coeus CUDA check, warning-denied Clippy, focused Nextest,
-      doctest, and exact-head hosted backend contracts through PR #324.
-- [x] Merge the consumer as default `aabdec67` and record exact default run
-      `31672329963`; WGPU, CUDA, ROCm, and Metal provider contracts pass, while
-      required-device CUDA/ROCm jobs remain skipped without a hardware claim.
-
-## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits
-
-- [x] Add the generic `BatchedLeastSquaresProblem` contract with explicit
-      leading-axis, residual-count, and parameter-count semantics.
-- [x] Route each indexed slice through the existing
-      `levenberg_marquardt` implementation; preserve the single-problem
-      numerical source of truth and return typed indexed failures.
-- [x] Add f32/f64 value-semantic linear-fit recovery and flattened-parameter
-      rejection tests.
-- [x] Pass formatting, locked all-target check, warning-denied all-target
-      Clippy, Nextest 43/43, 10 doctests, and rustdoc.
-
-## COEUS-BCE-LOGITS-PROVIDER-001 — Codex
-
-- [x] Confirm the current generic operation still stages logits, targets,
-      output gradients, and saved derivative state through host memory.
-- [x] Record ADR-0055 and define the existing provider operation composition as
-      the single implementation path.
-- [x] Replace host formula and `Vec<T>` backward state with provider-native
-      tensors and provider reductions.
-- [x] Close the WGPU/CUDA unary dispatch gap: `Relu`, `Log1p`, and `Sigmoid`
-      route through Hephaestus for contiguous and strided storage and fail
-      closed when the provider layout contract is not met.
-- [x] Extend CPU, WGPU, and CUDA BCE parity inputs to large finite logits and
-      transposed rank-two views; local CUDA executes and local WGPU skips only
-      when no adapter is present.
-- [x] Pass independent CPU value/gradient tests, source residue scans,
-      warning-denied checks, doctests, full affected-package Nextest, and local
-      CUDA parity; the local WGPU parity test is adapter-gated and was exercised
-      only through its no-adapter path on this host.
-- [x] Pass exact-head provider CI run `31015800540` for WGPU, CUDA, ROCm,
-      and Metal; the PR hardware-only CUDA/ROCm jobs are intentionally
-      skipped.
-- [x] Record remaining host-staged loss families as the separate bounded item
-      `COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001`; do not claim repository-wide
-      host-staging removal from this slice.
-
-## COEUS-SCAN-DISPATCH-001 — Codex
-
-- [x] Claim the cumulative-scan dispatch seam and record ADR-0054 before
-      source changes.
-- [x] Remove the generic host-staging cumulative defaults and require direct
-      provider implementations.
-- [x] Verify CPU Leto values, accelerator compile contracts, warning-denied
-      checks, doctests, and residue scans.
-- [x] Record the exact revision and remaining external provider/build limits;
-      the package-wide integration compile remained uncollected in `rustc` for
-      `tests/ops.rs` after the command wrapper timeout, without an assertion
-      failure.
+- [x] [Reproduce direct kernel output corruption and enumerate every mutable provider output](backlog.md#coeus-device-output-ownership).
+- [x] [Use generic provider storage throughout CUDA/WGPU and preserve owned outputs across dispatch](backlog.md#coeus-device-output-ownership).
+- [ ] [Propagate CPU scan failures, adopt the CUDA scalar compiler correction and verify expanded output cases](backlog.md#coeus-device-output-ownership).
+- [ ] [Run final workspace/device/SemVer gates and integrate the reviewed output ownership migration](backlog.md#coeus-device-output-ownership).
 
 ## COEUS-CROSS-ENTROPY-PROVIDER-001 — Codex
 
@@ -95,58 +29,6 @@
 - [x] Merge PR #290 as `a756b3f4`. SemVer comparison remains externally blocked
       by the baseline Eunomia `^0.7` requirement after the provider source
       advanced to `0.8`.
-
-## COEUS-SINUSOIDAL-PROVIDER-001 — Codex
-
-- [x] Claim the dependency-ordered sinusoidal provider slice and record
-      ADR-0053 for minimal module capability bounds.
-- [x] Narrow binary Coeus kernels and binary autograd to elementwise plus
-      reduction capabilities; retain aggregate bounds where an operation still
-      requires them.
-- [x] Construct the sinusoidal table with native `T` arithmetic, upload once
-      to the selected backend, and use a provider-resident prefix view during
-      forward.
-- [x] Add CPU storage-sharing and ROCm/Metal compile-time capability
-      contracts.
-- [x] Complete warning-denied focused gates, exact-head WGPU/CUDA/ROCm/Metal
-      provider CI in run `30969244754`, and merge PR #292 as `7ea9170d`.
-- [x] Record the package-scoped SemVer result: `coeus-nn` passes; the
-      `coeus-autograd` and `coeus-ops` failures are pre-existing major API
-      migrations from earlier merged work and require a separate release item.
-
-## COEUS-ASSIGNMENT-ALIASING-001 — Codex
-
-- [x] Delete the four raw immutable-reference casts from active mutable device
-      buffers.
-- [x] Add one provider-neutral partial-update contract with direct Leto CPU
-      mutation and Hephaestus-compatible device-local COW dispatch.
-- [x] Route unary assignment through distinct provider-owned output storage.
-- [x] Add shared-storage unary and untouched-parent structural-gradient value
-      contracts.
-- [x] Pass focused CPU and physical CUDA Nextest, affected feature checks,
-      warning-denied Clippy, and focused Miri.
-- [x] Pass independent architecture review after adding failure-atomic and all
-      provider partial-update contracts.
-- [x] Pass exact-head WGPU, CUDA, ROCm, and Metal CI in run `30875294728`.
-- [x] Merge PR #288 as `2a96cd1c` and record the integrated revision.
-
-## COEUS-RANDOM-INIT-PROVIDER-001 — Codex
-
-- [x] Record and index ADR-0049 for backend-selected provider ownership.
-- [x] Add destination-writing CPU initialization through Leto.
-- [x] Add one generic Hephaestus random bridge with WGPU, CUDA, ROCm, and Metal
-      provider adapters and direct storage adoption.
-- [x] Convert random initializers and dependent Rust/Python constructors to
-      typed fallible contracts without compatibility paths.
-- [x] Add domain rejection, failure-atomicity, default-seed, CPU differential,
-      and accelerator provider-parity contracts.
-- [x] Pass full warning-denied, Nextest, doctest, Python-wheel, and local CUDA
-      gates at the exact implementation revision.
-- [x] Pass exact-head hosted run `30776550993`: WGPU, CUDA, ROCm, and Metal
-      provider lanes pass; optional ROCm hardware execution is unavailable
-      because the repository has no registered self-hosted runner.
-- [x] Pass final exact-head run `30777614311` at `8e3652c5` and merge PR #273
-      as `c3f71f98`.
 
 ## G-043 — Benchmark and parity evidence manifest
 
@@ -195,27 +77,6 @@
       families and four partial Python differential families. All 21 families
       have Rust contract evidence; no Criterion or Python family is missing.
 
-## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch
-
-- [x] Merge the required Leto and Hephaestus stateful-update contracts.
-- [x] Add ADR-0048 and claim the complete caller, deletion, and lock closure.
-- [x] Route CPU optimizer updates through borrowed Leto storage.
-- [x] Route WGPU, CUDA, ROCm, and Metal through the generic Hephaestus bridge.
-- [x] Propagate typed failure through optimizer, scheduler, and Python APIs.
-- [x] Delete local formulas, kernels, launchers, host fallbacks, and obsolete
-      optimizer-launch documentation.
-- [x] Add value-semantic provider differential and failure-atomic contracts.
-- [x] Preflight the complete parameter set before mutation, align the CPU and
-      accelerator Adam step domain, and cover nonempty ranks zero through eight.
-- [x] Pass focused local gates and independent architecture/correctness review.
-- [x] Pass exact-head hosted run `30720390380`: WGPU `91423080685`, CUDA
-      `91423080680`, ROCm `91423080613`, and Metal `91423080688`; merge PR
-      #262 as `0951e30e` and reconcile PM state.
-- [x] Run the CUDA required-device and stateful-update contracts locally on the
-      RTX 5080 at `5856cde9` with `HEPHAESTUS_CUDA_REQUIRE_DEVICE=1`: Nextest
-      run `110d9c3a-bf0f-4ae3-9368-258a1a541a77` passed 8/8. ROCm evidence
-      remains GitHub CI job `91423080613`.
-
 ## ATLAS-WGPU-SAFETY-002 — Checked unfold/fold dispatch
 
 - [x] Make `UnfoldFoldOps` return the backend-associated typed error across CPU,
@@ -243,18 +104,6 @@
 - [x] Pass exact-head provider CI on the repository-native lockfile: run
       `30680050203` passed WGPU, CUDA, ROCm, and Metal at `253c0da5`; PR #259
       merged as `5193764a`.
-
-## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch
-
-- [x] Merge the required Leto and Hephaestus attention provider contracts.
-- [x] Add ADR-0047 and claim the complete caller/deletion closure.
-- [x] Route CPU attention through borrowed Leto storage.
-- [x] Route WGPU, CUDA, ROCm, and Metal through the generic Hephaestus bridge.
-- [x] Propagate typed failure through operation, autograd, module, and Python APIs.
-- [x] Delete local kernels, launchers, host fallbacks, tests, and obsolete ADRs.
-- [x] Pass focused local gates and independent architecture/correctness review.
-- [x] Pass exact-head hosted run `30666670100` and merge PR #256 as
-      `ee3bb94f`.
 
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers
 
@@ -426,7 +275,6 @@
       `89844922774`. The optional required-device ROCm lane
       (`89844923036`) was skipped because this pull request did not request a
       hardware dispatch.
-
 
 ## ATLAS-HEPHAESTUS-SCAN-001 — Native cumulative scans
 
@@ -3845,7 +3693,6 @@ Implement a cross-platform GPU backend powered by `wgpu`.
 - [x] **Kernel Management**:
   - [x] Implement embedded PTX source containing element-wise, tiled matrix multiplication, sum reduction, Conv1D/Conv2D forward and backward passes, and strided/broadcasted element-wise operations.
   - [x] Implement direct driver dispatch launchers and remove CPU staging fallbacks for device execution.
-
 
 ---
 
