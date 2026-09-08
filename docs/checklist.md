@@ -2,7 +2,8 @@
 
 ## codex-01a079ad
 
-- [ ] [Collect public API classification, commit and publish the verified CPU ownership correction](backlog.md#coeus-cpu-storage-ownership).
+- [ ] [Reproduce direct backend clone/write corruption with shared CPU/device cases](backlog.md#coeus-backend-write-ownership).
+- [ ] [Detach at the backend write boundary, adopt verified upstream byte extents and run native/device gates](backlog.md#coeus-backend-write-ownership).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 

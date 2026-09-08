@@ -11,13 +11,15 @@
 - Acceptance: the safe invalid-free construction fails to compile; initialized values, shared mutation and destruction remain correct.
 - Dependency: precedes [fallible storage](#coeus-fallible-tensor-storage); no provider replacement.
 - Decision/migration: [ADR 0073](adr/0073-cpu-allocation-ownership.md).
+- Delivery: [PR #383](https://github.com/ryancinsight/Coeus/pull/383), source `1948ade9`, enqueued with merge commits.
 - Evidence: compile-fail red reproduces the safe escape; independent review accepts its removal. Full gate: 1,145 native tests, 156 doctests, strict Clippy/docs; five release and five Miri storage tests pass. SemVer against `3cf2d670`: 222 checks pass, one expected major removal, 31 tool skips.
 - Authority: change through merge; no release.
 
 <a id="coeus-backend-write-ownership"></a>
 ## COEUS-BACKEND-WRITE-OWNERSHIP — Detach shared storage before backend writes
 
-- Status: todo; priority: correctness; [patch].
+- Status: in-progress; integrator: codex-01a079ad; last-update: 2026-09-08; priority: correctness; [patch].
+- Branch: `fix/coeus-backend-write-ownership`, based on enqueued PR #383.
 - Outcome: backend fill, zero-fill and upload preserve cloned storage values.
 - Scope: CUDA, WGPU and generic Hephaestus backend writes; existing CPU semantics remain the reference.
 - Finding: these backend methods write shared provider buffers without `make_unique`; current COW tests invoke detachment explicitly and miss direct writes.
@@ -25,6 +27,7 @@
 - Dependency: [Hephaestus aligned extents](../../hephaestus/backlog.md#heph-wgpu-buffer-extents), then [fallible storage](#coeus-fallible-tensor-storage) for failure propagation.
 - Verification: shared value-semantic cases on shipped CPU/device backends, strict Clippy, native/device gates and ADR 0036 synchronization; no mock provider.
 - Authority: change through merge; no release; no claim of universally recoverable allocation exhaustion.
+- lease: codex-01a079ad crates/coeus-cuda/src/backend/mod.rs crates/coeus-wgpu/src/backend/mod.rs crates/coeus-hephaestus/src/reduction.rs crates/coeus-core/tests/core_ops/storage/ crates/coeus-core/tests/core_ops/storage.rs crates/coeus-wgpu/tests/wgpu_ops.rs crates/coeus-cuda/tests/cuda_ops.rs docs/adr/0036-device-local-cow-copy.md 2026-09-08T14:00Z.
 
 <a id="coeus-ctc-sequence-contract"></a>
 ## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
