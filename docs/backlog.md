@@ -1,5 +1,19 @@
 # Coeus Development Backlog
 
+<a id="coeus-cpu-storage-ownership"></a>
+## COEUS-CPU-STORAGE-OWNERSHIP — Keep allocation ownership private
+
+- Status: in-progress; integrator: codex-01a079ad; last-update: 2026-09-08.
+- Priority: memory safety; [major]; branch: `fix/coeus-storage-ownership`.
+- Outcome: safe callers cannot replace the pointer or layout used by CPU storage destruction.
+- Scope: CPU allocation ownership and its public escape; preserve initialized storage and copy-on-write.
+- Finding: `CpuStorage::into_raw` exposes writable `RawBlock` fields consumed by `Drop`.
+- Acceptance: the safe invalid-free construction fails to compile; initialized values, shared mutation and destruction remain correct.
+- Dependency: precedes [fallible storage](#coeus-fallible-tensor-storage); no provider replacement.
+- Decision/migration: reserve ADR 0073 for the ownership boundary.
+- Verification: existing storage baseline, compile-fail regression, native storage/workspace gates, SemVer and independent safety review; state unavailable unsafe instrumentation.
+- Authority: change through merge; no release.
+
 <a id="coeus-ctc-sequence-contract"></a>
 ## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
 
@@ -69,31 +83,16 @@
 <a id="coeus-private-rustdoc-links"></a>
 ## COEUS-PRIVATE-RUSTDOC-LINKS — Disambiguate the cumulative-sum link
 
-- Status: review; integrator: codex-01a079ad; priority: documentation; [patch].
-- Branch: `codex/coeus-private-rustdoc`; last-update: 2026-09-07.
-- Delivery: [PR #382](https://github.com/ryancinsight/Coeus/pull/382), with the reviewed hook correction and Python setup documentation.
-- Scope: `coeus-autograd/src/ops/shape/util/diff.rs` function link.
-- Finding: private-item Rustdoc reports `super::cumsum` as both module/function.
-- Acceptance: link the function explicitly; warning-denied private and public
-  Rustdoc resolve it, with the existing difference doctest unchanged.
-- Evidence: ambiguous link fails before correction; strict private/public docs,
-  18 autograd doctests and formatting pass. Rendered link targets `fn.cumsum.html`.
+- Status: done; [PR #382](https://github.com/ryancinsight/Coeus/pull/382) merged as `3cf2d670`.
+- Outcome: the difference documentation links to the cumulative-sum function explicitly.
+- Evidence: strict private/public Rustdoc and 18 autograd doctests pass; rendered target is `fn.cumsum.html`.
 
 <a id="coeus-lockfile-hook-enforcement-2026-09-07"></a>
 ## COEUS-LOCKFILE-HOOK-ENFORCEMENT-2026-09-07 — Reject unverified hook execution
 
-- Status: review; integrator: codex-01a079ad; [patch]; last-update: 2026-09-07.
-- Delivery: source `03385dd4` reviewed in [PR #381](https://github.com/ryancinsight/Coeus/pull/381);
-  preserved in the combined follow-up [PR #382](https://github.com/ryancinsight/Coeus/pull/382).
-- Scope: Git hook entry points, shared checker invocation, and executable tests.
-- Finding: missing prerequisites/bypass return success; mode 100644 disables Unix hooks.
-- Outcome: configured hooks fail when their required verification cannot execute.
-- Acceptance: remove the bypass, preserve command diagnostics, and reject each
-  missing prerequisite; ordinary valid staged-lock and push checks still pass.
-- Verification: 14 automation tests pass, including real Git/Cargo execution and
-  index mode 100755; three Bash syntax checks pass. Both defects reproduce first.
-- Platforms: Windows Git Bash and Ubuntu CI job `101655309993` pass the hook suite.
-- Non-goal: replace the existing lockfile tool or alter dependency requirements.
+- Status: done; [PR #382](https://github.com/ryancinsight/Coeus/pull/382) merged as `3cf2d670`, preserving source `03385dd4` from closed PR #381.
+- Outcome: executable hooks reject bypasses and missing verification prerequisites.
+- Evidence: 14 real Git/Cargo automation tests pass on Windows Git Bash and Ubuntu; both original defects reproduce before correction.
 
 <a id="coeus-provider-resolution-2026-09-07"></a>
 ## COEUS-PROVIDER-RESOLUTION-2026-09-07 — Restore fresh provider resolution
