@@ -4,6 +4,11 @@
 
 ### Changed
 
+- [major] Remove `CpuStorage::into_raw` and keep allocation metadata private,
+  preventing safe callers from replacing the pointer or layout used during
+  destruction. Keep storage owners alive and access values through typed
+  borrows; see [ADR 0073](docs/adr/0073-cpu-allocation-ownership.md#migration).
+
 - [major] CTC loss returns typed errors for invalid sequence inputs and uses
   provider-owned native-scalar recurrences. Empty targets retain the all-blank
   loss and gradient; impossible alignments have infinite loss and an undefined

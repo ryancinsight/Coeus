@@ -3,16 +3,28 @@
 <a id="coeus-cpu-storage-ownership"></a>
 ## COEUS-CPU-STORAGE-OWNERSHIP — Keep allocation ownership private
 
-- Status: in-progress; integrator: codex-01a079ad; last-update: 2026-09-08.
+- Status: review; integrator: codex-01a079ad; last-update: 2026-09-08.
 - Priority: memory safety; [major]; branch: `fix/coeus-storage-ownership`.
 - Outcome: safe callers cannot replace the pointer or layout used by CPU storage destruction.
 - Scope: CPU allocation ownership and its public escape; preserve initialized storage and copy-on-write.
 - Finding: `CpuStorage::into_raw` exposes writable `RawBlock` fields consumed by `Drop`.
 - Acceptance: the safe invalid-free construction fails to compile; initialized values, shared mutation and destruction remain correct.
 - Dependency: precedes [fallible storage](#coeus-fallible-tensor-storage); no provider replacement.
-- Decision/migration: reserve ADR 0073 for the ownership boundary.
-- Verification: existing storage baseline, compile-fail regression, native storage/workspace gates, SemVer and independent safety review; state unavailable unsafe instrumentation.
+- Decision/migration: [ADR 0073](adr/0073-cpu-allocation-ownership.md).
+- Evidence: compile-fail red reproduces the safe escape; independent review accepts its removal. Full gate: 1,145 native tests, 156 doctests, strict Clippy/docs; five release and five Miri storage tests pass. SemVer against `3cf2d670`: 222 checks pass, one expected major removal, 31 tool skips.
 - Authority: change through merge; no release.
+
+<a id="coeus-backend-write-ownership"></a>
+## COEUS-BACKEND-WRITE-OWNERSHIP — Detach shared storage before backend writes
+
+- Status: todo; priority: correctness; [patch].
+- Outcome: backend fill, zero-fill and upload preserve cloned storage values.
+- Scope: CUDA, WGPU and generic Hephaestus backend writes; existing CPU semantics remain the reference.
+- Finding: these backend methods write shared provider buffers without `make_unique`; current COW tests invoke detachment explicitly and miss direct writes.
+- Acceptance: real device clone/write/read tests preserve the original and produce exact modified values for each mutation entry point, including empty and odd-length buffers.
+- Dependency: [Hephaestus aligned extents](../../hephaestus/backlog.md#heph-wgpu-buffer-extents), then [fallible storage](#coeus-fallible-tensor-storage) for failure propagation.
+- Verification: shared value-semantic cases on shipped CPU/device backends, strict Clippy, native/device gates and ADR 0036 synchronization; no mock provider.
+- Authority: change through merge; no release; no claim of universally recoverable allocation exhaustion.
 
 <a id="coeus-ctc-sequence-contract"></a>
 ## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
@@ -31,8 +43,7 @@
 - Outcome: provider failures reach callers without input-dependent panics.
 - Acceptance: complete caller migration, typed failure/gradient tests,
   full native/device gates, and SemVer classification with an updated ADR.
-- Dependency: [fallible tensor storage](#coeus-fallible-tensor-storage), then unary
-  primitives, derivative arithmetic, NN/Python callers and owned/borrowed `Neg`.
+- Dependency: [fallible tensor storage](#coeus-fallible-tensor-storage); its allocation/COW cutover must include the unary, derivative arithmetic and NN/Python callers it makes fallible.
 - Review: wrapping unary results alone retains allocation/COW/binary panics;
   ADRs 0042/0045 already cover backward/module contracts. Reserve a new forward ADR.
 - Non-goal: resurrect superseded dependency pins or storage implementations.
@@ -48,10 +59,11 @@
   alloc_on/zeros_on call them before unary dispatch can return its existing error.
 - Acceptance: no provider-error expects on the migrated paths; real malformed-size,
   layout and device error tests; no partial writes claimed as whole-graph rollback.
-- Dependency: CTC integration. Driver: [unary consumer](#coeus-fallible-unary-execution).
+- Dependency: [CPU ownership correction](#coeus-cpu-storage-ownership); upstream WGPU aligned copy/clear and scoped allocation errors. Driver: [unary consumer](#coeus-fallible-unary-execution).
 - Authority: change through merge; no release. Reserve an ADR before implementation.
 - Verification: focused storage/provider tests, native/device gates, Python wheel,
   caller/doc synchronization and SemVer; classify allocation limits explicitly.
+- Review: six backend/storage implementations; constructor search finds 2,781 textual candidates in 406 files, including tests/docs. Core-only Result changes cannot form a green cutover. Mnemosyne payload failure differs from aborting Arc control-block allocation.
 
 <a id="coeus-workspace-lint-floor"></a>
 ## COEUS-WORKSPACE-LINT-FLOOR — Recover the inherited lint floor
@@ -127,21 +139,9 @@
 <a id="coeus-lockfile-script-narrow"></a>
 ## COEUS-LOCKFILE-SCRIPT-NARROW — Check both dependency activation sets
 
-- Status: review; integrator: codex-01a079ad; risk: [patch].
-- Scope: existing lockfile tool and its real-Cargo regression tests.
-- Outcome: default and all-feature activation both accept the generated lock.
-- Acceptance: bounded convergence, unchanged second generation, diagnostic
-  preservation, and removal of temporary drive mappings after every outcome.
-- Verification: local Cargo fixture plus the Coeus standalone locked graph.
-- Evidence: `python -m unittest discover -s scripts/tests -v` passes 7/7;
-  removing all-feature checks makes the optional-source regression fail.
-  `python scripts/lockfile.py --check` accepts both Coeus activation sets.
-- Hosted run `34083487139` exposed an empty-cache precondition: hydrate with
-  bounded `cargo fetch --locked` before both offline checks. The local-Git
-  cold-cache regression preserves lock bytes and acquisition diagnostics.
-- Verification lane: existing `worktrees/coeus-autodiff-cache-split`, leased
-  for the lockfile correction while CTC remains uncommitted in the primary tree.
-- Non-goal: migrate the incompatible upstream Moirai/Leto version requirements.
+- Status: done; source `fb0c3150` landed in [PR #368](https://github.com/ryancinsight/Coeus/pull/368), merge `f5ccfd68`.
+- Outcome: bounded lock generation checks default/all-feature activation and hydrates missing locked Git dependencies before offline verification.
+- Evidence: seven real Cargo regression cases and both Coeus activation checks pass; the combined hook/tool suite passes 14 cases in PR #382 and the current full gate.
 
 <a id="coeus-hephaestus-cuda-fusion-001"></a>
 ## COEUS-HEPHAESTUS-CUDA-FUSION-001 — Remove Coeus-owned GPU kernels

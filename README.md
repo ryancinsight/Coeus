@@ -60,7 +60,7 @@ Bindings:
 3. **Moirai Parallel Execution**
    Multithreading is driven by the [Moirai Threading Engine](https://github.com/ryancinsight/Moirai.git), utilizing a work-stealing parallel execution queue via `MoiraiBackend::parallel_for`.
 4. **Mnemosyne Memory Allocator**
-   Low-level heap allocations are managed via the custom [Mnemosyne Allocator](https://github.com/ryancinsight/Mnemosyne), implementing aligned memory blocks (`RawBlock`) directly from the allocator instance.
+   CPU storage owns aligned Mnemosyne allocations through private allocation records. Typed borrows and copy-on-write preserve ownership; raw pointer and deallocation-layout mutation are not exposed. See [the ownership contract and migration](docs/adr/0073-cpu-allocation-ownership.md).
 5. **Apollo FFT Integration**
    FFT operations on `coeus` Tensors and differentiable Vars route to the
    [Apollo FFT Library](https://github.com/ryancinsight/apollo.git); Coeus owns

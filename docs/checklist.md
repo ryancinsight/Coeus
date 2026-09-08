@@ -2,8 +2,7 @@
 
 ## codex-01a079ad
 
-- [ ] [Close the CPU ownership escape with a compile-fail regression, migration note and safety review](backlog.md#coeus-cpu-storage-ownership).
-- [ ] [Verify native storage behavior and the affected workspace before delivery](backlog.md#coeus-cpu-storage-ownership).
+- [ ] [Collect public API classification, commit and publish the verified CPU ownership correction](backlog.md#coeus-cpu-storage-ownership).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 
