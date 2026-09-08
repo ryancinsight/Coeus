@@ -2,8 +2,7 @@
 
 ## codex-01a079ad
 
-- [ ] [Land the tested lockfile hook prerequisite and executable-mode correction](backlog.md#coeus-lockfile-hook-enforcement-2026-09-07).
-- [ ] [Resolve and verify the private cumulative-sum documentation link](backlog.md#coeus-private-rustdoc-links).
+- [ ] [Collect public API classification, commit and publish the verified CPU ownership correction](backlog.md#coeus-cpu-storage-ownership).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 

@@ -1,18 +1,13 @@
-// ── Mnemosyne-backed CPU storage ──
-// Reference-counted, aligned allocation using the Mnemosyne allocator.
-
 use std::alloc::{GlobalAlloc, Layout as AllocLayout};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::storage::{CpuAddressableStorage, CpuAddressableStorageMut, Storage, StorageMut};
 
-// ── Aligned raw block ──
-
 /// A single aligned memory block from Mnemosyne.
-pub struct RawBlock {
-    pub ptr: *mut u8,
-    pub layout: AllocLayout,
+struct RawBlock {
+    ptr: *mut u8,
+    layout: AllocLayout,
 }
 
 impl RawBlock {
@@ -56,10 +51,12 @@ impl Drop for RawBlock {
     }
 }
 
+// SAFETY: moving ownership does not change the allocation address; Mnemosyne
+// permits deallocation on another thread. Typed access is confined to CpuStorage.
 unsafe impl Send for RawBlock {}
+// SAFETY: shared block references expose no safe memory access. CpuStorage
+// allows shared typed reads and detaches the allocation before mutation.
 unsafe impl Sync for RawBlock {}
-
-// ── CpuStorage ──
 
 /// CPU-side aligned buffer with COW semantics via `Arc`.
 ///
@@ -94,6 +91,19 @@ unsafe impl Sync for RawBlock {}
 /// assert!(c.is_unique());     // now unique after mutation
 /// assert_eq!(b.as_slice()[0], 1.0); // original unchanged
 /// ```
+///
+/// Allocation ownership stays private: safe code cannot replace the pointer
+/// used by destruction with another live allocation's pointer.
+///
+/// ```compile_fail
+/// use coeus_core::CpuStorage;
+///
+/// let mut victim = CpuStorage::filled(1, 7_u8);
+/// let mut owner = CpuStorage::filled(1, 0_u8).into_raw().unwrap();
+/// owner.ptr = victim.raw_slice_mut_cow().as_mut_ptr();
+/// drop(owner);
+/// victim.raw_slice_mut_cow()[0] = 9;
+/// ```
 #[derive(Clone)]
 pub struct CpuStorage<T> {
     block: Arc<RawBlock>,
@@ -103,7 +113,11 @@ pub struct CpuStorage<T> {
 
 impl<T> crate::storage::traits::private::Sealed for CpuStorage<T> {}
 
+// SAFETY: initialized elements may cross threads when T is Send; shared
+// allocation ownership is synchronized by Arc and mutation detaches it.
 unsafe impl<T: Send> Send for CpuStorage<T> {}
+// SAFETY: shared access reads initialized T values only; mutable access requires
+// an exclusive storage borrow and detaches any shared allocation first.
 unsafe impl<T: Sync> Sync for CpuStorage<T> {}
 
 impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
@@ -187,19 +201,12 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
         storage
     }
 
-    /// Consume and return the underlying raw block.
-    #[inline]
-    pub fn into_raw(self) -> Option<RawBlock> {
-        Arc::try_unwrap(self.block).ok()
-    }
-
     /// Returns true when this storage has exclusive ownership of its allocation.
     #[inline]
     pub fn is_unique(&self) -> bool {
         Arc::strong_count(&self.block) == 1
     }
 
-    // ── Internal helpers ──
     #[inline]
     fn raw_slice(&self) -> &[T] {
         // SAFETY: The underlying block pointer is aligned, valid, and non-null (allocated via Mnemosyne) for `self.len` elements of type `T`.
@@ -213,7 +220,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     #[inline]
     unsafe fn raw_slice_mut(&mut self) -> &mut [T] {
         // SAFETY: The block pointer is aligned, valid, and non-null for `self.len` elements, and the mutable borrow guarantees exclusive access.
-        std::slice::from_raw_parts_mut(self.block.as_mut_ptr() as *mut T, self.len)
+        unsafe { std::slice::from_raw_parts_mut(self.block.as_mut_ptr() as *mut T, self.len) }
     }
 
     /// Mutable raw slice with COW handling.

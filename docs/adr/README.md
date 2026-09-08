@@ -73,3 +73,4 @@
 | [0070](0070-provider-owned-cuda-fusion.md) | Provider-owned CUDA fusion | Accepted |
 | [0071](0071-provider-owned-accelerator-backends.md) | Provider-owned accelerator backends | Accepted |
 | [0072](0072-ctc-sequence-loss.md) | Provider-owned CTC sequence loss | Accepted |
+| [0073](0073-cpu-allocation-ownership.md) | Private CPU allocation ownership | Accepted |

@@ -59,3 +59,18 @@ fn cpu_storage_is_initialized_before_readable_slices_exist() {
     let filled = CpuStorage::filled(4, 3_i32);
     assert_eq!(filled.as_slice(), &[3; 4]);
 }
+
+#[test]
+fn cloned_storage_retains_its_allocation_after_peer_destruction() {
+    let original = CpuStorage::from_slice(&[2_i32, 3, 5, 7]);
+    let mut survivor = original.clone();
+    let mut detached = original.clone();
+    detached.as_mut_slice()[2] = 50;
+    drop(original);
+
+    survivor.as_mut_slice()[0] = 20;
+    assert_eq!(survivor.as_slice(), &[20, 3, 5, 7]);
+    assert_eq!(detached.as_slice(), &[2, 3, 50, 7]);
+    drop(detached);
+    assert_eq!(survivor.as_slice(), &[20, 3, 5, 7]);
+}
