@@ -1,5 +1,5 @@
 use crate::storage::WgpuStorage;
-use coeus_core::{ComputeBackend, Scalar, Storage};
+use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
 use hephaestus_core::{CommandStream, ComputeDevice, KernelDevice};
 use std::sync::OnceLock;
 
@@ -187,6 +187,7 @@ impl ComputeBackend for WgpuBackend {
 
     #[inline]
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+        dst.make_unique();
         let device = &get_wgpu_context().hephaestus_device;
         let mut stream = device
             .stream()
@@ -199,6 +200,7 @@ impl ComputeBackend for WgpuBackend {
 
     #[inline]
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+        dst.make_unique();
         let ctx = get_wgpu_context();
         ctx.hephaestus_device
             .write_buffer(dst.buffer.as_ref(), src)

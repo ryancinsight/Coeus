@@ -3,7 +3,8 @@
 ## Current integration
 
 Execution steps: [active checklist](docs/checklist.md#codex-01a079ad).
-Acceptance and findings: [CPU allocation ownership](docs/backlog.md#coeus-cpu-storage-ownership) and [fallible tensor storage](docs/backlog.md#coeus-fallible-tensor-storage).
+Acceptance and findings: [backend writes](docs/backlog.md#coeus-backend-write-ownership), [device output ownership](docs/backlog.md#coeus-device-output-ownership), and [fallible tensor storage](docs/backlog.md#coeus-fallible-tensor-storage).
+CPU allocation ownership is corrected in [PR #383](https://github.com/ryancinsight/Coeus/pull/383).
 GPU integration is merged in [PR #368](https://github.com/ryancinsight/Coeus/pull/368);
 CTC sequence correctness is merged in [PR #380](https://github.com/ryancinsight/Coeus/pull/380).
 The historical completed-phase labels below do not establish current gate status.

@@ -4,6 +4,10 @@
 //! one Cargo target replaces the previous flat target-per-file topology.
 
 #[cfg(feature = "cuda")]
+#[path = "cuda_ops/backend_writes.rs"]
+mod backend_writes;
+
+#[cfg(feature = "cuda")]
 #[path = "cuda_ops/device/availability.rs"]
 mod availability;
 #[cfg(feature = "cuda")]

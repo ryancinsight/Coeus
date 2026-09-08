@@ -60,18 +60,23 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
     }
 
     /// Fill device buffer with a value.
+    ///
+    /// Other storage clones retain their values when this buffer is shared.
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T);
 
     /// Fill a device buffer with the additive identity.
     ///
     /// Accelerator backends override this method with their native clear or
     /// memset operation, avoiding destination-sized host staging.
+    /// Other storage clones retain their values when this buffer is shared.
     #[inline]
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
         self.fill(dst, T::zero());
     }
 
     /// Copy data from host (CPU) memory to this device buffer.
+    ///
+    /// Other storage clones retain their values when this buffer is shared.
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>);
 
     /// Copy data from this device buffer to host (CPU) memory.

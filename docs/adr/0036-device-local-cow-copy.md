@@ -4,8 +4,9 @@
 
 Accepted
 
-Implementation note: the generic Coeus Hephaestus storage increment and native WGPU/CUDA
-consumer cutover are implemented.
+Revision 2026-09-08: [backend writes](../backlog.md#coeus-backend-write-ownership)
+must detach shared storage at the mutation boundary. Explicit detachment tests
+did not cover direct backend fill and upload calls.
 
 ## Context
 
@@ -29,6 +30,17 @@ reimplementing provider transfer mechanics. The change does not add vendor
 imports to the shared storage contract, host fallback logic, or a second COW
 algorithm.
 
+`ComputeBackend::fill`, `fill_zero`, and `copy_to_device` preserve the values
+of every other storage clone. Each provider write detaches its destination
+before obtaining the buffer used by the write. Fill paths delegate to the
+same upload or clear boundary so no separate copy-on-write algorithm exists.
+An exclusive destination needs no copy. A shared destination installs its
+replacement only after the device copy completes.
+
+Logical element counts do not imply GPU transfer alignment. The WGPU provider
+owns physical padding and copies or clears the allocated byte extent; Coeus
+passes the complete typed buffer through the existing device contract.
+
 ## Alternatives rejected
 
 - Retain the host round trip: rejected because it allocates O(n) host storage
@@ -49,3 +61,10 @@ integration compilation and the WGPU, CUDA, ROCm, and Metal contract suites
 remain the backend execution evidence. The native WGPU and CUDA storage tests
 download both COW results and assert equal values. No runtime performance claim
 is made without a matched device benchmark.
+
+Direct backend write cases share one scalar/backend-parameterized oracle:
+download the modified destination and its untouched clone, then compare both
+against exact small-integer values. The cases exercise fill, zero-fill and
+upload for empty, odd-length and aligned allocations on CPU and actual GPU
+providers. These cases establish successful-write ownership semantics;
+provider failure propagation remains part of the fallible storage migration.
