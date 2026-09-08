@@ -9,7 +9,7 @@
 ## COEUS-BACKEND-WRITE-OWNERSHIP — Detach shared storage before backend writes
 
 - Status: review; integrator: codex-01a079ad; last-update: 2026-09-08; priority: correctness; [patch].
-- Branch: `fix/coeus-backend-write-ownership`, includes the ownership fix merged through PR #383.
+- Delivery: [PR #384](https://github.com/ryancinsight/Coeus/pull/384), branch `fix/coeus-backend-write-ownership`; includes the CPU ownership fix merged through PR #383.
 - Outcome: backend fill, zero-fill and upload preserve cloned storage values.
 - Scope: CUDA, WGPU and generic Hephaestus backend writes; existing CPU semantics remain the reference.
 - Finding: these backend methods write shared provider buffers without `make_unique`; current COW tests invoke detachment explicitly and miss direct writes.
@@ -29,15 +29,16 @@
 <a id="coeus-device-output-ownership"></a>
 ## COEUS-DEVICE-OUTPUT-OWNERSHIP — Preserve shared tensor outputs
 
-- Status: todo; priority: correctness; [major] [arch].
-- Outcome: direct elementwise, reduction and matmul writes preserve other tensor clones.
-- Scope: GPU mutable-output bridges and shared dispatch; keep replacement owners in the caller.
+- Status: in-progress; integrator: codex-01a079ad; last-update: 2026-09-08; priority: correctness; [major] [arch].
+- Outcome: every mutable GPU kernel output preserves other tensor clones, including additive gradients and optimizer states.
+- Scope: elementwise, reduction, matmul, attention, convolution, pooling, unfold/fold, staggered and optimizer dispatch; retain replacement owners in the caller.
 - Evidence: `Tensor::storage_and_layout_mut` requires backend COW; CUDA/WGPU clone output handles into temporary Hephaestus storage without detaching. Source-derived finding at `e3bc0bcc`; device reproduction remains required.
 - Acceptance: direct operation writes produce exact output and preserve cloned values and untouched view regions on CPU/CUDA/WGPU; invalid inputs fail before mutation.
 - Dependency: [backend writes](#coeus-backend-write-ownership); precedes [fallible storage](#coeus-fallible-tensor-storage).
-- Decision: revise [ADR 0036](adr/0036-device-local-cow-copy.md), including migration for shared matmul's immutable destination parameter.
+- Decision: revise [ADR 0036](adr/0036-device-local-cow-copy.md); CUDA/WGPU use `HephaestusStorage<P, T>` directly, removing vendor storage and temporary `from_arc` bridges. Mutable dispatch outputs replace shared-reference output APIs with a complete caller migration.
 - Verification: real-device regressions, shared operation tests, strict workspace gates, SemVer and complete bridge caller migration.
 - Authority: change through merge; no release; no temporary bridge whose detached output is discarded.
+- lease: review_plan crates/coeus-core/tests/core_ops/storage/device_outputs.rs crates/coeus-cuda/tests/cuda_ops/device_outputs.rs crates/coeus-cuda/tests/cuda_ops.rs crates/coeus-wgpu/tests/wgpu_ops/device_outputs.rs crates/coeus-wgpu/tests/wgpu_ops.rs 2026-09-08T14:56:24.413342+00:00.
 
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
