@@ -3,7 +3,7 @@ use crate::{
     layout::{ranked, ranked_axis},
     storage::HephaestusStorage,
 };
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{ComputeBackend, Layout, Scalar, StorageMut};
 use coeus_ops::ReductionOp;
 use hephaestus_core::{
     AxisReductionOps, CombineExpr, ComputeDevice, DeviceBuffer, IdentityToken, MaxOp, MinOp,
@@ -269,12 +269,11 @@ where
 
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
         let values = vec![val; dst.buffer().len()];
-        P::device()
-            .write_buffer(dst.buffer(), &values)
-            .expect("Hephaestus fill failed");
+        self.copy_to_device(&values, dst);
     }
 
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+        dst.make_unique();
         P::device()
             .write_buffer(dst.buffer(), src)
             .expect("Hephaestus host-to-device copy failed");

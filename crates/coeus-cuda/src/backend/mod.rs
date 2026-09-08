@@ -1,5 +1,5 @@
 use crate::storage::CudaStorage;
-use coeus_core::{Backend, ComputeBackend, Scalar, Storage};
+use coeus_core::{Backend, ComputeBackend, Scalar, Storage, StorageMut};
 use hephaestus_core::CommandStream;
 use hephaestus_cuda::{ComputeDevice, CudaDevice, KernelDevice};
 use std::sync::OnceLock;
@@ -95,6 +95,7 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+        dst.make_unique();
         let device = get_cuda_device();
         let mut stream = device
             .stream()
@@ -106,6 +107,7 @@ impl ComputeBackend for CudaBackend {
     }
 
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+        dst.make_unique();
         let device = get_cuda_device();
         device
             .write_buffer(&dst.buffer, src)

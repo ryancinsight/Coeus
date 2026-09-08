@@ -2,28 +2,21 @@
 
 <a id="coeus-cpu-storage-ownership"></a>
 ## COEUS-CPU-STORAGE-OWNERSHIP — Keep allocation ownership private
-
-- Status: review; integrator: codex-01a079ad; last-update: 2026-09-08.
-- Priority: memory safety; [major]; branch: `fix/coeus-storage-ownership`.
-- Outcome: safe callers cannot replace the pointer or layout used by CPU storage destruction.
-- Scope: CPU allocation ownership and its public escape; preserve initialized storage and copy-on-write.
-- Finding: `CpuStorage::into_raw` exposes writable `RawBlock` fields consumed by `Drop`.
-- Acceptance: the safe invalid-free construction fails to compile; initialized values, shared mutation and destruction remain correct.
-- Dependency: precedes [fallible storage](#coeus-fallible-tensor-storage); no provider replacement.
-- Decision/migration: [ADR 0073](adr/0073-cpu-allocation-ownership.md).
-- Evidence: compile-fail red reproduces the safe escape; independent review accepts its removal. Full gate: 1,145 native tests, 156 doctests, strict Clippy/docs; five release and five Miri storage tests pass. SemVer against `3cf2d670`: 222 checks pass, one expected major removal, 31 tool skips.
-- Authority: change through merge; no release.
+- Status: done; [PR #383](https://github.com/ryancinsight/Coeus/pull/383) merged as `3263fa47` on 2026-09-08.
+- Outcome: safe callers cannot replace allocation pointer/layout metadata; [ADR 0073 and migration](adr/0073-cpu-allocation-ownership.md). Exact native, release, Miri and SemVer evidence is attached to the PR.
 
 <a id="coeus-backend-write-ownership"></a>
 ## COEUS-BACKEND-WRITE-OWNERSHIP — Detach shared storage before backend writes
 
-- Status: todo; priority: correctness; [patch].
+- Status: review; integrator: codex-01a079ad; last-update: 2026-09-08; priority: correctness; [patch].
+- Delivery: [PR #384](https://github.com/ryancinsight/Coeus/pull/384), branch `fix/coeus-backend-write-ownership`; includes the CPU ownership fix merged through PR #383.
 - Outcome: backend fill, zero-fill and upload preserve cloned storage values.
 - Scope: CUDA, WGPU and generic Hephaestus backend writes; existing CPU semantics remain the reference.
 - Finding: these backend methods write shared provider buffers without `make_unique`; current COW tests invoke detachment explicitly and miss direct writes.
 - Acceptance: real device clone/write/read tests preserve the original and produce exact modified values for each mutation entry point, including empty and odd-length buffers.
 - Dependency: [Hephaestus aligned extents](../../hephaestus/backlog.md#heph-wgpu-buffer-extents), then [fallible storage](#coeus-fallible-tensor-storage) for failure propagation.
-- Verification: shared value-semantic cases on shipped CPU/device backends, strict Clippy, native/device gates and ADR 0036 synchronization; no mock provider.
+- Integration: Hephaestus PR #288 merged as `f6f55f45`. The refreshed graph exposes Apollo main's removed Leto import; consumer verification uses published `4fbdeb26`, with merge dependent on [Apollo PR #338](https://github.com/ryancinsight/apollo/pull/338) and a final lock advance to its merged revision.
+- Evidence: 1,148 native, 246 required-device CUDA/WGPU, eight release storage and 163 doctests pass; strict Clippy/docs and 14 tooling tests pass. Exact command/snapshot records: `test_output/backend-write-ownership/workspace/commands.json`; independent source review accepts the correction.
 - Authority: change through merge; no release; no claim of universally recoverable allocation exhaustion.
 
 <a id="coeus-ctc-sequence-contract"></a>
@@ -32,6 +25,20 @@
 - Status: done; [PR #380](https://github.com/ryancinsight/Coeus/pull/380) merged as `971cc649` on 2026-09-07.
 - Outcome: native-scalar CTC sequence loss and fallible gradients; [contract/migration](adr/0072-ctc-sequence-loss.md), [provider](../../leto/backlog.md#leto-ctc-loss), [remaining losses](#coeus-autograd-host-staging-residuals-001).
 - Evidence: 1,144 native tests, 234 required CUDA/WGPU tests, 155 doctests and 10 installed-wheel Python cases pass; exact runs and limits are in PR #380. Test-setup follow-up: PR #382.
+
+<a id="coeus-device-output-ownership"></a>
+## COEUS-DEVICE-OUTPUT-OWNERSHIP — Preserve shared tensor outputs
+
+- Status: in-progress; integrator: codex-01a079ad; last-update: 2026-09-08; priority: correctness; [major] [arch].
+- Outcome: every mutable GPU kernel output preserves other tensor clones, including additive gradients and optimizer states.
+- Scope: elementwise, reduction, matmul, attention, convolution, pooling, unfold/fold, staggered and optimizer dispatch; retain replacement owners in the caller.
+- Evidence: `Tensor::storage_and_layout_mut` requires backend COW; CUDA/WGPU clone output handles into temporary Hephaestus storage without detaching. Source-derived finding at `e3bc0bcc`; device reproduction remains required.
+- Acceptance: direct operation writes produce exact output and preserve cloned values and untouched view regions on CPU/CUDA/WGPU; invalid inputs fail before mutation.
+- Dependency: [backend writes](#coeus-backend-write-ownership); precedes [fallible storage](#coeus-fallible-tensor-storage).
+- Decision: revise [ADR 0036](adr/0036-device-local-cow-copy.md); CUDA/WGPU use `HephaestusStorage<P, T>` directly, removing vendor storage and temporary `from_arc` bridges. Mutable dispatch outputs replace shared-reference output APIs with a complete caller migration.
+- Verification: real-device regressions, shared operation tests, strict workspace gates, SemVer and complete bridge caller migration.
+- Authority: change through merge; no release; no temporary bridge whose detached output is discarded.
+- lease: review_plan crates/coeus-core/tests/core_ops/storage/device_outputs.rs crates/coeus-cuda/tests/cuda_ops/device_outputs.rs crates/coeus-cuda/tests/cuda_ops.rs crates/coeus-wgpu/tests/wgpu_ops/device_outputs.rs crates/coeus-wgpu/tests/wgpu_ops.rs 2026-09-08T14:56:24.413342+00:00.
 
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures

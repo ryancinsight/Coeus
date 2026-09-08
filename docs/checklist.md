@@ -2,7 +2,12 @@
 
 ## codex-01a079ad
 
-- [ ] [Collect public API classification, commit and publish the verified CPU ownership correction](backlog.md#coeus-cpu-storage-ownership).
+- [ ] [Reproduce direct kernel output corruption and enumerate every mutable provider output](backlog.md#coeus-device-output-ownership).
+- [ ] [Use generic provider storage throughout CUDA/WGPU and preserve owned outputs across dispatch](backlog.md#coeus-device-output-ownership).
+
+- [x] [Reproduce direct backend clone/write corruption with shared CPU/device cases](backlog.md#coeus-backend-write-ownership).
+- [x] [Detach at the backend write boundary, adopt verified upstream byte extents and run native/device gates](backlog.md#coeus-backend-write-ownership).
+- [ ] [Collect Apollo integration, advance the final lock and merge the verified correction](backlog.md#coeus-backend-write-ownership).
 
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons
 
