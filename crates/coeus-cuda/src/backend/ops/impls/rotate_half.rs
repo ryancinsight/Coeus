@@ -1,4 +1,4 @@
-use crate::{backend::CudaBackend, CudaBackendError, CudaStorage};
+use crate::{backend::CudaBackend, CudaBackendError};
 use coeus_core::Layout;
 use coeus_hephaestus::{rotate_half, RotateHalfProvider};
 
@@ -12,8 +12,8 @@ impl coeus_ops::RotateHalfOps<f32> for CudaBackend {
         input: &Self::DeviceBuffer<f32>,
         layout: &Layout,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
-        rotate_half::<Self, _>(input.buffer.as_ref(), layout)
-            .map(CudaStorage::from_buffer)
+        rotate_half::<Self, _>(input.buffer(), layout)
+            .map(coeus_hephaestus::HephaestusStorage::from_buffer)
             .map_err(|source| CudaBackendError::dispatch("rotate_half", source))
     }
 }

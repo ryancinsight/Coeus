@@ -90,8 +90,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::cumsum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::cumsum(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -106,8 +105,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::suffix_sum(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::suffix_sum(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -122,8 +120,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::cumprod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::cumprod(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -138,7 +135,6 @@ where
     where
         T: leto_ops::Scalar,
     {
-        reduction::suffix_prod(self, a, a_layout, axis, c, c_layout);
-        Ok(())
+        reduction::suffix_prod(self, a, a_layout, axis, c, c_layout)
     }
 }

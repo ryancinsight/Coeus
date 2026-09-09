@@ -1,5 +1,7 @@
-use crate::storage::CudaStorage;
-use coeus_core::{Backend, BackendError, ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_core::{
+    Backend, BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut,
+    CpuStorage, Scalar,
+};
 
 /// Scalar types supported by the CUDA backend and Hephaestus fusion.
 pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
@@ -12,8 +14,8 @@ impl CudaScalar for i32 {}
 
 /// CUDA metadata backend compiled without CUDA provider support.
 ///
-/// This type keeps non-provider builds source-compatible with code that names
-/// CUDA storage, but it does not implement Coeus mathematical backend traits.
+/// This selector uses CPU storage for metadata-only builds and implements no
+/// Coeus mathematical backend traits.
 /// Selecting CUDA execution requires the crate's `cuda` feature.
 ///
 /// # Examples
@@ -39,7 +41,7 @@ impl CudaBackend {
 
 impl ComputeBackend for CudaBackend {
     type Error = BackendError;
-    type DeviceBuffer<T: Scalar> = CudaStorage<T>;
+    type DeviceBuffer<T: Scalar> = CpuStorage<T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;
 
@@ -55,36 +57,29 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CudaStorage::new(len)
+        CpuStorage::new(len)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        let mut storage = CudaStorage::new(len);
+        let mut storage = CpuStorage::new(len);
         self.fill_zero(&mut storage);
         storage
     }
 
     #[inline]
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, value: T) {
-        dst.try_as_mut_slice()
-            .expect("invariant: no-CUDA storage is CPU-addressable")
-            .fill(value);
+        dst.as_mut_slice().fill(value);
     }
 
     #[inline]
     fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        dst.try_as_mut_slice()
-            .expect("invariant: no-CUDA storage is CPU-addressable")
-            .copy_from_slice(src);
+        dst.as_mut_slice().copy_from_slice(src);
     }
 
     #[inline]
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
-        dst.copy_from_slice(
-            src.try_as_slice()
-                .expect("invariant: no-CUDA storage is CPU-addressable"),
-        );
+        dst.copy_from_slice(src.as_slice());
     }
 }
 

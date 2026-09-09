@@ -1,8 +1,9 @@
 use super::{gradients, layouts};
 use crate::{attention::provider::AttentionBackend, HephaestusProvider};
-use coeus_core::{Float, Layout, Scalar};
-use hephaestus_core::{AttentionBackwardOperands, AttentionOps, AttentionScalar, StridedView};
-use leto::Layout as LetoLayout;
+use coeus_core::{Float, Layout, Scalar, StorageMut};
+use hephaestus_core::{
+    plan_attention_backward, AttentionBackwardOperands, AttentionOps, AttentionScalar, StridedView,
+};
 
 const OPERATION: &str = "attention backward";
 
@@ -27,27 +28,7 @@ where
     pub grad_value: Option<(&'a mut B::DeviceBuffer<T>, &'a Layout)>,
 }
 
-type ProviderBuffer<B, T> = <<<B as AttentionBackend<T>>::Provider as HephaestusProvider>::Device as hephaestus_core::ComputeDevice>::Buffer<T>;
-type ProjectedGradient<'a, B, T> = Option<(&'a ProviderBuffer<B, T>, LetoLayout<3>)>;
-
-fn project_gradient<'a, B, T>(
-    destination: Option<(&'a mut B::DeviceBuffer<T>, &'a Layout)>,
-) -> Result<ProjectedGradient<'a, B, T>, B::Error>
-where
-    B: AttentionBackend<T>,
-    T: Scalar + Float + AttentionScalar,
-{
-    destination
-        .map(|(buffer, layout)| {
-            Ok((
-                B::attention_buffer(&*buffer),
-                layouts::tensor(OPERATION, layout)?,
-            ))
-        })
-        .transpose()
-}
-
-pub(in crate::attention) fn execute<B, T>(request: Backward<'_, B, T>) -> Result<(), B::Error>
+pub(in crate::attention) fn execute<B, T>(mut request: Backward<'_, B, T>) -> Result<(), B::Error>
 where
     B: AttentionBackend<T>,
     T: Scalar + Float + AttentionScalar,
@@ -57,18 +38,64 @@ where
     let key_layout = layouts::tensor(OPERATION, request.key_layout)?;
     let value_layout = layouts::tensor(OPERATION, request.value_layout)?;
     let weights_layout = layouts::tensor(OPERATION, request.weights_layout)?;
-    let grad_query = project_gradient::<B, T>(request.grad_query)?;
-    let grad_key = project_gradient::<B, T>(request.grad_key)?;
-    let grad_value = project_gradient::<B, T>(request.grad_value)?;
-    let gradients = gradients::bind(
-        grad_query
-            .as_ref()
-            .map(|(buffer, layout)| (*buffer, layout)),
-        grad_key.as_ref().map(|(buffer, layout)| (*buffer, layout)),
-        grad_value
-            .as_ref()
-            .map(|(buffer, layout)| (*buffer, layout)),
-    );
+    let grad_query_layout = request
+        .grad_query
+        .as_ref()
+        .map(|(_, layout)| layouts::tensor(OPERATION, layout))
+        .transpose()?;
+    let grad_key_layout = request
+        .grad_key
+        .as_ref()
+        .map(|(_, layout)| layouts::tensor(OPERATION, layout))
+        .transpose()?;
+    let grad_value_layout = request
+        .grad_value
+        .as_ref()
+        .map(|(_, layout)| layouts::tensor(OPERATION, layout))
+        .transpose()?;
+    {
+        let operands = AttentionBackwardOperands {
+            grad_output: StridedView::new(
+                B::attention_buffer(request.grad_output),
+                &grad_output_layout,
+            ),
+            query: StridedView::new(B::attention_buffer(request.query), &query_layout),
+            key: StridedView::new(B::attention_buffer(request.key), &key_layout),
+            value: StridedView::new(B::attention_buffer(request.value), &value_layout),
+            weights: StridedView::new(B::attention_buffer(request.weights), &weights_layout),
+            scale: request.scale,
+            gradients: gradients::bind(
+                request
+                    .grad_query
+                    .as_ref()
+                    .zip(grad_query_layout.as_ref())
+                    .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                request
+                    .grad_key
+                    .as_ref()
+                    .zip(grad_key_layout.as_ref())
+                    .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                request
+                    .grad_value
+                    .as_ref()
+                    .zip(grad_value_layout.as_ref())
+                    .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+            ),
+        };
+        // Shared storage is detached below; preflight validates descriptors before
+        // any destination changes. Dispatch then checks the detached buffer aliases.
+        plan_attention_backward(&operands, false)
+            .map_err(|source| B::attention_dispatch_error(OPERATION, source))?;
+    }
+    if let Some((buffer, _)) = request.grad_query.as_mut() {
+        buffer.make_unique();
+    }
+    if let Some((buffer, _)) = request.grad_key.as_mut() {
+        buffer.make_unique();
+    }
+    if let Some((buffer, _)) = request.grad_value.as_mut() {
+        buffer.make_unique();
+    }
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();
     operations
         .attention_backward_accumulate(
@@ -83,7 +110,23 @@ where
                 value: StridedView::new(B::attention_buffer(request.value), &value_layout),
                 weights: StridedView::new(B::attention_buffer(request.weights), &weights_layout),
                 scale: request.scale,
-                gradients,
+                gradients: gradients::bind(
+                    request
+                        .grad_query
+                        .as_ref()
+                        .zip(grad_query_layout.as_ref())
+                        .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                    request
+                        .grad_key
+                        .as_ref()
+                        .zip(grad_key_layout.as_ref())
+                        .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                    request
+                        .grad_value
+                        .as_ref()
+                        .zip(grad_value_layout.as_ref())
+                        .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                ),
             },
         )
         .map_err(|source| B::attention_dispatch_error(OPERATION, source))

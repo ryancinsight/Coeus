@@ -15,7 +15,7 @@ impl CrossEntropyBackend for WgpuBackend {
     fn cross_entropy_buffer(
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn cross_entropy_candidate(
@@ -26,16 +26,16 @@ impl CrossEntropyBackend for WgpuBackend {
         let device = &crate::backend::get_wgpu_context().hephaestus_device;
         let candidate = device
             .alloc_uninitialized_with_hint(
-                storage.buffer.len(),
-                PlacementHint::Tier(storage.buffer.tier()),
+                storage.buffer().len(),
+                PlacementHint::Tier(storage.buffer().tier()),
             )
             .map_err(|source| WgpuBackendError::dispatch(operation, source))?;
         if preserve_contents {
             device
-                .copy_buffer(storage.buffer.as_ref(), &candidate)
+                .copy_buffer(storage.buffer(), &candidate)
                 .map_err(|source| WgpuBackendError::dispatch(operation, source))?;
         }
-        Ok(crate::WgpuStorage::from_buffer(candidate))
+        Ok(coeus_hephaestus::HephaestusStorage::from_buffer(candidate))
     }
 
     fn install_cross_entropy_candidate(
@@ -48,7 +48,7 @@ impl CrossEntropyBackend for WgpuBackend {
     fn cross_entropy_target_buffer(
         storage: &Self::DeviceBuffer<u32>,
     ) -> &<WgpuDevice as ComputeDevice>::Buffer<u32> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn cross_entropy_dispatch_error(

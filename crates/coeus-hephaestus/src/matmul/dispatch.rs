@@ -1,6 +1,6 @@
 use super::provider::MatmulBackend;
 use crate::layout::ranked;
-use coeus_core::{Layout, Scalar};
+use coeus_core::{Layout, Scalar, StorageMut};
 use hephaestus_core::{DenseProductOps, StridedView};
 
 const MATMUL: &str = "matmul";
@@ -10,7 +10,8 @@ const MATMUL: &str = "matmul";
 ///
 /// The three layouts are validated and left-padded to rank 2 once here, so
 /// every device provider receives the same strided operands and no backend
-/// repeats the conversion.
+/// repeats the conversion. The destination detaches from shared storage before
+/// writing, preserving other clones and elements outside its output view.
 ///
 /// # Errors
 ///
@@ -22,7 +23,7 @@ pub fn matmul<B, T>(
     a_layout: &Layout,
     b: &B::DeviceBuffer<T>,
     b_layout: &Layout,
-    c: &B::DeviceBuffer<T>,
+    c: &mut B::DeviceBuffer<T>,
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
@@ -33,6 +34,7 @@ where
     let rhs = ranked::<2>(MATMUL, b_layout)?;
     let out = ranked::<2>(MATMUL, c_layout)?;
 
+    c.make_unique();
     B::Operations::default()
         .matmul_into(
             B::matmul_device(),

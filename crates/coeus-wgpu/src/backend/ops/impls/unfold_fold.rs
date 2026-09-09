@@ -1,5 +1,4 @@
 use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
-use crate::storage::WgpuStorage;
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, HephaestusError};
@@ -27,7 +26,7 @@ where
     fn unfold_fold_buffer(
         storage: &Self::DeviceBuffer<T>,
     ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn unfold_fold_configuration_error(operation: &'static str, reason: String) -> Self::Error {
@@ -155,9 +154,15 @@ where
 
 fn unfold<T, const R: usize, const S: usize>(
     operation: &'static str,
-    input: (&WgpuStorage<T>, &Layout),
+    input: (
+        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
     window: WindowConfiguration<S>,
-    output: (&WgpuStorage<T>, &Layout),
+    output: (
+        &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
 ) -> Result<(), WgpuBackendError>
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
@@ -182,10 +187,16 @@ where
 
 fn fold<T, const R: usize, const S: usize>(
     operation: &'static str,
-    input: (&WgpuStorage<T>, &Layout),
+    input: (
+        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
     output_spatial_shape: [usize; S],
     window: WindowConfiguration<S>,
-    output: (&WgpuStorage<T>, &Layout),
+    output: (
+        &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
 ) -> Result<(), WgpuBackendError>
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,

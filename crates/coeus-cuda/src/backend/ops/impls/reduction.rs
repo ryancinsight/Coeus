@@ -1,6 +1,6 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::Layout;
-use coeus_hephaestus::{HephaestusBackend, HephaestusStorage, ReductionProvider};
+use coeus_hephaestus::{HephaestusBackend, ReductionProvider};
 use hephaestus_cuda::{
     CudaAxisReductionOps, CudaC, CudaScanOps, CumProdOp, CumSumOp, DialectScalar, IdentityToken,
     MaxOp, MinOp, OpIdentity, ProdOp, SumOp,
@@ -43,10 +43,8 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let input = HephaestusStorage::<CudaBackend, T>::from_arc(a.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(c.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .reduce(op, &input, a_layout, axis, &mut output, c_layout)
+            .reduce(op, a, a_layout, axis, c, c_layout)
             .map_err(Into::into)
     }
 
@@ -62,10 +60,8 @@ where
     where
         T: leto_ops::Scalar,
     {
-        let input = HephaestusStorage::<CudaBackend, T>::from_arc(a.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(c.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .cumsum(&input, a_layout, axis, &mut output, c_layout)
+            .cumsum(a, a_layout, axis, c, c_layout)
             .map_err(Into::into)
     }
 
@@ -81,10 +77,8 @@ where
     where
         T: leto_ops::Scalar,
     {
-        let input = HephaestusStorage::<CudaBackend, T>::from_arc(a.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(c.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .suffix_sum(&input, a_layout, axis, &mut output, c_layout)
+            .suffix_sum(a, a_layout, axis, c, c_layout)
             .map_err(Into::into)
     }
 
@@ -100,10 +94,8 @@ where
     where
         T: leto_ops::Scalar,
     {
-        let input = HephaestusStorage::<CudaBackend, T>::from_arc(a.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(c.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .cumprod(&input, a_layout, axis, &mut output, c_layout)
+            .cumprod(a, a_layout, axis, c, c_layout)
             .map_err(Into::into)
     }
 
@@ -119,10 +111,8 @@ where
     where
         T: leto_ops::Scalar,
     {
-        let input = HephaestusStorage::<CudaBackend, T>::from_arc(a.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(c.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .suffix_prod(&input, a_layout, axis, &mut output, c_layout)
+            .suffix_prod(a, a_layout, axis, c, c_layout)
             .map_err(Into::into)
     }
 }

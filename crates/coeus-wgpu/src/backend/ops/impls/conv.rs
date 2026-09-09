@@ -23,7 +23,7 @@ where
     fn convolution_buffer(
         storage: &Self::DeviceBuffer<T>,
     ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn convolution_configuration_error(operation: &'static str, reason: String) -> Self::Error {

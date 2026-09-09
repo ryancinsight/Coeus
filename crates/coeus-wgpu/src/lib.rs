@@ -16,20 +16,15 @@
 //! The element type is resolved through [`WgpuScalar`] (`f32`/`i32`/`u32`);
 //! float-only operations such as attention remain constrained to `f32`.
 //!
-//! ## CPU-reference boundaries
-//!
-//! A few paths fall back to the CPU reference via host transfer — currently a
-//! strided key-padding mask in attention. This is an explicit capability
-//! boundary, not a silent defect mask: the observable result matches the CPU
-//! reference, verified by the differential parity tests in `tests/wgpu/`, and
-//! the on-device speedup over that reference is tracked in `benches/`.
+//! Attention masks remain provider buffers with explicit borrowed layouts.
+//! Mutable outputs retain their owners through shared copy-on-write dispatch.
 
 mod backend;
 mod fusion;
+#[cfg(test)]
 mod storage;
 
 pub use backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
-pub use storage::WgpuStorage;
 
 use coeus_core::{BackendError, ComputeBackend, Layout};
 use coeus_ops::fuse::ExprNode;
@@ -104,7 +99,7 @@ pub fn matmul<
         operation: "matmul",
         reason: "output element count overflow",
     })?;
-    let mut c_storage = WgpuStorage::new(element_count);
+    let mut c_storage = coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(element_count);
     let c_layout = Layout::new([*m, *n].into());
 
     coeus_ops::MatmulOps::matmul(
@@ -149,7 +144,8 @@ pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
         })
     })?;
     let out_layout = Layout::new(out_shape);
-    let mut out_storage = WgpuStorage::new(out_layout.numel());
+    let mut out_storage =
+        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(out_layout.numel());
 
     fusion::dispatch_fused(expr, &mut out_storage, &out_layout)?;
 
@@ -220,7 +216,7 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     *output_axis = 1;
     let out_layout = Layout::new(out_shape.clone());
     let out_numel = backend::checked_numel(OPERATION, out_layout.shape())?;
-    let mut out_storage = WgpuStorage::new(out_numel);
+    let mut out_storage = coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(out_numel);
 
     if axis_len == 0 {
         let identity = match op {
