@@ -15,7 +15,6 @@ use hephaestus_wgpu::WgpuFusionOps;
 use leto::LayoutDyn;
 
 use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
-use crate::storage::WgpuStorage;
 
 /// Adapt a Coeus expression's input names to the provider's canonical names.
 ///
@@ -91,14 +90,14 @@ fn input_views<'inputs, T: Scalar>(
     inputs
         .iter()
         .zip(layouts)
-        .map(|(tensor, layout)| DynamicStridedView::new(tensor.storage().buffer.as_ref(), layout))
+        .map(|(tensor, layout)| DynamicStridedView::new(tensor.storage().buffer(), layout))
         .collect()
 }
 
 /// Dispatch a fused elementwise expression through Hephaestus.
 pub(crate) fn dispatch_fused<T, E>(
     expression: &E,
-    output: &mut WgpuStorage<T>,
+    output: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
     output_layout: &Layout,
 ) -> Result<(), WgpuBackendError>
 where
@@ -119,7 +118,8 @@ where
         .collect::<Result<Vec<_>, _>>()?;
     let output_layout = provider_layout(output_layout, "fused expression")?;
     let input_views = input_views(&inputs, &input_layouts);
-    let output_view = DynamicStridedView::new(output.buffer.as_ref(), &output_layout);
+    coeus_core::StorageMut::make_unique(output);
+    let output_view = DynamicStridedView::new(output.buffer(), &output_layout);
     let adapter = ExpressionAdapter {
         expression,
         _scalar: PhantomData,
@@ -135,7 +135,7 @@ pub(crate) fn dispatch_fused_reduce<T, E>(
     expression: &E,
     reduction: coeus_ops::ReductionOp,
     axis: usize,
-    output: &mut WgpuStorage<T>,
+    output: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
     output_layout: &Layout,
 ) -> Result<(), WgpuBackendError>
 where
@@ -156,7 +156,8 @@ where
         .collect::<Result<Vec<_>, _>>()?;
     let output_layout = provider_layout(output_layout, "fused reduction")?;
     let input_views = input_views(&inputs, &input_layouts);
-    let output_view = DynamicStridedView::new(output.buffer.as_ref(), &output_layout);
+    coeus_core::StorageMut::make_unique(output);
+    let output_view = DynamicStridedView::new(output.buffer(), &output_layout);
     let adapter = ExpressionAdapter {
         expression,
         _scalar: PhantomData,

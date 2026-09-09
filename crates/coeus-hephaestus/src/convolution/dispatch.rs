@@ -1,15 +1,16 @@
 use crate::{convolution::provider::ConvolutionBackend, layout::ranked};
-use coeus_core::{Layout, Scalar};
+use coeus_core::{Layout, Scalar, StorageMut};
 use coeus_ops::{
     ConvolutionBackward as CoeusConvolutionBackward, ConvolutionForward as CoeusConvolutionForward,
 };
 use hephaestus_core::{
-    ConvolutionBackwardOperands, ConvolutionForwardOperands, ConvolutionGradientViews,
-    ConvolutionOps, DeviceBuffer, StridedView,
+    plan_convolution_backward, plan_convolution_forward, plan_transposed_convolution_backward,
+    plan_transposed_convolution_forward, ConvolutionBackwardOperands, ConvolutionForwardOperands,
+    ConvolutionGradientViews, ConvolutionOps, DeviceBuffer, StridedView,
 };
 use leto::{ConvolutionParameters, Layout as LetoLayout, TransposedConvolutionParameters};
 
-/// Borrowed Coeus operands for provider-owned forward dispatch.
+/// Borrowed operands whose output preserves other storage clones on dispatch.
 pub struct Forward<'a, B, T>
 where
     B: ConvolutionBackend<T>,
@@ -49,7 +50,7 @@ where
     }
 }
 
-/// Borrowed Coeus operands for provider-owned backward dispatch.
+/// Borrowed operands whose gradients accumulate without changing other clones.
 pub struct Backward<'a, B, T>
 where
     B: ConvolutionBackend<T>,
@@ -245,13 +246,48 @@ where
         .bias
         .map(|bias| bias_layout::<B, T>(operation, bias))
         .transpose()?;
+    {
+        let operands = ConvolutionForwardOperands {
+            input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
+            weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
+            bias: request
+                .bias
+                .zip(bias_layout.as_ref())
+                .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
+            output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
+        };
+        // Shared storage is detached below; preflight validates descriptors before
+        // any destination changes. Dispatch then checks the detached buffer aliases.
+        match &kind {
+            ConvolutionKind::Regular(parameters) => plan_convolution_forward::<T, _, R, D>(
+                &operands,
+                *parameters
+                    .as_ref()
+                    .map_err(|error| configuration::<B, T>(operation, error))?,
+                false,
+            )
+            .map(|_| ()),
+            ConvolutionKind::Transposed(parameters) => {
+                plan_transposed_convolution_forward::<T, _, R, D>(
+                    &operands,
+                    *parameters
+                        .as_ref()
+                        .map_err(|error| configuration::<B, T>(operation, error))?,
+                    false,
+                )
+                .map(|_| ())
+            }
+        }
+        .map_err(|source| B::convolution_dispatch_error(operation, source))?;
+    }
+    request.output.make_unique();
     let operands = ConvolutionForwardOperands {
         input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
         weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
         bias: request
             .bias
             .zip(bias_layout.as_ref())
-            .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
+            .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
         output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
     };
     let operations = B::Operations::default();
@@ -271,7 +307,7 @@ where
 }
 
 fn backward<B, T, const R: usize, const D: usize>(
-    request: Backward<'_, B, T>,
+    mut request: Backward<'_, B, T>,
     kind: ConvolutionKind<D>,
 ) -> Result<(), B::Error>
 where
@@ -300,6 +336,71 @@ where
         .as_ref()
         .map(|bias| bias_layout::<B, T>(operation, bias))
         .transpose()?;
+    {
+        let operands = ConvolutionBackwardOperands {
+            input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
+            weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
+            grad_output: StridedView::new(
+                B::convolution_buffer(request.grad_output),
+                &grad_output_layout,
+            ),
+            gradients: ConvolutionGradientViews {
+                input: request
+                    .grad_input
+                    .as_ref()
+                    .zip(grad_input_layout.as_ref())
+                    .map(|(buffer, layout)| {
+                        StridedView::new(B::convolution_buffer(buffer), layout)
+                    }),
+                weight: request
+                    .grad_weight
+                    .as_ref()
+                    .zip(grad_weight_layout.as_ref())
+                    .map(|(buffer, layout)| {
+                        StridedView::new(B::convolution_buffer(buffer), layout)
+                    }),
+                bias: request
+                    .grad_bias
+                    .as_ref()
+                    .zip(grad_bias_layout.as_ref())
+                    .map(|(buffer, layout)| {
+                        StridedView::new(B::convolution_buffer(buffer), layout)
+                    }),
+            },
+        };
+        // Shared storage is detached below; preflight validates descriptors before
+        // any destination changes. Dispatch then checks the detached buffer aliases.
+        match &kind {
+            ConvolutionKind::Regular(parameters) => plan_convolution_backward::<T, _, R, D>(
+                &operands,
+                *parameters
+                    .as_ref()
+                    .map_err(|error| configuration::<B, T>(operation, error))?,
+                false,
+            )
+            .map(|_| ()),
+            ConvolutionKind::Transposed(parameters) => {
+                plan_transposed_convolution_backward::<T, _, R, D>(
+                    &operands,
+                    *parameters
+                        .as_ref()
+                        .map_err(|error| configuration::<B, T>(operation, error))?,
+                    false,
+                )
+                .map(|_| ())
+            }
+        }
+        .map_err(|source| B::convolution_dispatch_error(operation, source))?;
+    }
+    if let Some(buffer) = request.grad_input.as_mut() {
+        buffer.make_unique();
+    }
+    if let Some(buffer) = request.grad_weight.as_mut() {
+        buffer.make_unique();
+    }
+    if let Some(buffer) = request.grad_bias.as_mut() {
+        buffer.make_unique();
+    }
     let operands = ConvolutionBackwardOperands {
         input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
         weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),

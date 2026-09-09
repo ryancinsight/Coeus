@@ -4,7 +4,7 @@ use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_wgpu::{WgpuAttentionOps, WgpuDevice};
 
-// SAFETY: `WgpuStorage` retains the provider buffer behind `Arc`, and the
+// SAFETY: `HephaestusStorage` retains the provider buffer behind `Arc`, and the
 // process-global device owns queue synchronization for every submitted kernel.
 unsafe impl HephaestusProvider for WgpuBackend {
     type Device = WgpuDevice;
@@ -30,7 +30,7 @@ impl AttentionBackend<f32> for WgpuBackend {
     fn attention_buffer(
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {

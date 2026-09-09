@@ -1,6 +1,6 @@
 use super::provider::StaggeredBackend;
 use crate::layout::ranked_exact;
-use coeus_core::Layout;
+use coeus_core::{Layout, StorageMut};
 use coeus_ops::Axis;
 use hephaestus_core::{Staggered3DOps, Staggered3DParams, StaggeredAxis};
 use leto_ops::{staggered_first_derivative_coefficients, TapCoefficients};
@@ -134,7 +134,7 @@ where
     .map_err(|source| B::staggered_dispatch_error(operation, source))
 }
 
-/// Dispatch the staggered gradient through the selected provider.
+/// Dispatch the staggered gradient while preserving destination clones.
 ///
 /// # Errors
 ///
@@ -145,13 +145,14 @@ pub fn gradient<B>(
     pair: &PreparedStaggeredPair<B>,
     axis: Axis,
     input: (&B::DeviceBuffer<f32>, &Layout),
-    output: (&B::DeviceBuffer<f32>, &Layout),
+    output: (&mut B::DeviceBuffer<f32>, &Layout),
 ) -> Result<(), B::Error>
 where
     B: StaggeredBackend,
 {
     const OPERATION: &str = "staggered_gradient";
     let params = parameters::<B>(OPERATION, pair, axis, (input.1, output.1))?;
+    output.0.make_unique();
     B::Operations::default()
         .staggered_gradient_into(
             B::staggered_device(),
@@ -163,7 +164,7 @@ where
         .map_err(|source| B::staggered_dispatch_error(OPERATION, source))
 }
 
-/// Dispatch the staggered divergence through the selected provider.
+/// Dispatch the staggered divergence while preserving destination clones.
 ///
 /// # Errors
 ///
@@ -172,13 +173,14 @@ pub fn divergence<B>(
     pair: &PreparedStaggeredPair<B>,
     axis: Axis,
     input: (&B::DeviceBuffer<f32>, &Layout),
-    output: (&B::DeviceBuffer<f32>, &Layout),
+    output: (&mut B::DeviceBuffer<f32>, &Layout),
 ) -> Result<(), B::Error>
 where
     B: StaggeredBackend,
 {
     const OPERATION: &str = "staggered_divergence";
     let params = parameters::<B>(OPERATION, pair, axis, (input.1, output.1))?;
+    output.0.make_unique();
     B::Operations::default()
         .staggered_divergence_into(
             B::staggered_device(),

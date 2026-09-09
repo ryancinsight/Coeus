@@ -19,7 +19,7 @@ where
     fn matmul_buffer(
         storage: &Self::DeviceBuffer<T>,
     ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn matmul_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {

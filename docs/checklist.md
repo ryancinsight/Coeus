@@ -4,7 +4,8 @@
 
 - [x] [Reproduce direct kernel output corruption and enumerate every mutable provider output](backlog.md#coeus-device-output-ownership).
 - [x] [Use generic provider storage throughout CUDA/WGPU and preserve owned outputs across dispatch](backlog.md#coeus-device-output-ownership).
-- [ ] [Propagate CPU scan failures, adopt the CUDA scalar compiler correction and verify expanded output cases](backlog.md#coeus-device-output-ownership).
+- [x] [Propagate and verify CPU scan failures without modifying output values](backlog.md#coeus-device-output-ownership).
+- [ ] [Collect the relocated CPU ownership matrix and adopt the CUDA scalar compiler correction](backlog.md#coeus-device-output-ownership).
 - [ ] [Run final workspace/device/SemVer gates and integrate the reviewed output ownership migration](backlog.md#coeus-device-output-ownership).
 
 ## COEUS-CROSS-ENTROPY-PROVIDER-001 — Codex

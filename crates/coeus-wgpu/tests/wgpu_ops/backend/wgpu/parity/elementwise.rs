@@ -270,113 +270,85 @@ fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
 }
 
 #[test]
-fn test_wgpu_aliasing_unary_neg_rejects_provider_bypass() {
+fn test_wgpu_neg_preserves_output_clones() {
     let w = wgpu();
-    let data = vec![-4.0f32, -1.5, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0];
-    let x_cpu = Tensor::from_slice(vec![data.len()], &data);
-    let x_gpu = to_gpu(&x_cpu);
+    let values = [-4.0_f32, -1.5, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0];
+    let input = to_gpu(&Tensor::from_slice([values.len()], &values));
+    let mut output = input.storage().clone();
 
-    // Clone shares storage; Hephaestus owns the rejection of aliased buffers.
-    let mut out_storage = x_gpu.storage().clone();
-    let before = to_cpu(&x_gpu);
-    let error = w
-        .elementwise_unary(
-            coeus_ops::UnaryOp::Neg,
-            x_gpu.storage(),
-            x_gpu.layout(),
-            &mut out_storage,
-            x_gpu.layout(),
-        )
-        .expect_err("aliased negation must not bypass Hephaestus");
-    assert!(
-        format!("{error:?}").contains("must not alias"),
-        "aliased negation must surface the provider rejection, got: {error:?}"
-    );
-    let mut after = vec![0.0; before.as_slice().len()];
-    w.copy_to_host(&out_storage, &mut after);
-    assert_eq!(after.as_slice(), before.as_slice());
+    w.elementwise_unary(
+        coeus_ops::UnaryOp::Neg,
+        input.storage(),
+        input.layout(),
+        &mut output,
+        input.layout(),
+    )
+    .expect("negation detaches the shared destination");
+
+    let mut actual = [0.0; 8];
+    w.copy_to_host(&output, &mut actual);
+    assert_eq!(actual, values.map(|value| -value));
+    assert_eq!(to_cpu(&input).as_slice(), &values);
 }
 
 #[test]
-fn test_wgpu_aliasing_elu_rejects_provider_bypass() {
+fn test_wgpu_elu_preserves_output_clones() {
     let w = wgpu();
-    let x_cpu = Tensor::from_slice(vec![2, 2], &[-2.0f32, -0.5, 0.5, 2.0]);
-    let x_gpu = to_gpu(&x_cpu);
+    let values = [-2.0_f32, -0.5, 0.5, 2.0];
+    let input = to_gpu(&Tensor::from_slice([2, 2], &values));
+    // ELU evaluates each element independently: changing only destination
+    // ownership and traversal layout must preserve the provider's exact result.
+    // The separate sequential parity cases cover the exponential approximation.
+    let expected = to_cpu(&coeus_ops::elu(&input, &w));
+    let transposed = input.t();
 
-    // Hephaestus requires distinct input and output buffers. An aliased ELU
-    // must fail instead of executing a consumer-owned fallback expression.
-    let mut out_storage = x_gpu.storage().clone();
-    let error = w
-        .elementwise_unary(
+    for view in [&input, &transposed] {
+        let mut output = view.storage().clone();
+        w.elementwise_unary(
             coeus_ops::UnaryOp::Elu,
-            x_gpu.storage(),
-            x_gpu.layout(),
-            &mut out_storage,
-            x_gpu.layout(),
+            view.storage(),
+            view.layout(),
+            &mut output,
+            view.layout(),
         )
-        .expect_err("aliased ELU must not bypass Hephaestus");
+        .expect("ELU detaches dense and transposed destinations");
 
-    // The Hephaestus provider owns the dispatch and rejects the aliased
-    // buffers itself; a silent consumer-owned fallback would return Ok.
-    assert!(
-        format!("{error:?}").contains("must not alias"),
-        "aliased ELU must surface the provider's aliasing rejection, got: {error:?}"
-    );
-
-    let transposed = x_gpu.t();
-    let mut strided_out_storage = transposed.storage().clone();
-    let error = w
-        .elementwise_unary(
-            coeus_ops::UnaryOp::Elu,
-            transposed.storage(),
-            transposed.layout(),
-            &mut strided_out_storage,
-            transposed.layout(),
-        )
-        .expect_err("aliased strided ELU must not bypass Hephaestus");
-
-    // The strided path may reject the operation form before the provider's
-    // aliasing check runs; either typed rejection proves no consumer-owned
-    // fallback executed (a silent fallback would return Ok).
-    let rendered = format!("{error:?}");
-    assert!(
-        rendered.contains("must not alias"),
-        "aliased strided ELU must fail with a typed rejection, got: {error:?}"
-    );
+        // Download the entire backing allocation: a transposed output must
+        // write the same physical elements without compacting its layout.
+        let mut actual = [0.0; 4];
+        w.copy_to_host(&output, &mut actual);
+        assert_eq!(actual.as_slice(), expected.as_slice());
+        assert_eq!(to_cpu(&input).as_slice(), &values);
+        assert_eq!(to_cpu(&transposed).as_slice(), &[-2.0, 0.5, -0.5, 2.0]);
+    }
 }
 
 #[test]
-fn test_wgpu_aliasing_binary_add_rejects_provider_bypass() {
+fn test_wgpu_add_preserves_output_clones() {
     let w = wgpu();
     let a_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.25 - 2.0).collect();
     let b_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.1 + 0.5).collect();
+    let expected: Vec<_> = a_data.iter().zip(&b_data).map(|(a, b)| a + b).collect();
+    let a_gpu = to_gpu(&Tensor::from_slice([4, 4], &a_data));
+    let b_gpu = to_gpu(&Tensor::from_slice([4, 4], &b_data));
+    let mut output = a_gpu.storage().clone();
 
-    let a_cpu = Tensor::from_slice(vec![4, 4], &a_data);
-    let b_cpu = Tensor::from_slice(vec![4, 4], &b_data);
-    let a_gpu = to_gpu(&a_cpu);
-    let b_gpu = to_gpu(&b_cpu);
+    w.elementwise_binary(
+        coeus_ops::BinaryOp::Add,
+        a_gpu.storage(),
+        a_gpu.layout(),
+        b_gpu.storage(),
+        b_gpu.layout(),
+        &mut output,
+        a_gpu.layout(),
+    )
+    .expect("addition detaches the shared destination");
 
-    // Clone shares storage; Hephaestus owns the rejection of aliased buffers.
-    let mut out_storage = a_gpu.storage().clone();
-    let before = to_cpu(&a_gpu);
-    let error = w
-        .elementwise_binary(
-            coeus_ops::BinaryOp::Add,
-            a_gpu.storage(),
-            a_gpu.layout(),
-            b_gpu.storage(),
-            b_gpu.layout(),
-            &mut out_storage,
-            a_gpu.layout(),
-        )
-        .expect_err("aliased addition must not bypass Hephaestus");
-    assert!(
-        format!("{error:?}").contains("must not alias"),
-        "aliased addition must surface the provider rejection, got: {error:?}"
-    );
-    let mut after = vec![0.0; before.as_slice().len()];
-    w.copy_to_host(&out_storage, &mut after);
-    assert_eq!(after.as_slice(), before.as_slice());
+    let mut actual = [0.0; 16];
+    w.copy_to_host(&output, &mut actual);
+    assert_eq!(actual.as_slice(), expected.as_slice());
+    assert_eq!(to_cpu(&a_gpu).as_slice(), a_data.as_slice());
+    assert_eq!(to_cpu(&b_gpu).as_slice(), b_data.as_slice());
 }
 
 macro_rules! test_unary_parity {

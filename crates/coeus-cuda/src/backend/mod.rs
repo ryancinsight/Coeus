@@ -1,4 +1,3 @@
-use crate::storage::CudaStorage;
 use coeus_core::{Backend, ComputeBackend, Scalar, Storage, StorageMut};
 use hephaestus_core::CommandStream;
 use hephaestus_cuda::{ComputeDevice, CudaDevice, KernelDevice};
@@ -53,7 +52,7 @@ impl CudaBackend {
 
 impl ComputeBackend for CudaBackend {
     type Error = crate::CudaBackendError;
-    type DeviceBuffer<T: Scalar> = CudaStorage<T>;
+    type DeviceBuffer<T: Scalar> = coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;
 
@@ -69,12 +68,12 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CudaStorage::uninitialized(len)
+        coeus_hephaestus::HephaestusBackend::<CudaBackend>::new().allocate(len)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CudaStorage::new(len)
+        coeus_hephaestus::HephaestusStorage::<CudaBackend, _>::new(len)
     }
 
     #[inline]
@@ -101,7 +100,7 @@ impl ComputeBackend for CudaBackend {
             .stream()
             .expect("CUDA zero fill stream creation failed");
         stream
-            .fill_zero(dst.buffer.as_ref())
+            .fill_zero(dst.buffer())
             .expect("CUDA zero fill encoding failed");
         stream.submit().expect("CUDA zero fill submission failed");
     }
@@ -110,14 +109,14 @@ impl ComputeBackend for CudaBackend {
         dst.make_unique();
         let device = get_cuda_device();
         device
-            .write_buffer(&dst.buffer, src)
+            .write_buffer(dst.buffer(), src)
             .expect("copy_to_device: write_buffer failed");
     }
 
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
         let device = get_cuda_device();
         device
-            .download(&src.buffer, dst)
+            .download(src.buffer(), dst)
             .expect("copy_to_host: download failed");
     }
 }

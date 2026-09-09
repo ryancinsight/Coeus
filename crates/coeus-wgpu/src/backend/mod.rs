@@ -1,4 +1,3 @@
-use crate::storage::WgpuStorage;
 use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
 use hephaestus_core::{CommandStream, ComputeDevice, KernelDevice};
 use std::sync::OnceLock;
@@ -150,7 +149,7 @@ impl WgpuBackend {
 
 impl ComputeBackend for WgpuBackend {
     type Error = WgpuBackendError;
-    type DeviceBuffer<T: Scalar> = WgpuStorage<T>;
+    type DeviceBuffer<T: Scalar> = coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;
 
@@ -166,12 +165,12 @@ impl ComputeBackend for WgpuBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        WgpuStorage::uninitialized(len)
+        coeus_hephaestus::HephaestusBackend::<WgpuBackend>::new().allocate(len)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        WgpuStorage::new(len)
+        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(len)
     }
 
     #[inline]
@@ -193,7 +192,7 @@ impl ComputeBackend for WgpuBackend {
             .stream()
             .expect("WGPU zero fill stream creation failed");
         stream
-            .fill_zero(dst.buffer.as_ref())
+            .fill_zero(dst.buffer())
             .expect("WGPU zero fill encoding failed");
         stream.submit().expect("WGPU zero fill submission failed");
     }
@@ -203,14 +202,14 @@ impl ComputeBackend for WgpuBackend {
         dst.make_unique();
         let ctx = get_wgpu_context();
         ctx.hephaestus_device
-            .write_buffer(dst.buffer.as_ref(), src)
+            .write_buffer(dst.buffer(), src)
             .expect("Failed to copy host tensor into WgpuBuffer");
     }
 
     fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
         let ctx = get_wgpu_context();
         ctx.hephaestus_device
-            .download(src.buffer.as_ref(), dst)
+            .download(src.buffer(), dst)
             .expect("Failed to copy WgpuBuffer into host tensor");
     }
 }

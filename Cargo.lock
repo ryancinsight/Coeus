@@ -405,6 +405,7 @@ dependencies = [
  "leto-ops",
  "themis-topology",
  "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
@@ -502,6 +503,7 @@ dependencies = [
  "melinoe",
  "smallvec",
  "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
@@ -603,6 +605,7 @@ dependencies = [
  "leto-ops",
  "themis-topology",
  "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
