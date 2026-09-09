@@ -1,5 +1,4 @@
 use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
-use crate::storage::CudaStorage;
 use crate::CudaBackendError;
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
@@ -28,7 +27,7 @@ where
     fn unfold_fold_buffer(
         storage: &Self::DeviceBuffer<T>,
     ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn unfold_fold_configuration_error(operation: &'static str, reason: String) -> Self::Error {
@@ -158,9 +157,15 @@ where
 
 fn unfold<T, const R: usize, const S: usize>(
     operation: &'static str,
-    input: (&CudaStorage<T>, &Layout),
+    input: (
+        &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &Layout,
+    ),
     window: WindowConfiguration<S>,
-    output: (&CudaStorage<T>, &Layout),
+    output: (
+        &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &Layout,
+    ),
 ) -> Result<(), CudaBackendError>
 where
     T: CudaScalar + DialectScalar<CudaC>,
@@ -185,10 +190,16 @@ where
 
 fn fold<T, const R: usize, const S: usize>(
     operation: &'static str,
-    input: (&CudaStorage<T>, &Layout),
+    input: (
+        &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &Layout,
+    ),
     output_spatial_shape: [usize; S],
     window: WindowConfiguration<S>,
-    output: (&CudaStorage<T>, &Layout),
+    output: (
+        &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &Layout,
+    ),
 ) -> Result<(), CudaBackendError>
 where
     T: CudaScalar + DialectScalar<CudaC>,

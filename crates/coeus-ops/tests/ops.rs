@@ -16,6 +16,8 @@ mod elementwise;
 mod indexing;
 #[path = "ops/linear_algebra.rs"]
 mod linear_algebra;
+#[path = "ops/ownership.rs"]
+mod ownership;
 #[path = "ops/reductions.rs"]
 mod reductions;
 #[path = "ops/shape.rs"]

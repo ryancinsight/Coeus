@@ -1,4 +1,4 @@
-use crate::backend::{WgpuBackend, WgpuBackendError, WgpuStorage};
+use crate::backend::{WgpuBackend, WgpuBackendError};
 use coeus_core::Layout;
 use coeus_hephaestus::{StatefulUpdateBackend, StatefulUpdateProvider};
 use hephaestus_core::{ComputeDevice, HephaestusError};
@@ -14,7 +14,7 @@ impl StatefulUpdateBackend for WgpuBackend {
     fn stateful_update_buffer(
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error {
@@ -32,11 +32,11 @@ impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
 
     fn sgd_step(
         &self,
-        p: &mut WgpuStorage<f32>,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         pl: &Layout,
-        g: &WgpuStorage<f32>,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         gl: &Layout,
-        s: &mut WgpuStorage<f32>,
+        s: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         sl: &Layout,
         lr: f32,
         momentum: f32,
@@ -46,13 +46,13 @@ impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
 
     fn adam_step(
         &self,
-        p: &mut WgpuStorage<f32>,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         pl: &Layout,
-        g: &WgpuStorage<f32>,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         gl: &Layout,
-        first: &mut WgpuStorage<f32>,
+        first: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         fl: &Layout,
-        second: &mut WgpuStorage<f32>,
+        second: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         sl: &Layout,
         lr: f32,
         b1: f32,
@@ -65,11 +65,11 @@ impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
 
     fn rmsprop_step(
         &self,
-        p: &mut WgpuStorage<f32>,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         pl: &Layout,
-        g: &WgpuStorage<f32>,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         gl: &Layout,
-        s: &mut WgpuStorage<f32>,
+        s: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         sl: &Layout,
         lr: f32,
         alpha: f32,
@@ -80,13 +80,13 @@ impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
 
     fn adamw_step(
         &self,
-        p: &mut WgpuStorage<f32>,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         pl: &Layout,
-        g: &WgpuStorage<f32>,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         gl: &Layout,
-        first: &mut WgpuStorage<f32>,
+        first: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         fl: &Layout,
-        second: &mut WgpuStorage<f32>,
+        second: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         sl: &Layout,
         lr: f32,
         b1: f32,
@@ -102,11 +102,11 @@ impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
 
     fn adagrad_step(
         &self,
-        p: &mut WgpuStorage<f32>,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         pl: &Layout,
-        g: &WgpuStorage<f32>,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         gl: &Layout,
-        s: &mut WgpuStorage<f32>,
+        s: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f32>,
         sl: &Layout,
         lr: f32,
         eps: f32,

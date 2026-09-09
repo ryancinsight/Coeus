@@ -8,6 +8,14 @@
 mod backend_writes;
 
 #[cfg(feature = "cuda")]
+#[path = "cuda_ops/device_outputs.rs"]
+mod device_outputs;
+
+#[cfg(feature = "cuda")]
+#[path = "cuda_ops/state_updates.rs"]
+mod state_updates;
+
+#[cfg(feature = "cuda")]
 #[path = "cuda_ops/device/availability.rs"]
 mod availability;
 #[cfg(feature = "cuda")]

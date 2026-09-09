@@ -5,7 +5,7 @@ use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use hephaestus_core::{AttentionOps, AttentionScalar, ComputeDevice, HephaestusError};
 use hephaestus_cuda::{CudaAttentionOps, CudaDevice};
 
-// SAFETY: `CudaStorage` retains provider buffers behind `Arc`, and the
+// SAFETY: `HephaestusStorage` retains provider buffers behind `Arc`, and the
 // process-global CUDA device owns stream synchronization for every dispatch.
 unsafe impl HephaestusProvider for CudaBackend {
     type Device = CudaDevice;
@@ -39,7 +39,7 @@ where
     fn attention_buffer(
         storage: &Self::DeviceBuffer<T>,
     ) -> &<CudaDevice as ComputeDevice>::Buffer<T> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {

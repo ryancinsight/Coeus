@@ -1,6 +1,6 @@
 use super::provider::UnfoldFoldBackend;
 use crate::layout::ranked_exact;
-use coeus_core::{Layout, Scalar};
+use coeus_core::{Layout, Scalar, StorageMut};
 use hephaestus_core::{
     SlidingWindowFoldOperands, SlidingWindowOps, SlidingWindowUnfoldOperands, StridedView,
 };
@@ -21,12 +21,12 @@ where
         .map_err(|error| B::unfold_fold_configuration_error(operation, error.to_string()))
 }
 
-/// Dispatch an unfold operation through the selected provider.
+/// Unfold into a destination while preserving its other clones.
 pub fn unfold<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (&B::DeviceBuffer<T>, &Layout),
     parameters: WindowParameters<S>,
-    output: (&B::DeviceBuffer<T>, &Layout),
+    output: (&mut B::DeviceBuffer<T>, &Layout),
 ) -> Result<(), B::Error>
 where
     B: UnfoldFoldBackend<T>,
@@ -34,6 +34,7 @@ where
 {
     let input_layout = ranked_exact::<R>(operation, input.1)?;
     let output_layout = ranked_exact::<3>(operation, output.1)?;
+    output.0.make_unique();
     let operands = SlidingWindowUnfoldOperands {
         input: StridedView::new(B::unfold_fold_buffer(input.0), &input_layout),
         output: StridedView::new(B::unfold_fold_buffer(output.0), &output_layout),
@@ -43,13 +44,13 @@ where
         .map_err(|source| B::unfold_fold_dispatch_error(operation, source))
 }
 
-/// Dispatch a fold operation through the selected provider.
+/// Replace the output view with folded overlap sums, preserving other clones.
 pub fn fold<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (&B::DeviceBuffer<T>, &Layout),
     output_spatial_shape: [usize; S],
     parameters: WindowParameters<S>,
-    output: (&B::DeviceBuffer<T>, &Layout),
+    output: (&mut B::DeviceBuffer<T>, &Layout),
 ) -> Result<(), B::Error>
 where
     B: UnfoldFoldBackend<T>,
@@ -57,6 +58,7 @@ where
 {
     let input_layout = ranked_exact::<3>(operation, input.1)?;
     let output_layout = ranked_exact::<R>(operation, output.1)?;
+    output.0.make_unique();
     let operands = SlidingWindowFoldOperands {
         input: StridedView::new(B::unfold_fold_buffer(input.0), &input_layout),
         output: StridedView::new(B::unfold_fold_buffer(output.0), &output_layout),

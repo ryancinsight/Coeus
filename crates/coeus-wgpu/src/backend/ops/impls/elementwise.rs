@@ -4,7 +4,7 @@ use crate::backend::{WgpuBackend, WgpuScalar};
 use coeus_core::Layout;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, ElementwiseProvider, HephaestusBackend,
-    HephaestusStorage, ParameterizedElementwiseProvider, ScalarPowerProvider,
+    ParameterizedElementwiseProvider, ScalarPowerProvider,
 };
 use hephaestus_core::DialectScalar;
 use hephaestus_wgpu::{WgpuElementwiseOps, WgpuParameterizedUnaryOps, Wgsl};
@@ -48,17 +48,14 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let lhs = HephaestusStorage::<WgpuBackend, T>::from_arc(lhs.buffer.clone());
-        let rhs = HephaestusStorage::<WgpuBackend, T>::from_arc(rhs.buffer.clone());
-        let mut output = HephaestusStorage::<WgpuBackend, T>::from_arc(output.buffer.clone());
         HephaestusBackend::<WgpuBackend>::new()
             .elementwise_binary(
                 operation,
-                &lhs,
+                lhs,
                 lhs_layout,
-                &rhs,
+                rhs,
                 rhs_layout,
-                &mut output,
+                output,
                 output_layout,
             )
             .map_err(Into::into)
@@ -73,10 +70,8 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let input = HephaestusStorage::<WgpuBackend, T>::from_arc(input.buffer.clone());
-        let mut output = HephaestusStorage::<WgpuBackend, T>::from_arc(output.buffer.clone());
         HephaestusBackend::<WgpuBackend>::new()
-            .elementwise_unary(operation, &input, input_layout, &mut output, output_layout)
+            .elementwise_unary(operation, input, input_layout, output, output_layout)
             .map_err(Into::into)
     }
 }
@@ -94,10 +89,8 @@ where
         output: &mut Self::DeviceBuffer<f32>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let input = HephaestusStorage::<WgpuBackend, f32>::from_arc(input.buffer.clone());
-        let mut output = HephaestusStorage::<WgpuBackend, f32>::from_arc(output.buffer.clone());
         HephaestusBackend::<WgpuBackend>::new()
-            .elementwise_pow_scalar(&input, input_layout, exponent, &mut output, output_layout)
+            .elementwise_pow_scalar(input, input_layout, exponent, output, output_layout)
             .map_err(Into::into)
     }
 }

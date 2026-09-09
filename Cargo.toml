@@ -66,6 +66,7 @@ melinoe = { git = "https://github.com/ryancinsight/melinoe.git", version = "0.9.
 
 # ── Error ──
 thiserror = "2"
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 
 # ── Benchmarking ──
 criterion = "0.5"

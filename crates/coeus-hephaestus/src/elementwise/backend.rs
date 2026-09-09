@@ -7,7 +7,7 @@ use crate::{
     reduction::{HephaestusBackend, HephaestusProvider, RankedOperand},
     storage::HephaestusStorage,
 };
-use coeus_core::{BackendError, Float, Layout, Scalar};
+use coeus_core::{BackendError, Float, Layout, Scalar, StorageMut};
 use coeus_ops::{BinaryOp, ElementwiseOps, ScalarPowerOps, UnaryOp};
 
 fn reject_broadcast_output(operation: &'static str, layout: &Layout) -> Result<(), BackendError> {
@@ -155,6 +155,7 @@ where
         let lhs_layout = ranked::<N>("elementwise_binary", lhs_layout)?;
         let rhs_layout = ranked::<N>("elementwise_binary", rhs_layout)?;
         let output_layout = ranked::<N>("elementwise_binary", output_layout)?;
+        output.make_unique();
         P::binary(
             P::device(),
             operation,
@@ -268,6 +269,7 @@ where
     {
         let input_layout = ranked::<N>("elementwise_unary", input_layout)?;
         let output_layout = ranked::<N>("elementwise_unary", output_layout)?;
+        output.make_unique();
         P::unary(
             P::device(),
             operation,
@@ -384,6 +386,7 @@ where
     {
         let input_layout = ranked::<N>("elementwise scalar power", input_layout)?;
         let output_layout = ranked::<N>("elementwise scalar power", output_layout)?;
+        output.make_unique();
         P::scalar_power(
             P::device(),
             RankedOperand {

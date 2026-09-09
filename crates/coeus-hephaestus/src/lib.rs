@@ -54,7 +54,7 @@ pub use staggered::{
     StaggeredProvider,
 };
 pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};
-pub use storage::HephaestusStorage;
+pub use storage::{AllocationId, HephaestusStorage};
 pub use unfold_fold::{
     unfold_fold_fold, unfold_fold_unfold, UnfoldFoldBackend, UnfoldFoldProvider,
 };

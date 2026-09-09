@@ -1,6 +1,6 @@
 use super::{StatefulUpdateBackend, StatefulUpdateProvider};
 use crate::{layout::ranked, HephaestusProvider};
-use coeus_core::{BackendError, Layout};
+use coeus_core::{BackendError, Layout, StorageMut};
 use hephaestus_core::{
     plan_stateful_update, StatefulUpdateAliasing, StatefulUpdateOperands, StatefulUpdateOps,
     StatefulUpdateRule, StridedView,
@@ -101,6 +101,17 @@ where
     B: StatefulUpdateBackend,
     Rule: StatefulUpdateRule<Dialect<B>>,
 {
+    validate_one::<B, Rule>(
+        operation,
+        parameter,
+        parameter_layout,
+        gradient,
+        gradient_layout,
+        state,
+        state_layout,
+    )?;
+    parameter.make_unique();
+    state.make_unique();
     dispatch::<B, Rule>(
         Request {
             operation,
@@ -134,6 +145,20 @@ where
     B: StatefulUpdateBackend,
     Rule: StatefulUpdateRule<Dialect<B>>,
 {
+    validate_two::<B, Rule>(
+        operation,
+        parameter,
+        parameter_layout,
+        gradient,
+        gradient_layout,
+        first,
+        first_layout,
+        second,
+        second_layout,
+    )?;
+    parameter.make_unique();
+    first.make_unique();
+    second.make_unique();
     dispatch::<B, Rule>(
         Request {
             operation,

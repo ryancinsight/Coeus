@@ -2,7 +2,7 @@ use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::{Float, Layout};
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, ElementwiseProvider, HephaestusBackend,
-    HephaestusStorage, ParameterizedElementwiseProvider, ScalarPowerProvider,
+    ParameterizedElementwiseProvider, ScalarPowerProvider,
 };
 use hephaestus_cuda::{CudaC, CudaElementwiseOps, CudaParameterizedUnaryOps, DialectScalar};
 
@@ -49,11 +49,8 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let lhs = HephaestusStorage::<CudaBackend, T>::from_arc(a.buffer.clone());
-        let rhs = HephaestusStorage::<CudaBackend, T>::from_arc(b.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(c.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .elementwise_binary(op, &lhs, a_layout, &rhs, b_layout, &mut output, c_layout)
+            .elementwise_binary(op, a, a_layout, b, b_layout, c, c_layout)
             .map_err(Into::into)
     }
 
@@ -66,10 +63,8 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let input = HephaestusStorage::<CudaBackend, T>::from_arc(a.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(c.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .elementwise_unary(op, &input, a_layout, &mut output, c_layout)
+            .elementwise_unary(op, a, a_layout, c, c_layout)
             .map_err(Into::into)
     }
 }
@@ -88,10 +83,8 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let input = HephaestusStorage::<CudaBackend, T>::from_arc(input.buffer.clone());
-        let mut output = HephaestusStorage::<CudaBackend, T>::from_arc(output.buffer.clone());
         HephaestusBackend::<CudaBackend>::new()
-            .elementwise_pow_scalar(&input, input_layout, exponent, &mut output, output_layout)
+            .elementwise_pow_scalar(input, input_layout, exponent, output, output_layout)
             .map_err(Into::into)
     }
 }

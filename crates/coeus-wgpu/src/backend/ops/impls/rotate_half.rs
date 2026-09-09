@@ -1,4 +1,4 @@
-use crate::{backend::WgpuBackend, storage::WgpuStorage};
+use crate::backend::WgpuBackend;
 use coeus_core::Layout;
 use coeus_hephaestus::{rotate_half, RotateHalfProvider};
 
@@ -12,8 +12,8 @@ impl coeus_ops::RotateHalfOps<f32> for WgpuBackend {
         input: &Self::DeviceBuffer<f32>,
         layout: &Layout,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
-        rotate_half::<Self, _>(input.buffer.as_ref(), layout)
-            .map(WgpuStorage::from_buffer)
+        rotate_half::<Self, _>(input.buffer(), layout)
+            .map(coeus_hephaestus::HephaestusStorage::from_buffer)
             .map_err(|source| crate::backend::WgpuBackendError::dispatch("rotate_half", source))
     }
 }

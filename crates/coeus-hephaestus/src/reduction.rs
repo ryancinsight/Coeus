@@ -303,6 +303,7 @@ where
         let input_layout = ranked::<2>("reduce", a_layout)?;
         let output_layout = ranked::<2>("reduce", c_layout)?;
         let provider_axis = ranked_axis::<2>("reduce", a_layout, axis)?;
+        c.make_unique();
         P::reduce(
             P::device(),
             op,
@@ -413,6 +414,7 @@ where
         let output_layout = ranked::<2>(request.operation, request.output_layout)?;
         let provider_axis =
             ranked_axis::<2>(request.operation, request.input_layout, request.axis)?;
+        request.output.make_unique();
         P::scan(
             P::device(),
             RankedOperand {

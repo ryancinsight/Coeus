@@ -7,17 +7,8 @@
 
 <a id="coeus-backend-write-ownership"></a>
 ## COEUS-BACKEND-WRITE-OWNERSHIP — Detach shared storage before backend writes
-
-- Status: review; integrator: codex-01a079ad; last-update: 2026-09-08; priority: correctness; [patch].
-- Delivery: [PR #384](https://github.com/ryancinsight/Coeus/pull/384), branch `fix/coeus-backend-write-ownership`; includes the CPU ownership fix merged through PR #383.
-- Outcome: backend fill, zero-fill and upload preserve cloned storage values.
-- Scope: CUDA, WGPU and generic Hephaestus backend writes; existing CPU semantics remain the reference.
-- Finding: these backend methods write shared provider buffers without `make_unique`; current COW tests invoke detachment explicitly and miss direct writes.
-- Acceptance: real device clone/write/read tests preserve the original and produce exact modified values for each mutation entry point, including empty and odd-length buffers.
-- Dependency: [Hephaestus aligned extents](../../hephaestus/backlog.md#heph-wgpu-buffer-extents), then [fallible storage](#coeus-fallible-tensor-storage) for failure propagation.
-- Integration: Hephaestus PR #288 merged as `f6f55f45`. The refreshed graph exposes Apollo main's removed Leto import; consumer verification uses published `4fbdeb26`, with merge dependent on [Apollo PR #338](https://github.com/ryancinsight/apollo/pull/338) and a final lock advance to its merged revision.
-- Evidence: 1,148 native, 246 required-device CUDA/WGPU, eight release storage and 163 doctests pass; strict Clippy/docs and 14 tooling tests pass. Exact command/snapshot records: `test_output/backend-write-ownership/workspace/commands.json`; independent source review accepts the correction.
-- Authority: change through merge; no release; no claim of universally recoverable allocation exhaustion.
+- Status: done; [PR #384](https://github.com/ryancinsight/Coeus/pull/384) merged as `17ff120f` on 2026-09-08.
+- Outcome: direct CUDA/WGPU/provider fill and upload preserve storage clones; [ADR 0036](adr/0036-device-local-cow-copy.md). Native/device/release/docs and exact dependency evidence are attached to the PR; allocation failure propagation remains [open](#coeus-fallible-tensor-storage).
 
 <a id="coeus-ctc-sequence-contract"></a>
 ## COEUS-CTC-SEQUENCE-CONTRACT — Correct CTC boundaries and precision
@@ -31,14 +22,20 @@
 
 - Status: in-progress; integrator: codex-01a079ad; last-update: 2026-09-08; priority: correctness; [major] [arch].
 - Outcome: every mutable GPU kernel output preserves other tensor clones, including additive gradients and optimizer states.
+- Runs `e935d00f` and `895ab63e`: 59/60 pass across expanded ownership/rejection and WGPU parity cases; native execution is 19.183s and 1.264s. CPU scans now propagate rejection. The sole failure is the locked CUDA half-matmul compiler; [upstream correction](../../hephaestus/backlog.md#heph-cuda-dense-product-scalars). Strict five-package all-target Clippy passes; command snapshots are under `test_output/device-output-ownership/`.
 - Scope: elementwise, reduction, matmul, attention, convolution, pooling, unfold/fold, staggered and optimizer dispatch; retain replacement owners in the caller.
-- Evidence: `Tensor::storage_and_layout_mut` requires backend COW; CUDA/WGPU clone output handles into temporary Hephaestus storage without detaching. Source-derived finding at `e3bc0bcc`; device reproduction remains required.
+- Evidence: `Tensor::storage_and_layout_mut` requires backend COW; 34 CUDA/WGPU `from_arc` calls create temporary owners. Attention, convolution, pooling, unfold/fold, staggered and optimizer dispatch also borrow shared outputs. RED `21910182`: 14 GPU corruption failures, nine CPU/rejection passes at `524b670c`; native tests execute in 7.965s after 13m06s compilation.
 - Acceptance: direct operation writes produce exact output and preserve cloned values and untouched view regions on CPU/CUDA/WGPU; invalid inputs fail before mutation.
 - Dependency: [backend writes](#coeus-backend-write-ownership); precedes [fallible storage](#coeus-fallible-tensor-storage).
 - Decision: revise [ADR 0036](adr/0036-device-local-cow-copy.md); CUDA/WGPU use `HephaestusStorage<P, T>` directly, removing vendor storage and temporary `from_arc` bridges. Mutable dispatch outputs replace shared-reference output APIs with a complete caller migration.
-- Verification: real-device regressions, shared operation tests, strict workspace gates, SemVer and complete bridge caller migration.
+- Verification: real-device regressions over each supported operation/scalar matrix, strict workspace gates, SemVer and complete bridge caller migration; record expanded generic test compilation time separately from native test runtime. SemVer confirms the declared major removals on all four API comparisons (222 checks pass, one expected breaking check, 31 skipped each); current production hashes remain unchanged during capture.
+- Consumer closure: no affected API references in Rust/manifests across 27 other registered member working trees; `test_output/device-output-ownership/consumer-api-scan.json` records revisions. External consumers use the ADR migration.
 - Authority: change through merge; no release; no temporary bridge whose detached output is discarded.
-- lease: review_plan crates/coeus-core/tests/core_ops/storage/device_outputs.rs crates/coeus-cuda/tests/cuda_ops/device_outputs.rs crates/coeus-cuda/tests/cuda_ops.rs crates/coeus-wgpu/tests/wgpu_ops/device_outputs.rs crates/coeus-wgpu/tests/wgpu_ops.rs 2026-09-08T14:56:24.413342+00:00.
+- lease: review_plan crates/coeus-cuda/tests/cuda_ops.rs crates/coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/elementwise.rs crates/coeus-wgpu/tests/wgpu_ops.rs 2026-09-08T14:56:24.413342+00:00.
+- lease: codex-01a079ad crates/coeus-core/tests/core_ops/storage/state_updates.rs crates/coeus-core/tests/core_ops/storage/accumulated_outputs.rs crates/coeus-cuda/tests/cuda_ops/state_updates.rs crates/coeus-wgpu/tests/wgpu_ops/state_updates.rs Cargo.toml crates/coeus-cuda/Cargo.toml crates/coeus-wgpu/Cargo.toml 2026-09-08T16:06:13.011102+00:00; root integrates completed agent test contributions and resolves module naming diagnostics.
+- lease: codex-01a079ad crates/coeus-ops/src/backend_ops/cpu_impl/reduction.rs crates/coeus-ops/src/backend_ops/cpu_impl/impls/reduction.rs crates/coeus-cuda/src/fusion.rs crates/coeus-cuda/src/lib.rs crates/coeus-cuda/src/backend/mod.rs crates/coeus-cuda/src/backend/ops/impls/attention.rs crates/coeus-cuda/src/backend/ops/impls/conv.rs crates/coeus-cuda/src/backend/ops/impls/cross_entropy.rs crates/coeus-cuda/src/backend/ops/impls/elementwise.rs crates/coeus-cuda/src/backend/ops/impls/matmul.rs crates/coeus-cuda/src/backend/ops/impls/optim.rs crates/coeus-cuda/src/backend/ops/impls/pool.rs crates/coeus-cuda/src/backend/ops/impls/random_init.rs crates/coeus-cuda/src/backend/ops/impls/reduction.rs crates/coeus-cuda/src/backend/ops/impls/rotate_half.rs crates/coeus-cuda/src/backend/ops/impls/unfold_fold.rs crates/coeus-wgpu/src/fusion.rs crates/coeus-wgpu/src/lib.rs crates/coeus-wgpu/src/backend/mod.rs crates/coeus-wgpu/src/backend/ops/impls/attention.rs crates/coeus-wgpu/src/backend/ops/impls/conv.rs crates/coeus-wgpu/src/backend/ops/impls/cross_entropy.rs crates/coeus-wgpu/src/backend/ops/impls/elementwise.rs crates/coeus-wgpu/src/backend/ops/impls/matmul.rs crates/coeus-wgpu/src/backend/ops/impls/optimizer.rs crates/coeus-wgpu/src/backend/ops/impls/pool.rs crates/coeus-wgpu/src/backend/ops/impls/random_init.rs crates/coeus-wgpu/src/backend/ops/impls/reduction.rs crates/coeus-wgpu/src/backend/ops/impls/rotate_half.rs crates/coeus-wgpu/src/backend/ops/impls/staggered.rs crates/coeus-wgpu/src/backend/ops/impls/unfold_fold.rs crates/coeus-hephaestus/src/storage.rs crates/coeus-hephaestus/src/storage/tests.rs crates/coeus-hephaestus/src/lib.rs crates/coeus-cuda/src/storage.rs crates/coeus-wgpu/src/storage.rs crates/coeus-cuda/src/backend_stub.rs crates/coeus-cuda/src/storage_stub.rs docs/adr/0036-device-local-cow-copy.md crates/coeus-wgpu/README.md .github/workflows/backend-parity.yml 2026-09-08T15:20:31.547823+00:00.
+- lease: integration_judge crates/coeus-hephaestus/src/elementwise crates/coeus-hephaestus/src/reduction.rs crates/coeus-hephaestus/src/matmul crates/coeus-hephaestus/src/pooling crates/coeus-hephaestus/src/unfold_fold crates/coeus-hephaestus/src/staggered crates/coeus-hephaestus/src/attention crates/coeus-hephaestus/src/convolution crates/coeus-hephaestus/src/stateful_update 2026-09-08T15:20:31.547844+00:00.
+- lease: codex-01a079ad crates/coeus-core/tests/core_ops/storage/device_outputs.rs crates/coeus-core/tests/core_ops/storage/state_updates.rs crates/coeus-core/tests/core_ops/storage/accumulated_outputs.rs crates/coeus-ops/tests/ops.rs crates/coeus-ops/tests/ops/ownership.rs crates/coeus-ops/tests/ops/ownership/ crates/coeus-ops/Cargo.toml crates/coeus-cuda/tests/cuda_ops/device_outputs.rs crates/coeus-cuda/tests/cuda_ops/state_updates.rs crates/coeus-wgpu/tests/wgpu_ops/device_outputs.rs crates/coeus-wgpu/tests/wgpu_ops/state_updates.rs 2026-09-08T18:47:15.790750+00:00; integrate reviewed test placement and preserve all operation cases.
 
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
@@ -54,6 +51,31 @@
 - Review: wrapping unary results alone retains allocation/COW/binary panics;
   ADRs 0042/0045 already cover backward/module contracts. Reserve a new forward ADR.
 - Non-goal: resurrect superseded dependency pins or storage implementations.
+
+<a id="coeus-fallible-index-reduction"></a>
+## COEUS-FALLIBLE-INDEX-REDUCTION — Return index-reduction failures
+
+- Status: todo; priority: correctness; [major].
+- Outcome: malformed argmax/argmin requests return typed errors through their complete caller chain.
+- Scope: index-reduction backend trait methods, CPU/provider implementations and mathematical/Python callers; preserve index conventions and tie behavior.
+- Evidence: `coeus-ops/src/backend_ops/cpu_impl/reduction.rs` expects fallible Leto argmax/argmin results; current trait methods return no error. This is a source finding, not an executed reproduction.
+- Acceptance: malformed layouts/axes reject before output writes, retain clone values, and propagate typed errors; valid ties/boundaries retain exact expected indices.
+- Dependency: coordinate with [fallible storage](#coeus-fallible-tensor-storage) for allocation propagation; reserve the governing ADR and migration before implementation.
+- Verification: deterministic malformed-input RED, scalar/backend value matrix, complete caller migration, native/device/Python and SemVer gates.
+- Authority: change through merge; no release.
+
+<a id="coeus-storage-allocation-owner"></a>
+## COEUS-STORAGE-ALLOCATION-OWNER — Consolidate backend allocation
+
+- Status: todo; priority: correctness prerequisite; [major].
+- Outcome: backend allocation owns construction; storage traits describe existing allocations.
+- Scope: remove `Storage::allocate` and its CPU/Cow/provider implementations; CPU backends call existing `CpuStorage::new`. No Tensor signature or allocation semantics change.
+- Evidence: two CPU backend calls and one Cow forwarding call form the complete factory caller closure; six source files. This factory duplicates the backend allocation boundary needed by typed failure propagation.
+- Acceptance: no static storage factory remains; all callers compile; existing initialization/COW and twelve-scalar backend-write cases preserve exact values.
+- Dependency: [kernel output ownership](#coeus-device-output-ownership); prepares [fallible storage](#coeus-fallible-tensor-storage).
+- Decision: revise [ADR 0037](adr/0037-uninitialized-cow-consumer.md) with construction ownership and migration before implementation.
+- Verification: focused core/provider Clippy, native/device initialization and COW, doctests and SemVer; no new allocation-recovery claim.
+- Authority: change through merge; no release or manifest version bump.
 
 <a id="coeus-fallible-tensor-storage"></a>
 ## COEUS-FALLIBLE-TENSOR-STORAGE — Propagate tensor storage failures
@@ -71,6 +93,19 @@
 - Verification: focused storage/provider tests, native/device gates, Python wheel,
   caller/doc synchronization and SemVer; classify allocation limits explicitly.
 - Review: six backend/storage implementations; constructor search finds 2,781 textual candidates in 406 files, including tests/docs. Core-only Result changes cannot form a green cutover. Mnemosyne payload failure differs from aborting Arc control-block allocation.
+
+<a id="coeus-device-test-build-cost"></a>
+## COEUS-DEVICE-TEST-BUILD-COST — Attribute device test compilation
+
+- Status: todo; priority: verification; [patch].
+- Outcome: bound device-test compilation while preserving the full scalar/backend matrix.
+- Scope: CPU test placement and monomorphization in existing integration harnesses; no assertion, scalar, workload or runtime-budget reduction.
+- Evidence: ownership RED compilation takes 13m06s while native execution takes 7.965s; `wgpu_ops` rustc remains the last compiler in the integrated attempt. This binary also instantiates CPU-only scalar matrices.
+- Acceptance: compiler timing/codegen evidence identifies the dominant work; an evidence-backed structural change preserves the enumerated test matrix and lowers its attributed compile cost, or records why the proposed partition does not help.
+- Dependency: [kernel output correction](#coeus-device-output-ownership); keep compiler flags and shared target policy fixed for comparison.
+- Verification: stored before/after build timings and unchanged test inventory plus native/device results; no runtime-performance claim from build timing.
+- Integration: kernel ownership tests now live under coeus-ops; nine CPU cases move into its existing harness and 33 GPU cases retain shared oracles. One existing tracing dependency edge is added. Exact-snapshot format/Clippy passes at 47b1cc0b with lock f0f44d22; native rerun is pending. Controlled before/after compile evidence remains open.
+- Authority: change through merge; no release.
 
 <a id="coeus-workspace-lint-floor"></a>
 ## COEUS-WORKSPACE-LINT-FLOOR — Recover the inherited lint floor
@@ -170,88 +205,19 @@
 - **Outcome:** no Cutile or consumer GPU implementation remains in the active
   provider graph; lock and source identity validation is owned by the combined item.
 
+<a id="coeus-ops-index-decode-alloc-001"></a>
 ## COEUS-OPS-INDEX-DECODE-ALLOC-001 — Remove per-element coordinate buffers [patch]
 
-- Owner: Claude; scope: the flat-index decode loops in `coeus-ops`
-  `shape/select/{gather,index_select,scatter}`,
-  `shape/transform/repeat_interleave`, and `reduction/topk`. Kernel selection,
-  provider dispatch, and the ops' public signatures are non-goals.
-- Outcome: none of these kernels allocates per iteration. Each allocated a
-  `vec![0usize; ndim]` coordinate buffer inside its loop and consumed it only
-  to build flat offsets; the decode is now fused into the accumulation so each
-  coordinate is used by the iteration that produces it. `gather`,
-  `index_select`, and `repeat_interleave` additionally build their output by
-  `collect` instead of filling a zeroed vector, dropping an initialising pass.
-  `topk` also hoists its per-slice `pairs` vector, whose capacity survives
-  because `select_nth_unstable_by` and `truncate` only shrink the length.
-  In `gather` the buffer was allocated **per output element**, so the removal
-  scales with output size rather than with rank.
-- Acceptance: value semantics unchanged for every op at rank 2 and rank 3, with
-  the reduction/selection axis both interior and terminal; existing reference
-  and torch-parity tests unchanged.
-- Evidence: warning-denied all-target Clippy on `coeus-ops`; targeted
-  gather/topk/index suite 12/12 including both backend variants of
-  `index_ops_diff`; new rank-3 interior-axis `gather` coverage added, since the
-  prior tests left one side of `dim` degenerate at rank 2 and the fused decode
-  is exactly what a rank-3 interior axis exercises.
-- Measured evidence (`tests/alloc_budget.rs`, counting `#[global_allocator]`,
-  same binary and host, only the five kernel bodies differing between columns;
-  workloads `[4,8,4]` vs `[16,32,16]`, a 64x element difference, except `topk`
-  which holds `k` and the reduced extent fixed and varies only the outer slice
-  count):
+- Status: done; PR #329, merge `8ccb4819`, source `9bcd3d8b`.
+- Outcome: gather, index-select, scatter, repeat-interleave and top-k decode coordinates without per-element allocations.
+- Historical evidence: 12 value tests pass; allocation-budget tests fail 5/5 before and pass 5/5 after. No timing claim; recurring-pattern guard remains in [gap audit](gap_audit.md#slop-pattern-per-element-coordinate-buffer-in-flat-index-decode-loops).
 
-  | kernel | before (small -> large) | after | removed at large size |
-  | --- | --- | --- | ---: |
-  | `gather` | 70 -> 4102 | equal | 4032 |
-  | `index_select` | 70 -> 4102 | equal | 4032 |
-  | `repeat_interleave` | 262 -> 16390 | equal | 16128 |
-  | `scatter_add` | 71 -> 4103 | equal | 4032 |
-  | `topk` | 37 -> 517 | equal | 480 |
-
-  Three kernels each shed exactly `4096 - 64 = 4032` — one allocation per
-  element of the size difference. That the deltas match the structure exactly
-  is the check that the counter measures what it claims.
-- Discriminating power demonstrated, not assumed: `alloc_budget` run against
-  `origin/main`'s kernels fails 5/5 with the deltas above, and passes 5/5
-  against the fix. A test that passes on both revisions would be a surviving
-  mutant rather than evidence.
-- Not claimed: **no runtime delta**. Wall-clock timing was not measured. The
-  host carried 12-25 concurrent stack builds throughout; the identical 209-test
-  `coeus-ops` suite ran 30.3 s and then 39.9 s on unchanged code, a 31% swing
-  from contention alone, so a criterion run would have measured the host.
-  `index_ops_bench` is committed and budget-enforced for a quiet host, but
-  allocation counts are the exact measure of this change and timing only its
-  noisy proxy.
-- Pattern recorded in `gap_audit.md` — this shape recurred five times, so it is
-  filed as a slop pattern with a detection grep rather than as five fixes.
-- Status: complete 2026-08-13.
-
+<a id="coeus-autograd-broadcast-alloc-001"></a>
 ## COEUS-AUTOGRAD-BROADCAST-ALLOC-001 — Allocation-free broadcast gradient reduction [patch]
 
-- Owner: Claude; scope: `coeus_autograd::backward::reduce_broadcast` and its
-  regression coverage. Reduction kernels, the `sum_axis` provider path, and
-  autograd op signatures are non-goals.
-- Outcome: `reduce_broadcast` allocates nothing of its own. It previously built
-  a `Vec<bool>` of per-axis reduction flags on every call; the predicate is now
-  evaluated against the running tensor, which is sound because `sum_axis` keeps
-  a reduced axis at extent 1, so axis `d` is read before any reduction has
-  touched index `d` or higher. The function is on the backward path of every
-  broadcasting binary op (11 call sites in `ops::arithmetic::binary` alone), so
-  the removed allocation is per-op, per-step in a training loop.
-- Non-goals: fusing the per-axis `sum_axis` calls into one multi-axis
-  reduction. The op layer exposes no multi-axis sum, so the intermediates
-  remain; the stale doc claim that the old code avoided them is corrected
-  rather than restated.
-- Acceptance: shape and value semantics unchanged across matching shapes,
-  leading extra dims, aligned unit axes, both composed, full reduction to a
-  scalar shape, and the no-op case where no aligned axis may be reduced.
-- Evidence: eight new value-semantic cases in
-  `tests/autograd/reduce_broadcast.rs` use a ramp gradient rather than ones, so
-  an omitted or duplicated axis cannot coincide with the expected sum; 8/8 pass
-  and the package suite is green. Warning-denied all-target Clippy passes. No
-  runtime delta is claimed — the change removes an allocation by construction
-  and was not benchmarked.
-- Status: complete 2026-08-13.
+- Status: done; PR #328, merge `09ed4c19`, source `fea7476d`.
+- Outcome: broadcast-gradient reduction removes its per-call flag allocation; provider reduction intermediates remain.
+- Historical evidence: eight ramp-gradient cases and package Clippy/tests pass; no measured runtime claim.
 
 <a id="coeus-layernorm-shape-001"></a>
 ## COEUS-LAYERNORM-SHAPE-001 — Multi-dimensional LayerNorm
@@ -259,63 +225,26 @@
 - Status: done; merged in PR #330 at `a2638c03`.
 - Outcome: trailing-shape normalization and affine gradient shape restoration.
 
+<a id="coeus-hephaestus-cuda-f64-001"></a>
 ## COEUS-HEPHAESTUS-CUDA-F64-001 — Restore CUDA `f64` elementwise comparisons [major]
 
-- Owner: Codex; scope: `coeus-cuda` provider declaration, CUDA parity tests,
-  locked provider graph, workflow filter, and PM artifacts.
-- Outcome: consume Hephaestus's provider-owned CUDA f64 comparison expressions
-  through the generic Coeus-Hephaestus bridge; no host fallback or compatibility
-  path is retained.
-- Acceptance: all six comparison masks match the CPU provider exactly on a
-  transposed rank-two f64 tensor; locked check, warning-denied Clippy, Nextest,
-  doctests, and exact-head hosted CUDA contracts pass.
-- Status: complete 2026-08-13. Coeus PR #324 source `fe4e57e6592b3b0abaed5451e763c0625e0553af`
-  merged as default `aabdec67a0f5baa415c4abb6dded69db41b2f2d6`. Exact default
-  backend-parity run `31672329963` passes WGPU, CUDA, ROCm, and Metal provider
-  contracts. Required-device CUDA and ROCm jobs were skipped because hosted
-  hardware was unavailable; no physical-device execution claim is made. The
-  PR's CUDA, Metal, ROCm, and WGPU provider checks passed; the independent
-  `recurseml/analysis` status failed and is not provider evidence.
+- Status: done; PR #324 source `fe4e57e6592b3b0abaed5451e763c0625e0553af`, delivered `aabdec67`; PR #325 closure `a4063be1`.
+- Outcome: six CUDA comparison masks execute through the provider and match CPU values on transposed tensors.
+- Historical evidence: provider run `31672329963` passes; required-device CUDA/ROCm jobs skip without a hardware claim. Independent recurseml analysis failed and is not provider evidence.
 
+<a id="coeus-nlls-batch-001"></a>
 ## COEUS-NLLS-BATCH-001 — Batch independent nonlinear least-squares fits [minor]
 
-- Owner: Codex; scope: `coeus-optim::least_squares`.
-- Outcome: expose one generic leading-axis contract for independent
-  least-squares problems and solve every slice through the canonical
-  Levenberg–Marquardt implementation.
-- Acceptance: flattened parameters use one contiguous slice per problem;
-  residual/Jacobian evaluation receives the leading-axis index; reports retain
-  input order; malformed lengths and indexed solver failures are typed; no
-  host/device or compatibility path is added.
-- Evidence: `cargo check -p coeus-optim --all-targets --locked`, warning-denied
-  all-target Clippy, Nextest 43/43 with f32/f64 batch recovery and malformed
-  input coverage, 10/10 doctests, rustdoc, and format checks pass against the
-  standalone provider source from outside the Atlas overlay.
-- Status: complete in `codex/coeus-nlls-batch`; no performance claim is made.
+- Status: done; source `d5912200` is incorporated in mainline.
+- Outcome: generic indexed least-squares fits preserve batch order and return typed length and indexed solver failures.
+- Historical evidence: standalone locked gates, 43 Nextest cases and 10 doctests pass; no performance claim.
 
+<a id="coeus-hephaestus-wgpu-001"></a>
 ## COEUS-HEPHAESTUS-WGPU-001 — Route WGPU reduction/scan through the generic bridge [major] [arch] — complete
 
-- Owner: Codex; scope: the Coeus WGPU crate (final SUBSTRATE-002 vendor
-  deletion row).
-- Outcome: `WgpuBackend` declares `ReductionProvider` with the
-  hephaestus-wgpu seam bundles (`WgpuAxisReductionOps`/`WgpuScanOps`), and its
-  `coeus_ops::ReductionOps` impls delegate through
-  `HephaestusBackend<WgpuBackend>`; the duplicated rank-2 layout/axis
-  conversion and free-function dispatch helpers are deleted. The fused
-  reduction path stays.
-- Non-goals: host/CPU fallback paths, hardware performance claims, GPU
-  contract-test execution (external hardware gate); the f64 elementwise gap is
-  tracked under COEUS-HEPHAESTUS-CUDA-001.
-- Acceptance: check rc=0 with 0 code warnings, strict clippy `-D warnings`
-  rc=0, fmt/diff-check clean, doc tests 5/5, and the pre-existing
-  `AdapterUnavailable` device-suite failures unchanged from the parent commit.
-- Status: complete through the merged provider cutover in PR #246
-  (`7a9811f4`). Current `coeus-wgpu` validation passes locked all-target check,
-  warning-denied all-target Clippy, configured Nextest 142/142 with no
-  skipped cases on the local WGPU adapter, doctests 5/5, warning-denied
-  rustdoc, and the lockfile checker. The Mnemosyne revision advance in the
-  current mainline is now represented in `Cargo.lock`, restoring the locked
-  reproducibility gate.
+- Status: done; PR #246, merge `7a9811f4`.
+- Outcome: WGPU reduction/scan dispatch uses the generic provider bridge; later fusion delivery is [tracked separately](#coeus-hephaestus-cuda-fusion-001).
+- Historical evidence: locked check, Clippy, 142/142 local WGPU tests, five doctests, Rustdoc and lock guard pass; CUDA comparison closure is [separate](#coeus-hephaestus-cuda-f64-001).
 
 ## COEUS-HEPHAESTUS-CUDA-001 — Route CUDA elementwise/reduction through the generic bridge [major] [arch]
 
@@ -340,51 +269,19 @@
 - Status: done; merged [PR #318](https://github.com/ryancinsight/Coeus/pull/318),
   `de08cf50`; Metal/ROCm use the generic bridge described in [ADR 0065](adr/0065-provider-owned-metal-rocm-bridge.md). Physical device execution remains separate evidence.
 
+<a id="coeus-wgpu-elementwise-leaves-001"></a>
 ## COEUS-WGPU-ELEMENTWISE-LEAVES-001 — Split provider dispatch leaves [patch] [arch]
 
-- Owner: Codex; delivered by PR #303 on 2026-08-06; scope:
-  `coeus-wgpu` elementwise routing, contiguous and strided
-  Hephaestus dispatch helpers, trait implementations, ADR, checklist, and
-  structural verification.
-- Outcome: the WGPU elementwise family has named single-concern leaves below
-  its module manifest without changing the public API or provider ownership.
-- Non-goals: new kernels, runtime dispatch, host staging, fallback paths,
-  provider API changes, benchmark claims, or unrelated file-tree migration.
-- Acceptance: each implementation leaf is below the repository's 500-line
-  target where cohesion permits; imports are explicit; CPU remains Leto-owned;
-  WGPU remains Hephaestus-owned; locked package check, warning-denied Clippy,
-  focused Nextest, doctests, format, and diff hygiene pass.
-- Status: complete; merged as `af2c86ee`. ADR-0059 records the split decision;
-  the exact-head hosted provider contracts passed for WGPU, CUDA, ROCm, and
-  Metal. Required-device CUDA and ROCm jobs were skipped because hardware
-  execution was not requested. The recurring `recurseml/analysis` status
-  failed independently of the provider-contract workflow.
+- Status: done; PR #303, merge `af2c86ee`; decision ADR-0059.
+- Outcome: WGPU elementwise routing has operation-owned leaves without changing its public API or provider ownership.
+- Historical evidence: focused gates and exact-head provider contracts pass; required-device CUDA/ROCm jobs skip. Independent recurseml analysis failure is not provider evidence.
 
+<a id="coeus-bce-logits-provider-001"></a>
 ## COEUS-BCE-LOGITS-PROVIDER-001 — Keep BCE with logits on the selected provider [patch] [arch]
 
-- Owner: Codex on `codex/coeus-bce-logits-provider`; last-update:
-  2026-08-05; scope: `coeus-autograd::bce_with_logits`, WGPU/CUDA
-  Hephaestus unary dispatch tables, CPU value tests, provider compile/runtime
-  coverage, ADR, checklist, and changelog.
-- Outcome: forward and backward remain provider-resident. CPU dispatches
-  through Leto; CUDA, WGPU, ROCm, and Metal dispatch through their selected
-  Hephaestus-backed Coeus operations.
-- Non-goals: other host-staged loss families, norm-pow provider capabilities,
-  benchmark claims, release publication, or provider changes in Leto/Hephaestus.
-- Acceptance: no host copies, CPU-addressable bounds, host vectors, or
-  backend-default tensor construction remain in the operation; WGPU/CUDA BCE
-  unary primitives are fail-closed Hephaestus dispatches; existing independent
-  CPU forward/gradient contracts pass; locked build, lint, doctest, focused
-  Nextest, and exact-head provider CI pass.
-- Risk/change class: `[patch] [arch]`; the public signature is unchanged, but
-  the implementation's ownership boundary changes from host staging to the
-  existing provider graph. The ADR records the bounded residuals.
-- Status: complete; commits `c5a62517`, `e11475bf`, and `58dae42a` are
-  published in PR #295. Exact-head provider run `31015800540` passes WGPU,
-  CUDA, ROCm, and Metal contracts; the PR hardware-only jobs are correctly
-  skipped. The shared local Atlas overlay remains a separate environment
-  constraint because dirty provider trees cannot satisfy Coeus's committed
-  lockfile under local `--locked` resolution.
+- Status: done; PR #295, merge `f5800630`, sources `c5a62517`, `e11475bf`, `58dae42a`; decision ADR-0055.
+- Outcome: BCE-with-logits values and gradients remain provider-resident; [remaining host-staged families](#coeus-autograd-host-staging-residuals-001) stay open.
+- Historical evidence: local gates and provider run `31015800540` pass; hardware-only jobs skip. Local-overlay resolution is distinct from [standalone provider resolution](#coeus-provider-resolution-2026-09-07).
 
 <a id="coeus-autograd-host-staging-residuals-001"></a>
 ## COEUS-AUTOGRAD-HOST-STAGING-RESIDUALS-001 — Migrate remaining host-staged autograd families [arch]
@@ -517,36 +414,12 @@
   added in the coeus provider-loss slice. Implementation follows
   [ADR 0057](docs/adr/0057-provider-owned-product.md).
 
+<a id="coeus-scan-dispatch-001"></a>
 ## COEUS-SCAN-DISPATCH-001 — Require provider-owned cumulative scans [major] [arch]
 
-- Owner: Codex on `codex/coeus-direct-scan-dispatch`; last-update:
-  2026-08-04; scope: `coeus-ops::ReductionOps` cumulative scan methods, their
-  CPU Leto implementation, accelerator provider implementations, and the
-  dispatch ADR and verification evidence.
-- Outcome: cumulative sum and product operations have no generic host-staging
-  default. Sequential and Moirai route through Leto; CUDA, WGPU, ROCm, and
-  Metal route through their selected Hephaestus provider implementation.
-- Non-goals: argmax/argmin/top-k CPU-only helpers, new scan kernels in Leto or
-  Hephaestus, public release/version finalization, or runtime/memory claims
-  without controlled measurements.
-- Acceptance: every current `ReductionOps` implementation supplies all four
-  cumulative scan methods; the host staging helpers are deleted; CPU value
-  contracts and provider compile contracts pass; no Coeus scan path calls
-  `copy_to_host` or `copy_to_device`; the architecture record and changelog
-  identify the public breaking change.
-- Risk/change class: `[major] [arch]`; removing default trait methods requires
-  external `ReductionOps` implementors to provide provider-owned scan methods.
-  In-repository implementors are migrated in this change without a
-  compatibility adapter.
-- Status: complete; direct provider implementations compile for
-  Coeus-Hephaestus, CUDA, WGPU, ROCm, and Metal against locked Hephaestus
-  `1e1f12cc`. Coeus-ops library Nextest passes 122/122 in run
-  `cbb97bd6-49e4-45d8-b803-dae9e3669f29`; its doctests pass 22/22; full locked
-  workspace all-targets check, CUDA-feature check, and warning-denied Clippy
-  pass. SemVer reports the intended major break for the four removed default
-  implementations. The broader package Nextest integration compile remained
-  uncollected at the Windows command wrapper timeout in `rustc` for
-  `tests/ops.rs`; no assertion failure was emitted.
+- Status: done; source `5602093b` is incorporated in mainline; decision ADR-0054.
+- Outcome: cumulative sum/product require provider-owned scan implementations; four removed defaults are the intended major API change.
+- Historical evidence: 122 library tests, 22 doctests, workspace/CUDA checks and Clippy pass; broader integration compilation was uncollected at that revision, not a current provider blocker.
 
 ## COEUS-CROSS-ENTROPY-PROVIDER-001 — Remove loss host staging [major] [arch]
 
@@ -581,60 +454,19 @@
   `92149439430`, ROCm `92149439429`, and Metal `92149439434`; PR #290 merged as
   `a756b3f4`.
 
+<a id="coeus-assignment-aliasing-001"></a>
 ## COEUS-ASSIGNMENT-ALIASING-001 — Remove invalid assignment aliases [minor] [arch]
 
-- Owner: Codex on `codex/coeus-sinusoidal-provider`; last-update: 2026-08-03;
-  scope: generic unary assignment plus cat, split, and slice gradient
-  accumulation seams; provider implementations; focused COW/gradient contracts;
-  ADR and active PM evidence.
-- Outcome: no operation constructs a shared Rust reference from an active mutable
-  reference. CPU assignment routes through destination-writing Leto operations;
-  accelerators route through Hephaestus using storage contracts that are valid
-  under Rust aliasing and COW.
-- Non-goals: unrelated loss, norm, matmul, or consumer-kernel migrations; runtime
-  or memory claims without controlled measurements.
-- Acceptance: all four raw-reference casts are deleted; shared-storage unary
-  assignment and cat/split/slice gradients are value-correct; unsupported
-  provider contracts return typed errors; warning-denied focused checks,
-  Nextest, Miri or the applicable substitute, doctests, independent review, and
-  exact-head WGPU/CUDA/ROCm/Metal CI pass.
-- Risk/change class: `[minor] [arch]`; existing signatures remain unchanged and
-  the public backend capability gains defaulted assignment methods, while
-  provider ownership and internal reference validity extend ADR-0051.
-- Status: complete; focused CPU and physical CUDA contracts pass, the corrected
-  candidate passes independent review, exact-head run `30876621244` is green,
-  and PR #288 merged as `2a96cd1c`.
+- Status: done; PR #288, merge `2a96cd1c`; decision ADR-0051.
+- Outcome: assignment and structural-gradient paths remove four invalid reference casts; [mutable device-output ownership](#coeus-device-output-ownership) remains a separate correction.
+- Historical evidence: CPU/CUDA contracts, focused Miri, independent review and exact-head provider run `30876621244` pass.
 
+<a id="coeus-sinusoidal-provider-001"></a>
 ## COEUS-SINUSOIDAL-PROVIDER-001 — Remove positional host fallback [patch]
 
-- Owner: Codex; last-update: 2026-08-05;
-  scope: sinusoidal positional table construction, prefix-view extraction,
-  the minimal Coeus elementwise/reduction capability closure required by
-  autograd, focused CPU/accelerator contracts, and active PM evidence.
-- Outcome: construction initializes the table once on the selected backend and
-  forward borrows the active prefix as a tensor view, without requiring
-  CPU-addressable accelerator storage or downloading and re-uploading the
-  table.
-- Non-goals: changing the public constructor contract, adding a positional
-  kernel where no runtime computation exists, or claiming runtime/memory gains
-  without controlled measurements.
-- Acceptance: CPU and local CUDA construction plus forward values match the
-  analytical sinusoidal oracle; prefix extraction shares storage and preserves
-  layout; residue scans find no CPU-storage expectation or host-transfer branch
-  in the migrated file; focused warning-denied checks, Nextest, doctests, and
-  exact-head WGPU/CUDA/ROCm/Metal CI pass.
-- Risk/change class: `[patch] [arch]`; the public API and mathematical contract remain
-  unchanged while an accelerator panic and host-transfer fallback are removed.
-- Status: complete; ADR-0053, CPU storage-sharing coverage, and ROCm/Metal
-  compile-time capability contracts landed in PR #292 as merge commit
-  `7ea9170d`. Exact-head hosted run `30969244754` passed WGPU
-  (`92189788131`), CUDA (`92189788165`), ROCm (`92189788122`), and Metal
-  (`92189788108`). The external `recurseml/analysis` status reported an
-  error without a GitHub Actions run or retrievable log and is not part of the
-  provider workflow. Package-scoped SemVer checks pass for `coeus-nn`; they
-  report pre-existing major API changes in `coeus-autograd` and `coeus-ops`
-  from earlier provider migrations, so release versioning remains a separate
-  major-version item.
+- Status: done; PR #292, merge `7ea9170d`; decision ADR-0053.
+- Outcome: positional tables initialize once on the selected provider and forward borrows a prefix view without host staging.
+- Historical evidence: storage-sharing checks and provider run `30969244754` pass. NN SemVer passes; earlier autograd/ops major breaks remain release-versioning work. Independent recurseml error is not provider evidence.
 
 ## COEUS-COSINE-CLAMP-GRADIENT-001 — Correct clamped cosine backward [patch]
 
@@ -762,92 +594,26 @@
   passed CUDA, WGPU, Metal, and ROCm at `fdfb83fe`; PR #286 merged as
   `706dc716`.
 
+<a id="coeus-random-init-provider-001"></a>
 ## COEUS-RANDOM-INIT-PROVIDER-001 — Provider-owned random initialization [major] [arch]
 
-- Owner: Codex; last-update: 2026-08-02;
-  scope: random initializer dispatch, fallible Rust/Python caller closure,
-  provider parity contracts, ADR-0049, and exact-head backend CI.
-- Outcome: CPU initialization executes through Leto and WGPU/CUDA/ROCm/Metal
-  initialization executes through one generic Hephaestus bridge selected by
-  backend type, with provider failures propagated as typed results.
-- Non-goals: release/version transitions, a Coeus-local random kernel, silent
-  accelerator-to-CPU fallback, or performance claims without measurements.
-- Acceptance: uniform, normal, Xavier, and Kaiming initialization replace the
-  current Leto-only host-vector path; every in-repo Rust and Python caller
-  handles the fallible contract; invalid rank and fan domains are
-  value-semantically tested; CPU/provider differential tests and exact-head
-  CUDA/WGPU/ROCm/Metal CI pass.
-- Risk/change class: `[major] [arch]`; changing public initializer return types
-  and canonical backend ownership requires ADR-0049 and migration notes.
-- Local evidence: locked affected all-target check and warning-denied Clippy
-  pass; CPU storage contracts pass 15/15 and `coeus-nn::nn_ops` passes 304/304;
-  affected doctests pass 99/99 with two pre-existing ignored examples; local
-  feature-enabled CUDA seeded parity passes in Nextest run
-  `6036c9a1-ba85-4c6b-b7d4-abe6b467616e`; WGPU rank rejection passes but local
-  DX12 is unavailable, so WGPU seeded runtime parity remains hosted; ROCm/Metal
-  hardware-independent rejection passes 2/2; fresh CPython 3.13 initialization
-  tests pass 2/2 and dependent module parity passes 12/12. Independent
-  architecture and soundness re-review approves the corrected diff. Targeted
-  Miri passes the initialized-storage regression 1/1; Mnemosyne emits existing
-  exposed-provenance warnings, so this is not strict-provenance evidence.
-  Final exact-head hosted run `30777614311` passes WGPU, CUDA, ROCm, and Metal
-  provider lanes at `8e3652c5`. The optional ROCm required-device dispatch could
-  not start because the repository has no registered self-hosted runner.
-  `cargo-semver-checks` did not reach API comparison because its isolated
-  baseline rustdoc build terminated while compiling `futures-channel`; the
-  breaking contract is declared and documented under ADR-0049.
-- Status: complete; PR #273 merged as `c3f71f98`.
+- Status: done; PR #273, merge `c3f71f98`; decision ADR-0049 records the breaking initializer contract.
+- Outcome: provider-owned uniform, normal, Xavier and Kaiming initialization propagates typed failures through Rust/Python callers.
+- Historical evidence: CPU/Python/local CUDA and provider run `30777614311` at `8e3652c5` pass; WGPU runtime is hosted and ROCm hardware unavailable. Miri is not strict-provenance evidence; baseline SemVer compilation terminated before comparison.
 
+<a id="coeus-stateful-update-provider-001"></a>
 ## COEUS-STATEFUL-UPDATE-PROVIDER-001 — Provider-owned optimizer dispatch [major] [arch]
 
-- Owner: Codex on `codex/coeus-stateful-dispatch`; last-update: 2026-08-01;
-  scope: CPU and accelerator optimizer dispatch, the fallible optimizer and
-  scheduler caller closure, focused contracts, obsolete implementation
-  deletion, ADR-0048, provider lock migration, and parity CI.
-- Outcome: CPU stateful updates execute through Leto and WGPU/CUDA/ROCm/Metal
-  execute through one generic Hephaestus bridge selected by backend type.
-- Non-goals: release/version transitions and performance claims without
-  controlled measurements.
-- Acceptance: no Coeus-owned optimizer mathematics or host fallback remains;
-  provider failures reach Rust and Python callers; all five rules have CPU and
-  accelerator value-semantic coverage plus preflight failure atomicity; local
-  and exact-head hosted gates pass.
-- Risk/change class: `[major] [arch]`; ADR-0048 records the breaking fallible
-  contract and provider ownership.
-- Status: complete. Leto PRs #85/#86 and Hephaestus PRs #174/#177 are
-  merged; the standalone lock resolves their exact merge revisions. Local CPU,
-  Leto, optimizer, Python, all-target, CUDA-feature, Clippy, and doctest gates
-  pass. A single typed preflight request validates every gradient-bearing
-  parameter before mutation; the multi-parameter regression covers all five
-  optimizers, CPU and accelerator Adam share the `i32::MAX` step domain, and
-  CPU plus hosted accelerator suites cover nonempty ranks zero through eight.
-  Independent re-review approved with no findings. Exact-head hosted run
-  `30720390380` passed WGPU `91423080685`, CUDA `91423080680`, ROCm
-  `91423080613`, and Metal `91423080688`; PR #262 merged as `0951e30e`.
-  Local RTX 5080 required-device verification at `5856cde9` passed all eight
-  selected CUDA activation and stateful-update contracts in Nextest run
-  `110d9c3a-bf0f-4ae3-9368-258a1a541a77`; ROCm remains GitHub CI evidence.
+- Status: done; PR #262, merge `0951e30e`; decision ADR-0048.
+- Outcome: five optimizer rules use provider-owned execution with complete parameter preflight and typed Rust/Python failures; [output ownership](#coeus-device-output-ownership) is separate.
+- Historical evidence: local gates, independent review and provider run `30720390380` pass; CUDA run `110d9c3a-bf0f-4ae3-9368-258a1a541a77` passes 8/8 at `5856cde9`. ROCm evidence remains hosted.
 
+<a id="coeus-attention-provider-001"></a>
 ## COEUS-ATTENTION-PROVIDER-001 — Provider-owned attention dispatch [major] [arch]
 
-- Owner: Codex on `codex/coeus-attention-dispatch`; last-update: 2026-07-31;
-  scope: CPU and accelerator attention dispatch, all fallible callers, focused
-  contracts, obsolete implementation deletion, ADR-0047, and parity CI.
-- Outcome: CPU attention executes through Leto and WGPU/CUDA/ROCm/Metal execute
-  through one generic Hephaestus bridge selected by the Coeus backend type.
-- Non-goals: release/version transitions and performance claims without
-  controlled measurements.
-- Acceptance: no Coeus-owned attention mathematics or host fallback remains;
-  provider failures reach Rust and Python callers; CPU/provider forward,
-  backward, masks, selected additive gradients, and preflight failure atomicity have
-  value-semantic coverage; local and exact-head hosted gates pass.
-- Risk/change class: `[major] [arch]`; ADR-0047 records the breaking fallible
-  contract and provider ownership.
-- Status: complete. Leto PRs #82/#83 and Hephaestus PR #167 are merged.
-  Independent architecture and correctness review findings are resolved.
-  Exact-head run `30666670100` passes WGPU (`91275219860`), CUDA
-  (`91275219750`), ROCm (`91275219786`), and Metal (`91275219827`); PR #256
-  merged as `ee3bb94f`.
+- Status: done; PR #256, merge `ee3bb94f`; decision ADR-0047.
+- Outcome: provider-owned attention and fallible callers replace local kernels and host fallbacks; [output ownership](#coeus-device-output-ownership) is separate.
+- Historical evidence: focused gates, independent review and exact-head provider run `30666670100` pass.
 
 ## ATLAS-COEUS-HEPHAESTUS-006 — Native activation-tail providers [arch]
 
