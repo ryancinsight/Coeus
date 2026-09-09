@@ -1,6 +1,6 @@
 use super::provider::PoolingBackend;
 use crate::layout::ranked_exact;
-use coeus_core::{Layout, Scalar};
+use coeus_core::{Layout, Scalar, StorageMut};
 use hephaestus_core::{
     PoolingBackwardOperands, PoolingForwardOperands, PoolingMode, PoolingOps, StridedView,
 };
@@ -21,13 +21,13 @@ where
         .map_err(|error| B::pooling_configuration_error(operation, error.to_string()))
 }
 
-/// Dispatch a pooling forward operation through the selected provider.
+/// Dispatch a pooling forward operation while preserving destination clones.
 pub fn forward<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (&B::DeviceBuffer<T>, &Layout),
     parameters: WindowParameters<S>,
     mode: PoolingMode,
-    output: (&B::DeviceBuffer<T>, &Layout),
+    output: (&mut B::DeviceBuffer<T>, &Layout),
 ) -> Result<(), B::Error>
 where
     B: PoolingBackend<T>,
@@ -35,6 +35,7 @@ where
 {
     let input_layout = ranked_exact::<R>(operation, input.1)?;
     let output_layout = ranked_exact::<R>(operation, output.1)?;
+    output.0.make_unique();
     let operands = PoolingForwardOperands {
         input: StridedView::new(B::pooling_buffer(input.0), &input_layout),
         output: StridedView::new(B::pooling_buffer(output.0), &output_layout),
@@ -44,14 +45,14 @@ where
         .map_err(|source| B::pooling_dispatch_error(operation, source))
 }
 
-/// Dispatch a pooling backward operation through the selected provider.
+/// Accumulate pooling gradients while preserving destination clones.
 pub fn backward<B, T, const R: usize, const S: usize>(
     operation: &'static str,
     grad_output: (&B::DeviceBuffer<T>, &Layout),
     input: Option<(&B::DeviceBuffer<T>, &Layout)>,
     parameters: WindowParameters<S>,
     mode: PoolingMode,
-    grad_input: (&B::DeviceBuffer<T>, &Layout),
+    grad_input: (&mut B::DeviceBuffer<T>, &Layout),
 ) -> Result<(), B::Error>
 where
     B: PoolingBackend<T>,
@@ -65,6 +66,7 @@ where
     let input = input
         .zip(input_layout.as_ref())
         .map(|((buffer, _), layout)| StridedView::new(B::pooling_buffer(buffer), layout));
+    grad_input.0.make_unique();
     let operands = PoolingBackwardOperands {
         input,
         grad_output: StridedView::new(B::pooling_buffer(grad_output.0), &grad_output_layout),

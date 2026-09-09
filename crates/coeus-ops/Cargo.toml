@@ -26,6 +26,7 @@ melinoe      = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+tracing = { workspace = true }
 
 [[bench]]
 name = "index_ops_bench"

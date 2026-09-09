@@ -8,15 +8,15 @@ Metal without a second device implementation.
 
 ## What is here
 
-- `WgpuStorage` binding tensor storage to Hephaestus' provider-owned
-  `WgpuBuffer`.
+- `HephaestusStorage<WgpuBackend, T>` retaining the provider-owned device
+  allocation and detaching cloned storage before writes.
 - Coeus-to-provider adapters for tensor shapes, expressions, and layouts.
 - Provider dispatch for elementwise, matmul, reduction, pooling, unfold/fold,
   and fused operations. Hephaestus owns WGSL source generation, layout
   metadata, pipeline caching, bind groups, and command submission.
 
-One path falls back to the CPU: the strided key-padding mask in attention. It
-is documented at its call site.
+Attention masks remain borrowed provider buffers with explicit layouts.
+Device kernels preserve cloned outputs through the shared storage contract.
 
 ## Documentation
 

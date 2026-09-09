@@ -1,5 +1,4 @@
 use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
-use crate::storage::WgpuStorage;
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, HephaestusError, PoolingMode};
@@ -27,7 +26,7 @@ where
     fn pooling_buffer(
         storage: &Self::DeviceBuffer<T>,
     ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn pooling_configuration_error(operation: &'static str, reason: String) -> Self::Error {
@@ -358,10 +357,16 @@ where
 
 fn forward<T, const R: usize, const S: usize>(
     operation: &'static str,
-    input: (&WgpuStorage<T>, &Layout),
+    input: (
+        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
     window: WindowConfiguration<S>,
     mode: PoolingMode,
-    output: (&WgpuStorage<T>, &Layout),
+    output: (
+        &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
 ) -> Result<(), WgpuBackendError>
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
@@ -386,11 +391,20 @@ where
 
 fn backward<T, const R: usize, const S: usize>(
     operation: &'static str,
-    grad_output: (&WgpuStorage<T>, &Layout),
-    input: Option<(&WgpuStorage<T>, &Layout)>,
+    grad_output: (
+        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
+    input: Option<(
+        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    )>,
     window: WindowConfiguration<S>,
     mode: PoolingMode,
-    grad_input: (&WgpuStorage<T>, &Layout),
+    grad_input: (
+        &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &Layout,
+    ),
 ) -> Result<(), WgpuBackendError>
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,

@@ -36,17 +36,13 @@ mod backend;
 #[path = "backend_stub.rs"]
 mod backend;
 
-#[cfg(feature = "cuda")]
-mod storage;
-#[cfg(not(feature = "cuda"))]
-#[path = "storage_stub.rs"]
+#[cfg(all(test, feature = "cuda"))]
 mod storage;
 
 #[cfg(feature = "cuda")]
 mod fusion;
 
 pub use backend::{CudaBackend, CudaScalar};
-pub use storage::CudaStorage;
 
 #[cfg(feature = "cuda")]
 use coeus_core::Layout;

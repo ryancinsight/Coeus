@@ -15,7 +15,6 @@ use hephaestus_cuda::CudaFusionOps;
 use leto::LayoutDyn;
 
 use crate::backend::{CudaBackend, CudaScalar};
-use crate::storage::CudaStorage;
 use crate::CudaBackendError;
 
 /// Adapt Coeus's expression-local input names to the provider vocabulary.
@@ -92,14 +91,14 @@ fn input_views<'inputs, T: Scalar>(
     inputs
         .iter()
         .zip(layouts)
-        .map(|(tensor, layout)| DynamicStridedView::new(tensor.storage().buffer.as_ref(), layout))
+        .map(|(tensor, layout)| DynamicStridedView::new(tensor.storage().buffer(), layout))
         .collect()
 }
 
 /// Dispatch a fused elementwise expression through Hephaestus CUDA.
 pub(crate) fn dispatch_fused<T, E>(
     expression: &E,
-    output: &mut CudaStorage<T>,
+    output: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
     output_layout: &Layout,
 ) -> Result<(), CudaBackendError>
 where
@@ -120,7 +119,8 @@ where
         .collect::<Result<Vec<_>, _>>()?;
     let output_layout = provider_layout(output_layout, "fused elementwise")?;
     let input_views = input_views(&inputs, &input_layouts);
-    let output_view = DynamicStridedView::new(output.buffer.as_ref(), &output_layout);
+    coeus_core::StorageMut::make_unique(output);
+    let output_view = DynamicStridedView::new(output.buffer(), &output_layout);
     let adapter = ExpressionAdapter {
         expression,
         _scalar: PhantomData,
@@ -137,7 +137,7 @@ pub(crate) fn dispatch_fused_reduce<T, E>(
     expression: &E,
     reduction: coeus_ops::ReductionOp,
     axis: usize,
-    output: &mut CudaStorage<T>,
+    output: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
     output_layout: &Layout,
 ) -> Result<(), CudaBackendError>
 where
@@ -158,7 +158,8 @@ where
         .collect::<Result<Vec<_>, _>>()?;
     let output_layout = provider_layout(output_layout, "fused reduction")?;
     let input_views = input_views(&inputs, &input_layouts);
-    let output_view = DynamicStridedView::new(output.buffer.as_ref(), &output_layout);
+    coeus_core::StorageMut::make_unique(output);
+    let output_view = DynamicStridedView::new(output.buffer(), &output_layout);
     let adapter = ExpressionAdapter {
         expression,
         _scalar: PhantomData,

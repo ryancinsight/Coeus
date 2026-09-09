@@ -1,7 +1,9 @@
 use super::{layouts, masks};
 use crate::{attention::provider::AttentionBackend, HephaestusProvider};
-use coeus_core::{Float, Layout, Scalar};
-use hephaestus_core::{AttentionForwardOperands, AttentionOps, AttentionScalar, StridedView};
+use coeus_core::{Float, Layout, Scalar, StorageMut};
+use hephaestus_core::{
+    plan_attention_forward, AttentionForwardOperands, AttentionOps, AttentionScalar, StridedView,
+};
 
 pub(in crate::attention) struct Forward<'a, B, T>
 where
@@ -39,13 +41,32 @@ where
         .key_padding_mask_layout
         .map(|layout| layouts::keep_mask(OPERATION, layout))
         .transpose()?;
-    let mask = masks::bind(
-        OPERATION,
-        request.key_padding_mask.map(B::attention_buffer),
-        mask_layout.as_ref(),
-        query_layout.shape()[0],
-        request.is_causal,
-    )?;
+    let mask = || {
+        masks::bind(
+            OPERATION,
+            request.key_padding_mask.map(B::attention_buffer),
+            mask_layout.as_ref(),
+            query_layout.shape()[0],
+            request.is_causal,
+        )
+    };
+    {
+        let operands = AttentionForwardOperands {
+            query: StridedView::new(B::attention_buffer(request.query), &query_layout),
+            key: StridedView::new(B::attention_buffer(request.key), &key_layout),
+            value: StridedView::new(B::attention_buffer(request.value), &value_layout),
+            mask: mask()?,
+            scale: request.scale,
+            output: StridedView::new(B::attention_buffer(&*request.output), &output_layout),
+            weights: StridedView::new(B::attention_buffer(&*request.weights), &weights_layout),
+        };
+        // Shared storage is detached below; preflight validates descriptors before
+        // any destination changes. Dispatch then checks the detached buffer aliases.
+        plan_attention_forward(&operands, false)
+            .map_err(|source| B::attention_dispatch_error(OPERATION, source))?;
+    }
+    request.output.make_unique();
+    request.weights.make_unique();
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();
     operations
         .attention_forward_into(
@@ -54,10 +75,10 @@ where
                 query: StridedView::new(B::attention_buffer(request.query), &query_layout),
                 key: StridedView::new(B::attention_buffer(request.key), &key_layout),
                 value: StridedView::new(B::attention_buffer(request.value), &value_layout),
-                mask,
+                mask: mask()?,
                 scale: request.scale,
-                output: StridedView::new(B::attention_buffer(&*request.output), &output_layout),
-                weights: StridedView::new(B::attention_buffer(&*request.weights), &weights_layout),
+                output: StridedView::new(B::attention_buffer(request.output), &output_layout),
+                weights: StridedView::new(B::attention_buffer(request.weights), &weights_layout),
             },
         )
         .map_err(|source| B::attention_dispatch_error(OPERATION, source))

@@ -20,7 +20,7 @@ impl StaggeredBackend for WgpuBackend {
     fn staggered_buffer(
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<Self::Device as ComputeDevice>::Buffer<f32> {
-        storage.buffer.as_ref()
+        storage.buffer()
     }
 
     fn staggered_configuration_error(operation: &'static str, reason: String) -> Self::Error {

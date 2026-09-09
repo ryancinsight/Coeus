@@ -25,6 +25,7 @@ leto         = { workspace = true }
 themis       = { workspace = true }
 
 [dev-dependencies]
+tracing = { workspace = true }
 eunomia = { workspace = true }
 coeus-autograd = { path = "../coeus-autograd", default-features = false }
 coeus-nn       = { path = "../coeus-nn", default-features = false }
