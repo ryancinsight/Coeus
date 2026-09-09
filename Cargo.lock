@@ -20,7 +20,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 [[package]]
 name = "aequitas"
 version = "0.2.0"
-source = "git+https://github.com/ryancinsight/aequitas#a442d16a444c9c56934f0dffd19e06c527e1420b"
+source = "git+https://github.com/ryancinsight/aequitas#d54305b859adcad8ffb224cd9b6a74ea2ab767d6"
 dependencies = [
  "eunomia",
  "typenum",
@@ -1039,7 +1039,7 @@ dependencies = [
 [[package]]
 name = "hermes-simd"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/hermes.git#b51e8732808775c6cd61b11d3f84d4bf9b6a7453"
+source = "git+https://github.com/ryancinsight/hermes.git#177a7da597b5ccd358d78d5ec12219110ddfe4a4"
 dependencies = [
  "eunomia",
  "hermes-simd-core",
@@ -1053,7 +1053,7 @@ dependencies = [
 [[package]]
 name = "hermes-simd-core"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/hermes.git#b51e8732808775c6cd61b11d3f84d4bf9b6a7453"
+source = "git+https://github.com/ryancinsight/hermes.git#177a7da597b5ccd358d78d5ec12219110ddfe4a4"
 dependencies = [
  "eunomia",
  "mnemosyne-memory 0.7.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
@@ -1064,7 +1064,7 @@ dependencies = [
 [[package]]
 name = "hermes-simd-intrinsics"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/hermes.git#b51e8732808775c6cd61b11d3f84d4bf9b6a7453"
+source = "git+https://github.com/ryancinsight/hermes.git#177a7da597b5ccd358d78d5ec12219110ddfe4a4"
 dependencies = [
  "eunomia",
  "hermes-simd-core",
@@ -1073,7 +1073,7 @@ dependencies = [
 [[package]]
 name = "hermes-simd-macros"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/hermes.git#b51e8732808775c6cd61b11d3f84d4bf9b6a7453"
+source = "git+https://github.com/ryancinsight/hermes.git#177a7da597b5ccd358d78d5ec12219110ddfe4a4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1083,7 +1083,7 @@ dependencies = [
 [[package]]
 name = "hermes-simd-types"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/hermes.git#b51e8732808775c6cd61b11d3f84d4bf9b6a7453"
+source = "git+https://github.com/ryancinsight/hermes.git#177a7da597b5ccd358d78d5ec12219110ddfe4a4"
 dependencies = [
  "hermes-simd-core",
  "hermes-simd-intrinsics",
@@ -1160,7 +1160,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 [[package]]
 name = "leto"
 version = "0.43.0"
-source = "git+https://github.com/ryancinsight/leto.git#d9ca3252cd68700d77f1a727144b3ee0ad931219"
+source = "git+https://github.com/ryancinsight/leto.git#61e233b098574f54c11a614116e590e5b2e539ac"
 dependencies = [
  "aequitas",
  "eunomia",
@@ -1172,7 +1172,7 @@ dependencies = [
 [[package]]
 name = "leto-ops"
 version = "0.43.0"
-source = "git+https://github.com/ryancinsight/leto.git#d9ca3252cd68700d77f1a727144b3ee0ad931219"
+source = "git+https://github.com/ryancinsight/leto.git#61e233b098574f54c11a614116e590e5b2e539ac"
 dependencies = [
  "eunomia",
  "hermes-simd",
@@ -1321,7 +1321,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-arena"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "eunomia",
  "libc",
@@ -1358,7 +1358,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-backend"
 version = "0.5.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "mnemosyne-memory-core 0.2.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
 ]
@@ -1381,7 +1381,7 @@ source = "git+https://github.com/ryancinsight/Mnemosyne.git?rev=e8e825f482b3f671
 [[package]]
 name = "mnemosyne-build-util"
 version = "0.2.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 
 [[package]]
 name = "mnemosyne-decay"
@@ -1416,7 +1416,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-decay"
 version = "0.3.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "mnemosyne-arena 0.4.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
  "mnemosyne-backend 0.5.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
@@ -1441,7 +1441,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-heap"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "libc",
  "melinoe",
@@ -1501,7 +1501,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-local"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "melinoe",
  "mnemosyne-arena 0.4.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
@@ -1556,7 +1556,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-memory"
 version = "0.7.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "eunomia",
  "mnemosyne-arena 0.4.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
@@ -1595,7 +1595,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-memory-core"
 version = "0.2.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "loom",
 ]
@@ -1630,7 +1630,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-prof"
 version = "0.2.0"
-source = "git+https://github.com/ryancinsight/Mnemosyne.git#82d3daa1cf61c7eeaad5cee0ce0c7fbad800db78"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#2e5f457c7eb07098dd3a029883985de94ebffd36"
 dependencies = [
  "backtrace",
  "mnemosyne-build-util 0.2.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
@@ -1655,7 +1655,7 @@ dependencies = [
 [[package]]
 name = "moirai-async"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "futures",
  "libc",
@@ -1681,7 +1681,7 @@ dependencies = [
 [[package]]
 name = "moirai-async-macros"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1703,7 +1703,7 @@ dependencies = [
 [[package]]
 name = "moirai-core"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "bytemuck",
  "libc",
@@ -1729,7 +1729,7 @@ dependencies = [
 [[package]]
 name = "moirai-executor"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "melinoe",
  "mnemosyne-memory 0.7.0 (git+https://github.com/ryancinsight/Mnemosyne.git?rev=2eb49c1adce2ed3fbcb2905a33167424bbc73f4a)",
@@ -1759,7 +1759,7 @@ dependencies = [
 [[package]]
 name = "moirai-iter"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "futures",
  "libc",
@@ -1790,7 +1790,7 @@ dependencies = [
 [[package]]
 name = "moirai-pal"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "js-sys",
  "libc",
@@ -1816,7 +1816,7 @@ dependencies = [
 [[package]]
 name = "moirai-parallel"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "melinoe",
  "moirai-core 0.6.0",
@@ -1845,7 +1845,7 @@ dependencies = [
 [[package]]
 name = "moirai-runtime"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "melinoe",
  "mnemosyne-memory 0.7.0 (git+https://github.com/ryancinsight/Mnemosyne.git?rev=2eb49c1adce2ed3fbcb2905a33167424bbc73f4a)",
@@ -1875,7 +1875,7 @@ dependencies = [
 [[package]]
 name = "moirai-scheduler"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "loom",
  "mnemosyne-memory 0.7.0 (git+https://github.com/ryancinsight/Mnemosyne.git?rev=2eb49c1adce2ed3fbcb2905a33167424bbc73f4a)",
@@ -1897,7 +1897,7 @@ dependencies = [
 [[package]]
 name = "moirai-sync"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "libc",
  "moirai-core 0.6.0",
@@ -1918,7 +1918,7 @@ dependencies = [
 [[package]]
 name = "moirai-transport"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 dependencies = [
  "bytemuck",
  "moirai-core 0.6.0",
@@ -1934,7 +1934,7 @@ source = "git+https://github.com/ryancinsight/Moirai.git?rev=83aa411#83aa411dceb
 [[package]]
 name = "moirai-utils"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#5c8a9e8be32ad6beac14ed263c2f11c3663b87cb"
+source = "git+https://github.com/ryancinsight/Moirai.git#83725bd5ddb0c9f3f277ce954e3885974c598878"
 
 [[package]]
 name = "munge"
@@ -2770,7 +2770,7 @@ dependencies = [
 [[package]]
 name = "themis-topology"
 version = "0.10.1"
-source = "git+https://github.com/ryancinsight/themis.git#b85f9464f5a04eb4c1c940fc512a8874c515bb96"
+source = "git+https://github.com/ryancinsight/themis.git#a42a5ca2410c0163e672e7ac8d28f582c7f6da58"
 dependencies = [
  "melinoe",
 ]
