@@ -162,8 +162,27 @@ mod tests {
         let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0]);
         let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0]);
 
-        let result = std::panic::catch_unwind(|| add(&lhs, &rhs, &backend));
-        assert!(result.is_err(), "incompatible shapes must panic");
+        // `is_err` alone accepts any panic, including one from the fixture
+        // rather than the shape check. The payload has to name the operation
+        // that rejected, and the fallible form under it has to reject before
+        // producing a tensor at all.
+        // `Tensor` is not `Debug`, so the Ok arm cannot be unwrapped away.
+        let Err(panic) = std::panic::catch_unwind(|| add(&lhs, &rhs, &backend)) else {
+            panic!("incompatible shapes must panic");
+        };
+        let reason = panic
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied())
+            .expect("invariant: an expect payload is a string");
+        assert!(
+            reason.starts_with("add: incompatible shapes"),
+            "the panic must be add's shape rejection, not a later failure: {reason}"
+        );
+        assert!(
+            elementwise_binary(&lhs, &rhs, &backend, BinaryOp::Add).is_err(),
+            "the fallible form must reject the same pair"
+        );
     }
 
     #[test]
