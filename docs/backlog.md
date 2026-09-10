@@ -1,5 +1,43 @@
 # Coeus Development Backlog
 
+<a id="coeus-tcpmesh-graceful-shutdown"></a>
+## COEUS-TCPMESH-GRACEFUL-SHUTDOWN — TcpMesh drops its peer streams abruptly
+
+- Status: todo; integrator: unclaimed; priority: correctness; [patch].
+- Outcome: a dropped `TcpMesh` half-closes every peer stream and stops its
+  runtime before it is gone, and the multi-rank TCP tests stop contending for
+  loopback state, without a global thread cap or a sleep.
+- Diagnosis, from branch `coeus-frobenius-v2` (`81f5573c`, 2026-08-12), whose
+  measurement stands even though its mechanism cannot land: dropping a
+  `TcpStream` on Windows with unread kernel buffer data sends RST rather than
+  FIN, which aborts the peer's in-flight receive. Sequential TCP collective
+  tests then fail with connection resets and timeouts. Idle Moirai worker
+  threads also accumulate across rounds because the runtime is never stopped,
+  starving the next round's collectives.
+- Why the branch is not a cherry-pick. Its `Drop` calls `block_on`, and a
+  destructor must not block or await: async teardown is an explicit shutdown
+  path that completes *before* `Drop`, with `Drop` the sync last resort. It
+  also sets `RUST_TEST_THREADS=1` in a committed `.cargo/config.toml` — a
+  global thread cap for contention that belongs to one test family — and adds
+  a post-lock sleep for "TCP state to settle", which is a sleep-synced test.
+  Three standing rules, one commit; the diagnosis is what survives.
+- Shape of the fix: an explicit `async fn shutdown(&mut self)` that half-closes
+  each peer stream and stops the runtime, called by every owner (tests
+  included) before drop; `Drop` keeps a non-blocking best-effort close and
+  never awaits. The loopback contention is a nextest `[test-groups]` entry with
+  `max-threads` over the multi-rank TCP tests — the sanctioned form for tests
+  sharing one external resource — and the tests synchronise on connection
+  events, never elapsed time.
+- Acceptance: the multi-rank TCP collective suite passes repeatedly on Windows
+  loopback under the committed nextest profile, with no `RUST_TEST_THREADS`, no
+  sleep in test support, and no blocking destructor; a dropped mesh leaves no
+  live worker thread, asserted rather than observed.
+- Branch: `coeus-frobenius-v2` holds the original commit and stays until this
+  closes. Its sibling commit (`3a7f413f`, batched norms on provider) is already
+  satisfied on `main`: `coeus_ops::frobenius_norm_batched` composes on
+  `BackendOps`, per [ADR 0060](adr/0060-provider-owned-batched-frobenius-norm.md).
+
+
 <a id="coeus-cpu-storage-ownership"></a>
 ## COEUS-CPU-STORAGE-OWNERSHIP — Keep allocation ownership private
 - Status: done; [PR #383](https://github.com/ryancinsight/Coeus/pull/383) merged as `3263fa47` on 2026-09-08.
