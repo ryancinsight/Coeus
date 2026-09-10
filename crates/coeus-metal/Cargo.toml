@@ -23,3 +23,6 @@ leto-ops = { workspace = true }
 coeus-leto = { version = "0.10.0", path = "../coeus-leto" }
 coeus-tensor = { workspace = true }
 coeus-nn = { version = "0.10.0", path = "../coeus-nn", default-features = false }
+
+[lints]
+workspace = true

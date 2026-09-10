@@ -116,3 +116,72 @@ debug = false
 opt-level = 1
 
 # ATLAS-PATH-DEP-AUDIT-2 round-4 closure
+
+[workspace.lints.clippy]
+# The pedantic floor, denied at the root so all sixteen members inherit one
+# table rather than sixteen drifting copies.
+#
+# Every class below already fires in this workspace and is allowed at the
+# count measured when the floor was established -- `cargo clippy --workspace
+# --all-targets -- -W clippy::pedantic`, 7255 hits across
+# 49 classes, 3695 of them in lib and bin
+# targets. A class that is NOT listed is a hard error from now on, which is
+# what the floor buys: the standing debt stays visible and no new class
+# joins it silently.
+#
+# Burn a class to zero and delete its line. The list only ever shortens; a
+# line re-added is a regression, not a tuning decision. The starred classes
+# are the ones to take first -- a bare precision-changing cast is how a
+# generic body stops being generic, and an undocumented panic or error path
+# is a contract the caller cannot see.
+pedantic = { level = "deny", priority = -1 }
+
+doc_markdown = "allow"  # 999 (556 production)
+cast_precision_loss = "allow"  # 680 (236 production) *
+semicolon_if_nothing_returned = "allow"  # 602 (6 production)
+missing_errors_doc = "allow"  # 554 (314 production) *
+must_use_candidate = "allow"  # 544 (260 production)
+inline_always = "allow"  # 452 (452 production)
+cast_possible_wrap = "allow"  # 445 (353 production) *
+cast_sign_loss = "allow"  # 374 (296 production) *
+missing_panics_doc = "allow"  # 338 (338 production) *
+unreadable_literal = "allow"  # 334 (12 production)
+similar_names = "allow"  # 308 (88 production)
+cast_possible_truncation = "allow"  # 256 (189 production) *
+float_cmp = "allow"  # 211 (35 production) *
+unnecessary_wraps = "allow"  # 210 (0 production)
+needless_pass_by_value = "allow"  # 140 (64 production)
+return_self_not_must_use = "allow"  # 140 (140 production)
+uninlined_format_args = "allow"  # 106 (52 production)
+cast_lossless = "allow"  # 105 (77 production) *
+many_single_char_names = "allow"  # 62 (42 production)
+too_many_lines = "allow"  # 56 (28 production)
+wildcard_imports = "allow"  # 55 (0 production)
+items_after_statements = "allow"  # 45 (15 production)
+unused_self = "allow"  # 33 (9 production)
+option_as_ref_cloned = "allow"  # 28 (28 production)
+manual_let_else = "allow"  # 23 (3 production)
+needless_raw_string_hashes = "allow"  # 21 (0 production)
+ptr_as_ptr = "allow"  # 21 (20 production)
+trivially_copy_pass_by_ref = "allow"  # 18 (13 production)
+redundant_closure_for_method_calls = "allow"  # 13 (12 production)
+map_unwrap_or = "allow"  # 11 (8 production)
+elidable_lifetime_names = "allow"  # 10 (10 production)
+ignore_without_reason = "allow"  # 8 (0 production)
+if_not_else = "allow"  # 7 (6 production)
+ref_option = "allow"  # 6 (6 production)
+single_match_else = "allow"  # 6 (4 production)
+assigning_clones = "allow"  # 4 (4 production)
+explicit_iter_loop = "allow"  # 4 (2 production)
+match_same_arms = "allow"  # 4 (2 production)
+ref_as_ptr = "allow"  # 4 (4 production)
+bool_to_int_with_if = "allow"  # 2 (0 production)
+checked_conversions = "allow"  # 2 (2 production)
+comparison_chain = "allow"  # 2 (2 production)
+expl_impl_clone_on_copy = "allow"  # 2 (2 production)
+manual_midpoint = "allow"  # 2 (1 production)
+struct_excessive_bools = "allow"  # 2 (2 production)
+struct_field_names = "allow"  # 2 (2 production)
+unnecessary_trailing_comma = "allow"  # 2 (0 production)
+range_plus_one = "allow"  # 1 (0 production)
+redundant_else = "allow"  # 1 (0 production)

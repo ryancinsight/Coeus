@@ -36,3 +36,6 @@ mnemosyne      = { workspace = true, optional = true }
 default = ["mnemosyne-global"]
 # Route the extension's Rust allocations through the Mnemosyne global allocator.
 mnemosyne-global = ["dep:mnemosyne"]
+
+[lints]
+workspace = true
