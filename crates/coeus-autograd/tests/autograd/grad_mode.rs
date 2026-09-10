@@ -22,15 +22,20 @@ fn no_grad_blocks_operation_graph_construction() {
     }
 
     let tracked = relu(&x);
-    assert!(
-        tracked.grad.is_some(),
-        "tracking must resume after guard drop"
+    // The guard's counterpart to the two `is_none` assertions above: a
+    // resumed op allocates a zeroed accumulator of the output's shape, not
+    // merely a slot. `is_some` could not tell the two apart.
+    assert_eq!(
+        tracked
+            .grad()
+            .expect("tracking must resume after guard drop")
+            .as_slice(),
+        &[0.0, 0.0, 0.0],
+        "a resumed op's accumulator starts zeroed at the output's shape"
     );
-    assert!(
-        tracked.creator.is_some(),
-        "tracked op output must carry a backward node"
-    );
-
+    // The backward node's presence is not asserted structurally: the
+    // gradient reaching `x` three lines below is what a node existing and
+    // propagating actually means, and `is_some` restates it more weakly.
     sum(&tracked)
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -48,16 +53,22 @@ fn no_grad_preserves_explicit_leaf_requires_grad() {
         )
     };
 
-    assert!(
-        x.grad.is_some(),
-        "explicit leaf requires_grad must be honored"
+    assert_eq!(
+        x.grad()
+            .expect("explicit leaf requires_grad must be honored")
+            .as_slice(),
+        &[0.0, 0.0],
+        "an explicitly tracked leaf starts with a zeroed accumulator"
     );
 
     let y = add(&x, &x);
     assert_eq!(y.tensor.as_slice(), &[4.0, 8.0]);
-    assert!(
-        y.grad.is_some(),
-        "tracking must resume for later operations"
+    assert_eq!(
+        y.grad()
+            .expect("tracking must resume for later operations")
+            .as_slice(),
+        &[0.0, 0.0],
+        "a post-guard operation starts with a zeroed accumulator"
     );
     sum(&y)
         .backward()

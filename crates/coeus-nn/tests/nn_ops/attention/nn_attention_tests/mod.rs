@@ -23,6 +23,40 @@ mod tests {
     use coeus_tensor::Tensor;
 
     type B = MoiraiBackend;
+
+    /// Every parameter carries a finite, correctly shaped gradient, and the
+    /// set as a whole received signal.
+    ///
+    /// `grad.is_some()` only proves the accumulator was allocated. Backward
+    /// allocates before it writes, so a pass that never reached these
+    /// parameters leaves every buffer at its zero initialization and still
+    /// satisfies `is_some` — the failure this assertion exists to catch. A
+    /// single parameter may legitimately end at zero, so the non-zero claim
+    /// is made over the set.
+    fn assert_parameters_received_signal(params: &[Var<f32, B>], module: &str) {
+        let mut any_nonzero = false;
+        for (i, p) in params.iter().enumerate() {
+            let grad = p
+                .grad()
+                .unwrap_or_else(|| panic!("{module} parameter {i} has no gradient after backward"));
+            assert_eq!(
+                grad.shape(),
+                p.tensor.shape(),
+                "{module} parameter {i}: gradient shape must match the parameter"
+            );
+            for (j, g) in grad.as_slice().iter().enumerate() {
+                assert!(
+                    g.is_finite(),
+                    "{module} parameter {i} element {j}: gradient is {g}"
+                );
+                any_nonzero |= *g != 0.0;
+            }
+        }
+        assert!(
+            any_nonzero,
+            "{module}: backward left every parameter gradient at zero"
+        );
+    }
     const EPS: f32 = 1e-5;
 
     // ── SDPA: forward shape ──────────────────────────────────────────────────
@@ -199,12 +233,7 @@ mod tests {
 
         let params = mha.parameters();
         assert!(!params.is_empty(), "MHA must have parameters");
-        for (i, p) in params.iter().enumerate() {
-            assert!(
-                p.grad.is_some(),
-                "MHA parameter {i} has no gradient after backward"
-            );
-        }
+        assert_parameters_received_signal(&params, "MHA");
     }
 
     // ── SinusoidalEncoding: shape and content ────────────────────────────────
@@ -366,12 +395,8 @@ mod tests {
             .expect("invariant: valid autograd fixture completes backward");
 
         let params = layer.parameters();
-        for (i, p) in params.iter().enumerate() {
-            assert!(
-                p.grad.is_some(),
-                "EncoderLayer parameter {i} has no gradient"
-            );
-        }
+        assert!(!params.is_empty(), "EncoderLayer must have parameters");
+        assert_parameters_received_signal(&params, "EncoderLayer");
     }
 
     #[test]
