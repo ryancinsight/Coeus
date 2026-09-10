@@ -180,7 +180,9 @@
 <a id="coeus-autodiff-cache-modules"></a>
 ## COEUS-AUTODIFF-CACHE-MODULES — Integrate the cache decomposition
 
-- Status: todo; priority: structure; [patch].
+- Status: in-progress; priority: structure; integrator: root; scope lease:
+  `crates/coeus-autograd/src/backward_cache/**`, `docs/backlog.md`;
+  last-update: 2026-09-10; [patch].
 - Scope: unique cache decomposition `da2598ea` in PR #367.
 - Review: current cache source matches its parent blob; preserve the extraction,
   then move the remaining 539-line implementation-bearing `mod.rs` into leaves.
