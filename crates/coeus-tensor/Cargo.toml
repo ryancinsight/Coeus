@@ -37,3 +37,6 @@ mnemosyne = { workspace = true }
 [[bench]]
 name = "tensor_bench"
 harness = false
+
+[lints]
+workspace = true

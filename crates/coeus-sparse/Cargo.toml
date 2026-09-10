@@ -22,3 +22,6 @@ smallvec     = { workspace = true }
 # of coeus-sparse) against a dense matmul oracle. A dev-dependency cycle, which
 # Cargo permits since it does not affect the normal build graph.
 coeus-ops = { path = "../coeus-ops", default-features = false }
+
+[lints]
+workspace = true

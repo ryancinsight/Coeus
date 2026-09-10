@@ -43,3 +43,6 @@ required-features = ["cuda"]
 name = "attention_bench"
 harness = false
 required-features = ["cuda"]
+
+[lints]
+workspace = true
