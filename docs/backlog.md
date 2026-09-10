@@ -3,7 +3,7 @@
 <a id="coeus-mnemosyne-wasm-pin-2026-09-10"></a>
 ## COEUS-MNEMOSYNE-WASM-PIN-2026-09-10 — Resolve the current Mnemosyne provider
 
-- Status: in-progress; integrator: root; priority: P1; [patch].
+- Status: review; integrator: root; priority: P1; [patch].
 - Outcome: Coeus resolves Mnemosyne from the current public default so downstream
   WebAssembly consumers receive the merged portable memory backend.
 - Scope: workspace `Cargo.toml`, `Cargo.lock`, and this item; non-goal: allocator
@@ -13,7 +13,11 @@
 - Evidence: RITK's WASM check selected Mnemosyne `e8e825f` through Coeus and
   failed before RITK compilation because that revision lacks `DefaultBackend` on
   WASM and leaves the CUDA loader type unconstrained.
-- Lease: root `Cargo.toml`, `Cargo.lock`; 2026-09-10T15:18:00Z.
+- Delivery: workspace `Cargo.toml` now uses the public Mnemosyne default and the
+  standalone lock resolves one current provider source; no allocator code changes.
+- Verification: `cargo fmt --all -- --check`; locked native and WASM checks for
+  `coeus-core` pass against the current provider graph.
+- Lease: discharged by this commit; RITK's consumer lock refresh follows merge.
 
 <a id="coeus-tcpmesh-graceful-shutdown"></a>
 ## COEUS-TCPMESH-GRACEFUL-SHUTDOWN — TcpMesh drops its peer streams abruptly
