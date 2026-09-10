@@ -180,9 +180,12 @@
 <a id="coeus-autodiff-cache-modules"></a>
 ## COEUS-AUTODIFF-CACHE-MODULES — Integrate the cache decomposition
 
-- Status: in-progress; priority: structure; integrator: root; scope lease:
-  `crates/coeus-autograd/src/backward_cache/**`, `docs/backlog.md`;
-  last-update: 2026-09-10; [patch].
+- Status: done; delivery: [PR #394](https://github.com/ryancinsight/coeus/pull/394), merge `71a78813`; [patch].
+- Outcome: `backward_cache/mod.rs` is a manifest again, with the structural
+  fingerprint and the cached topological ordering in leaves beside it. The
+  atlas class `coeus/manifest_implementation` returns to its recorded
+  baseline of 25, measured at the merge, and the atlas pin advanced in
+  [atlas#169](https://github.com/ryancinsight/atlas/pull/169).
 - Scope: unique cache decomposition `da2598ea` in PR #367.
 - Review: current cache source matches its parent blob; preserve the extraction,
   then move the remaining 539-line implementation-bearing `mod.rs` into leaves.
