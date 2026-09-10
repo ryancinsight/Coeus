@@ -98,18 +98,13 @@ impl ComputeGraphCache {
             {
                 return;
             }
-        } else {
-            while plans.len() >= self.config.max_cache_entries()
-                || self
-                    .stats()
-                    .plan_memory_bytes
-                    .saturating_add(plan_memory_bytes)
-                    > self.config.max_plan_memory()
-            {
-                // An amortized purge may have left expired entries inflating
-                // the counters the budget check reads; reclaim them before
-                // evicting a live plan.
-                self.purge_expired_plans(&mut plans);
+        } else if self.plan_insertion_needs_room(&plans, plan_memory_bytes) {
+            // An amortized purge may have left expired entries inflating the
+            // counters the budget check reads. Reclaiming them can free the
+            // room outright, so the purge runs first and the constraint is
+            // re-tested before any live plan is evicted for it.
+            self.purge_expired_plans(&mut plans);
+            while self.plan_insertion_needs_room(&plans, plan_memory_bytes) {
                 if !self.evict_plan_lru(&mut plans) {
                     return;
                 }
@@ -219,6 +214,25 @@ impl ComputeGraphCache {
         if ops.is_multiple_of(interval) {
             self.purge_expired_plans(plans);
         }
+    }
+
+    /// Whether a new plan of `plan_memory_bytes` still needs room made for it.
+    ///
+    /// Both constraints are entry-count and plan-memory budgets, so this is
+    /// the one predicate a purge or an eviction has to falsify; re-testing it
+    /// after each is what keeps a live plan from being evicted for room that
+    /// is already there.
+    fn plan_insertion_needs_room(
+        &self,
+        plans: &HashMap<usize, Box<dyn ErasedPlan>>,
+        plan_memory_bytes: usize,
+    ) -> bool {
+        plans.len() >= self.config.max_cache_entries()
+            || self
+                .stats()
+                .plan_memory_bytes
+                .saturating_add(plan_memory_bytes)
+                > self.config.max_plan_memory()
     }
 
     /// Record one plan-LRU eviction and reclaim its accounted memory.

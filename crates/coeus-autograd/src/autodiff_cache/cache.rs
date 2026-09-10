@@ -352,17 +352,24 @@ impl ComputeGraphCache {
     ///
     /// `0` disables deferral (every plan operation runs the exact expired-plan
     /// scan); any other value defers the scan to every Nth operation once the
-    /// plan table reaches [`PLAN_PURGE_MIN_TABLE_SIZE`] entries. This is the
-    /// value actually driving purge behavior — the config default only matters
-    /// until a cache is constructed, after which it is fixed here.
+    /// plan table reaches [`super::PLAN_PURGE_MIN_TABLE_SIZE`] entries. This is
+    /// the value actually driving purge behavior — the config default only
+    /// matters until a cache is constructed, after which it is fixed here.
     pub fn plan_purge_interval(&self) -> u64 {
         self.plan_purge_interval
     }
 
     /// Reset event counters while preserving live memory and residency values.
+    ///
+    /// The residency values are read from the same guard that writes them: a
+    /// read lock released before taking the write lock leaves a window in
+    /// which an insertion, eviction, purge or `clear()` moves residency, and
+    /// the reset would then write back the pre-window figures. Budget checks
+    /// read those counters, so an undercount lets the cache exceed its
+    /// configured memory.
     pub fn reset_stats(&self) {
-        let current = self.stats.read().expect("stats lock poisoned").clone();
         let mut stats = self.stats.write().expect("stats lock poisoned");
+        let current = stats.clone();
         *stats = CacheStats {
             memory_bytes: current.memory_bytes,
             metadata_entries: current.metadata_entries,

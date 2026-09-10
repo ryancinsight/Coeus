@@ -86,7 +86,8 @@ pub struct CacheStats {
     /// Highest number of resident topology plans observed since the last reset.
     ///
     /// Monotonic high-water mark: survives `clear()` and only resets via
-    /// [`ComputeGraphCache::reset_stats`], so monitoring can see how close the
+    /// [`super::ComputeGraphCache::reset_stats`], so monitoring can see how
+    /// close the
     /// plan table has come to `max_cache_entries` even after evictions and
     /// expired-root reclamation bring current residency back down.
     pub peak_plan_entries: usize,

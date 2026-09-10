@@ -9,7 +9,7 @@ use crate::autodiff_cache::{ComputeGraphCache, GraphInfo};
 use crate::node::BackwardNode;
 use coeus_core::{ComputeBackend, Scalar};
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::hash::Hasher;
 use std::sync::Arc;
 
@@ -39,11 +39,10 @@ fn collect_graph<T: Scalar, B: ComputeBackend + Default>(
     collect_order: bool,
 ) -> CollectedGraph<T, B> {
     let mut traversal = Traversal {
-        visited: HashSet::new(),
+        ordinals: HashMap::new(),
         hasher: DefaultHasher::new(),
         op_sequence: Vec::new(),
         order: collect_order.then(Vec::new),
-        node_count: 0,
         leaf_count: 0,
         max_depth: 0,
     };
@@ -51,32 +50,54 @@ fn collect_graph<T: Scalar, B: ComputeBackend + Default>(
     traversal.finish()
 }
 
+/// Edge tag hashed for an input that has a creator.
+const EDGE_CREATOR: u8 = 1;
+
+/// Edge tag hashed for an input that is a leaf.
+const EDGE_LEAF: u8 = 2;
+
 /// Everything one traversal accumulates.
 ///
 /// These were eight `&mut` parameters threaded through a recursive function,
 /// which meant every call site restated the whole set in order and a new
 /// statistic meant touching all of them.
 struct Traversal<T: Scalar, B: ComputeBackend + Default> {
-    visited: HashSet<*const ()>,
+    /// Every node discovered so far, keyed by identity, in discovery order.
+    ///
+    /// The ordinal is what makes a repeated edge visible to the hash: a
+    /// second edge to an already-visited creator ends its `visit` call
+    /// immediately and so contributes nothing of its own, but its ordinal
+    /// still names which node the edge reached. The map's length is the
+    /// node count.
+    ordinals: HashMap<*const (), usize>,
     hasher: DefaultHasher,
     op_sequence: Vec<String>,
     order: Option<Vec<Arc<dyn BackwardNode<T, B>>>>,
-    node_count: usize,
     leaf_count: usize,
     max_depth: usize,
 }
 
 impl<T: Scalar, B: ComputeBackend + Default> Traversal<T, B> {
-    /// Visit `node` and everything reachable from it, once each.
-    fn visit(&mut self, node: &Arc<dyn BackwardNode<T, B>>, depth: usize) {
+    /// Visit `node` and everything reachable from it, once each, and answer
+    /// with `node`'s traversal-local ordinal.
+    ///
+    /// Every input hashes an edge tag naming whether it has a creator, and a
+    /// creator edge additionally hashes the ordinal it reaches. Without
+    /// those, `[creator C, creator C]` and `[creator C, leaf]` hash alike
+    /// whenever their shapes match -- the second edge's `visit` returns at
+    /// once and a leaf recurses into nothing -- while their `leaf_count`
+    /// differs, so the metadata cache would answer one graph's lookup with
+    /// the other's `GraphInfo`.
+    fn visit(&mut self, node: &Arc<dyn BackwardNode<T, B>>, depth: usize) -> usize {
         use std::hash::Hash;
 
         let ptr = Arc::as_ptr(node) as *const ();
-        if !self.visited.insert(ptr) {
-            return;
+        if let Some(&ordinal) = self.ordinals.get(&ptr) {
+            return ordinal;
         }
+        let ordinal = self.ordinals.len();
+        self.ordinals.insert(ptr, ordinal);
 
-        self.node_count += 1;
         self.max_depth = self.max_depth.max(depth);
 
         let op_name = node.op_name();
@@ -87,12 +108,16 @@ impl<T: Scalar, B: ComputeBackend + Default> Traversal<T, B> {
         inputs.len().hash(&mut self.hasher);
         for input in inputs {
             input.tensor.shape().hash(&mut self.hasher);
-            if input.creator.is_none() {
-                self.leaf_count += 1;
-            }
-
-            if let Some(ref creator) = input.creator {
-                self.visit(creator, depth + 1);
+            match input.creator {
+                Some(ref creator) => {
+                    EDGE_CREATOR.hash(&mut self.hasher);
+                    let creator_ordinal = self.visit(creator, depth + 1);
+                    creator_ordinal.hash(&mut self.hasher);
+                }
+                None => {
+                    EDGE_LEAF.hash(&mut self.hasher);
+                    self.leaf_count += 1;
+                }
             }
         }
 
@@ -100,12 +125,14 @@ impl<T: Scalar, B: ComputeBackend + Default> Traversal<T, B> {
         if let Some(order) = &mut self.order {
             order.push(node.clone());
         }
+
+        ordinal
     }
 
     /// Consume the traversal into its fingerprint, metadata and post-order.
     fn finish(self) -> CollectedGraph<T, B> {
         let graph_info = GraphInfo {
-            node_count: self.node_count,
+            node_count: self.ordinals.len(),
             leaf_count: self.leaf_count,
             max_depth: self.max_depth,
             op_sequence: self.op_sequence,

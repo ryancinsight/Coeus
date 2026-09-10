@@ -96,4 +96,5 @@ fn test_graph() -> Arc<dyn BackwardNode<f32, MoiraiBackend>> {
 }
 
 mod budgets;
+mod fingerprint;
 mod plans;
