@@ -500,7 +500,6 @@ dependencies = [
  "eunomia",
  "leto",
  "leto-ops",
- "melinoe",
  "smallvec",
  "thiserror 2.0.20",
  "tracing",
