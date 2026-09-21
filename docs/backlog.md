@@ -1,5 +1,15 @@
 # Coeus Development Backlog
 
+<a id="coeus-scatter-add-allocation"></a>
+## COEUS-SCATTER-ADD-ALLOCATION — Keep scatter-add allocation count independent of shape
+
+- Status: in-progress; integrator: root; priority: correctness; [patch].
+- Outcome: `scatter_add` preserves value semantics without shape-scaled allocation calls.
+- Scope: `crates/coeus-ops/src/shape/select/scatter.rs`, focused allocation regression, this item; non-goal: changing scatter indexing semantics.
+- Acceptance: the existing allocation-budget test passes for small and large 3-D shapes; strict package Clippy, nextest, and docs pass.
+- Evidence: merged-main WGPU provider run `35660423617` failed `scatter_add_allocation_count_is_independent_of_index_size` with 7 versus 11 allocations.
+- Branch: `fix/coeus-scatter-add-allocation`.
+
 <a id="coeus-mnemosyne-wasm-pin-2026-09-10"></a>
 ## COEUS-MNEMOSYNE-WASM-PIN-2026-09-10 — Resolve the current Mnemosyne provider
 
