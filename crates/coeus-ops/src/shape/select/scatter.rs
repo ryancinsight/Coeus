@@ -34,7 +34,7 @@ pub fn scatter_add<T: Scalar, B: BackendOps<T> + Default>(
     dim: usize,
     index: &Tensor<T, B>,
     src: &Tensor<T, B>,
-    _backend: &B,
+    backend: &B,
 ) -> Tensor<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
@@ -68,9 +68,6 @@ where
         return input.to_contiguous();
     }
 
-    // Start from a copy of input.
-    let mut out_data = in_s.to_vec();
-
     // Compute strides for output (row-major).
     let mut out_strides = vec![1usize; ndim];
     for d in (0..ndim - 1).rev() {
@@ -84,12 +81,19 @@ where
         idx_strides[d] = idx_strides[d + 1] * idx_shape[d + 1];
     }
 
+    // Allocate the result once and copy the input into it. Keeping the result
+    // in backend storage avoids the temporary host vector and the second
+    // tensor allocation that made allocation counts depend on the shape.
+    let out_dim = out_shape[dim];
+    let mut output = Tensor::alloc_on(out_shape, backend);
+    output.as_mut_slice().copy_from_slice(in_s);
+    let out_s = output.as_mut_slice();
+
     for flat in 0..idx_numel {
         let scatter_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
         assert!(
-            scatter_idx < out_shape[dim],
-            "scatter_add: index {scatter_idx} out of bounds for dim {dim} size {}",
-            out_shape[dim]
+            scatter_idx < out_dim,
+            "scatter_add: index {scatter_idx} out of bounds for dim {dim} size {out_dim}"
         );
 
         // Decode `flat` against the index strides and accumulate the output
@@ -105,10 +109,10 @@ where
             out_flat += c * out_strides[d];
         }
 
-        out_data[out_flat] = out_data[out_flat].add(src_s[flat]);
+        out_s[out_flat] = out_s[out_flat].add(src_s[flat]);
     }
 
-    Tensor::from_slice(out_shape, &out_data)
+    output
 }
 
 #[cfg(test)]
