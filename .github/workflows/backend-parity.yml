@@ -1,13 +1,24 @@
 name: Backend parity
 
 on:
+  # Push to main keeps full coverage (paths-ignore only, never a positive
+  # filter) so the default-branch gate never narrows. Pull requests are not
+  # a required check here (branch protection lists only Format, Tests, Lint
+  # and documentation, ADR index, and Lockfile integrity) and this workflow
+  # rebuilds the whole cross-repo device dependency graph, so PRs run it
+  # only when a change could plausibly touch a backend: workspace crates,
+  # the lockfile/toolchain pin, or this workflow file itself.
   push:
     branches: [main]
     paths-ignore:
       - "**/*.md"
   pull_request:
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/backend-parity.yml"
   workflow_dispatch:
     inputs:
       run_cuda_hardware:
@@ -32,6 +43,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
   RUST_TOOLCHAIN: 1.97.0
 
 jobs:
@@ -129,9 +142,21 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
 
-      - name: Install nextest
-        shell: bash
-        run: cargo install cargo-nextest --locked
+      # Rebuilt the whole dependency graph (coeus-leto, coeus-ops, coeus-nn,
+      # coeus-autograd, coeus-wgpu, coeus-cuda) from zero every run -- no
+      # cache existed here. Measured 1936-1982s wall on this job alone
+      # (2 latest PR runs); this is the single largest CI-wall-time
+      # contributor in the account's shared runner pool.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: coeus
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # Prebuilt binary instead of `cargo install cargo-nextest --locked`,
+      # which compiled nextest from source on every run.
+      - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
+        with:
+          tool: nextest
 
       - name: Run WGPU and CPU provider contracts
         working-directory: coeus
@@ -270,8 +295,7 @@ jobs:
               . "$HOME/.cargo/env"
               rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
-              rustup toolchain install stable --profile minimal
-              cargo +stable install cargo-nextest --locked
+              curl -LsSf https://get.nextest.rs/latest/linux | tar zxf - -C "$HOME/.cargo/bin"
               if [ -f /usr/local/cuda/lib64/stubs/libcuda.so ] && [ ! -e /usr/local/cuda/lib64/stubs/libcuda.so.1 ]; then
                 ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
               fi
@@ -415,8 +439,7 @@ jobs:
               . "$HOME/.cargo/env"
               rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
-              rustup toolchain install stable --profile minimal
-              cargo +stable install cargo-nextest --locked
+              curl -LsSf https://get.nextest.rs/latest/linux | tar zxf - -C "$HOME/.cargo/bin"
               cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
@@ -515,9 +538,16 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
 
-      - name: Install nextest
-        shell: bash
-        run: cargo install cargo-nextest --locked
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: coeus
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # Prebuilt binary instead of `cargo install cargo-nextest --locked`,
+      # which compiled nextest from source on every run.
+      - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
+        with:
+          tool: nextest
 
       - name: Run Metal and Leto provider contracts
         working-directory: coeus
