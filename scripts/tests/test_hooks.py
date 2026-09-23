@@ -11,6 +11,18 @@ import unittest
 from pathlib import Path
 
 
+# Every external command the new (atlas-owned) `pre-push` runs before and
+# inside its lockfile section. Adopting the fuller hook (atlas
+# ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09) means the missing-
+# interpreter fixture below must keep these available on a stripped PATH --
+# the prior two-line hook called only `git` and the interpreter candidates,
+# so a bare `git`-only PATH sufficed; this one fails earlier, on a missing
+# `seq`/`mktemp`, if it does not.
+_HOOK_COMMANDS = (
+    "bash", "git", "seq", "sed", "grep", "awk", "cat", "head", "sort",
+    "tr", "mktemp", "rm", "tar",
+)
+
 REPOSITORY = Path(__file__).resolve().parents[2]
 HOOKS = ("pre-commit", "pre-push")
 ZERO = "0" * 40
@@ -154,17 +166,59 @@ class LockHookTests(unittest.TestCase):
     # MEMBERS-2026-09-09) are each self-contained -- no shared entry file for
     # either to be missing.
 
+    def _path_without_python(self) -> str:
+        """A PATH carrying the hook's own commands and no python interpreter.
+
+        The hook resolves its repository with git and runs coreutils before
+        it searches for an interpreter, so an empty PATH (or one holding only
+        `git`) tests the wrong failure: it fails on a missing `seq`/`mktemp`
+        first, never reaching the interpreter search at all. Windows keeps
+        its interpreter in its own directory outside the coreutils Git
+        bundles, so filtering only python-holding entries out of the
+        inherited PATH is correct there; POSIX needs the named commands
+        linked into a fresh directory instead, since `/usr/bin` there also
+        holds a system python (mirrors atlas's
+        scripts/tests/test_atlas_pre_push_gate.py `_path_without_python`).
+        """
+        if os.name == "nt":
+            entries = []
+            for entry in os.environ.get("PATH", "").split(os.pathsep):
+                if not entry or entry in entries:
+                    continue
+                probe = Path(entry)
+                if any(
+                    (probe / name).exists()
+                    for name in ("python.exe", "python3.exe", "python", "python3")
+                ):
+                    continue
+                entries.append(entry)
+            return os.pathsep.join(entries)
+
+        tools = self.root / "interpreter-free-tools"
+        tools.mkdir(exist_ok=True)
+        for name in _HOOK_COMMANDS:
+            found = shutil.which(name)
+            if found is None:
+                continue
+            link = tools / name
+            if not link.exists():
+                link.symlink_to(found)
+        absent = [name for name in ("bash", "git") if not (tools / name).exists()]
+        self.assertFalse(
+            absent,
+            f"interpreter-free PATH is missing {absent}; the fixture would "
+            "test a missing shell rather than a missing interpreter",
+        )
+        return str(tools)
+
     def test_missing_interpreter_rejects_both_hooks(self) -> None:
-        # Absolute Bash starts the actual hook while PATH exposes only Git.
-        # No replacement checker or interpreter can manufacture success.
-        git_directory = Path(self.git).parent
-        if os.name != "nt":
-            git_directory = self.root / "git-only"
-            git_directory.mkdir()
-            (git_directory / "git").symlink_to(self.git)
+        # Absolute Bash starts the actual hook; PATH carries its coreutils
+        # but no python. No replacement checker or interpreter can
+        # manufacture success.
+        path = self._path_without_python()
         for hook in HOOKS:
             with self.subTest(hook=hook):
-                result = self.hook(hook, PYTHON="", PATH=str(git_directory))
+                result = self.hook(hook, PYTHON="", PATH=path)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(f"{hook}: no python interpreter found", result.stderr)
 
