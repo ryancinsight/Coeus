@@ -29,14 +29,14 @@
   `coeus-core` pass against the current provider graph.
 - Lease: discharged by this commit; RITK's consumer lock refresh follows merge.
 
-<a id="coeus-tcpmesh-fallible-setup"></a>
-## COEUS-TCPMESH-FALLIBLE-SETUP — TcpMesh construction panics on socket and connection errors
+<a id="coeus-communicator-fallible-collectives"></a>
+## COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES — TCP collectives panic on peer I/O failure
 
-- Status: todo; integrator: unclaimed; priority: correctness; [minor] (the constructor's signature changes).
-- Successor to COEUS-TCPMESH-GRACEFUL-SHUTDOWN, delivered by the PR that replaced this entry.
-- Outcome: `TcpMesh` construction returns a typed error for bind, accept, connect, `set_nodelay`, and rank-handshake failures instead of panicking; `TcpCommunicator` propagates it.
-- Evidence: `crates/coeus-dist/src/tcp/mesh.rs` carries `expect("failed to ...")` on accept and bind paths, and the lint-floor PR turned two `set_nodelay(true).unwrap()` calls into `expect("invariant: TCP_NODELAY is settable ...")`, which no local reasoning proves: `setsockopt` can fail at runtime.
-- Acceptance: no `expect`/`unwrap` on an I/O result in `tcp/mesh.rs`; a test forces a connect or accept failure and asserts the typed error variant; `tcp::` tests stay green under the `tcp-tests` group.
+- Status: todo; integrator: unclaimed; priority: correctness; [major] (`Communicator` methods gain a `Result`).
+- Successor to COEUS-TCPMESH-FALLIBLE-SETUP, delivered by the PR that replaced this entry ([ADR 0074](adr/0074-fallible-tcp-mesh.md)).
+- Outcome: `Communicator` collectives return a typed error, so `TcpCommunicator` propagates `TcpMeshError` from `send`/`recv` instead of panicking; `LocalCommunicator` and `synchronize_gradients` follow.
+- Evidence: `crates/coeus-dist/src/tcp/collectives.rs` `TcpCommunicator::send`/`recv` panic with the error chain because the trait has no error channel.
+- Acceptance: no panic on an I/O result in `tcp/collectives.rs`; a test drops a peer mid-collective and asserts the typed error; Python collectives raise `ConnectionError`.
 
 <a id="coeus-cpu-storage-ownership"></a>
 ## COEUS-CPU-STORAGE-OWNERSHIP — Keep allocation ownership private

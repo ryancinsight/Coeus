@@ -1,3 +1,4 @@
+use crate::error::map_tcp_mesh_error;
 use crate::tensor::PyTensor;
 use coeus_dist::Communicator;
 use pyo3::exceptions::PyRuntimeError;
@@ -212,12 +213,17 @@ pub fn create_tcp_loopback_cluster(
     let world_size = std::num::NonZeroUsize::new(world_size).ok_or_else(|| {
         pyo3::exceptions::PyValueError::new_err("world_size must be greater than zero")
     })?;
-    let communicators = py.allow_threads(move || {
-        coeus_dist::TcpMesh::create_loopback_cluster(world_size)
-            .into_iter()
-            .map(coeus_dist::TcpCommunicator::new)
-            .collect::<Vec<_>>()
-    });
+    let communicators = py
+        .allow_threads(move || {
+            coeus_dist::TcpMesh::create_loopback_cluster(
+                world_size,
+                coeus_dist::MeshDeadlines::DEFAULT,
+            )
+        })
+        .map_err(map_tcp_mesh_error)?
+        .into_iter()
+        .map(coeus_dist::TcpCommunicator::new)
+        .collect::<Vec<_>>();
     Ok(communicators
         .into_iter()
         .map(|comm| PyTcpCommunicator {
@@ -264,7 +270,11 @@ impl PyTcpMesh {
             })
             .collect::<Result<_, _>>()?;
 
-        let inner = py.allow_threads(move || coeus_dist::TcpMesh::new(rank, size, &addrs));
+        let inner = py
+            .allow_threads(move || {
+                coeus_dist::TcpMesh::new(rank, size, &addrs, coeus_dist::MeshDeadlines::DEFAULT)
+            })
+            .map_err(map_tcp_mesh_error)?;
         Ok(Self {
             inner: std::sync::Mutex::new(Some(inner)),
         })

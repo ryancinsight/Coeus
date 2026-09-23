@@ -1,6 +1,7 @@
 use coeus_core::BackendError;
+use coeus_dist::TcpMeshError;
 use coeus_nn::ModuleError;
-use pyo3::exceptions::{PyMemoryError, PyRuntimeError, PyValueError};
+use pyo3::exceptions::{PyConnectionError, PyMemoryError, PyRuntimeError, PyValueError};
 use pyo3::PyErr;
 
 pub(crate) fn map_backend_error(error: BackendError) -> PyErr {
@@ -47,12 +48,26 @@ pub(crate) fn map_module_error(error: ModuleError<BackendError>) -> PyErr {
     }
 }
 
+/// Map a TCP mesh failure to `ConnectionError`, carrying the full cause chain
+/// in the message because Python exceptions do not expose Rust sources.
+pub(crate) fn map_tcp_mesh_error(error: TcpMeshError) -> PyErr {
+    let mut message = error.to_string();
+    let mut source = std::error::Error::source(&error);
+    while let Some(cause) = source {
+        message.push_str(": ");
+        message.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    PyConnectionError::new_err(message)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{map_backend_error, map_module_error};
+    use super::{map_backend_error, map_module_error, map_tcp_mesh_error};
     use coeus_core::BackendError;
+    use coeus_dist::TcpMeshError;
     use coeus_nn::ModuleError;
-    use pyo3::exceptions::{PyMemoryError, PyRuntimeError, PyValueError};
+    use pyo3::exceptions::{PyConnectionError, PyMemoryError, PyRuntimeError, PyValueError};
     use pyo3::Python;
 
     #[test]
@@ -150,6 +165,25 @@ mod tests {
             assert!(message.contains("LayerNorm backend operation failed"));
             assert!(message.contains("sum"));
             assert!(message.contains("axis 3"));
+        });
+    }
+
+    #[test]
+    fn tcp_mesh_failure_maps_to_connection_error_with_cause() {
+        let address = std::net::SocketAddr::from(([127, 0, 0, 1], 4000));
+        let error = TcpMeshError::Bind {
+            rank: 2,
+            address,
+            source: std::io::Error::new(std::io::ErrorKind::AddrInUse, "port held"),
+        };
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let error = map_tcp_mesh_error(error);
+            assert!(error.is_instance_of::<PyConnectionError>(py));
+            assert_eq!(
+                error.value(py).to_string(),
+                "rank 2 could not bind 127.0.0.1:4000: port held"
+            );
         });
     }
 }

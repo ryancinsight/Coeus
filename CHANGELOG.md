@@ -4,6 +4,16 @@
 
 ### Changed
 
+- [major] `TcpMesh` setup and peer I/O return `TcpMeshError` instead of
+  panicking. `TcpMesh::new` and `TcpMesh::create_loopback_cluster` take
+  `MeshDeadlines`, applied in every build profile: a setup bound (default
+  45 s) covering connection retries, accepts, and the rank handshake, and a
+  per-call `send`/`recv` bound (default 300 s) that ends waits on a silent
+  peer. Only transient connection errors are retried. `send` and `recv`
+  return `Result`; a failed or timed-out call poisons that peer link, and
+  later calls on it return `LinkPoisoned`. Python mesh setup failures raise `ConnectionError`. See
+  [ADR 0074](docs/adr/0074-fallible-tcp-mesh.md#migration) for migration.
+
 - [major] Remove `CpuStorage::into_raw` and keep allocation metadata private,
   preventing safe callers from replacing the pointer or layout used during
   destruction. Keep storage owners alive and access values through typed
