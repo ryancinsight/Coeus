@@ -21,20 +21,28 @@ loopback connect takes about 2 s on Windows regardless of any deadline.
 
 ## Decision
 
-- `TcpMesh::new` and `create_loopback_cluster` take a `SetupDeadline` and
+- `TcpMesh::new` and `create_loopback_cluster` take a `MeshDeadlines` and
   return `Result<_, TcpMeshError>`. `send` and `recv` return
   `Result<(), TcpMeshError>`.
 - `TcpMeshError` is a `#[non_exhaustive]` `thiserror` enum. Each variant names
-  the local rank and, where one exists, the peer rank and address; socket
-  variants carry the `io::Error` as `#[source]` without restating it. A peer's
-  invalid rank announcement is `PeerRank { claimed, .. }`.
-- One `SetupDeadline` (default 45 s, all build profiles) bounds a rank's
-  whole setup. Each connection attempt is `std::net::TcpStream::connect_timeout`
-  with the time left, so the bound holds per attempt. Refused attempts back off
-  5 ms doubling to 500 ms, admitting at most `8 + ⌈(d − 635 ms) / 500 ms⌉`
-  attempts per peer for deadline `d`. Accept and the rank handshake use the
-  time left as their timeout. Expiry reports an `io::ErrorKind::TimedOut`
-  source, or the last refused attempt's error.
+  the local rank; peer-stream variants also carry the peer address and the
+  peer rank wherever it is known: always after setup and on the dialling side,
+  `None` for an accepted stream before its handshake announces the rank.
+  Socket variants carry the `io::Error` as `#[source]` without restating it.
+  A peer's invalid rank announcement is `PeerRank { claimed, .. }`; a send or
+  receive past the I/O deadline is `SendTimedOut`/`RecvTimedOut`.
+- `MeshDeadlines` holds two bounds, applied in every build profile. The setup
+  bound (default 45 s) covers a rank's whole setup. Each connection attempt is
+  `std::net::TcpStream::connect_timeout` with the time left, so the bound holds
+  per attempt. Only transient failures (refused, timed out, interrupted, would
+  block) are retried, after 5 ms doubling to 500 ms; any other error ends setup
+  at once. Attempts start at 0, 5, 15, 35, 75, 155, 315 and 635 ms, then every
+  500 ms, only before the deadline, so a deadline `d` above 635 ms admits at
+  most `7 + ⌈(d − 635 ms) / 500 ms⌉` attempts per peer (96 at 45 s). Accept
+  and the rank handshake use the time left as their timeout. Expiry reports an
+  `io::ErrorKind::TimedOut` source, or the last transient error. The I/O bound
+  (default 300 s: one call moves a whole tensor, and 300 s carries 30 GB at
+  100 MB/s) limits each `send` and `recv` call.
 - Configuration errors (`size == 0`, `rank >= size`, address-count mismatch)
   and peer-index misuse in `send`/`recv` stay panics: they are caller bugs.
 - `TcpCommunicator` keeps an infallible constructor over an established mesh.
@@ -49,11 +57,13 @@ wall-clock deadline is what a launcher reasons about).
 ## Migration
 
 - `TcpMesh::new(rank, size, &addresses)` becomes
-  `TcpMesh::new(rank, size, &addresses, SetupDeadline::default())?`.
+  `TcpMesh::new(rank, size, &addresses, MeshDeadlines::DEFAULT)?`.
 - `TcpMesh::create_loopback_cluster(size)` becomes
-  `TcpMesh::create_loopback_cluster(size, SetupDeadline::default())?`.
+  `TcpMesh::create_loopback_cluster(size, MeshDeadlines::DEFAULT)?`.
 - `mesh.send(peer, bytes)` and `mesh.recv(peer, bytes)` return a `Result`;
-  propagate it with `?`.
+  propagate it with `?`. Release builds previously waited on a silent peer
+  forever; they now fail after `MeshDeadlines::io`, which `with_io` raises
+  for transfers that need longer.
 - Python: mesh setup failures raise `ConnectionError` with the cause chain in
   the message instead of aborting the interpreter thread with a Rust panic.
 
@@ -62,6 +72,15 @@ wall-clock deadline is what a launcher reasons about).
 Integration tests force a bind of an address in use (`Bind`, `AddrInUse`),
 a connect to a closed loopback port under a 300 ms deadline (`Connect`,
 `ConnectionRefused` or `TimedOut` by platform), and an accept with no dialler
-(`Accept`, `TimedOut`); a unit test rejects a peer announcing rank 7 to rank 1
-(`PeerRank`). The blocking connect attempt occupies the mesh's dedicated setup
-runtime, which runs no other work; an async connect in Moirai would remove it.
+(`Accept`, `TimedOut`). Unit tests reject a peer announcing rank 7 to rank 1
+(`PeerRank`) and a handshake cut off after 3 of 8 bytes (`Handshake`,
+`UnexpectedEof`); receive from a shut-down peer (`Recv`, `UnexpectedEof`),
+send to a closed peer (`Send`, reset or abort), and receive from a silent
+peer under a 200 ms I/O bound (`RecvTimedOut`); retry a transient error until
+the peer listens, stop at the deadline with the last error, and return a
+permanent error after one attempt. The attempt bound is checked against the
+backoff schedule the code uses. The connect test's closed port is freed
+before dialling, so another process could claim it in between; std has no
+bound-but-unlistened TCP socket to hold it. The blocking connect attempt
+occupies the mesh's dedicated setup runtime, which runs no other work; an
+async connect in Moirai would remove it.

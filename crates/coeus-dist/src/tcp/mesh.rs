@@ -1,8 +1,7 @@
+use super::deadlines::{self, MeshDeadlines};
 use super::error::TcpMeshError;
-use super::setup::{self, SetupDeadline};
 use moirai::Moirai;
 use moirai_async::{AsyncReadExt, AsyncWriteExt, TcpListener, TcpStream};
-use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
@@ -11,8 +10,23 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// Peer slots of one rank, indexed by peer rank; the local rank's slot is empty.
-type PeerStreams = Vec<Option<Mutex<TcpStream>>>;
+/// An established stream to one peer and the address it was reached at.
+struct PeerLink {
+    stream: Mutex<TcpStream>,
+    address: SocketAddr,
+}
+
+impl PeerLink {
+    fn new(stream: TcpStream, address: SocketAddr) -> Self {
+        Self {
+            stream: Mutex::new(stream),
+            address,
+        }
+    }
+}
+
+/// Peer links of one rank, indexed by peer rank; the local rank's slot is empty.
+type PeerLinks = Vec<Option<PeerLink>>;
 
 /// Fully-connected mesh of TCP streams between all ranks.
 ///
@@ -21,8 +35,9 @@ type PeerStreams = Vec<Option<Mutex<TcpStream>>>;
 pub struct TcpMesh {
     rank: usize,
     size: usize,
+    io_deadline: Duration,
     // Field order is lifecycle order: sockets close before their reactor runtime.
-    streams: PeerStreams,
+    links: PeerLinks,
     runtime: Moirai,
     /// Set once [`Self::shutdown`] completes. `Drop` traces instead of
     /// silently degrading when this is still `false`: a mesh dropped without
@@ -61,24 +76,6 @@ impl TcpMesh {
     }
 
     #[inline]
-    fn debug_timeout() -> Option<Duration> {
-        cfg!(debug_assertions).then_some(Duration::from_secs(45))
-    }
-
-    /// Await established-stream I/O, bounded by the debug-build timeout.
-    async fn peer_io<F, T>(operation: F) -> io::Result<T>
-    where
-        F: Future<Output = io::Result<T>>,
-    {
-        match Self::debug_timeout() {
-            Some(timeout) => moirai_async::timeout(timeout, operation)
-                .await
-                .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "peer I/O timed out"))?,
-            None => operation.await,
-        }
-    }
-
-    #[inline]
     fn assert_configuration(rank: usize, size: usize, addresses: &[SocketAddr]) {
         assert!(size > 0, "world size must be > 0");
         assert!(rank < size, "rank must be less than world size");
@@ -96,7 +93,7 @@ impl TcpMesh {
     /// Returns the [`TcpMeshError`] of the first failing step: runtime start,
     /// bind, connection to a higher rank, acceptance of a lower rank,
     /// `TCP_NODELAY`, or the rank handshake. Connecting and accepting stop
-    /// when `deadline` elapses.
+    /// when the [`MeshDeadlines::setup`] bound elapses.
     ///
     /// # Panics
     ///
@@ -105,10 +102,10 @@ impl TcpMesh {
     /// # Examples
     ///
     /// ```
-    /// use coeus_dist::{SetupDeadline, TcpMesh};
+    /// use coeus_dist::{MeshDeadlines, TcpMesh};
     ///
     /// let address = "127.0.0.1:0".parse().unwrap();
-    /// let mut mesh = TcpMesh::new(0, 1, &[address], SetupDeadline::default())?;
+    /// let mut mesh = TcpMesh::new(0, 1, &[address], MeshDeadlines::DEFAULT)?;
     /// assert_eq!(mesh.size(), 1);
     /// mesh.shutdown();
     /// # Ok::<(), coeus_dist::TcpMeshError>(())
@@ -117,12 +114,12 @@ impl TcpMesh {
         rank: usize,
         size: usize,
         addresses: &[SocketAddr],
-        deadline: SetupDeadline,
+        deadlines: MeshDeadlines,
     ) -> Result<Self, TcpMeshError> {
         Self::assert_configuration(rank, size, addresses);
         let runtime = Self::runtime(rank)?;
         let listener = Self::bind(&runtime, rank, addresses[rank])?;
-        Self::from_listener(rank, size, addresses, &listener, runtime, deadline)
+        Self::from_listener(rank, size, addresses, &listener, runtime, deadlines)
     }
 
     /// Create an in-process cluster backed by real loopback TCP sockets.
@@ -139,18 +136,18 @@ impl TcpMesh {
     /// # Examples
     ///
     /// ```
-    /// use coeus_dist::{SetupDeadline, TcpMesh};
+    /// use coeus_dist::{MeshDeadlines, TcpMesh};
     /// use std::num::NonZeroUsize;
     ///
     /// let size = NonZeroUsize::new(2).unwrap();
-    /// let mut meshes = TcpMesh::create_loopback_cluster(size, SetupDeadline::default())?;
+    /// let mut meshes = TcpMesh::create_loopback_cluster(size, MeshDeadlines::DEFAULT)?;
     /// assert_eq!(meshes[1].rank(), 1);
     /// meshes.iter_mut().for_each(TcpMesh::shutdown);
     /// # Ok::<(), coeus_dist::TcpMeshError>(())
     /// ```
     pub fn create_loopback_cluster(
         size: NonZeroUsize,
-        deadline: SetupDeadline,
+        deadlines: MeshDeadlines,
     ) -> Result<Vec<Self>, TcpMeshError> {
         let size = size.get();
         let loopback = SocketAddr::from(([127, 0, 0, 1], 0));
@@ -174,7 +171,7 @@ impl TcpMesh {
                 .map(|(rank, (listener, runtime))| {
                     let addresses = &addresses;
                     scope.spawn(move || {
-                        Self::from_listener(rank, size, addresses, &listener, runtime, deadline)
+                        Self::from_listener(rank, size, addresses, &listener, runtime, deadlines)
                     })
                 })
                 .collect::<Vec<_>>();
@@ -213,23 +210,24 @@ impl TcpMesh {
         addresses: &[SocketAddr],
         listener: &TcpListener,
         runtime: Moirai,
-        deadline: SetupDeadline,
+        deadlines: MeshDeadlines,
     ) -> Result<Self, TcpMeshError> {
         Self::assert_configuration(rank, size, addresses);
-        let expiry = deadline.expiry_from_now();
+        let expiry = deadlines.setup_expiry_from_now();
         let local = listener
             .local_addr()
             .map_err(|source| TcpMeshError::ListenerAddress { rank, source })?;
-        let mut streams = (0..size).map(|_| None).collect::<PeerStreams>();
+        let mut links = (0..size).map(|_| None).collect::<PeerLinks>();
         runtime.block_on(async {
-            Self::dial_higher_ranks(rank, addresses, &mut streams, expiry).await?;
-            Self::accept_lower_ranks(rank, listener, local, &mut streams, expiry).await
+            Self::dial_higher_ranks(rank, addresses, &mut links, expiry).await?;
+            Self::accept_lower_ranks(rank, listener, local, &mut links, expiry).await
         })?;
 
         Ok(Self {
             rank,
             size,
-            streams,
+            io_deadline: deadlines.io(),
+            links,
             runtime,
             shutdown_complete: false,
         })
@@ -238,14 +236,15 @@ impl TcpMesh {
     async fn dial_higher_ranks(
         rank: usize,
         addresses: &[SocketAddr],
-        streams: &mut PeerStreams,
+        links: &mut PeerLinks,
         expiry: Instant,
     ) -> Result<(), TcpMeshError> {
         let rank_bytes = (rank as u64).to_le_bytes();
         for (peer, &address) in addresses.iter().enumerate().skip(rank + 1) {
             let mut stream =
-                setup::connect(address, expiry)
+                deadlines::connect(address, expiry, std::net::TcpStream::connect_timeout)
                     .await
+                    .and_then(TcpStream::from_std)
                     .map_err(|source| TcpMeshError::Connect {
                         rank,
                         peer,
@@ -256,17 +255,19 @@ impl TcpMesh {
                 .set_nodelay(true)
                 .map_err(|source| TcpMeshError::NoDelay {
                     rank,
+                    peer: Some(peer),
                     address,
                     source,
                 })?;
-            setup::within(expiry, stream.write_all(&rank_bytes))
+            deadlines::within(expiry, stream.write_all(&rank_bytes))
                 .await
                 .map_err(|source| TcpMeshError::Handshake {
                     rank,
+                    peer: Some(peer),
                     address,
                     source,
                 })?;
-            streams[peer] = Some(Mutex::new(stream));
+            links[peer] = Some(PeerLink::new(stream, address));
         }
         Ok(())
     }
@@ -275,30 +276,31 @@ impl TcpMesh {
         rank: usize,
         listener: &TcpListener,
         local: SocketAddr,
-        streams: &mut PeerStreams,
+        links: &mut PeerLinks,
         expiry: Instant,
     ) -> Result<(), TcpMeshError> {
         for _ in 0..rank {
-            let (mut stream, address) =
-                setup::within(expiry, listener.accept())
-                    .await
-                    .map_err(|source| TcpMeshError::Accept {
-                        rank,
-                        address: local,
-                        source,
-                    })?;
+            let (mut stream, address) = deadlines::within(expiry, listener.accept())
+                .await
+                .map_err(|source| TcpMeshError::Accept {
+                    rank,
+                    address: local,
+                    source,
+                })?;
             stream
                 .set_nodelay(true)
                 .map_err(|source| TcpMeshError::NoDelay {
                     rank,
+                    peer: None,
                     address,
                     source,
                 })?;
             let mut rank_bytes = [0u8; 8];
-            setup::within(expiry, stream.read_exact(&mut rank_bytes))
+            deadlines::within(expiry, stream.read_exact(&mut rank_bytes))
                 .await
                 .map_err(|source| TcpMeshError::Handshake {
                     rank,
+                    peer: None,
                     address,
                     source,
                 })?;
@@ -307,23 +309,23 @@ impl TcpMesh {
             let slot = usize::try_from(claimed)
                 .ok()
                 .filter(|&peer| peer < rank)
-                .and_then(|peer| streams.get_mut(peer))
+                .and_then(|peer| links.get_mut(peer))
                 .filter(|slot| slot.is_none())
                 .ok_or(TcpMeshError::PeerRank {
                     rank,
                     address,
                     claimed,
                 })?;
-            *slot = Some(Mutex::new(stream));
+            *slot = Some(PeerLink::new(stream, address));
         }
         Ok(())
     }
 
     #[inline]
-    fn stream_for_peer(&self, peer: usize, op: &'static str) -> &Mutex<TcpStream> {
+    fn link_for_peer(&self, peer: usize, op: &'static str) -> &PeerLink {
         assert!(peer < self.size, "{op} peer out of bounds");
         assert!(peer != self.rank, "{op} peer must differ from local rank");
-        self.streams[peer]
+        self.links[peer]
             .as_ref()
             .unwrap_or_else(|| panic!("{op} stream not established for peer {peer}"))
     }
@@ -344,25 +346,37 @@ impl TcpMesh {
     ///
     /// # Errors
     ///
-    /// Returns [`TcpMeshError::Send`] when the write fails, or, in debug
-    /// builds, does not complete within 45 s.
+    /// Returns [`TcpMeshError::Send`] when the write fails and
+    /// [`TcpMeshError::SendTimedOut`] when it does not complete within the
+    /// [`MeshDeadlines::io`] bound.
     ///
     /// # Panics
     ///
     /// Panics if `target` is the local rank or not below the cluster size.
     #[inline]
     pub fn send(&self, target: usize, bytes: &[u8]) -> Result<(), TcpMeshError> {
-        let stream_mutex = self.stream_for_peer(target, "send");
-        let mut stream = stream_mutex.lock().expect(
+        let link = self.link_for_peer(target, "send");
+        let mut stream = link.stream.lock().expect(
             "invariant: no prior holder of this peer's stream lock panicked while holding it",
         );
-        self.runtime
-            .block_on(Self::peer_io(stream.write_all(bytes)))
-            .map_err(|source| TcpMeshError::Send {
+        match self.runtime.block_on(moirai_async::timeout(
+            self.io_deadline,
+            stream.write_all(bytes),
+        )) {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(source)) => Err(TcpMeshError::Send {
                 rank: self.rank,
                 peer: target,
+                address: link.address,
                 source,
-            })
+            }),
+            Err(_) => Err(TcpMeshError::SendTimedOut {
+                rank: self.rank,
+                peer: target,
+                address: link.address,
+                deadline: self.io_deadline,
+            }),
+        }
     }
 
     /// Receive raw bytes from a source rank, filling `bytes` exactly.
@@ -370,25 +384,36 @@ impl TcpMesh {
     /// # Errors
     ///
     /// Returns [`TcpMeshError::Recv`] when the read fails or the peer closes
-    /// early, or, in debug builds, does not complete within 45 s.
+    /// early, and [`TcpMeshError::RecvTimedOut`] when it does not complete
+    /// within the [`MeshDeadlines::io`] bound.
     ///
     /// # Panics
     ///
     /// Panics if `source` is the local rank or not below the cluster size.
     #[inline]
     pub fn recv(&self, source: usize, bytes: &mut [u8]) -> Result<(), TcpMeshError> {
-        let stream_mutex = self.stream_for_peer(source, "recv");
-        let mut stream = stream_mutex.lock().expect(
+        let link = self.link_for_peer(source, "recv");
+        let mut stream = link.stream.lock().expect(
             "invariant: no prior holder of this peer's stream lock panicked while holding it",
         );
-        self.runtime
-            .block_on(Self::peer_io(stream.read_exact(bytes)))
-            .map(drop)
-            .map_err(|error| TcpMeshError::Recv {
+        match self.runtime.block_on(moirai_async::timeout(
+            self.io_deadline,
+            stream.read_exact(bytes),
+        )) {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => Err(TcpMeshError::Recv {
                 rank: self.rank,
                 peer: source,
+                address: link.address,
                 source: error,
-            })
+            }),
+            Err(_) => Err(TcpMeshError::RecvTimedOut {
+                rank: self.rank,
+                peer: source,
+                address: link.address,
+                deadline: self.io_deadline,
+            }),
+        }
     }
 
     /// Gracefully close every peer stream and stop the mesh's dedicated
@@ -409,11 +434,8 @@ impl TcpMesh {
         // Lock each stream in this synchronous scope (matching `send`/`recv`)
         // rather than inside the `async` block below, so the `MutexGuard`
         // never crosses an await point.
-        for slot in &self.streams {
-            let Some(stream_mutex) = slot else {
-                continue;
-            };
-            let mut stream = stream_mutex.lock().expect(
+        for link in self.links.iter().flatten() {
+            let mut stream = link.stream.lock().expect(
                 "invariant: no prior holder of this peer's stream lock panicked while holding it",
             );
             self.runtime.block_on(async {
@@ -446,84 +468,4 @@ impl Drop for TcpMesh {
 }
 
 #[cfg(test)]
-mod tests {
-    #![expect(
-        clippy::unwrap_used,
-        reason = "test assertions surface failures immediately by design"
-    )]
-
-    use super::*;
-    use std::sync::Arc;
-
-    /// `shutdown()` documents that it stops the runtime, joining its worker
-    /// thread, before returning. Prove it: a task spawned on the mesh's own
-    /// runtime holds a marker `Arc` clone that only drops when the worker
-    /// thread that ran the task unwinds its stack. If `shutdown()` returned
-    /// before that join happened, the clone would still be live and the
-    /// strong count would read 2, not 1.
-    #[test]
-    fn shutdown_joins_the_runtime_worker_thread() {
-        let mut mesh = TcpMesh::create_loopback_cluster(
-            NonZeroUsize::new(1).unwrap(),
-            SetupDeadline::default(),
-        )
-        .unwrap()
-        .into_iter()
-        .next()
-        .unwrap();
-
-        let marker = Arc::new(());
-        let marker_for_worker = Arc::clone(&marker);
-        mesh.runtime.spawn_fn(move || drop(marker_for_worker));
-
-        mesh.shutdown();
-
-        assert_eq!(
-            Arc::strong_count(&marker),
-            1,
-            "shutdown() must join the runtime's worker thread before returning"
-        );
-    }
-
-    /// A dialler announcing a rank that is not below the accepting rank is
-    /// rejected with its claim and address, not trusted as a peer slot index.
-    #[test]
-    fn accept_rejects_a_peer_rank_that_is_not_lower() {
-        const CLAIMED: u64 = 7;
-        let runtime = TcpMesh::runtime(1).unwrap();
-        let listener = TcpMesh::bind(&runtime, 1, SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
-        let listen_address = listener.local_addr().unwrap();
-
-        let dialler = thread::spawn(move || {
-            use std::io::Write;
-            let mut stream = std::net::TcpStream::connect(listen_address).unwrap();
-            stream.write_all(&CLAIMED.to_le_bytes()).unwrap();
-            stream.local_addr().unwrap()
-        });
-        // Rank 1 of 2 dials nobody and accepts exactly one lower rank.
-        let addresses = [SocketAddr::from(([127, 0, 0, 1], 9)), listen_address];
-        let outcome = TcpMesh::from_listener(
-            1,
-            2,
-            &addresses,
-            &listener,
-            runtime,
-            SetupDeadline::new(Duration::from_secs(10)),
-        );
-        let dialler_address = dialler.join().unwrap();
-
-        match outcome {
-            Err(TcpMeshError::PeerRank {
-                rank,
-                address,
-                claimed,
-            }) => {
-                assert_eq!(rank, 1);
-                assert_eq!(address, dialler_address);
-                assert_eq!(claimed, CLAIMED);
-            }
-            Err(other) => panic!("expected PeerRank, got {other:?}"),
-            Ok(_) => panic!("a peer claiming rank {CLAIMED} must be rejected"),
-        }
-    }
-}
+mod tests;

@@ -1,19 +1,23 @@
 //! TCP mesh setup failures surface as typed errors, not panics.
 
-use coeus_dist::{SetupDeadline, TcpMesh, TcpMeshError};
+use coeus_dist::{MeshDeadlines, TcpMesh, TcpMeshError};
 use std::io::ErrorKind;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 use std::time::Duration;
 
 /// Short enough to keep each failing setup well inside the test budget, long
 /// enough for a loopback connection attempt to be refused on every platform.
-const SHORT_DEADLINE: SetupDeadline = SetupDeadline::new(Duration::from_millis(300));
+const SHORT_DEADLINE: MeshDeadlines = MeshDeadlines::DEFAULT.with_setup(Duration::from_millis(300));
 
 fn ephemeral_loopback() -> SocketAddr {
     SocketAddr::from((Ipv4Addr::LOCALHOST, 0))
 }
 
 /// A loopback address whose port had a listener that has since closed.
+///
+/// Another process may bind the freed port before the test dials it; the
+/// window is one ephemeral allocation, and std offers no bound-but-unlistened
+/// TCP socket that would hold the port closed.
 fn closed_loopback_port() -> SocketAddr {
     let listener = TcpListener::bind(ephemeral_loopback()).unwrap();
     listener.local_addr().unwrap()
@@ -72,8 +76,12 @@ fn connect_without_a_listener_is_a_typed_connect_error_at_the_deadline() {
 
 #[test]
 fn accept_with_no_dialler_is_a_typed_accept_timeout() {
-    // Rank 1 of 2 dials nobody and waits for rank 0, which never starts.
-    let addresses = [closed_loopback_port(), ephemeral_loopback()];
+    // Rank 1 of 2 dials nobody and waits for rank 0, which never starts;
+    // rank 0's address is never dialled.
+    let addresses = [
+        SocketAddr::from((Ipv4Addr::LOCALHOST, 9)),
+        ephemeral_loopback(),
+    ];
 
     match TcpMesh::new(1, 2, &addresses, SHORT_DEADLINE) {
         Err(TcpMeshError::Accept {

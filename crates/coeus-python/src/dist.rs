@@ -217,7 +217,7 @@ pub fn create_tcp_loopback_cluster(
         .allow_threads(move || {
             coeus_dist::TcpMesh::create_loopback_cluster(
                 world_size,
-                coeus_dist::SetupDeadline::default(),
+                coeus_dist::MeshDeadlines::DEFAULT,
             )
         })
         .map_err(map_tcp_mesh_error)?
@@ -272,7 +272,7 @@ impl PyTcpMesh {
 
         let inner = py
             .allow_threads(move || {
-                coeus_dist::TcpMesh::new(rank, size, &addrs, coeus_dist::SetupDeadline::default())
+                coeus_dist::TcpMesh::new(rank, size, &addrs, coeus_dist::MeshDeadlines::DEFAULT)
             })
             .map_err(map_tcp_mesh_error)?;
         Ok(Self {

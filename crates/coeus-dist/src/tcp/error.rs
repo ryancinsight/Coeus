@@ -1,5 +1,6 @@
 use std::io;
 use std::net::SocketAddr;
+use std::time::Duration;
 
 /// Failure of a [`TcpMesh`](super::TcpMesh) operation.
 ///
@@ -71,6 +72,9 @@ pub enum TcpMeshError {
     NoDelay {
         /// Local rank.
         rank: usize,
+        /// Peer rank: known for a dialled peer, `None` for an accepted
+        /// stream, whose rank arrives only in the handshake.
+        peer: Option<usize>,
         /// Peer address of the stream.
         address: SocketAddr,
         /// Socket option failure.
@@ -82,6 +86,9 @@ pub enum TcpMeshError {
     Handshake {
         /// Local rank.
         rank: usize,
+        /// Peer rank: known for a dialled peer, `None` for an accepted
+        /// stream, whose rank this handshake would have announced.
+        peer: Option<usize>,
         /// Peer address of the stream.
         address: SocketAddr,
         /// Handshake I/O failure.
@@ -100,26 +107,55 @@ pub enum TcpMeshError {
         claimed: u64,
     },
     /// Sending bytes to an established peer failed.
-    #[error("rank {rank} could not send to peer {peer}")]
+    #[error("rank {rank} could not send to peer {peer} at {address}")]
     Send {
         /// Local rank.
         rank: usize,
         /// Destination rank.
         peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
         /// Write failure.
         #[source]
         source: io::Error,
     },
     /// Receiving bytes from an established peer failed.
-    #[error("rank {rank} could not receive from peer {peer}")]
+    #[error("rank {rank} could not receive from peer {peer} at {address}")]
     Recv {
         /// Local rank.
         rank: usize,
         /// Source rank.
         peer: usize,
-        /// Read failure.
+        /// Peer address of the stream.
+        address: SocketAddr,
+        /// Read failure, [`io::ErrorKind::UnexpectedEof`] when the peer
+        /// closed before sending every requested byte.
         #[source]
         source: io::Error,
+    },
+    /// A send did not complete within the I/O deadline.
+    #[error("rank {rank} timed out after {deadline:?} sending to peer {peer} at {address}")]
+    SendTimedOut {
+        /// Local rank.
+        rank: usize,
+        /// Destination rank.
+        peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
+        /// The elapsed [`MeshDeadlines::io`](super::MeshDeadlines::io) bound.
+        deadline: Duration,
+    },
+    /// A receive did not complete within the I/O deadline.
+    #[error("rank {rank} timed out after {deadline:?} receiving from peer {peer} at {address}")]
+    RecvTimedOut {
+        /// Local rank.
+        rank: usize,
+        /// Source rank.
+        peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
+        /// The elapsed [`MeshDeadlines::io`](super::MeshDeadlines::io) bound.
+        deadline: Duration,
     },
 }
 

@@ -20,7 +20,7 @@ pub mod tcp;
 pub use communicator::Communicator;
 pub use local::LocalCommunicator;
 pub use ops::{Max, Min, Product, ReduceOpTag, Sum};
-pub use tcp::{SetupDeadline, TcpCommunicator, TcpMesh, TcpMeshError};
+pub use tcp::{MeshDeadlines, TcpCommunicator, TcpMesh, TcpMeshError};
 
 use coeus_autograd::Var;
 use coeus_core::{ComputeBackend, Scalar};

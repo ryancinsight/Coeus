@@ -1,7 +1,7 @@
 //! TCP mesh-construction and rank-boundary panic contracts.
 
 use super::super::super::support::single_rank_tcp_mesh;
-use coeus_dist::{SetupDeadline, TcpMesh};
+use coeus_dist::{MeshDeadlines, TcpMesh};
 
 #[test]
 #[should_panic(expected = "send peer must differ from local rank")]
@@ -36,18 +36,18 @@ fn test_tcp_mesh_recv_out_of_bounds_panics() {
 #[test]
 #[should_panic(expected = "rank must be less than world size")]
 fn test_tcp_mesh_new_rank_out_of_bounds_panics() {
-    let _mesh = TcpMesh::new(1, 1, &[], SetupDeadline::default());
+    let _mesh = TcpMesh::new(1, 1, &[], MeshDeadlines::DEFAULT);
 }
 
 #[test]
 #[should_panic(expected = "world size must be > 0")]
 fn test_tcp_mesh_new_zero_world_size_panics() {
     let addresses: Vec<std::net::SocketAddr> = vec![];
-    let _mesh = TcpMesh::new(0, 0, &addresses, SetupDeadline::default());
+    let _mesh = TcpMesh::new(0, 0, &addresses, MeshDeadlines::DEFAULT);
 }
 
 #[test]
 #[should_panic(expected = "addresses list length must match world size")]
 fn test_tcp_mesh_new_addresses_len_mismatch_panics() {
-    let _mesh = TcpMesh::new(0, 2, &[], SetupDeadline::default());
+    let _mesh = TcpMesh::new(0, 2, &[], MeshDeadlines::DEFAULT);
 }
