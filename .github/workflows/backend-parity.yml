@@ -154,9 +154,9 @@ jobs:
 
       # Prebuilt binary instead of `cargo install cargo-nextest --locked`,
       # which compiled nextest from source on every run.
-      - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
-          tool: nextest
+          tool: nextest@0.9.140
 
       - name: Run WGPU and CPU provider contracts
         working-directory: coeus
@@ -275,6 +275,19 @@ jobs:
           path: themis
           persist-credentials: false
 
+      # The container cannot reach an installer host, and compiling nextest from
+      # source cost minutes per run. The host installs the pinned prebuilt
+      # binary; the mounted workspace carries it into the image.
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: nextest@0.9.140
+      - name: Stage nextest for the container
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/.ci-tools"
+          cp "$(command -v cargo-nextest)" "$GITHUB_WORKSPACE/.ci-tools/cargo-nextest"
+
       - name: Build and test in the NVIDIA CUDA development image
         shell: bash
         run: |
@@ -295,7 +308,7 @@ jobs:
               . "$HOME/.cargo/env"
               rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
-              curl -LsSf https://get.nextest.rs/latest/linux | tar zxf - -C "$HOME/.cargo/bin"
+              install -m 0755 /workspace/.ci-tools/cargo-nextest "$HOME/.cargo/bin/cargo-nextest"
               if [ -f /usr/local/cuda/lib64/stubs/libcuda.so ] && [ ! -e /usr/local/cuda/lib64/stubs/libcuda.so.1 ]; then
                 ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
               fi
@@ -420,6 +433,19 @@ jobs:
           path: themis
           persist-credentials: false
 
+      # The container cannot reach an installer host, and compiling nextest from
+      # source cost minutes per run. The host installs the pinned prebuilt
+      # binary; the mounted workspace carries it into the image.
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: nextest@0.9.140
+      - name: Stage nextest for the container
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/.ci-tools"
+          cp "$(command -v cargo-nextest)" "$GITHUB_WORKSPACE/.ci-tools/cargo-nextest"
+
       - name: Build and test in the AMD ROCm development image
         shell: bash
         run: |
@@ -439,7 +465,7 @@ jobs:
               . "$HOME/.cargo/env"
               rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
-              curl -LsSf https://get.nextest.rs/latest/linux | tar zxf - -C "$HOME/.cargo/bin"
+              install -m 0755 /workspace/.ci-tools/cargo-nextest "$HOME/.cargo/bin/cargo-nextest"
               cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
@@ -545,9 +571,9 @@ jobs:
 
       # Prebuilt binary instead of `cargo install cargo-nextest --locked`,
       # which compiled nextest from source on every run.
-      - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
-          tool: nextest
+          tool: nextest@0.9.140
 
       - name: Run Metal and Leto provider contracts
         working-directory: coeus
