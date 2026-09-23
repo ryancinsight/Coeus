@@ -11,8 +11,31 @@ import unittest
 from pathlib import Path
 
 
+# Every external command the new (atlas-owned) `pre-push` runs before and
+# inside its lockfile section. Adopting the fuller hook (atlas
+# ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09) means the missing-
+# interpreter fixture below must keep these available on a stripped PATH --
+# the prior two-line hook called only `git` and the interpreter candidates,
+# so a bare `git`-only PATH sufficed; this one fails earlier, on a missing
+# `seq`/`mktemp`, if it does not.
+_HOOK_COMMANDS = (
+    "bash", "git", "seq", "sed", "grep", "awk", "cat", "head", "sort",
+    "tr", "mktemp", "rm", "tar",
+)
+
 REPOSITORY = Path(__file__).resolve().parents[2]
 HOOKS = ("pre-commit", "pre-push")
+ZERO = "0" * 40
+# `pre-push` reads the pushed range from stdin to decide whether the range
+# touches Cargo.lock/Cargo.toml at all (a legitimate skip, not a bypass) and
+# to select the revision it exports and checks. These fixtures have no
+# `origin` remote, so `default_branch_base` cannot resolve one and the hook
+# falls back to its conservative default: run the check anyway. The SHA does
+# not need to resolve to a real commit for that fallback to trigger -- it
+# only needs to be a non-zero placeholder for a "new branch" update, so one
+# probe line serves every test below regardless of what the fixture has
+# committed.
+PROBE_PUSH_LINE = f"refs/heads/probe {'1' * 40} refs/heads/probe {ZERO}\n"
 
 
 class HookInstallationTests(unittest.TestCase):
@@ -44,6 +67,15 @@ class LockHookTests(unittest.TestCase):
         self.environment["PYTHON"] = Path(sys.executable).as_posix()
         self.environment["GIT_CONFIG_NOSYSTEM"] = "1"
         self.environment["GIT_CONFIG_GLOBAL"] = str(self.root / "gitconfig")
+        # The isolated global config above carries no identity, and CI
+        # runners (unlike a developer machine) have none in any wider scope
+        # either. The new hooks' interface needs real commits in this
+        # fixture's own repo (pre-push checks a committed revision, never
+        # the bare working tree), so every commit here needs one.
+        self.environment["GIT_AUTHOR_NAME"] = "Coeus tests"
+        self.environment["GIT_AUTHOR_EMAIL"] = "tests@localhost"
+        self.environment["GIT_COMMITTER_NAME"] = "Coeus tests"
+        self.environment["GIT_COMMITTER_EMAIL"] = "tests@localhost"
         self.git = shutil.which("git")
         self.assertIsNotNone(self.git, "hook tests require Git")
         self.bash = shutil.which("bash")
@@ -54,58 +86,139 @@ class LockHookTests(unittest.TestCase):
         self.run_command([self.git, "init", "-q"])
         for directory in (".githooks", "scripts", "src"):
             (self.root / directory).mkdir()
-        for hook in (*HOOKS, "lockfile.sh"):
+        for hook in HOOKS:
             destination = self.root / ".githooks" / hook
             shutil.copyfile(REPOSITORY / ".githooks" / hook, destination)
             destination.chmod(0o755)
         shutil.copyfile(REPOSITORY / "scripts/lockfile.py", self.root / "scripts/lockfile.py")
         self.run_command([self.git, "config", "core.hooksPath", ".githooks"])
+        # `pre-push` exports and checks a *committed* revision (never the
+        # bare working tree), so it needs a real HEAD to export from the
+        # first invocation onward. Seed one now, with the checker present,
+        # so every test below starts from a valid, checker-carrying history
+        # and only has to commit the state it specifically wants to vary.
+        self.run_command([self.git, "add", "-A"])
+        self.run_command([self.git, "commit", "-qm", "Seed hooks and checker"])
 
-    def run_command(self, command, *, environment=None, expected=0):
-        result = subprocess.run(
-            command, cwd=self.root, env=self.environment if environment is None else environment,
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=60, check=False,
-        )
+    def run_command(self, command, *, environment=None, expected=0, input_text=None):
+        env = self.environment if environment is None else environment
+        if input_text is None:
+            result = subprocess.run(
+                command, cwd=self.root, env=env,
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=60, check=False,
+            )
+        else:
+            # Bytes, not text: a text-mode pipe on Windows translates `\n` to
+            # `\r\n` while writing the child's stdin, which corrupts the
+            # push-line protocol `pre-push` parses byte-for-byte -- a `\r`
+            # riding along in `remote_sha` makes it compare unequal to the
+            # all-zeros sentinel, so the "new branch" case is never taken
+            # (same fix as atlas's scripts/tests/test_atlas_pre_push_gate.py
+            # GateFixture.run_hook).
+            raw = subprocess.run(
+                command, cwd=self.root, env=env,
+                input=input_text.encode("utf-8"),
+                capture_output=True, timeout=60, check=False,
+            )
+            result = subprocess.CompletedProcess(
+                raw.args, raw.returncode,
+                stdout=raw.stdout.decode("utf-8", errors="replace"),
+                stderr=raw.stderr.decode("utf-8", errors="replace"),
+            )
         if expected is not None:
             self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result
 
     def hook(self, name, **variables):
         environment = self.environment | variables
+        # `pre-push` alone reads a push range from stdin; feeding it to
+        # `pre-commit` too would be inert (the commit hook never reads stdin)
+        # but stays scoped to the hook that needs it for clarity.
+        input_text = PROBE_PUSH_LINE if name == "pre-push" else None
         return self.run_command(
             [self.bash, "--noprofile", "--norc", f".githooks/{name}"],
-            environment=environment, expected=None,
+            environment=environment, expected=None, input_text=input_text,
         )
 
     def test_missing_checker_rejects_both_hooks(self) -> None:
         (self.root / "scripts/lockfile.py").unlink()
-        for hook in HOOKS:
-            with self.subTest(hook=hook):
-                result = self.hook(hook)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(f"{hook}: scripts/lockfile.py not present", result.stderr)
+        result = self.hook("pre-commit")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pre-commit: scripts/lockfile.py not present", result.stderr)
 
-    def test_missing_shared_entry_rejects_both_hooks(self) -> None:
-        (self.root / ".githooks/lockfile.sh").unlink(missing_ok=True)
-        for hook in HOOKS:
-            with self.subTest(hook=hook):
-                result = self.hook(hook)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(hook, result.stderr)
-                self.assertIn("lockfile.sh", result.stderr)
+        # `pre-push` checks the checker in the *pushed* revision, not the
+        # working tree, so the removal must be committed before it is
+        # visible there. The removal commit would itself be refused by the
+        # now-installed pre-commit (which reads the same working-tree
+        # absence) -- `--no-verify` constructs the adversarial history this
+        # sub-test needs pre-push to catch, the same way a commit made
+        # before the hook existed, or with `--no-verify` for real, would.
+        self.run_command([self.git, "add", "-A"])
+        self.run_command([self.git, "commit", "--no-verify", "-qm", "Remove the checker"])
+        result = self.hook("pre-push")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pre-push: scripts/lockfile.py not present", result.stderr)
+
+    # test_missing_shared_entry_rejects_both_hooks is retired: the shared
+    # `.githooks/lockfile.sh` entry point it exercised is gone. The new hooks
+    # (adopted whole from the atlas stack, ATLAS-PREPUSH-HOOK-FORKED-ACROSS-
+    # MEMBERS-2026-09-09) are each self-contained -- no shared entry file for
+    # either to be missing.
+
+    def _path_without_python(self) -> str:
+        """A PATH carrying the hook's own commands and no python interpreter.
+
+        The hook resolves its repository with git and runs coreutils before
+        it searches for an interpreter, so an empty PATH (or one holding only
+        `git`) tests the wrong failure: it fails on a missing `seq`/`mktemp`
+        first, never reaching the interpreter search at all. Windows keeps
+        its interpreter in its own directory outside the coreutils Git
+        bundles, so filtering only python-holding entries out of the
+        inherited PATH is correct there; POSIX needs the named commands
+        linked into a fresh directory instead, since `/usr/bin` there also
+        holds a system python (mirrors atlas's
+        scripts/tests/test_atlas_pre_push_gate.py `_path_without_python`).
+        """
+        if os.name == "nt":
+            entries = []
+            for entry in os.environ.get("PATH", "").split(os.pathsep):
+                if not entry or entry in entries:
+                    continue
+                probe = Path(entry)
+                if any(
+                    (probe / name).exists()
+                    for name in ("python.exe", "python3.exe", "python", "python3")
+                ):
+                    continue
+                entries.append(entry)
+            return os.pathsep.join(entries)
+
+        tools = self.root / "interpreter-free-tools"
+        tools.mkdir(exist_ok=True)
+        for name in _HOOK_COMMANDS:
+            found = shutil.which(name)
+            if found is None:
+                continue
+            link = tools / name
+            if not link.exists():
+                link.symlink_to(found)
+        absent = [name for name in ("bash", "git") if not (tools / name).exists()]
+        self.assertFalse(
+            absent,
+            f"interpreter-free PATH is missing {absent}; the fixture would "
+            "test a missing shell rather than a missing interpreter",
+        )
+        return str(tools)
 
     def test_missing_interpreter_rejects_both_hooks(self) -> None:
-        # Absolute Bash starts the actual hook while PATH exposes only Git.
-        # No replacement checker or interpreter can manufacture success.
-        git_directory = Path(self.git).parent
-        if os.name != "nt":
-            git_directory = self.root / "git-only"
-            git_directory.mkdir()
-            (git_directory / "git").symlink_to(self.git)
+        # Absolute Bash starts the actual hook; PATH carries its coreutils
+        # but no python. No replacement checker or interpreter can
+        # manufacture success.
+        path = self._path_without_python()
         for hook in HOOKS:
             with self.subTest(hook=hook):
-                result = self.hook(hook, PYTHON="", PATH=str(git_directory))
+                result = self.hook(hook, PYTHON="", PATH=path)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(f"{hook}: no python interpreter found", result.stderr)
 
@@ -118,14 +231,27 @@ class LockHookTests(unittest.TestCase):
                 self.assertIn(interpreter, result.stderr)
 
     def test_skip_variable_cannot_hide_checker_failures(self) -> None:
-        # Both real checks reject a lock without the required first-party source.
+        # Both real checks reject a lock without the required first-party
+        # source. `pre-commit` checks the staged blob; `pre-push` exports and
+        # checks the committed revision, never the bare working tree, so the
+        # bad lock is checked staged first and then committed before the
+        # push side of this is exercised.
         (self.root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
         self.run_command([self.git, "add", "Cargo.lock"])
-        for hook in HOOKS:
-            with self.subTest(hook=hook):
-                result = self.hook(hook, SKIP_LOCKFILE_CHECK="1")
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("contains no first-party git sources", result.stderr)
+        result = self.hook("pre-commit", SKIP_LOCKFILE_CHECK="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("contains no first-party git sources", result.stderr)
+        self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", result.stderr)
+        # `pre-push` checks the committed revision; `--no-verify` gets the
+        # same bad lock into history without going through the pre-commit
+        # this fixture just proved refuses it (a commit made with
+        # `--no-verify` for real, or before this hook existed, is exactly
+        # what `pre-push` exists to still catch).
+        self.run_command([self.git, "commit", "--no-verify", "-qm", "Add a flattened lock"])
+        result = self.hook("pre-push", SKIP_LOCKFILE_CHECK="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("contains no first-party git sources", result.stderr)
+        self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", result.stderr)
 
     def test_real_lock_passes_and_stale_lock_retains_cargo_diagnostic(self) -> None:
         dependency = self.root / "dependency"
@@ -159,19 +285,34 @@ class LockHookTests(unittest.TestCase):
         )
         self.run_command([sys.executable, "scripts/lockfile.py", "--regenerate"])
         before = (self.root / "Cargo.lock").read_bytes()
-        self.run_command([self.git, "add", "Cargo.lock"])
-        for hook in HOOKS:
-            result = self.run_command([self.git, "hook", "run", hook])
-            if hook == "pre-push":
-                self.assertIn(
-                    "resolves under --locked; 1 first-party git sources",
-                    result.stdout + result.stderr,
-                )
+
+        # `pre-commit` checks the staged blob; `pre-push` exports and checks
+        # a committed revision, never the bare working tree. Stage the good
+        # manifest/lock pair, prove `pre-commit` passes it staged, then
+        # commit so `pre-push` has a real revision to export and check.
+        self.run_command([self.git, "add", "-A"])
+        self.run_command([self.git, "hook", "run", "pre-commit"])
+        self.run_command([
+            self.git, "commit", "-qm", "Add hook fixture consumer",
+        ])
+        result = self.hook("pre-push")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "resolves under --locked; 1 first-party git sources",
+            result.stdout + result.stderr,
+        )
         self.assertEqual((self.root / "Cargo.lock").read_bytes(), before)
+
+        # A manifest/lock mismatch must be part of the checked revision: the
+        # hook never reads the bare working tree, so the version bump is
+        # committed (without regenerating the lock) before the push side is
+        # exercised again.
         manifest.write_text(
             manifest.read_text(encoding="utf-8").replace('version = "0.1.0"', 'version = "0.2.0"'),
             encoding="utf-8",
         )
+        self.run_command([self.git, "add", "Cargo.toml"])
+        self.run_command([self.git, "commit", "-qm", "Bump the consumer version"])
         result = self.hook("pre-push")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("locked dependency hydration failed", result.stderr)
