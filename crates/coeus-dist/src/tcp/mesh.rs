@@ -1,5 +1,5 @@
 use super::deadlines::{self, MeshDeadlines};
-use super::error::TcpMeshError;
+use super::error::{StreamStep, TcpMeshError};
 use moirai::Moirai;
 use moirai_async::{AsyncReadExt, AsyncWriteExt, TcpListener, TcpStream};
 use std::io;
@@ -10,29 +10,29 @@ use std::sync::{Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// A peer stream and whether an earlier operation left it unusable.
-struct LinkStream {
-    stream: TcpStream,
-    /// Set by the first failed or timed-out send or receive: either may stop
-    /// mid-frame, so later bytes on the stream no longer align with frames.
-    poisoned: bool,
-}
-
 /// An established stream to one peer and the address it was reached at.
 struct PeerLink {
-    state: Mutex<LinkStream>,
+    /// `None` once the link is poisoned: the first failed or timed-out send
+    /// or receive may stop mid-frame, so later bytes on the stream no longer
+    /// align with frames. Dropping the stream at that point closes the socket
+    /// at once, so the peer's pending read ends with end of stream or a reset
+    /// instead of waiting out its own I/O deadline.
+    stream: Mutex<Option<TcpStream>>,
     address: SocketAddr,
 }
 
 impl PeerLink {
     fn new(stream: TcpStream, address: SocketAddr) -> Self {
         Self {
-            state: Mutex::new(LinkStream {
-                stream,
-                poisoned: false,
-            }),
+            stream: Mutex::new(Some(stream)),
             address,
         }
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Option<TcpStream>> {
+        self.stream.lock().expect(
+            "invariant: no prior holder of this peer's stream lock panicked while holding it",
+        )
     }
 }
 
@@ -272,22 +272,21 @@ impl TcpMesh {
                     address,
                     source,
                 })?;
+            let failure = |step| {
+                move |source| TcpMeshError::StreamSetup {
+                    rank,
+                    peer: Some(peer),
+                    address,
+                    step,
+                    source,
+                }
+            };
             stream
                 .set_nodelay(true)
-                .map_err(|source| TcpMeshError::NoDelay {
-                    rank,
-                    peer: Some(peer),
-                    address,
-                    source,
-                })?;
+                .map_err(failure(StreamStep::NoDelay))?;
             deadlines::within(expiry, stream.write_all(&rank_bytes))
                 .await
-                .map_err(|source| TcpMeshError::Handshake {
-                    rank,
-                    peer: Some(peer),
-                    address,
-                    source,
-                })?;
+                .map_err(failure(StreamStep::Handshake))?;
             links[peer] = Some(PeerLink::new(stream, address));
         }
         Ok(())
@@ -308,23 +307,23 @@ impl TcpMesh {
                     address: local,
                     source,
                 })?;
-            stream
-                .set_nodelay(true)
-                .map_err(|source| TcpMeshError::NoDelay {
+            // The accepted peer's rank arrives only in the handshake.
+            let failure = |step| {
+                move |source| TcpMeshError::StreamSetup {
                     rank,
                     peer: None,
                     address,
+                    step,
                     source,
-                })?;
+                }
+            };
+            stream
+                .set_nodelay(true)
+                .map_err(failure(StreamStep::NoDelay))?;
             let mut rank_bytes = [0u8; 8];
             deadlines::within(expiry, stream.read_exact(&mut rank_bytes))
                 .await
-                .map_err(|source| TcpMeshError::Handshake {
-                    rank,
-                    peer: None,
-                    address,
-                    source,
-                })?;
+                .map_err(failure(StreamStep::Handshake))?;
             let claimed = u64::from_le_bytes(rank_bytes);
             // Only a lower rank dials this rank, and each dials it once.
             let slot = usize::try_from(claimed)
@@ -378,10 +377,13 @@ impl TcpMesh {
     #[inline]
     pub fn send(&self, target: usize, bytes: &[u8]) -> Result<(), TcpMeshError> {
         let link = self.link_for_peer(target, "send");
-        let mut state = self.usable_link_state(target, link)?;
+        let mut slot = link.lock();
+        let Some(stream) = slot.as_mut() else {
+            return Err(self.poisoned(target, link));
+        };
         let outcome = self.runtime.block_on(moirai_async::timeout(
             self.io_deadline,
-            state.stream.write_all(bytes),
+            stream.write_all(bytes),
         ));
         let failure = match outcome {
             Ok(Ok(())) => return Ok(()),
@@ -398,7 +400,8 @@ impl TcpMesh {
                 deadline: self.io_deadline,
             },
         };
-        state.poisoned = true;
+        // Poison the link and close its socket.
+        *slot = None;
         Err(failure)
     }
 
@@ -417,10 +420,13 @@ impl TcpMesh {
     #[inline]
     pub fn recv(&self, source: usize, bytes: &mut [u8]) -> Result<(), TcpMeshError> {
         let link = self.link_for_peer(source, "recv");
-        let mut state = self.usable_link_state(source, link)?;
+        let mut slot = link.lock();
+        let Some(stream) = slot.as_mut() else {
+            return Err(self.poisoned(source, link));
+        };
         let outcome = self.runtime.block_on(moirai_async::timeout(
             self.io_deadline,
-            state.stream.read_exact(bytes),
+            stream.read_exact(bytes),
         ));
         let failure = match outcome {
             Ok(Ok(())) => return Ok(()),
@@ -437,27 +443,18 @@ impl TcpMesh {
                 deadline: self.io_deadline,
             },
         };
-        state.poisoned = true;
+        // Poison the link and close its socket.
+        *slot = None;
         Err(failure)
     }
 
-    /// Lock `link`, refusing it if an earlier operation poisoned it.
-    fn usable_link_state<'link>(
-        &self,
-        peer: usize,
-        link: &'link PeerLink,
-    ) -> Result<MutexGuard<'link, LinkStream>, TcpMeshError> {
-        let state = link.state.lock().expect(
-            "invariant: no prior holder of this peer's stream lock panicked while holding it",
-        );
-        if state.poisoned {
-            return Err(TcpMeshError::LinkPoisoned {
-                rank: self.rank,
-                peer,
-                address: link.address,
-            });
+    /// The error for an operation on `link` after it was poisoned.
+    fn poisoned(&self, peer: usize, link: &PeerLink) -> TcpMeshError {
+        TcpMeshError::LinkPoisoned {
+            rank: self.rank,
+            peer,
+            address: link.address,
         }
-        Ok(state)
     }
 
     /// Gracefully close every peer stream and stop the mesh's dedicated
@@ -479,13 +476,15 @@ impl TcpMesh {
         // rather than inside the `async` block below, so the `MutexGuard`
         // never crosses an await point.
         for link in self.links.iter().flatten() {
-            let mut state = link.state.lock().expect(
-                "invariant: no prior holder of this peer's stream lock panicked while holding it",
-            );
+            let mut slot = link.lock();
+            // A poisoned link's socket is already closed.
+            let Some(stream) = slot.as_mut() else {
+                continue;
+            };
             self.runtime.block_on(async {
                 // A peer that already half-closed its own side returns an
                 // error here; that is the expected steady state, not a fault.
-                let _ = state.stream.shutdown().await;
+                let _ = stream.shutdown().await;
             });
         }
         self.runtime.shutdown();

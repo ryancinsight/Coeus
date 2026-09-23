@@ -9,5 +9,5 @@ pub mod mesh;
 
 pub use collectives::TcpCommunicator;
 pub use deadlines::MeshDeadlines;
-pub use error::TcpMeshError;
+pub use error::{StreamStep, TcpMeshError};
 pub use mesh::TcpMesh;

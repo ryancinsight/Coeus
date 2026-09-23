@@ -2,6 +2,25 @@ use std::io;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+/// A per-stream setup step, named in [`TcpMeshError::StreamSetup`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum StreamStep {
+    /// Enabling `TCP_NODELAY` (disabling Nagle's algorithm).
+    NoDelay,
+    /// Sending or receiving the rank handshake.
+    Handshake,
+}
+
+impl std::fmt::Display for StreamStep {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::NoDelay => "enable TCP_NODELAY",
+            Self::Handshake => "exchange ranks",
+        })
+    }
+}
+
 /// Failure of a [`TcpMesh`](super::TcpMesh) operation.
 ///
 /// Every variant names the local `rank`. Socket variants carry the operating
@@ -71,9 +90,9 @@ pub enum TcpMeshError {
         #[source]
         source: io::Error,
     },
-    /// `TCP_NODELAY` could not be enabled on an established stream.
-    #[error("rank {rank} could not disable Nagle's algorithm on the stream to {address}")]
-    NoDelay {
+    /// A per-stream setup step failed on an established stream.
+    #[error("rank {rank} could not {step} with {address}")]
+    StreamSetup {
         /// Local rank.
         rank: usize,
         /// Peer rank: known for a dialled peer, `None` for an accepted
@@ -81,21 +100,9 @@ pub enum TcpMeshError {
         peer: Option<usize>,
         /// Peer address of the stream.
         address: SocketAddr,
-        /// Socket option failure.
-        #[source]
-        source: io::Error,
-    },
-    /// Sending or receiving the rank handshake failed.
-    #[error("rank {rank} could not exchange ranks with {address}")]
-    Handshake {
-        /// Local rank.
-        rank: usize,
-        /// Peer rank: known for a dialled peer, `None` for an accepted
-        /// stream, whose rank this handshake would have announced.
-        peer: Option<usize>,
-        /// Peer address of the stream.
-        address: SocketAddr,
-        /// Handshake I/O failure.
+        /// The step that failed.
+        step: StreamStep,
+        /// Socket option or handshake I/O failure.
         #[source]
         source: io::Error,
     },
