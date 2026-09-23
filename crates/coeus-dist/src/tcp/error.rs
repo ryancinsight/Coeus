@@ -7,8 +7,12 @@ use std::time::Duration;
 /// Every variant names the local `rank`. Socket variants carry the operating
 /// system's [`io::Error`] as their [`source`](std::error::Error::source);
 /// their `Display` adds only the mesh context, so a chain reporter prints the
-/// cause once. An operation that exceeds its deadline reports a source of
-/// kind [`io::ErrorKind::TimedOut`].
+/// cause once. A setup step that exceeds the setup deadline reports a source
+/// of kind [`io::ErrorKind::TimedOut`]; a send or receive that exceeds the
+/// I/O deadline is [`SendTimedOut`](Self::SendTimedOut) or
+/// [`RecvTimedOut`](Self::RecvTimedOut), which carry the elapsed `deadline`
+/// and no source. Any send or receive failure poisons that peer's link:
+/// every later operation on it returns [`LinkPoisoned`](Self::LinkPoisoned).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum TcpMeshError {
@@ -156,6 +160,17 @@ pub enum TcpMeshError {
         address: SocketAddr,
         /// The elapsed [`MeshDeadlines::io`](super::MeshDeadlines::io) bound.
         deadline: Duration,
+    },
+    /// An earlier send or receive on this link failed or timed out, so the
+    /// stream may hold a partial frame; the link is unusable.
+    #[error("rank {rank} link to peer {peer} at {address} is poisoned by an earlier failure")]
+    LinkPoisoned {
+        /// Local rank.
+        rank: usize,
+        /// Peer rank of the link.
+        peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
     },
 }
 

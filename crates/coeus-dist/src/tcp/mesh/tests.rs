@@ -21,10 +21,12 @@ fn two_ranks(deadlines: MeshDeadlines) -> (TcpMesh, TcpMesh, [SocketAddr; 2]) {
     let [(listener_0, runtime_0), (listener_1, runtime_1)] = endpoints;
     let (rank_0, rank_1) = thread::scope(|scope| {
         let rank_1 = scope.spawn(|| {
-            TcpMesh::from_listener(1, 2, &addresses, &listener_1, runtime_1, deadlines).unwrap()
+            TcpMesh::from_listener(1, 2, &addresses, &listener_1, runtime_1, deadlines, DIAL)
+                .unwrap()
         });
         let rank_0 =
-            TcpMesh::from_listener(0, 2, &addresses, &listener_0, runtime_0, deadlines).unwrap();
+            TcpMesh::from_listener(0, 2, &addresses, &listener_0, runtime_0, deadlines, DIAL)
+                .unwrap();
         (rank_0, rank_1.join().unwrap())
     });
     (rank_0, rank_1, addresses)
@@ -76,7 +78,7 @@ fn accept_one_raw_dialler(
     // address is never dialled.
     let addresses = [SocketAddr::from(([127, 0, 0, 1], 9)), listen_address];
     let deadlines = MeshDeadlines::DEFAULT.with_setup(Duration::from_secs(10));
-    let outcome = TcpMesh::from_listener(1, 2, &addresses, &listener, runtime, deadlines);
+    let outcome = TcpMesh::from_listener(1, 2, &addresses, &listener, runtime, deadlines, DIAL);
     (outcome, dialler.join().unwrap())
 }
 
@@ -192,25 +194,162 @@ fn send_to_a_closed_peer_fails_with_the_reset() {
     rank_0.shutdown();
 }
 
+/// Short I/O bound for timeout tests: long enough that loopback delivers
+/// any bytes already written, short enough to keep each test brief.
+const SHORT_IO: Duration = Duration::from_millis(200);
+
+/// Upper bound on how long a `SHORT_IO` timeout may take to report: 25 times
+/// the bound absorbs scheduler delay on a loaded runner (hosted CI runs this
+/// suite about 15 times slower than a developer host) while staying far
+/// below the 300 s default, so a timeout that ignored the configured bound
+/// cannot pass.
+const SHORT_IO_REPORT_BOUND: Duration = SHORT_IO.saturating_mul(25);
+
 #[test]
-fn recv_from_a_silent_peer_times_out_at_the_io_deadline() {
-    let deadline = Duration::from_millis(200);
-    let (mut rank_0, mut rank_1, addresses) = two_ranks(MeshDeadlines::DEFAULT.with_io(deadline));
+fn recv_from_a_silent_peer_times_out_at_the_configured_io_deadline() {
+    let (mut rank_0, mut rank_1, addresses) = two_ranks(MeshDeadlines::DEFAULT.with_io(SHORT_IO));
 
     let mut bytes = [0u8; 8];
-    match rank_0.recv(1, &mut bytes) {
+    let started = Instant::now();
+    let outcome = rank_0.recv(1, &mut bytes);
+    let elapsed = started.elapsed();
+    match outcome {
         Err(TcpMeshError::RecvTimedOut {
             rank,
             peer,
             address,
-            deadline: elapsed,
+            deadline,
         }) => {
             assert_eq!((rank, peer), (0, 1));
             assert_eq!(address, addresses[1]);
-            assert_eq!(elapsed, deadline);
+            assert_eq!(deadline, SHORT_IO);
         }
         other => panic!("expected RecvTimedOut, got {other:?}"),
     }
+    assert!(
+        elapsed < SHORT_IO_REPORT_BOUND,
+        "a {SHORT_IO:?} bound took {elapsed:?} to fire"
+    );
     rank_1.shutdown();
     rank_0.shutdown();
+}
+
+#[test]
+fn send_to_a_peer_that_never_reads_times_out_and_poisons_the_link() {
+    /// Bytes per send. Windows loopback grows its send backlog to accept a
+    /// single 256 MiB write, so the test keeps writing until the buffers of
+    /// a peer that never reads are full.
+    const CHUNK_BYTES: usize = 64 * 1024 * 1024;
+    /// Bounds the writes without timing: 4 GiB unread exceeds any loopback
+    /// buffering, so a send that never stalls fails the test.
+    const MAX_CHUNKS: usize = 64;
+    let (mut rank_0, mut rank_1, addresses) = two_ranks(MeshDeadlines::DEFAULT.with_io(SHORT_IO));
+
+    let chunk = vec![0u8; CHUNK_BYTES];
+    let first_failure = (0..MAX_CHUNKS)
+        .find_map(|_| rank_0.send(1, &chunk).err())
+        .unwrap_or_else(|| panic!("{MAX_CHUNKS} unread chunks were all accepted"));
+    match first_failure {
+        TcpMeshError::SendTimedOut {
+            rank,
+            peer,
+            address,
+            deadline,
+        } => {
+            assert_eq!((rank, peer), (0, 1));
+            assert_eq!(address, addresses[1]);
+            assert_eq!(deadline, SHORT_IO);
+        }
+        other => panic!("expected SendTimedOut, got {other:?}"),
+    }
+    match rank_0.send(1, &[1]) {
+        Err(TcpMeshError::LinkPoisoned {
+            rank,
+            peer,
+            address,
+        }) => {
+            assert_eq!((rank, peer), (0, 1));
+            assert_eq!(address, addresses[1]);
+        }
+        other => panic!("expected LinkPoisoned, got {other:?}"),
+    }
+    rank_1.shutdown();
+    rank_0.shutdown();
+}
+
+/// A receive that times out after half a frame poisons the link: the rest of
+/// that frame would otherwise be read as the start of the next one.
+#[test]
+fn recv_timed_out_mid_frame_poisons_the_link() {
+    let (mut rank_0, mut rank_1, addresses) = two_ranks(MeshDeadlines::DEFAULT.with_io(SHORT_IO));
+
+    rank_1.send(0, &[1, 2, 3, 4]).unwrap();
+    let mut frame = [0u8; 8];
+    assert!(matches!(
+        rank_0.recv(1, &mut frame),
+        Err(TcpMeshError::RecvTimedOut { peer: 1, .. })
+    ));
+    // The frame's remainder plus a whole next frame are now in flight; an
+    // unpoisoned link would return bytes 5..=12 as a frame.
+    rank_1.send(0, &[5, 6, 7, 8, 9, 10, 11, 12]).unwrap();
+    match rank_0.recv(1, &mut frame) {
+        Err(TcpMeshError::LinkPoisoned {
+            rank,
+            peer,
+            address,
+        }) => {
+            assert_eq!((rank, peer), (0, 1));
+            assert_eq!(address, addresses[1]);
+        }
+        other => panic!("expected LinkPoisoned, got {other:?} with frame {frame:?}"),
+    }
+    rank_1.shutdown();
+    rank_0.shutdown();
+}
+
+/// A dialled stream whose write half is already closed fails the rank
+/// handshake; the error names the rank that was being dialled.
+#[test]
+fn dial_side_handshake_failure_names_the_dialled_peer() {
+    fn dial_with_write_half_closed(
+        address: &SocketAddr,
+        left: Duration,
+    ) -> io::Result<std::net::TcpStream> {
+        let stream = std::net::TcpStream::connect_timeout(address, left)?;
+        stream.shutdown(std::net::Shutdown::Write)?;
+        Ok(stream)
+    }
+
+    let peer_listener = std::net::TcpListener::bind(LOOPBACK).unwrap();
+    let peer_address = peer_listener.local_addr().unwrap();
+    let acceptor = thread::spawn(move || peer_listener.accept().map(drop));
+
+    let runtime = TcpMesh::runtime(0).unwrap();
+    let listener = TcpMesh::bind(&runtime, 0, LOOPBACK).unwrap();
+    let addresses = [listener.local_addr().unwrap(), peer_address];
+    let outcome = TcpMesh::from_listener(
+        0,
+        2,
+        &addresses,
+        &listener,
+        runtime,
+        MeshDeadlines::DEFAULT.with_setup(Duration::from_secs(10)),
+        dial_with_write_half_closed,
+    );
+    acceptor.join().unwrap().unwrap();
+
+    match outcome {
+        Err(TcpMeshError::Handshake {
+            rank,
+            peer,
+            address,
+            source: _,
+        }) => {
+            assert_eq!(rank, 0);
+            assert_eq!(peer, Some(1));
+            assert_eq!(address, peer_address);
+        }
+        Err(other) => panic!("expected Handshake, got {other:?}"),
+        Ok(_) => panic!("a handshake over a closed write half must fail"),
+    }
 }

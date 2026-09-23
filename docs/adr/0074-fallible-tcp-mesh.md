@@ -31,6 +31,9 @@ loopback connect takes about 2 s on Windows regardless of any deadline.
   Socket variants carry the `io::Error` as `#[source]` without restating it.
   A peer's invalid rank announcement is `PeerRank { claimed, .. }`; a send or
   receive past the I/O deadline is `SendTimedOut`/`RecvTimedOut`.
+- Any failed or timed-out send or receive poisons that peer link: either can
+  stop mid-frame, and a later receive would then return misaligned bytes as a
+  frame. Every later operation on a poisoned link returns `LinkPoisoned`.
 - `MeshDeadlines` holds two bounds, applied in every build profile. The setup
   bound (default 45 s) covers a rank's whole setup. Each connection attempt is
   `std::net::TcpStream::connect_timeout` with the time left, so the bound holds
@@ -76,11 +79,16 @@ a connect to a closed loopback port under a 300 ms deadline (`Connect`,
 (`PeerRank`) and a handshake cut off after 3 of 8 bytes (`Handshake`,
 `UnexpectedEof`); receive from a shut-down peer (`Recv`, `UnexpectedEof`),
 send to a closed peer (`Send`, reset or abort), and receive from a silent
-peer under a 200 ms I/O bound (`RecvTimedOut`); retry a transient error until
+peer under a 200 ms I/O bound (`RecvTimedOut`, reported within 25 times the
+bound); send to a peer that never reads (`SendTimedOut`, then `LinkPoisoned`);
+receive after a timeout mid-frame (`LinkPoisoned`); fail the dial-side
+handshake over a closed write half (`Handshake`, `peer: Some(1)`); retry a transient error until
 the peer listens, stop at the deadline with the last error, and return a
 permanent error after one attempt. The attempt bound is checked against the
 backoff schedule the code uses. The connect test's closed port is freed
 before dialling, so another process could claim it in between; std has no
-bound-but-unlistened TCP socket to hold it. The blocking connect attempt
+bound-but-unlistened TCP socket to hold it. Dial-side `NoDelay` has no forcing test:
+`setsockopt(TCP_NODELAY)` on a connected socket has no deterministic failure
+to provoke. The blocking connect attempt
 occupies the mesh's dedicated setup runtime, which runs no other work; an
 async connect in Moirai would remove it.
