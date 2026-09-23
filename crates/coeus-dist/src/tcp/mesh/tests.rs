@@ -121,10 +121,11 @@ fn accept_reports_a_handshake_cut_short_by_the_peer() {
         stream.shutdown(std::net::Shutdown::Write).unwrap();
     });
     match outcome {
-        Err(TcpMeshError::Handshake {
+        Err(TcpMeshError::StreamSetup {
             rank,
             peer,
             address,
+            step: StreamStep::Handshake,
             source,
         }) => {
             assert_eq!(rank, 1);
@@ -132,7 +133,7 @@ fn accept_reports_a_handshake_cut_short_by_the_peer() {
             assert_eq!(address, dialler);
             assert_eq!(source.kind(), io::ErrorKind::UnexpectedEof);
         }
-        Err(other) => panic!("expected Handshake, got {other:?}"),
+        Err(other) => panic!("expected a Handshake StreamSetup, got {other:?}"),
         Ok(_) => panic!("a truncated rank handshake must fail"),
     }
 }
@@ -344,10 +345,11 @@ fn dial_side_handshake_failure_names_the_dialled_peer() {
     acceptor.join().unwrap().unwrap();
 
     match outcome {
-        Err(TcpMeshError::Handshake {
+        Err(TcpMeshError::StreamSetup {
             rank,
             peer,
             address,
+            step: StreamStep::Handshake,
             source,
         }) => {
             assert_eq!(rank, 0);
@@ -357,52 +359,55 @@ fn dial_side_handshake_failure_names_the_dialled_peer() {
             // Windows; std maps both to BrokenPipe.
             assert_eq!(source.kind(), io::ErrorKind::BrokenPipe);
         }
-        Err(other) => panic!("expected Handshake, got {other:?}"),
+        Err(other) => panic!("expected a Handshake StreamSetup, got {other:?}"),
         Ok(_) => panic!("a handshake over a closed write half must fail"),
     }
 }
 
 /// Poisoning closes the socket, so a peer blocked in `recv` on that link sees
-/// end of stream at once rather than after its own (here 300 s) I/O deadline.
+/// end of stream at once rather than timing out at its own I/O deadline.
 #[test]
 fn poisoning_a_link_ends_the_peer_s_pending_recv() {
-    /// Far below rank 1's 300 s I/O bound, far above loopback delivery.
-    const PEER_NOTICE_BOUND: Duration = Duration::from_secs(30);
+    /// Rank 1's I/O bound: long enough that loopback delivers the close first
+    /// on any runner, short enough that a missing close fails this test with
+    /// `RecvTimedOut` before the 60 s nextest termination.
+    const PEER_IO: Duration = Duration::from_secs(20);
     let (mut rank_0, mut rank_1, addresses) = two_ranks_with([
         MeshDeadlines::DEFAULT.with_io(SHORT_IO),
-        MeshDeadlines::DEFAULT,
+        MeshDeadlines::DEFAULT.with_io(PEER_IO),
     ]);
 
     rank_1.send(0, &[1, 2, 3, 4]).unwrap();
-    let (done, finished) = std::sync::mpsc::sync_channel(1);
-    thread::scope(|scope| {
+    let peer_outcome = thread::scope(|scope| {
         let rank_1 = &rank_1;
-        scope.spawn(move || {
+        let pending = scope.spawn(move || {
             let mut frame = [0u8; 8];
-            done.send(rank_1.recv(0, &mut frame)).unwrap();
+            rank_1.recv(0, &mut frame)
         });
         let mut frame = [0u8; 8];
         assert!(matches!(
             rank_0.recv(1, &mut frame),
             Err(TcpMeshError::RecvTimedOut { peer: 1, .. })
         ));
-        match finished.recv_timeout(PEER_NOTICE_BOUND) {
-            Ok(Err(TcpMeshError::Recv {
-                rank,
-                peer,
-                address,
-                source,
-            })) => {
-                assert_eq!((rank, peer), (1, 0));
-                // Rank 1 accepted rank 0, so the address is rank 0's
-                // outgoing loopback endpoint.
-                assert_eq!(address.ip(), addresses[0].ip());
-                // Rank 0 had read everything sent to it, so closing sends FIN.
-                assert_eq!(source.kind(), io::ErrorKind::UnexpectedEof);
-            }
-            other => panic!("expected rank 1's Recv to fail promptly, got {other:?}"),
-        }
+        pending.join().unwrap()
     });
+    // Without the close, rank 1 would report `RecvTimedOut` after its bound.
+    match peer_outcome {
+        Err(TcpMeshError::Recv {
+            rank,
+            peer,
+            address,
+            source,
+        }) => {
+            assert_eq!((rank, peer), (1, 0));
+            // Rank 1 accepted rank 0, so the address is rank 0's outgoing
+            // loopback endpoint.
+            assert_eq!(address.ip(), addresses[0].ip());
+            // Rank 0 had read everything sent to it, so closing sends FIN.
+            assert_eq!(source.kind(), io::ErrorKind::UnexpectedEof);
+        }
+        other => panic!("expected rank 1's Recv to end with the close, got {other:?}"),
+    }
     rank_1.shutdown();
     rank_0.shutdown();
 }

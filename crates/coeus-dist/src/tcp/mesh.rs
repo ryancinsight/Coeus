@@ -1,5 +1,5 @@
 use super::deadlines::{self, MeshDeadlines};
-use super::error::TcpMeshError;
+use super::error::{StreamStep, TcpMeshError};
 use moirai::Moirai;
 use moirai_async::{AsyncReadExt, AsyncWriteExt, TcpListener, TcpStream};
 use std::io;
@@ -33,40 +33,6 @@ impl PeerLink {
         self.stream.lock().expect(
             "invariant: no prior holder of this peer's stream lock panicked while holding it",
         )
-    }
-}
-
-/// A per-stream setup step whose failure names the stream's peer.
-#[derive(Clone, Copy)]
-enum StreamStep {
-    NoDelay,
-    Handshake,
-}
-
-impl StreamStep {
-    /// The error for this step failing on the stream to `address`, whose rank
-    /// is `peer` when known.
-    fn failure(
-        self,
-        rank: usize,
-        peer: Option<usize>,
-        address: SocketAddr,
-        source: io::Error,
-    ) -> TcpMeshError {
-        match self {
-            Self::NoDelay => TcpMeshError::NoDelay {
-                rank,
-                peer,
-                address,
-                source,
-            },
-            Self::Handshake => TcpMeshError::Handshake {
-                rank,
-                peer,
-                address,
-                source,
-            },
-        }
     }
 }
 
@@ -306,8 +272,14 @@ impl TcpMesh {
                     address,
                     source,
                 })?;
-            let failure = |step: StreamStep| {
-                move |source: io::Error| step.failure(rank, Some(peer), address, source)
+            let failure = |step| {
+                move |source| TcpMeshError::StreamSetup {
+                    rank,
+                    peer: Some(peer),
+                    address,
+                    step,
+                    source,
+                }
             };
             stream
                 .set_nodelay(true)
@@ -336,8 +308,14 @@ impl TcpMesh {
                     source,
                 })?;
             // The accepted peer's rank arrives only in the handshake.
-            let failure = |step: StreamStep| {
-                move |source: io::Error| step.failure(rank, None, address, source)
+            let failure = |step| {
+                move |source| TcpMeshError::StreamSetup {
+                    rank,
+                    peer: None,
+                    address,
+                    step,
+                    source,
+                }
             };
             stream
                 .set_nodelay(true)

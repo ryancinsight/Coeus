@@ -32,7 +32,10 @@ loopback connect takes about 2 s on Windows regardless of any deadline.
   `None` for an accepted stream before its handshake announces the rank.
   Socket variants carry the `io::Error` as `#[source]` without restating it.
   A peer's invalid rank announcement is `PeerRank { claimed, .. }`; a send or
-  receive past the I/O deadline is `SendTimedOut`/`RecvTimedOut`.
+  receive past the I/O deadline is `SendTimedOut`/`RecvTimedOut`. The
+  per-stream setup steps, `TCP_NODELAY` and the rank handshake, share one
+  `StreamSetup { step, .. }` variant, so each side builds its peer rank in a
+  single constructor.
 - Any failed or timed-out send or receive poisons that peer link: either can
   stop mid-frame, and a later receive would then return misaligned bytes as a
   frame. Every later operation on a poisoned link returns `LinkPoisoned`.
@@ -82,22 +85,23 @@ Integration tests force a bind of an address in use (`Bind`, `AddrInUse`),
 a connect to a closed loopback port under a 300 ms deadline (`Connect`,
 `ConnectionRefused` or `TimedOut` by platform), and an accept with no dialler
 (`Accept`, `TimedOut`). Unit tests reject a peer announcing rank 7 to rank 1
-(`PeerRank`) and a handshake cut off after 3 of 8 bytes (`Handshake`,
-`UnexpectedEof`); receive from a shut-down peer (`Recv`, `UnexpectedEof`),
-send to a closed peer (`Send`, reset or abort), and receive from a silent
-peer under a 200 ms I/O bound (`RecvTimedOut`, reported within 25 times the
-bound); send to a peer that never reads (`SendTimedOut`, then `LinkPoisoned`);
-receive after a timeout mid-frame (`LinkPoisoned`); fail the dial-side
-handshake over a closed write half (`Handshake`, `peer: Some(1)`,
-`BrokenPipe`), which also covers the `NoDelay` peer rank because both dial-side
-errors come from one constructor; end a peer's pending receive with
-`UnexpectedEof` when its link is poisoned; retry a transient error until the
+(`PeerRank`) and a handshake cut off after 3 of 8 bytes (`StreamSetup`,
+`Handshake`, `UnexpectedEof`); receive from a shut-down peer (`Recv`,
+`UnexpectedEof`), send to a closed peer (`Send`, reset or abort), and receive
+from a silent peer under a 200 ms I/O bound (`RecvTimedOut`, reported within
+25 times the bound); send to a peer that never reads (`SendTimedOut`, then
+`LinkPoisoned`); receive after a timeout mid-frame (`LinkPoisoned`); fail the
+dial-side handshake over a closed write half (`StreamSetup`, `Handshake`,
+`peer: Some(1)`, `BrokenPipe`), which also pins the `NoDelay` peer rank because
+both dial-side steps come from one constructor; end a peer's pending receive
+under a 20 s I/O bound with `Recv` and `UnexpectedEof`, not `RecvTimedOut`,
+when its link is poisoned; retry a transient error until the
 peer listens, stop at the deadline with the last error, and return a
 permanent error after one attempt. The attempt bound is checked against the
 backoff schedule the code uses. The connect test's closed port is freed
 before dialling, so another process could claim it in between; std has no
-bound-but-unlistened TCP socket to hold it. Dial-side `NoDelay` has no
-forcing test of its own: `setsockopt(TCP_NODELAY)` on a connected socket has
-no deterministic failure to provoke. The blocking connect attempt
+bound-but-unlistened TCP socket to hold it. The `NoDelay` step itself has no
+forcing test: `setsockopt(TCP_NODELAY)` on a connected socket has no
+deterministic failure to provoke. The blocking connect attempt
 occupies the mesh's dedicated setup runtime, which runs no other work; an
 async connect in Moirai would remove it.
