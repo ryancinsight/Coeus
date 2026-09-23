@@ -419,6 +419,7 @@ dependencies = [
  "moirai-async",
  "moirai-runtime",
  "smallvec",
+ "tracing",
 ]
 
 [[package]]

@@ -32,7 +32,22 @@
 <a id="coeus-tcpmesh-graceful-shutdown"></a>
 ## COEUS-TCPMESH-GRACEFUL-SHUTDOWN — TcpMesh drops its peer streams abruptly
 
-- Status: todo; integrator: unclaimed; priority: correctness; [patch].
+- Status: review; integrator: claude-opus-5.5; priority: correctness; [patch].
+- Takeover (2026-09-23): item was unclaimed; delivered on
+  `fix/coeus-tcpmesh-graceful-shutdown`. The nextest `[test-groups]` half of
+  the shape (`tcp-tests = { max-threads = 1 }` filtered to
+  `package(coeus-dist) & test(/^tcp::/)`) was already committed on `main` in
+  `.config/nextest.toml`; only `TcpMesh::shutdown`/`Drop` and the call-site
+  updates were missing. One correction from the shape below: `shutdown` lands
+  as a plain `fn shutdown(&mut self)`, not `async fn` — `TcpMesh::send`/`recv`
+  are already a sync facade over the mesh's own dedicated runtime
+  (`self.runtime.block_on(async { .. })`), and Moirai's `block_on`/`shutdown`
+  are themselves synchronous, so an async `shutdown` would need a second
+  runtime to drive it from sync test call sites for no benefit. Verified
+  against `moirai_async::TcpStream::shutdown` (calls the synchronous, non-
+  suspending `std` `TcpStream::shutdown(Shutdown::Write)` under an `async fn`
+  signature) and `Moirai::shutdown` (synchronously joins worker threads).
+  `coeus-frobenius-v2` retires once this merges.
 - Outcome: a dropped `TcpMesh` half-closes every peer stream and stops its
   runtime before it is gone, and the multi-rank TCP tests stop contending for
   loopback state, without a global thread cap or a sleep.

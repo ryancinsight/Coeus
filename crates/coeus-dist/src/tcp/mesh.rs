@@ -13,6 +13,11 @@ pub struct TcpMesh {
     // Field order is lifecycle order: sockets close before their reactor runtime.
     streams: Vec<Option<Mutex<TcpStream>>>,
     runtime: Moirai,
+    /// Set once [`Self::shutdown`] completes. `Drop` traces instead of
+    /// silently degrading when this is still `false`: a mesh dropped without
+    /// an explicit `shutdown()` call closes its streams and runtime through
+    /// their own default `Drop` impls, which is abrupt rather than graceful.
+    shutdown_complete: bool,
 }
 
 impl TcpMesh {
@@ -206,6 +211,7 @@ impl TcpMesh {
             size,
             streams,
             runtime,
+            shutdown_complete: false,
         }
     }
 
@@ -268,5 +274,95 @@ impl TcpMesh {
                     .expect("failed to receive bytes over TCP");
             }
         });
+    }
+
+    /// Gracefully close every peer stream and stop the mesh's dedicated
+    /// runtime.
+    ///
+    /// Half-closes (`FIN`) each established connection so an in-flight peer
+    /// receive completes rather than aborting: dropping a `TcpStream` with
+    /// unread kernel-buffered data sends `RST` instead of `FIN` on Windows,
+    /// which resets the peer's in-flight receive and fails sequential TCP
+    /// collective tests with connection resets and timeouts. Then stops the
+    /// runtime so its worker thread does not idle across rounds.
+    ///
+    /// Every owner -- production code and tests alike -- calls this before
+    /// the mesh goes out of scope. `Drop` is a synchronous last resort (see
+    /// its impl below) that never blocks or awaits, so the graceful teardown
+    /// lives here instead.
+    pub fn shutdown(&mut self) {
+        // Lock each stream in this synchronous scope (matching `send`/`recv`)
+        // rather than inside the `async` block below, so the `MutexGuard`
+        // never crosses an await point.
+        for slot in &self.streams {
+            let Some(stream_mutex) = slot else {
+                continue;
+            };
+            let mut stream = stream_mutex.lock().expect(
+                "invariant: no prior holder of this peer's stream lock panicked while holding it",
+            );
+            self.runtime.block_on(async {
+                // A peer that already half-closed its own side returns an
+                // error here; that is the expected steady state, not a fault.
+                let _ = stream.shutdown().await;
+            });
+        }
+        self.runtime.shutdown();
+        self.shutdown_complete = true;
+    }
+}
+
+impl Drop for TcpMesh {
+    fn drop(&mut self) {
+        // Synchronous last resort: performs no I/O and never blocks or
+        // awaits (a destructor must not block or await). `shutdown()` is the
+        // graceful teardown path and every owner calls it first, so reaching
+        // this branch means a caller skipped it -- traced, not silently
+        // degraded, so the abrupt close is visible rather than a silent
+        // downgrade in behavior.
+        if !self.shutdown_complete {
+            tracing::warn!(
+                rank = self.rank,
+                "TcpMesh dropped without calling shutdown() first; its streams \
+                 and runtime close abruptly instead of gracefully"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
+
+    use super::*;
+    use std::sync::Arc;
+
+    /// `shutdown()` documents that it stops the runtime, joining its worker
+    /// thread, before returning. Prove it: a task spawned on the mesh's own
+    /// runtime holds a marker `Arc` clone that only drops when the worker
+    /// thread that ran the task unwinds its stack. If `shutdown()` returned
+    /// before that join happened, the clone would still be live and the
+    /// strong count would read 2, not 1.
+    #[test]
+    fn shutdown_joins_the_runtime_worker_thread() {
+        let mut mesh = TcpMesh::create_loopback_cluster(NonZeroUsize::new(1).unwrap())
+            .into_iter()
+            .next()
+            .unwrap();
+
+        let marker = Arc::new(());
+        let marker_for_worker = Arc::clone(&marker);
+        mesh.runtime.spawn_fn(move || drop(marker_for_worker));
+
+        mesh.shutdown();
+
+        assert_eq!(
+            Arc::strong_count(&marker),
+            1,
+            "shutdown() must join the runtime's worker thread before returning"
+        );
     }
 }
