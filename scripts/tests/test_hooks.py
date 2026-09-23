@@ -55,6 +55,15 @@ class LockHookTests(unittest.TestCase):
         self.environment["PYTHON"] = Path(sys.executable).as_posix()
         self.environment["GIT_CONFIG_NOSYSTEM"] = "1"
         self.environment["GIT_CONFIG_GLOBAL"] = str(self.root / "gitconfig")
+        # The isolated global config above carries no identity, and CI
+        # runners (unlike a developer machine) have none in any wider scope
+        # either. The new hooks' interface needs real commits in this
+        # fixture's own repo (pre-push checks a committed revision, never
+        # the bare working tree), so every commit here needs one.
+        self.environment["GIT_AUTHOR_NAME"] = "Coeus tests"
+        self.environment["GIT_AUTHOR_EMAIL"] = "tests@localhost"
+        self.environment["GIT_COMMITTER_NAME"] = "Coeus tests"
+        self.environment["GIT_COMMITTER_EMAIL"] = "tests@localhost"
         self.git = shutil.which("git")
         self.assertIsNotNone(self.git, "hook tests require Git")
         self.bash = shutil.which("bash")
