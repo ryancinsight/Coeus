@@ -3,8 +3,10 @@
 Status: Accepted  \
 Date: 2026-09-23  \
 Change class: [major]  \
-Board item: COEUS-TCPMESH-FALLIBLE-SETUP (deleted by its delivering PR; successor
-[COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES](../backlog.md#coeus-communicator-fallible-collectives))
+Board item: COEUS-TCPMESH-FALLIBLE-SETUP (deleted by its delivering PR);
+successor [COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES][successor]
+
+[successor]: ../backlog.md#coeus-communicator-fallible-collectives
 
 ## Context
 
@@ -34,6 +36,10 @@ loopback connect takes about 2 s on Windows regardless of any deadline.
 - Any failed or timed-out send or receive poisons that peer link: either can
   stop mid-frame, and a later receive would then return misaligned bytes as a
   frame. Every later operation on a poisoned link returns `LinkPoisoned`.
+  Poisoning also closes the link's socket, so a peer blocked receiving on it
+  fails at once with end of stream or a reset instead of waiting out its own
+  I/O deadline or reading a truncated frame. The pinned Moirai stream exposes
+  only a write-half shutdown, so the close is the stream's drop.
 - `MeshDeadlines` holds two bounds, applied in every build profile. The setup
   bound (default 45 s) covers a rank's whole setup. Each connection attempt is
   `std::net::TcpStream::connect_timeout` with the time left, so the bound holds
@@ -41,11 +47,11 @@ loopback connect takes about 2 s on Windows regardless of any deadline.
   block) are retried, after 5 ms doubling to 500 ms; any other error ends setup
   at once. Attempts start at 0, 5, 15, 35, 75, 155, 315 and 635 ms, then every
   500 ms, only before the deadline, so a deadline `d` above 635 ms admits at
-  most `7 + ⌈(d − 635 ms) / 500 ms⌉` attempts per peer (96 at 45 s). Accept
-  and the rank handshake use the time left as their timeout. Expiry reports an
-  `io::ErrorKind::TimedOut` source, or the last transient error. The I/O bound
-  (default 300 s: one call moves a whole tensor, and 300 s carries 30 GB at
-  100 MB/s) limits each `send` and `recv` call.
+  most `7 + ⌈(d − 635 ms) / 500 ms⌉` attempts per peer (96 at 45 s).
+  Accept and the rank handshake use the time left as their timeout. Expiry
+  reports an `io::ErrorKind::TimedOut` source, or the last transient error.
+  The I/O bound (default 300 s: one call moves a whole tensor, and 300 s
+  carries 30 GB at 100 MB/s) limits each `send` and `recv` call.
 - Configuration errors (`size == 0`, `rank >= size`, address-count mismatch)
   and peer-index misuse in `send`/`recv` stay panics: they are caller bugs.
 - `TcpCommunicator` keeps an infallible constructor over an established mesh.
@@ -82,13 +88,16 @@ send to a closed peer (`Send`, reset or abort), and receive from a silent
 peer under a 200 ms I/O bound (`RecvTimedOut`, reported within 25 times the
 bound); send to a peer that never reads (`SendTimedOut`, then `LinkPoisoned`);
 receive after a timeout mid-frame (`LinkPoisoned`); fail the dial-side
-handshake over a closed write half (`Handshake`, `peer: Some(1)`); retry a transient error until
-the peer listens, stop at the deadline with the last error, and return a
+handshake over a closed write half (`Handshake`, `peer: Some(1)`,
+`BrokenPipe`), which also covers the `NoDelay` peer rank because both dial-side
+errors come from one constructor; end a peer's pending receive with
+`UnexpectedEof` when its link is poisoned; retry a transient error until the
+peer listens, stop at the deadline with the last error, and return a
 permanent error after one attempt. The attempt bound is checked against the
 backoff schedule the code uses. The connect test's closed port is freed
 before dialling, so another process could claim it in between; std has no
-bound-but-unlistened TCP socket to hold it. Dial-side `NoDelay` has no forcing test:
-`setsockopt(TCP_NODELAY)` on a connected socket has no deterministic failure
-to provoke. The blocking connect attempt
+bound-but-unlistened TCP socket to hold it. Dial-side `NoDelay` has no
+forcing test of its own: `setsockopt(TCP_NODELAY)` on a connected socket has
+no deterministic failure to provoke. The blocking connect attempt
 occupies the mesh's dedicated setup runtime, which runs no other work; an
 async connect in Moirai would remove it.

@@ -12,6 +12,11 @@ const LOOPBACK: SocketAddr =
 /// A two-rank loopback mesh plus each rank's listener address, which is the
 /// address rank 0 dials rank 1 at.
 fn two_ranks(deadlines: MeshDeadlines) -> (TcpMesh, TcpMesh, [SocketAddr; 2]) {
+    two_ranks_with([deadlines, deadlines])
+}
+
+/// [`two_ranks`] with separate deadlines per rank.
+fn two_ranks_with(deadlines: [MeshDeadlines; 2]) -> (TcpMesh, TcpMesh, [SocketAddr; 2]) {
     let endpoints = [0, 1].map(|rank| {
         let runtime = TcpMesh::runtime(rank).unwrap();
         let listener = TcpMesh::bind(&runtime, rank, LOOPBACK).unwrap();
@@ -21,11 +26,11 @@ fn two_ranks(deadlines: MeshDeadlines) -> (TcpMesh, TcpMesh, [SocketAddr; 2]) {
     let [(listener_0, runtime_0), (listener_1, runtime_1)] = endpoints;
     let (rank_0, rank_1) = thread::scope(|scope| {
         let rank_1 = scope.spawn(|| {
-            TcpMesh::from_listener(1, 2, &addresses, &listener_1, runtime_1, deadlines, DIAL)
+            TcpMesh::from_listener(1, 2, &addresses, &listener_1, runtime_1, deadlines[1], DIAL)
                 .unwrap()
         });
         let rank_0 =
-            TcpMesh::from_listener(0, 2, &addresses, &listener_0, runtime_0, deadlines, DIAL)
+            TcpMesh::from_listener(0, 2, &addresses, &listener_0, runtime_0, deadlines[0], DIAL)
                 .unwrap();
         (rank_0, rank_1.join().unwrap())
     });
@@ -343,13 +348,61 @@ fn dial_side_handshake_failure_names_the_dialled_peer() {
             rank,
             peer,
             address,
-            source: _,
+            source,
         }) => {
             assert_eq!(rank, 0);
             assert_eq!(peer, Some(1));
             assert_eq!(address, peer_address);
+            // Writing after a local write shutdown: EPIPE on Unix, WSAESHUTDOWN on
+            // Windows; std maps both to BrokenPipe.
+            assert_eq!(source.kind(), io::ErrorKind::BrokenPipe);
         }
         Err(other) => panic!("expected Handshake, got {other:?}"),
         Ok(_) => panic!("a handshake over a closed write half must fail"),
     }
+}
+
+/// Poisoning closes the socket, so a peer blocked in `recv` on that link sees
+/// end of stream at once rather than after its own (here 300 s) I/O deadline.
+#[test]
+fn poisoning_a_link_ends_the_peer_s_pending_recv() {
+    /// Far below rank 1's 300 s I/O bound, far above loopback delivery.
+    const PEER_NOTICE_BOUND: Duration = Duration::from_secs(30);
+    let (mut rank_0, mut rank_1, addresses) = two_ranks_with([
+        MeshDeadlines::DEFAULT.with_io(SHORT_IO),
+        MeshDeadlines::DEFAULT,
+    ]);
+
+    rank_1.send(0, &[1, 2, 3, 4]).unwrap();
+    let (done, finished) = std::sync::mpsc::sync_channel(1);
+    thread::scope(|scope| {
+        let rank_1 = &rank_1;
+        scope.spawn(move || {
+            let mut frame = [0u8; 8];
+            done.send(rank_1.recv(0, &mut frame)).unwrap();
+        });
+        let mut frame = [0u8; 8];
+        assert!(matches!(
+            rank_0.recv(1, &mut frame),
+            Err(TcpMeshError::RecvTimedOut { peer: 1, .. })
+        ));
+        match finished.recv_timeout(PEER_NOTICE_BOUND) {
+            Ok(Err(TcpMeshError::Recv {
+                rank,
+                peer,
+                address,
+                source,
+            })) => {
+                assert_eq!((rank, peer), (1, 0));
+                // Rank 1 accepted rank 0, so the address is rank 0's
+                // outgoing loopback endpoint.
+                assert_eq!(address.ip(), addresses[0].ip());
+                // Rank 0 had read everything sent to it, so closing sends FIN.
+                assert_eq!(source.kind(), io::ErrorKind::UnexpectedEof);
+            }
+            other => panic!("expected rank 1's Recv to fail promptly, got {other:?}"),
+        }
+    });
+    rank_1.shutdown();
+    rank_0.shutdown();
 }
