@@ -19,6 +19,7 @@ coeus-autograd = { workspace = true, default-features = false }
 smallvec = { workspace = true }
 moirai = { workspace = true }
 moirai-async = { workspace = true }
+tracing = { workspace = true }
 
 [lints]
 workspace = true
