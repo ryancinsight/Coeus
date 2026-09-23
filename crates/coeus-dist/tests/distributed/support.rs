@@ -1,6 +1,6 @@
 //! Shared concurrency and loopback-mesh helpers for distributed contracts.
 
-use coeus_dist::TcpMesh;
+use coeus_dist::{SetupDeadline, TcpMesh};
 use std::num::NonZeroUsize;
 use std::panic::{self, AssertUnwindSafe};
 use std::thread;
@@ -23,7 +23,8 @@ where
 pub(super) fn loopback_meshes(world_size: usize) -> Vec<TcpMesh> {
     let world_size =
         NonZeroUsize::new(world_size).expect("TCP test cluster requires a non-zero world size");
-    TcpMesh::create_loopback_cluster(world_size)
+    TcpMesh::create_loopback_cluster(world_size, SetupDeadline::default())
+        .expect("loopback TCP cluster setup")
 }
 
 pub(super) fn single_rank_tcp_mesh() -> TcpMesh {

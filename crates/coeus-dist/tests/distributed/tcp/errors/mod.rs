@@ -4,3 +4,5 @@
 mod collective;
 #[path = "mesh.rs"]
 mod mesh;
+#[path = "setup.rs"]
+mod setup;

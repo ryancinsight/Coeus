@@ -1,3 +1,4 @@
+use super::error::ErrorChain;
 use super::mesh::TcpMesh;
 use crate::communicator::Communicator;
 use crate::host_access::{
@@ -9,14 +10,39 @@ use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;
 
 /// A socket-based communicator for distributed training.
+///
+/// Construction is infallible: mesh setup failures surface as a
+/// [`TcpMeshError`](super::TcpMeshError) from [`TcpMesh::new`] or
+/// [`TcpMesh::create_loopback_cluster`] before a communicator exists.
+///
+/// # Panics
+///
+/// [`Communicator`] collectives have no error channel, so a peer I/O failure
+/// during a collective panics with the full error source chain.
 pub struct TcpCommunicator {
     mesh: TcpMesh,
 }
 
 impl TcpCommunicator {
-    /// Create a new TcpCommunicator wrapping a TcpMesh.
+    /// Create a new TcpCommunicator wrapping an established TcpMesh.
     pub fn new(mesh: TcpMesh) -> Self {
         Self { mesh }
+    }
+
+    /// Send to `peer`, panicking with the error chain because the
+    /// [`Communicator`] contract is infallible.
+    fn send(&self, peer: usize, bytes: &[u8]) {
+        if let Err(error) = self.mesh.send(peer, bytes) {
+            panic!("{}", ErrorChain(&error));
+        }
+    }
+
+    /// Receive from `peer`, panicking with the error chain because the
+    /// [`Communicator`] contract is infallible.
+    fn recv(&self, peer: usize, bytes: &mut [u8]) {
+        if let Err(error) = self.mesh.recv(peer, bytes) {
+            panic!("{}", ErrorChain(&error));
+        }
     }
 
     /// Gracefully close the underlying mesh's peer streams and stop its
@@ -54,7 +80,7 @@ impl TcpCommunicator {
     #[inline]
     fn recv_numel_from(&self, peer: usize) -> usize {
         let mut peer_numel_bytes = [0u8; 8];
-        self.mesh.recv(peer, &mut peer_numel_bytes);
+        self.recv(peer, &mut peer_numel_bytes);
         u64::from_le_bytes(peer_numel_bytes) as usize
     }
 
@@ -82,16 +108,16 @@ impl TcpCommunicator {
             let status = if mismatch.is_some() { [0u8] } else { [1u8] };
             for other in 0..size {
                 if other != root {
-                    self.mesh.send(other, &status);
+                    self.send(other, &status);
                 }
             }
             if let Some((other, peer_numel)) = mismatch {
                 Self::assert_numel(collective, other, peer_numel, numel);
             }
         } else {
-            self.mesh.send(root, &local_numel_bytes);
+            self.send(root, &local_numel_bytes);
             let mut status = [0u8; 1];
-            self.mesh.recv(root, &mut status);
+            self.recv(root, &mut status);
             match status[0] {
                 1 => {}
                 0 => panic!("{collective} numel handshake failed on rank {rank}"),
@@ -114,12 +140,12 @@ impl TcpCommunicator {
                 continue;
             }
             if rank < other {
-                self.mesh.send(other, &local_numel_bytes);
+                self.send(other, &local_numel_bytes);
                 let peer_numel = self.recv_numel_from(other);
                 Self::assert_numel(collective, other, peer_numel, numel);
             } else {
                 let peer_numel = self.recv_numel_from(other);
-                self.mesh.send(other, &local_numel_bytes);
+                self.send(other, &local_numel_bytes);
                 Self::assert_numel(collective, other, peer_numel, numel);
             }
         }
@@ -146,15 +172,15 @@ impl Communicator for TcpCommunicator {
         if rank == 0 {
             let mut byte = [0u8; 1];
             for other in 1..size {
-                self.mesh.recv(other, &mut byte);
+                self.recv(other, &mut byte);
             }
             for other in 1..size {
-                self.mesh.send(other, &[1]);
+                self.send(other, &[1]);
             }
         } else {
-            self.mesh.send(0, &[1]);
+            self.send(0, &[1]);
             let mut byte = [0u8; 1];
-            self.mesh.recv(0, &mut byte);
+            self.recv(0, &mut byte);
         }
     }
 
@@ -191,7 +217,7 @@ impl Communicator for TcpCommunicator {
             with_tensor_host_bytes(tensor, backend, |slice| {
                 for other in 0..size {
                     if other != root {
-                        self.mesh.send(other, slice);
+                        self.send(other, slice);
                     }
                 }
             });
@@ -200,7 +226,7 @@ impl Communicator for TcpCommunicator {
                 return;
             }
             recv_tensor_data(tensor, backend, |slice| {
-                self.mesh.recv(root, slice);
+                self.recv(root, slice);
             });
         }
     }
@@ -232,17 +258,17 @@ impl Communicator for TcpCommunicator {
                     continue;
                 }
                 if rank < other {
-                    self.mesh.send(other, send_raw_slice);
+                    self.send(other, send_raw_slice);
 
                     recv_tensor_data(out_tensor, backend, |slice| {
-                        self.mesh.recv(other, slice);
+                        self.recv(other, slice);
                     });
                 } else {
                     recv_tensor_data(out_tensor, backend, |slice| {
-                        self.mesh.recv(other, slice);
+                        self.recv(other, slice);
                     });
 
-                    self.mesh.send(other, send_raw_slice);
+                    self.send(other, send_raw_slice);
                 }
             }
         });
@@ -274,7 +300,7 @@ impl Communicator for TcpCommunicator {
             for other in 0..size {
                 if other != root {
                     recv_slice_data(&mut incoming, |slice| {
-                        self.mesh.recv(other, slice);
+                        self.recv(other, slice);
                     });
                     for i in 0..numel {
                         reduced[i] = Op::apply(reduced[i], incoming[i]);
@@ -284,7 +310,7 @@ impl Communicator for TcpCommunicator {
             copy_host_slice_to_tensor(&reduced, tensor, backend);
         } else {
             with_tensor_host_bytes(tensor, backend, |slice| {
-                self.mesh.send(root, slice);
+                self.send(root, slice);
             });
         }
     }
@@ -318,13 +344,13 @@ impl Communicator for TcpCommunicator {
             for (other, out_tensor) in output.iter_mut().enumerate().take(size) {
                 if other != root {
                     recv_tensor_data(out_tensor, backend, |slice| {
-                        self.mesh.recv(other, slice);
+                        self.recv(other, slice);
                     });
                 }
             }
         } else {
             with_tensor_host_bytes(tensor, backend, |slice| {
-                self.mesh.send(root, slice);
+                self.send(root, slice);
             });
         }
     }
@@ -358,13 +384,13 @@ impl Communicator for TcpCommunicator {
             for (other, in_tensor) in input.iter().enumerate().take(size) {
                 if other != root {
                     with_tensor_host_bytes(in_tensor, backend, |slice| {
-                        self.mesh.send(other, slice);
+                        self.send(other, slice);
                     });
                 }
             }
         } else {
             recv_tensor_data(tensor, backend, |slice| {
-                self.mesh.recv(root, slice);
+                self.recv(root, slice);
             });
         }
     }
