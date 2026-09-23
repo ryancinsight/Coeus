@@ -117,7 +117,7 @@ pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>)
     };
     let creator = if requires_grad {
         let node = ProdNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![input.clone()],
             input_saved: input.tensor.clone(),
             product_saved: out_tensor.clone(),

@@ -176,10 +176,9 @@ pub(crate) fn max_pool2d_backward<T: Scalar, B: Backend>(
                                     }
                                 }
 
-                                if max_val.is_some()
-                                    && max_h == hi
+                                if max_h == hi
                                     && max_w == wi
-                                    && my_val == max_val.unwrap()
+                                    && max_val.is_some_and(|m| my_val == m)
                                 {
                                     let go_idx = go_layout.physical_index(&[ni, ci, oh, ow]);
                                     let gval = unsafe { go_ptr.read(go_idx) };
@@ -413,11 +412,10 @@ pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
                                                 }
                                             }
 
-                                            if max_val.is_some()
-                                                && max_d == di
+                                            if max_d == di
                                                 && max_h == hi
                                                 && max_w == wi
-                                                && my_val == max_val.unwrap()
+                                                && max_val.is_some_and(|m| my_val == m)
                                             {
                                                 let go_idx =
                                                     go_layout.physical_index(&[ni, ci, od, oh, ow]);

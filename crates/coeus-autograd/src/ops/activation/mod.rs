@@ -95,7 +95,7 @@ pub fn unary_op<
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![a.clone()];
         let a_tensor = a.tensor.clone();
         let out_t = out_tensor.clone();

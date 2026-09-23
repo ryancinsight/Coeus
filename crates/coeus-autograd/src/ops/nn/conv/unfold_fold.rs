@@ -97,7 +97,7 @@ pub fn unfold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = if requires_grad {
         let node = Unfold1dNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![input.clone()],
             output_size: input.tensor.shape()[2],
             kernel_size,

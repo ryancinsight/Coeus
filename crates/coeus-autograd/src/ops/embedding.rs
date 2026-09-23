@@ -96,7 +96,7 @@ pub fn embedding_with_padding_idx<
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![weight.clone()];
         let indices_clone = indices.clone();
         let num_embeddings = weight.tensor.shape()[0];

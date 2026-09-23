@@ -4,6 +4,12 @@
 //! target replaces the previous flat target-per-file topology. Python parity
 //! scripts and the shared test lock module remain outside this Rust harness.
 
+#![expect(
+    clippy::unwrap_used,
+    clippy::print_stdout,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 #[path = "binding_ops/activations.rs"]
 mod activations;
 #[path = "binding_ops/autodiff.rs"]

@@ -4,6 +4,11 @@
 //! [`Tensor::from_slice_on`] creates a dense tensor from a host slice;
 //! [`coeus_ops::sum`] and [`coeus_ops::mean`] reduce over all elements.
 
+#![expect(
+    clippy::print_stdout,
+    reason = "example demonstrates output by printing results"
+)]
+
 extern crate coeus_core;
 extern crate coeus_ops;
 extern crate coeus_tensor;

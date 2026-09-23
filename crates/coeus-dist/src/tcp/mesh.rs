@@ -128,7 +128,8 @@ impl TcpMesh {
                     loop {
                         match TcpStream::connect(&other_addr).await {
                             Ok(s) => {
-                                s.set_nodelay(true).unwrap();
+                                s.set_nodelay(true)
+                                    .expect("invariant: TCP_NODELAY is settable on a freshly connected socket");
                                 let rank_bytes = (rank as u64).to_le_bytes();
                                 let mut s_mut = s;
                                 if s_mut.write_all(&rank_bytes).await.is_ok() {
@@ -177,7 +178,8 @@ impl TcpMesh {
                         .await
                         .expect("failed to accept connection")
                 };
-                s.set_nodelay(true).unwrap();
+                s.set_nodelay(true)
+                    .expect("invariant: TCP_NODELAY is settable on a freshly accepted socket");
                 let mut rank_bytes = [0u8; 8];
                 let mut s_mut = s;
                 if let Some(timeout) = Self::debug_timeout() {
@@ -240,7 +242,9 @@ impl TcpMesh {
     #[inline]
     pub fn send(&self, target: usize, bytes: &[u8]) {
         let stream_mutex = self.stream_for_peer(target, "send");
-        let mut stream = stream_mutex.lock().unwrap();
+        let mut stream = stream_mutex.lock().expect(
+            "invariant: no prior holder of this peer's stream lock panicked while holding it",
+        );
         self.runtime.block_on(async {
             if let Some(timeout) = Self::debug_timeout() {
                 moirai_async::timeout(timeout, stream.write_all(bytes))
@@ -260,7 +264,9 @@ impl TcpMesh {
     #[inline]
     pub fn recv(&self, source: usize, bytes: &mut [u8]) {
         let stream_mutex = self.stream_for_peer(source, "recv");
-        let mut stream = stream_mutex.lock().unwrap();
+        let mut stream = stream_mutex.lock().expect(
+            "invariant: no prior holder of this peer's stream lock panicked while holding it",
+        );
         self.runtime.block_on(async {
             if let Some(timeout) = Self::debug_timeout() {
                 moirai_async::timeout(timeout, stream.read_exact(bytes))

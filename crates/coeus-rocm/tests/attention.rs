@@ -9,6 +9,10 @@ use coeus_rocm::RocmProvider;
 
 type Backend = HephaestusBackend<RocmProvider>;
 
+#[expect(
+    clippy::print_stderr,
+    reason = "a skipped device probe reports why on stderr, where the test harness shows it"
+)]
 fn device() -> Option<Backend> {
     match hephaestus_rocm::RocmDevice::try_default() {
         Ok(_) => Some(Backend::new()),

@@ -131,7 +131,7 @@ impl LocalCommunicator {
 
     #[inline]
     fn clear_staging(&self) {
-        let mut bufs = self.shared.buffers.lock().unwrap();
+        let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
         for item in bufs.iter_mut() {
             *item = None;
         }
@@ -168,7 +168,7 @@ impl Communicator for LocalCommunicator {
 
         // 1. Publish local staging data
         {
-            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             bufs[self.rank] = Some(Box::new(host_data));
         }
 
@@ -178,7 +178,7 @@ impl Communicator for LocalCommunicator {
         // 3. Perform reduction once on rank 0 and publish it to slot 0.
         if self.rank == 0 {
             let staged = {
-                let bufs = self.shared.buffers.lock().unwrap();
+                let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "all_reduce")
             };
             let mut reduced = staged[0].clone();
@@ -188,7 +188,7 @@ impl Communicator for LocalCommunicator {
                 }
             }
 
-            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             bufs[0] = Some(Box::new(reduced));
         }
 
@@ -197,7 +197,7 @@ impl Communicator for LocalCommunicator {
 
         // 5. All ranks read reduced payload.
         let reduced = {
-            let bufs = self.shared.buffers.lock().unwrap();
+            let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             let reduced = Self::slot_vec_ref::<T>(&bufs[0], 0, "all_reduce");
             Self::assert_numel(reduced.len(), numel, 0, "all_reduce");
             reduced.clone()
@@ -235,7 +235,7 @@ impl Communicator for LocalCommunicator {
 
         if self.rank == root {
             let host_data = get_tensor_host_data(tensor, backend).into_owned();
-            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             bufs[root] = Some(Box::new(host_data));
         }
 
@@ -243,7 +243,7 @@ impl Communicator for LocalCommunicator {
 
         let mut broadcasted = Vec::new();
         if self.rank != root {
-            let bufs = self.shared.buffers.lock().unwrap();
+            let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             let root_data = Self::slot_vec_ref::<T>(&bufs[root], root, "broadcast");
             Self::assert_numel(root_data.len(), numel, root, "broadcast");
             broadcasted = root_data.clone();
@@ -289,14 +289,14 @@ impl Communicator for LocalCommunicator {
         let host_data = get_tensor_host_data(tensor, backend).into_owned();
 
         {
-            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             bufs[self.rank] = Some(Box::new(host_data));
         }
 
         self.barrier();
 
         let staged = {
-            let bufs = self.shared.buffers.lock().unwrap();
+            let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             Self::snapshot_payloads::<T>(&bufs, self.size, numel, "all_gather")
         };
         for r in 0..self.size {
@@ -331,7 +331,7 @@ impl Communicator for LocalCommunicator {
 
         // 1. Publish local staging data
         {
-            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             bufs[self.rank] = Some(Box::new(host_data));
         }
 
@@ -342,7 +342,7 @@ impl Communicator for LocalCommunicator {
         let mut reduced = Vec::new();
         if self.rank == root {
             let staged = {
-                let bufs = self.shared.buffers.lock().unwrap();
+                let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "reduce")
             };
             reduced = staged[0].clone();
@@ -404,7 +404,7 @@ impl Communicator for LocalCommunicator {
         let host_data = get_tensor_host_data(tensor, backend).into_owned();
 
         {
-            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             bufs[self.rank] = Some(Box::new(host_data));
         }
 
@@ -412,7 +412,7 @@ impl Communicator for LocalCommunicator {
 
         if self.rank == root {
             let staged = {
-                let bufs = self.shared.buffers.lock().unwrap();
+                let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "gather")
             };
             for r in 0..self.size {
@@ -468,7 +468,7 @@ impl Communicator for LocalCommunicator {
                 .map(|(_, in_tensor)| get_tensor_host_data(in_tensor, backend).into_owned())
                 .collect::<Vec<Vec<T>>>();
 
-            let mut bufs = self.shared.buffers.lock().unwrap();
+            let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             for (r, host_data) in staged_inputs.into_iter().enumerate() {
                 bufs[r] = Some(Box::new(host_data));
             }
@@ -478,7 +478,7 @@ impl Communicator for LocalCommunicator {
 
         let scattered;
         {
-            let bufs = self.shared.buffers.lock().unwrap();
+            let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             let rank_data = Self::slot_vec_ref::<T>(&bufs[self.rank], self.rank, "scatter");
             Self::assert_numel(rank_data.len(), numel, self.rank, "scatter");
             scattered = rank_data.clone();

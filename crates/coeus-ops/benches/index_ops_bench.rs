@@ -31,6 +31,11 @@
 //! Run one kernel:
 //!   `cargo bench -p coeus-ops --bench index_ops_bench -- gather`
 
+#![expect(
+    clippy::print_stderr,
+    reason = "bench binary reports kernel timings directly, outside criterion"
+)]
+
 use std::time::{Duration, Instant};
 
 use criterion::{black_box, Criterion};

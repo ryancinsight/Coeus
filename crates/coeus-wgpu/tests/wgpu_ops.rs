@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 #[path = "wgpu_ops/backend_writes.rs"]
 mod backend_writes;
 

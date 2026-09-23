@@ -115,7 +115,7 @@ pub fn binary_op<
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![a.clone(), b.clone()];
         let a_shape: Shape = a.tensor.shape_cloned();
         let b_shape: Shape = b.tensor.shape_cloned();
@@ -236,7 +236,7 @@ pub fn reduction_op<
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![a.clone()];
         let a_shape: Shape = a.tensor.shape_cloned();
         let scaler_tensor = Op::scaler(&a.tensor, param, &backend);

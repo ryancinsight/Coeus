@@ -32,8 +32,12 @@ where
     let half = dim_size / 2;
     let mut parts = crate::shape::split(input, half, dim);
     assert_eq!(parts.len(), 2);
-    let b_part = parts.pop().unwrap();
-    let a_part = parts.pop().unwrap();
+    let b_part = parts
+        .pop()
+        .expect("invariant: split into 2 parts asserted above, second part present");
+    let a_part = parts
+        .pop()
+        .expect("invariant: split into 2 parts asserted above, first part present");
     let gate = elementwise_unary(&b_part, backend, UnaryOp::Sigmoid)?;
     Ok(crate::binary::mul(&a_part, &gate, backend))
 }

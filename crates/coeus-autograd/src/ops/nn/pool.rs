@@ -227,7 +227,7 @@ fn max_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![input.clone()];
         let inp_clone = input.tensor.clone();
 
@@ -380,7 +380,7 @@ fn avg_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![input.clone()];
         let inp_shape = input.tensor.shape_cloned();
 

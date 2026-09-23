@@ -12,6 +12,11 @@
 //!
 //! Run with:  `cargo run -p coeus-optim --example linear_regression`
 
+#![expect(
+    clippy::print_stdout,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 use coeus_autograd::{add, matmul, mean, mul, sub, Parameter, Var};
 use coeus_core::SequentialBackend;
 use coeus_optim::{Optimizer, SGD};

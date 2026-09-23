@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 use coeus_autograd::Var;
 use coeus_core::{Complex, MoiraiBackend};
 use coeus_fft::{fft_1d, fft_1d_var, fft_energy, ifft_1d};

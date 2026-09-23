@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 // On-device (CUDA) vs CPU (SequentialBackend) baselines for matmul and
 // transposed convolution — the CUDA counterpart to coeus-wgpu's ops_bench.
 //

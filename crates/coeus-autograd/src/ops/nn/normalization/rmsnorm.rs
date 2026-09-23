@@ -99,7 +99,7 @@ pub fn rmsnorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![input.clone(), weight.clone()];
         let d = weight.tensor.shape()[0];
         let w_reshaped_captured = weight.tensor.reshape([1, d]);

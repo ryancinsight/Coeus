@@ -107,6 +107,10 @@ pub fn flatten<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 
 #[cfg(test)]
 mod flatten_tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
     use super::*;
     use coeus_core::MoiraiBackend;
 

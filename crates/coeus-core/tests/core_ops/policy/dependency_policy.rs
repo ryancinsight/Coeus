@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test assertions surface failures immediately by design"
+)]
+
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};

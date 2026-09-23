@@ -4,6 +4,11 @@
 //! Cargo integration target so the package has one canonical test binary and
 //! one ownership boundary.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 #[path = "nn/mod.rs"]
 mod nn;
 

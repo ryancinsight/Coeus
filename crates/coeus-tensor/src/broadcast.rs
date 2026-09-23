@@ -18,6 +18,10 @@ pub fn broadcast_shapes(a: &[usize], b: &[usize]) -> Option<Shape> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
     use super::*;
 
     #[test]

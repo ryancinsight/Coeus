@@ -87,7 +87,11 @@ pub(crate) fn require_signed_coordinates(
             operation,
             reason: "signed-coordinate arithmetic overflow",
         })?;
-    if maximum <= isize::MAX as usize {
+    // `isize::MAX` is always non-negative and representable in `usize` on
+    // every supported target (both share the pointer width), so
+    // `unsigned_abs` is an infallible, sign-loss-free widening rather than a
+    // truncating/sign-losing `as` cast.
+    if maximum <= isize::MAX.unsigned_abs() {
         Ok(())
     } else {
         Err(BackendError::Storage {

@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 use coeus_autograd::{Parameter, Var};
 use coeus_core::SequentialBackend;
 use coeus_optim::{clip_grad_norm, Adam, AdamW, Optimizer, RMSProp, SGD};

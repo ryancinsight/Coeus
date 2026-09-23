@@ -11,6 +11,12 @@
 //!
 //! Run with:  `cargo run -p coeus-optim --example mlp_classifier`
 
+#![expect(
+    clippy::unwrap_used,
+    clippy::print_stdout,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 use coeus_autograd::{add, log_softmax, matmul, nll_loss, relu, Parameter, Var};
 use coeus_core::SequentialBackend;
 use coeus_optim::{Adam, Optimizer};

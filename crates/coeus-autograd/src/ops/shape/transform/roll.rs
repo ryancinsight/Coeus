@@ -80,7 +80,7 @@ where
     };
     let creator = if requires_grad {
         let node = RollNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![input.clone()],
             shifts: shifts.to_vec(),
             dims: dims.to_vec(),
