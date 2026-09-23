@@ -3,6 +3,12 @@
 //! The leaf modules retain their original property and value-semantic tests;
 //! one Cargo target replaces the previous flat target-per-file topology.
 
+#![expect(
+    clippy::unwrap_used,
+    clippy::print_stdout,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 #[path = "tensor_ops/backend.rs"]
 mod backend;
 #[path = "tensor_ops/checkpoint.rs"]

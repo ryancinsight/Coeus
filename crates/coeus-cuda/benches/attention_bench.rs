@@ -1,3 +1,8 @@
+#![expect(
+    clippy::unwrap_used,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 // On-device (CUDA) vs CPU (SequentialBackend) scaled dot-product attention —
 // the CUDA counterpart to coeus-wgpu's attention_bench, completing the
 // cross-backend attention profiling matrix.

@@ -10,6 +10,11 @@
 //! output is therefore observational rather than a fixed speedup gate for the
 //! dynamic-graph workloads; `same_graph_topology_plan` measures plan reuse.
 
+#![expect(
+    clippy::print_stdout,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 #[cfg(test)]
 mod benches {
     use coeus_autograd::backward_cache::compute_graph_structure_fingerprint;

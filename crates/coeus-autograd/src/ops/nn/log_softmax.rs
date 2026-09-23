@@ -113,7 +113,7 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let node = LogSoftmaxNode {
             output_grad,
             inputs: vec![input.clone()],

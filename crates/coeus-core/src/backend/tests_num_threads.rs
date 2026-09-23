@@ -6,6 +6,11 @@
 
 #[cfg(test)]
 mod tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
+
     use crate::backend::{ComputeBackend, MoiraiBackend, SequentialBackend};
     use std::collections::HashSet;
 

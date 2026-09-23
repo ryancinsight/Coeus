@@ -443,6 +443,10 @@ fn ensure_limit(label: &str, limit: usize, actual: usize) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
     use super::*;
 
     #[test]

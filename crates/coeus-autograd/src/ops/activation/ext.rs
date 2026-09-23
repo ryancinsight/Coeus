@@ -112,7 +112,7 @@ pub fn hardtanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = if requires_grad {
         let node = HardtanhNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             bits,
@@ -269,7 +269,7 @@ pub fn hardshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = if requires_grad {
         let node = HardshrinkNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             bits,
@@ -354,7 +354,7 @@ pub fn softshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = if requires_grad {
         let node = SoftshrinkNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             bits,
@@ -476,7 +476,7 @@ pub fn threshold<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = if requires_grad {
         let node = ThresholdNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             bits,
@@ -561,7 +561,7 @@ pub fn celu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = if requires_grad {
         let node = CeluNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![a.clone()],
             input_tensor: a.tensor.clone(),
             bits,

@@ -275,10 +275,9 @@ pub fn clip_grad_norm_(
         let scale = max_norm / (global_norm + 1e-6);
         for p in &parameters {
             let p_ref = p.bind(py).borrow();
-            if p_ref.inner.grad.is_none() {
+            let Some(grad_buf) = p_ref.inner.grad.as_ref() else {
                 continue;
-            }
-            let grad_buf = p_ref.inner.grad.as_ref().unwrap();
+            };
             let grad_tensor = grad_buf.write();
             let backend = MoiraiBackend::new();
             // Apply scale in-place via host round-trip.
@@ -310,10 +309,9 @@ pub fn clip_grad_value_(
     }
     for p in &parameters {
         let p_ref = p.bind(py).borrow();
-        if p_ref.inner.grad.is_none() {
+        let Some(grad_buf) = p_ref.inner.grad.as_ref() else {
             continue;
-        }
-        let grad_buf = p_ref.inner.grad.as_ref().unwrap();
+        };
         let grad_tensor = grad_buf.write();
         let backend = MoiraiBackend::new();
         // Clamp in-place via copy-to-host + clamp + copy-back.

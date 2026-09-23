@@ -234,7 +234,7 @@ fn batchnorm_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM
     };
 
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let inputs = vec![input.clone(), weight.clone(), bias.clone()];
         let w_reshaped_captured = weight.tensor.reshape([1, args.c]);
 

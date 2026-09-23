@@ -117,6 +117,16 @@ opt-level = 1
 # ATLAS-PATH-DEP-AUDIT-2 round-4 closure
 
 [workspace.lints.clippy]
+# Restriction-group lints denied outright: none of pedantic's allowances
+# cover these, so they need an explicit line. A bare `unwrap()` never ships
+# in production code (tests use a scoped `#[expect]` at the module/file
+# boundary instead of a per-call annotation); output belongs to `tracing`,
+# never stdout/stderr; `dbg!` never ships.
+unwrap_used = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"
+
 # The pedantic floor, denied at the root so all sixteen members inherit one
 # table rather than sixteen drifting copies.
 #

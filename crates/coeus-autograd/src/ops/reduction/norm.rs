@@ -76,7 +76,7 @@ pub fn norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
     });
 
     let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         Arc::new(NormNode {
             output_grad,
             inputs: vec![a.clone()],
@@ -181,7 +181,7 @@ pub fn norm_p<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<
     });
 
     let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         Arc::new(NormPNode {
             output_grad,
             inputs: vec![a.clone()],
@@ -289,7 +289,7 @@ pub fn norm_p_axis<
     });
 
     let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         Arc::new(NormPAxisNode {
             output_grad,
             inputs: vec![a.clone()],

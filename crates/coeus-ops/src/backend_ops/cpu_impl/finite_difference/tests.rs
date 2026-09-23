@@ -5,6 +5,11 @@
 //! result (bitwise, since the seam is supposed to be a borrow and not a
 //! recomputation) and the adjoint identity the FDTD leapfrog rests on.
 
+#![expect(
+    clippy::unwrap_used,
+    reason = "test assertions surface failures immediately by design"
+)]
+
 use super::*;
 use crate::backend_ops::traits::{FiniteDifference3DOps, StaggeredPairOps};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, Layout, SequentialBackend};

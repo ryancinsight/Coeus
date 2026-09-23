@@ -102,7 +102,7 @@ pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     });
 
     let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         Arc::new(MaxAxisNode {
             output_grad,
             inputs: vec![a.clone()],
@@ -195,7 +195,7 @@ pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     });
 
     let creator = requires_grad.then(|| {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         Arc::new(MinAxisNode {
             output_grad,
             inputs: vec![a.clone()],

@@ -5,6 +5,11 @@
 //! 2. Cache correctly tracks hits and misses
 //! 3. Gradients remain accurate with caching enabled
 
+#![expect(
+    clippy::print_stdout,
+    reason = "test/bench/example code asserts and reports by design"
+)]
+
 #[cfg(test)]
 mod cache_integration {
     use coeus_autograd::{add, get_backward_cache, mul, reset_backward_cache_stats, sub, sum, Var};

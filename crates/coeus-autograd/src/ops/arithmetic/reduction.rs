@@ -27,8 +27,12 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Tensor<T, B> {
-        coeus_ops::sum_axis(a, param.unwrap(), backend)
-            .expect("invariant: sum axis is validated by the autograd caller")
+        coeus_ops::sum_axis(
+            a,
+            param.expect("invariant: SumAxisOp::forward always receives Some(axis)"),
+            backend,
+        )
+        .expect("invariant: sum axis is validated by the autograd caller")
     }
 
     #[inline(always)]
@@ -63,13 +67,18 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Tensor<T, B> {
-        coeus_ops::mean_axis(a, param.unwrap(), backend)
-            .expect("invariant: mean axis is validated by the autograd caller")
+        coeus_ops::mean_axis(
+            a,
+            param.expect("invariant: MeanAxisOp::forward always receives Some(axis)"),
+            backend,
+        )
+        .expect("invariant: mean axis is validated by the autograd caller")
     }
 
     #[inline(always)]
     fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>> {
-        let axis_len = a.shape()[param.unwrap()] as f64;
+        let axis = param.expect("invariant: MeanAxisOp::scaler always receives Some(axis)");
+        let axis_len = a.shape()[axis] as f64;
         Some(Tensor::full_on([1], T::from_f64(1.0 / axis_len), backend))
     }
 }
@@ -180,6 +189,10 @@ where
 
 #[cfg(test)]
 mod nan_reduction_tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
     use super::*;
     use coeus_core::SequentialBackend;
     use coeus_tensor::Tensor;

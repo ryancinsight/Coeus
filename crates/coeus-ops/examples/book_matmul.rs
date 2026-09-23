@@ -5,6 +5,11 @@
 //! from [`SequentialBackend`] to [`MoiraiBackend`] or a GPU backend changes
 //! the execution policy without changing the call site.
 
+#![expect(
+    clippy::print_stdout,
+    reason = "example demonstrates output by printing results"
+)]
+
 extern crate coeus_core;
 extern crate coeus_ops;
 extern crate coeus_tensor;

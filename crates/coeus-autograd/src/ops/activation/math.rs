@@ -428,7 +428,7 @@ where
         None
     };
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let node = PowNode {
             output_grad,
             inputs: vec![a.clone()],
@@ -571,7 +571,7 @@ pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
     let creator = if requires_grad {
-        let output_grad = grad.as_ref().unwrap().clone();
+        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let node = ClampNode {
             output_grad,
             inputs: vec![a.clone()],

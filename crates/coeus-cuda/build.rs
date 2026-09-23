@@ -1,6 +1,10 @@
 use std::env;
 
 fn main() {
+    // Cargo's build-script protocol is stdout: directives are lines on
+    // stdout, not application output. Cargo's `[lints]` table does not
+    // apply to the build-script compilation unit, so `clippy::print_stdout`
+    // never reaches these calls; no exemption attribute is needed.
     println!("cargo:rerun-if-changed=build.rs");
 
     let uses_msvc = env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|value| value == "msvc");

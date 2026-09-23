@@ -122,7 +122,7 @@ where
     };
     let creator = if requires_grad {
         let node = TopkNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![input.clone()],
             topk_indices: top_indices.clone(),
             dim,
@@ -144,6 +144,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
     use super::*;
     use coeus_core::MoiraiBackend;
     use coeus_tensor::Tensor;

@@ -97,7 +97,7 @@ where
     };
     let creator = if requires_grad {
         let node = StackNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: inputs.iter().map(|v| (*v).clone()).collect(),
             dim,
         };

@@ -74,7 +74,7 @@ where
     };
     let creator = if requires_grad {
         let node = DiagNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![v.clone()],
             k,
         };
@@ -176,7 +176,7 @@ where
     };
     let creator = if requires_grad {
         let node = DiagonalNode {
-            output_grad: grad.as_ref().unwrap().clone(),
+            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
             inputs: vec![m.clone()],
             k,
             input_shape: m.tensor.shape().to_vec(),
