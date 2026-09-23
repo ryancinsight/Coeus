@@ -184,14 +184,34 @@ fn test_cuda_parity_conv_transpose1d_backward() {
 
     assert_parity_tol(
         "conv_transpose1d_backward_input",
-        input_cpu.grad().unwrap().as_slice(),
-        to_cpu(&input_gpu.grad().unwrap(), &c, &s).as_slice(),
+        input_cpu
+            .grad()
+            .expect("invariant: backward populated this requires-grad leaf")
+            .as_slice(),
+        to_cpu(
+            &input_gpu
+                .grad()
+                .expect("invariant: backward populated this requires-grad leaf"),
+            &c,
+            &s,
+        )
+        .as_slice(),
         CUDA_ACC_TOL,
     );
     assert_parity_tol(
         "conv_transpose1d_backward_weight",
-        weight_cpu.grad().unwrap().as_slice(),
-        to_cpu(&weight_gpu.grad().unwrap(), &c, &s).as_slice(),
+        weight_cpu
+            .grad()
+            .expect("invariant: backward populated this requires-grad leaf")
+            .as_slice(),
+        to_cpu(
+            &weight_gpu
+                .grad()
+                .expect("invariant: backward populated this requires-grad leaf"),
+            &c,
+            &s,
+        )
+        .as_slice(),
         CUDA_ACC_TOL,
     );
 }
@@ -249,14 +269,34 @@ fn test_cuda_parity_conv_transpose2d_backward() {
 
     assert_parity_tol(
         "conv_transpose2d_backward_input",
-        input_cpu.grad().unwrap().as_slice(),
-        to_cpu(&input_gpu.grad().unwrap(), &c, &s).as_slice(),
+        input_cpu
+            .grad()
+            .expect("invariant: backward populated this requires-grad leaf")
+            .as_slice(),
+        to_cpu(
+            &input_gpu
+                .grad()
+                .expect("invariant: backward populated this requires-grad leaf"),
+            &c,
+            &s,
+        )
+        .as_slice(),
         CUDA_ACC_TOL,
     );
     assert_parity_tol(
         "conv_transpose2d_backward_weight",
-        weight_cpu.grad().unwrap().as_slice(),
-        to_cpu(&weight_gpu.grad().unwrap(), &c, &s).as_slice(),
+        weight_cpu
+            .grad()
+            .expect("invariant: backward populated this requires-grad leaf")
+            .as_slice(),
+        to_cpu(
+            &weight_gpu
+                .grad()
+                .expect("invariant: backward populated this requires-grad leaf"),
+            &c,
+            &s,
+        )
+        .as_slice(),
         CUDA_ACC_TOL,
     );
 }
