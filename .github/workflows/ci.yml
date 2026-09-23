@@ -38,6 +38,7 @@ jobs:
   semver:
     name: SemVer gate
     uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@1ba4a8a4ffba9aa06b8f9192cbe43423cd34985a
+    timeout-minutes: 15
     with:
       package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-hephaestus,coeus-leto,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-rocm,coeus-sparse,coeus-tensor,coeus-wgpu
       rust-toolchain: 1.97.0
@@ -48,6 +49,7 @@ jobs:
     name: ADR index is current
     # atlas owns the one generator (ATLAS-ADR-FORM-NORMALIZATION-2026-09-02); strict: the ADRs carry the canonical heading form and numbering.
     uses: ryancinsight/atlas/.github/workflows/adr-index-guard.yml@191617bffed5f78de9d840fee8755963fccaaa67
+    timeout-minutes: 10
     permissions:
       contents: read
     with:
