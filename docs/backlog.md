@@ -29,43 +29,14 @@
   `coeus-core` pass against the current provider graph.
 - Lease: discharged by this commit; RITK's consumer lock refresh follows merge.
 
-<a id="coeus-tcpmesh-graceful-shutdown"></a>
-## COEUS-TCPMESH-GRACEFUL-SHUTDOWN — TcpMesh drops its peer streams abruptly
+<a id="coeus-tcpmesh-fallible-setup"></a>
+## COEUS-TCPMESH-FALLIBLE-SETUP — TcpMesh construction panics on socket and connection errors
 
-- Status: todo; integrator: unclaimed; priority: correctness; [patch].
-- Outcome: a dropped `TcpMesh` half-closes every peer stream and stops its
-  runtime before it is gone, and the multi-rank TCP tests stop contending for
-  loopback state, without a global thread cap or a sleep.
-- Diagnosis, from branch `coeus-frobenius-v2` (`81f5573c`, 2026-08-12), whose
-  measurement stands even though its mechanism cannot land: dropping a
-  `TcpStream` on Windows with unread kernel buffer data sends RST rather than
-  FIN, which aborts the peer's in-flight receive. Sequential TCP collective
-  tests then fail with connection resets and timeouts. Idle Moirai worker
-  threads also accumulate across rounds because the runtime is never stopped,
-  starving the next round's collectives.
-- Why the branch is not a cherry-pick. Its `Drop` calls `block_on`, and a
-  destructor must not block or await: async teardown is an explicit shutdown
-  path that completes *before* `Drop`, with `Drop` the sync last resort. It
-  also sets `RUST_TEST_THREADS=1` in a committed `.cargo/config.toml` — a
-  global thread cap for contention that belongs to one test family — and adds
-  a post-lock sleep for "TCP state to settle", which is a sleep-synced test.
-  Three standing rules, one commit; the diagnosis is what survives.
-- Shape of the fix: an explicit `async fn shutdown(&mut self)` that half-closes
-  each peer stream and stops the runtime, called by every owner (tests
-  included) before drop; `Drop` keeps a non-blocking best-effort close and
-  never awaits. The loopback contention is a nextest `[test-groups]` entry with
-  `max-threads` over the multi-rank TCP tests — the sanctioned form for tests
-  sharing one external resource — and the tests synchronise on connection
-  events, never elapsed time.
-- Acceptance: the multi-rank TCP collective suite passes repeatedly on Windows
-  loopback under the committed nextest profile, with no `RUST_TEST_THREADS`, no
-  sleep in test support, and no blocking destructor; a dropped mesh leaves no
-  live worker thread, asserted rather than observed.
-- Branch: `coeus-frobenius-v2` holds the original commit and stays until this
-  closes. Its sibling commit (`3a7f413f`, batched norms on provider) is already
-  satisfied on `main`: `coeus_ops::frobenius_norm_batched` composes on
-  `BackendOps`, per [ADR 0060](adr/0060-provider-owned-batched-frobenius-norm.md).
-
+- Status: todo; integrator: unclaimed; priority: correctness; [minor] (the constructor's signature changes).
+- Successor to COEUS-TCPMESH-GRACEFUL-SHUTDOWN, delivered by the PR that replaced this entry.
+- Outcome: `TcpMesh` construction returns a typed error for bind, accept, connect, `set_nodelay`, and rank-handshake failures instead of panicking; `TcpCommunicator` propagates it.
+- Evidence: `crates/coeus-dist/src/tcp/mesh.rs` carries `expect("failed to ...")` on accept and bind paths, and the lint-floor PR turned two `set_nodelay(true).unwrap()` calls into `expect("invariant: TCP_NODELAY is settable ...")`, which no local reasoning proves: `setsockopt` can fail at runtime.
+- Acceptance: no `expect`/`unwrap` on an I/O result in `tcp/mesh.rs`; a test forces a connect or accept failure and asserts the typed error variant; `tcp::` tests stay green under the `tcp-tests` group.
 
 <a id="coeus-cpu-storage-ownership"></a>
 ## COEUS-CPU-STORAGE-OWNERSHIP — Keep allocation ownership private

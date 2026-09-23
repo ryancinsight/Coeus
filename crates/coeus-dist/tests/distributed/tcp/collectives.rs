@@ -17,7 +17,7 @@ fn test_tcp_all_reduce() {
 
     for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let comm = TcpCommunicator::new(mesh);
+            let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
             let mut tensor =
@@ -27,6 +27,7 @@ fn test_tcp_all_reduce() {
             let data = tensor.as_slice();
             assert_eq!(data[0], 3.0);
             assert_eq!(data[1], 5.0);
+            comm.shutdown();
         });
         handles.push(handle);
     }
@@ -45,7 +46,7 @@ fn test_tcp_broadcast() {
 
     for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let comm = TcpCommunicator::new(mesh);
+            let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
             let mut tensor = if rank == 0 {
@@ -59,6 +60,7 @@ fn test_tcp_broadcast() {
             let data = tensor.as_slice();
             assert_eq!(data[0], 10.0);
             assert_eq!(data[1], 20.0);
+            comm.shutdown();
         });
         handles.push(handle);
     }
@@ -77,7 +79,7 @@ fn test_tcp_all_gather() {
 
     for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let comm = TcpCommunicator::new(mesh);
+            let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
             let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend);
@@ -90,6 +92,7 @@ fn test_tcp_all_gather() {
 
             assert_eq!(output[0].as_slice()[0], 0.0);
             assert_eq!(output[1].as_slice()[0], 100.0);
+            comm.shutdown();
         });
         handles.push(handle);
     }
@@ -108,9 +111,10 @@ fn test_tcp_barrier() {
 
     for mesh in meshes {
         let handle = thread::spawn(move || {
-            let comm = TcpCommunicator::new(mesh);
+            let mut comm = TcpCommunicator::new(mesh);
 
             comm.barrier();
+            comm.shutdown();
         });
         handles.push(handle);
     }
@@ -129,7 +133,7 @@ fn test_tcp_reduce() {
 
     for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let comm = TcpCommunicator::new(mesh);
+            let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
             let mut tensor =
@@ -141,6 +145,7 @@ fn test_tcp_reduce() {
                 assert_eq!(data[0], 3.0);
                 assert_eq!(data[1], 5.0);
             }
+            comm.shutdown();
         });
         handles.push(handle);
     }
@@ -159,7 +164,7 @@ fn test_tcp_gather() {
 
     for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let comm = TcpCommunicator::new(mesh);
+            let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
             let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend);
@@ -178,6 +183,7 @@ fn test_tcp_gather() {
                 assert_eq!(output[0].as_slice()[0], 0.0);
                 assert_eq!(output[1].as_slice()[0], 100.0);
             }
+            comm.shutdown();
         });
         handles.push(handle);
     }
@@ -196,7 +202,7 @@ fn test_tcp_scatter() {
 
     for (rank, mesh) in meshes.into_iter().enumerate() {
         let handle = thread::spawn(move || {
-            let comm = TcpCommunicator::new(mesh);
+            let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
             let mut tensor = Tensor::zeros_on([1], &backend);
@@ -212,6 +218,7 @@ fn test_tcp_scatter() {
             comm.scatter(&mut tensor, &input, 0, &backend);
 
             assert_eq!(tensor.as_slice()[0], (rank + 1) as f32 * 100.0);
+            comm.shutdown();
         });
         handles.push(handle);
     }

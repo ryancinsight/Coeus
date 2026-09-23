@@ -19,6 +19,15 @@ impl TcpCommunicator {
         Self { mesh }
     }
 
+    /// Gracefully close the underlying mesh's peer streams and stop its
+    /// dedicated runtime.
+    ///
+    /// Delegates to [`TcpMesh::shutdown`]; every owner calls this before the
+    /// communicator is dropped.
+    pub fn shutdown(&mut self) {
+        self.mesh.shutdown();
+    }
+
     #[inline]
     fn assert_numel(
         collective: &'static str,
