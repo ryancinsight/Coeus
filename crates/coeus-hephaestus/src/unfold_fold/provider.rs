@@ -55,10 +55,7 @@ where
     }
 
     fn unfold_fold_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        HephaestusBackendError::device(
-            operation,
-            HephaestusError::InvalidConfiguration { message: reason },
-        )
+        crate::error::invalid_configuration_error(operation, reason)
     }
 
     fn unfold_fold_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
