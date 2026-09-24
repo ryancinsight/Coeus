@@ -53,12 +53,12 @@ jobs:
     with:
       strict: true
 
-  changed-scope:
+  changed_scope:
     name: Classify changed scope
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      test-path: ${{ steps.classify.outputs.test-path }}
+      test_path: ${{ steps.classify.outputs.test_path }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,7 +73,7 @@ jobs:
         run: |
           test_path="$(python3 scripts/ci_scope.py --base "$BASE_SHA" --head "$HEAD_SHA" | sed -n 's/^test path: //p')"
           test -n "$test_path"
-          printf 'test-path=%s\n' "$test_path" >> "$GITHUB_OUTPUT"
+          printf 'test_path=%s\n' "$test_path" >> "$GITHUB_OUTPUT"
 
   # Formatting and lockfile-tool failures report before native compilation.
   format:
@@ -94,7 +94,7 @@ jobs:
 
   test:
     name: Tests
-    needs: changed-scope
+    needs: changed_scope
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -102,18 +102,18 @@ jobs:
         with:
           persist-credentials: false
       - name: Hook-contract tests
-        if: needs.changed-scope.outputs.test-path == 'hook-only'
+        if: needs.changed_scope.outputs.test_path == 'hook-only'
         run: python3 -B -m unittest scripts.tests.test_hooks -v
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
-        if: needs.changed-scope.outputs.test-path == 'native'
+        if: needs.changed_scope.outputs.test_path == 'native'
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        if: needs.changed-scope.outputs.test-path == 'native'
+        if: needs.changed_scope.outputs.test_path == 'native'
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
-        if: needs.changed-scope.outputs.test-path == 'native'
+        if: needs.changed_scope.outputs.test_path == 'native'
         with:
           tool: nextest
 
@@ -129,13 +129,13 @@ jobs:
       # which links pythonXY.lib regardless, which is why this passed locally
       # and not here. `python-release.yml` owns that crate's verification.
       - name: Native tests
-        if: needs.changed-scope.outputs.test-path == 'native'
+        if: needs.changed_scope.outputs.test_path == 'native'
         run: cargo nextest run --locked --workspace --exclude coeus-python --exclude coeus-wgpu
 
       # Shares the `test` profile compile above, so this costs only its own
       # doctest binaries.
       - name: Documentation tests
-        if: needs.changed-scope.outputs.test-path == 'native'
+        if: needs.changed_scope.outputs.test_path == 'native'
         run: cargo test --locked --doc --workspace --exclude coeus-python --exclude coeus-wgpu
 
   lint:
