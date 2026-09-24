@@ -95,12 +95,16 @@ jobs:
   test:
     name: Tests
     needs: changed_scope
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Require changed-scope classification
+        if: always()
+        run: test -n "${{ needs.changed_scope.outputs.test_path }}"
       - name: Hook-contract tests
         if: needs.changed_scope.outputs.test_path == 'hook-only'
         run: python3 -B -m unittest scripts.tests.test_hooks -v
