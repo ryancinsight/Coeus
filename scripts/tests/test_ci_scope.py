@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import subprocess
 import unittest
 
-from scripts.ci_scope import classify, is_hook_contract_path
+from scripts.ci_scope import changed_paths, classify, is_hook_contract_path
 
 
 class ChangedScopeTests(unittest.TestCase):
@@ -39,3 +40,7 @@ class ChangedScopeTests(unittest.TestCase):
         self.assertTrue(is_hook_contract_path("scripts/lockfile.py"))
         self.assertFalse(is_hook_contract_path("scripts/lockfile.pyc"))
         self.assertFalse(is_hook_contract_path("scripts/tests/test_lockfile.py"))
+
+    def test_revision_resolution_failure_is_explicit(self) -> None:
+        with self.assertRaises(subprocess.CalledProcessError):
+            changed_paths("missing-ci-base", "missing-ci-head")
