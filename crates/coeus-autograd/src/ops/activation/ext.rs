@@ -3,10 +3,9 @@
 // Each function is implemented as a tracked autograd wrapper. Parameter-free
 // variants (Hardsigmoid, Hardswish, Softsign) reuse the generic
 // `unary_op<T, B, Op>(a)` ZST template. Parameterized variants
-// (Hardtanh, Hardshrink, Softshrink, Threshold, Celu) follow the manual
-// `LeakyReluNode` pattern from `relu.rs`: a per-call struct holding the
-// packed-scalar parameters, plus a hand-written constructor that attaches
-// the creator node.
+// (Hardtanh, Hardshrink, Softshrink, Threshold, Celu) share one generic
+// monomorphized node/constructor path and only specialize the enum variant
+// mapping for forward/backward dispatch.
 //
 // Subgradient contract at kink points mirrors PyTorch's convention:
 //   - Hardtanh at x = min_val or x = max_val: gradient passes through as 1.0.
@@ -45,18 +44,36 @@ pub fn pack_pairs(low: f64, high: f64) -> u64 {
 
 // ── Hardtanh: y = clamp(x, min_val, max_val) ────────────────────────────────
 
-/// Manual autograd node for Hardtanh (parameterized min/max).
-struct HardtanhNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
+/// Compile-time spec for parameterized unary autograd operations.
+trait ParameterizedUnarySpec {
+    const OP_NAME: &'static str;
+
+    fn forward(bits: u64) -> coeus_ops::UnaryOp;
+    fn backward(bits: u64) -> coeus_ops::UnaryOp;
+}
+
+/// Shared autograd node for parameterized unary operations.
+struct ParameterizedUnaryNode<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + Default,
+    Spec: ParameterizedUnarySpec,
+> {
     output_grad: Arc<GradBuffer<T, B>>,
     inputs: Vec<Var<T, B>>,
     input_tensor: Tensor<T, B>,
     bits: u64,
+    _phantom: std::marker::PhantomData<Spec>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for HardtanhNode<T, B> {
+impl<T, B, Spec> BackwardNode<T, B> for ParameterizedUnaryNode<T, B, Spec>
+where
+    T: Float,
+    B: coeus_ops::BackendOps<T> + Default,
+    Spec: ParameterizedUnarySpec,
+{
     #[inline]
     fn op_name(&self) -> &'static str {
-        "hardtanh"
+        Spec::OP_NAME
     }
     #[inline]
     fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
@@ -76,13 +93,53 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Har
             let deriv = coeus_ops::elementwise_unary(
                 &self.input_tensor,
                 &backend,
-                coeus_ops::UnaryOp::HardtanhGrad(self.bits),
+                Spec::backward(self.bits),
             )?;
             let local = coeus_ops::mul(grad_out, &deriv, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &local, &backend)?;
         }
         Ok(())
+    }
+}
+
+#[inline]
+fn parameterized_unary_op<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + Default,
+    Spec: ParameterizedUnarySpec + 'static,
+>(
+    a: &Var<T, B>,
+    bits: u64,
+) -> Var<T, B> {
+    let backend = B::default();
+    let out_tensor = coeus_ops::elementwise_unary(&a.tensor, &backend, Spec::forward(bits))
+        .expect("elementwise_unary");
+    let requires_grad = crate::grad_mode::should_track_var(a);
+    Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
+        ParameterizedUnaryNode::<T, B, Spec> {
+            output_grad,
+            inputs: vec![a.clone()],
+            input_tensor: a.tensor.clone(),
+            bits,
+            _phantom: std::marker::PhantomData,
+        }
+    })
+}
+
+struct HardtanhSpec;
+
+impl ParameterizedUnarySpec for HardtanhSpec {
+    const OP_NAME: &'static str = "hardtanh";
+
+    #[inline(always)]
+    fn forward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::Hardtanh(bits)
+    }
+
+    #[inline(always)]
+    fn backward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::HardtanhGrad(bits)
     }
 }
 
@@ -96,36 +153,8 @@ pub fn hardtanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     min_val: f64,
     max_val: f64,
 ) -> Var<T, B> {
-    let backend = B::default();
     let bits = pack_pairs(min_val, max_val);
-    let out_tensor =
-        coeus_ops::elementwise_unary(&a.tensor, &backend, coeus_ops::UnaryOp::Hardtanh(bits))
-            .expect("hardtanh forward");
-    let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-    let creator = if requires_grad {
-        let node = HardtanhNode {
-            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
-            inputs: vec![a.clone()],
-            input_tensor: a.tensor.clone(),
-            bits,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+    parameterized_unary_op::<T, B, HardtanhSpec>(a, bits)
 }
 
 // ── Hardsigmoid: y = clamp(x/6 + 0.5, 0, 1) ─────────────────────────────────
@@ -201,44 +230,19 @@ pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>)
 
 // ── Hardshrink: y = x if |x| > λ else 0 ────────────────────────────────────
 
-/// Manual autograd node for Hardshrink (parameterized λ).
-struct HardshrinkNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
-    output_grad: Arc<GradBuffer<T, B>>,
-    inputs: Vec<Var<T, B>>,
-    input_tensor: Tensor<T, B>,
-    bits: u64,
-}
+struct HardshrinkSpec;
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for HardshrinkNode<T, B> {
-    #[inline]
-    fn op_name(&self) -> &'static str {
-        "hardshrink"
+impl ParameterizedUnarySpec for HardshrinkSpec {
+    const OP_NAME: &'static str = "hardshrink";
+
+    #[inline(always)]
+    fn forward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::Hardshrink(bits)
     }
-    #[inline]
-    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
-        &self.output_grad
-    }
-    #[inline]
-    fn inputs(&self) -> &[Var<T, B>] {
-        &self.inputs
-    }
-    fn backward(
-        &self,
-        grad_out: &Tensor<T, B>,
-        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
-    ) -> Result<(), B::Error> {
-        let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.first() {
-            let deriv = coeus_ops::elementwise_unary(
-                &self.input_tensor,
-                &backend,
-                coeus_ops::UnaryOp::HardshrinkGrad(self.bits),
-            )?;
-            let local = coeus_ops::mul(grad_out, &deriv, &backend);
-            let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend)?;
-        }
-        Ok(())
+
+    #[inline(always)]
+    fn backward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::HardshrinkGrad(bits)
     }
 }
 
@@ -253,78 +257,25 @@ pub fn hardshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     lambda: f64,
 ) -> Var<T, B> {
-    let backend = B::default();
     let bits = lambda.to_bits();
-    let out_tensor =
-        coeus_ops::elementwise_unary(&a.tensor, &backend, coeus_ops::UnaryOp::Hardshrink(bits))
-            .expect("elementwise_unary");
-    let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-    let creator = if requires_grad {
-        let node = HardshrinkNode {
-            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
-            inputs: vec![a.clone()],
-            input_tensor: a.tensor.clone(),
-            bits,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+    parameterized_unary_op::<T, B, HardshrinkSpec>(a, bits)
 }
 
 // ── Softshrink: y = sign(x) · max(|x| - λ, 0) ───────────────────────────────
 
-/// Manual autograd node for Softshrink (parameterized λ).
-struct SoftshrinkNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
-    output_grad: Arc<GradBuffer<T, B>>,
-    inputs: Vec<Var<T, B>>,
-    input_tensor: Tensor<T, B>,
-    bits: u64,
-}
+struct SoftshrinkSpec;
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for SoftshrinkNode<T, B> {
-    #[inline]
-    fn op_name(&self) -> &'static str {
-        "softshrink"
+impl ParameterizedUnarySpec for SoftshrinkSpec {
+    const OP_NAME: &'static str = "softshrink";
+
+    #[inline(always)]
+    fn forward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::Softshrink(bits)
     }
-    #[inline]
-    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
-        &self.output_grad
-    }
-    #[inline]
-    fn inputs(&self) -> &[Var<T, B>] {
-        &self.inputs
-    }
-    fn backward(
-        &self,
-        grad_out: &Tensor<T, B>,
-        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
-    ) -> Result<(), B::Error> {
-        let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.first() {
-            let deriv = coeus_ops::elementwise_unary(
-                &self.input_tensor,
-                &backend,
-                coeus_ops::UnaryOp::SoftshrinkGrad(self.bits),
-            )?;
-            let local = coeus_ops::mul(grad_out, &deriv, &backend);
-            let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend)?;
-        }
-        Ok(())
+
+    #[inline(always)]
+    fn backward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::SoftshrinkGrad(bits)
     }
 }
 
@@ -338,36 +289,8 @@ pub fn softshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     lambda: f64,
 ) -> Var<T, B> {
-    let backend = B::default();
     let bits = lambda.to_bits();
-    let out_tensor =
-        coeus_ops::elementwise_unary(&a.tensor, &backend, coeus_ops::UnaryOp::Softshrink(bits))
-            .expect("elementwise_unary");
-    let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-    let creator = if requires_grad {
-        let node = SoftshrinkNode {
-            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
-            inputs: vec![a.clone()],
-            input_tensor: a.tensor.clone(),
-            bits,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+    parameterized_unary_op::<T, B, SoftshrinkSpec>(a, bits)
 }
 
 // ── Softsign: y = x / (1 + |x|) ─────────────────────────────────────────────
@@ -407,44 +330,19 @@ pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) 
 
 // ── Threshold: y = x if x > threshold else value ───────────────────────────
 
-/// Manual autograd node for Threshold (parameterized threshold + value).
-struct ThresholdNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
-    output_grad: Arc<GradBuffer<T, B>>,
-    inputs: Vec<Var<T, B>>,
-    input_tensor: Tensor<T, B>,
-    bits: u64,
-}
+struct ThresholdSpec;
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for ThresholdNode<T, B> {
-    #[inline]
-    fn op_name(&self) -> &'static str {
-        "threshold"
+impl ParameterizedUnarySpec for ThresholdSpec {
+    const OP_NAME: &'static str = "threshold";
+
+    #[inline(always)]
+    fn forward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::Threshold(bits)
     }
-    #[inline]
-    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
-        &self.output_grad
-    }
-    #[inline]
-    fn inputs(&self) -> &[Var<T, B>] {
-        &self.inputs
-    }
-    fn backward(
-        &self,
-        grad_out: &Tensor<T, B>,
-        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
-    ) -> Result<(), B::Error> {
-        let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.first() {
-            let deriv = coeus_ops::elementwise_unary(
-                &self.input_tensor,
-                &backend,
-                coeus_ops::UnaryOp::ThresholdGrad(self.bits),
-            )?;
-            let local = coeus_ops::mul(grad_out, &deriv, &backend);
-            let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend)?;
-        }
-        Ok(())
+
+    #[inline(always)]
+    fn backward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::ThresholdGrad(bits)
     }
 }
 
@@ -460,78 +358,25 @@ pub fn threshold<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     thresh: f64,
     value: f64,
 ) -> Var<T, B> {
-    let backend = B::default();
     let bits = pack_pairs(thresh, value);
-    let out_tensor =
-        coeus_ops::elementwise_unary(&a.tensor, &backend, coeus_ops::UnaryOp::Threshold(bits))
-            .expect("elementwise_unary");
-    let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-    let creator = if requires_grad {
-        let node = ThresholdNode {
-            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
-            inputs: vec![a.clone()],
-            input_tensor: a.tensor.clone(),
-            bits,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+    parameterized_unary_op::<T, B, ThresholdSpec>(a, bits)
 }
 
 // ── Celu: y = max(0,x) + min(0, α·(exp(x/α) − 1)) ───────────────────────────
 
-/// Manual autograd node for Celu (parameterized α).
-struct CeluNode<T: Float, B: coeus_ops::BackendOps<T> + Default> {
-    output_grad: Arc<GradBuffer<T, B>>,
-    inputs: Vec<Var<T, B>>,
-    input_tensor: Tensor<T, B>,
-    bits: u64,
-}
+struct CeluSpec;
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for CeluNode<T, B> {
-    #[inline]
-    fn op_name(&self) -> &'static str {
-        "celu"
+impl ParameterizedUnarySpec for CeluSpec {
+    const OP_NAME: &'static str = "celu";
+
+    #[inline(always)]
+    fn forward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::Celu(bits)
     }
-    #[inline]
-    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
-        &self.output_grad
-    }
-    #[inline]
-    fn inputs(&self) -> &[Var<T, B>] {
-        &self.inputs
-    }
-    fn backward(
-        &self,
-        grad_out: &Tensor<T, B>,
-        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
-    ) -> Result<(), B::Error> {
-        let backend = B::default();
-        if let Some(Some(ref g)) = input_grads.first() {
-            let deriv = coeus_ops::elementwise_unary(
-                &self.input_tensor,
-                &backend,
-                coeus_ops::UnaryOp::CeluGrad(self.bits),
-            )?;
-            let local = coeus_ops::mul(grad_out, &deriv, &backend);
-            let lock = g.write();
-            coeus_ops::add_assign(lock, &local, &backend)?;
-        }
-        Ok(())
+
+    #[inline(always)]
+    fn backward(bits: u64) -> coeus_ops::UnaryOp {
+        coeus_ops::UnaryOp::CeluGrad(bits)
     }
 }
 
@@ -545,34 +390,6 @@ pub fn celu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     alpha: f64,
 ) -> Var<T, B> {
-    let backend = B::default();
     let bits = alpha.to_bits();
-    let out_tensor =
-        coeus_ops::elementwise_unary(&a.tensor, &backend, coeus_ops::UnaryOp::Celu(bits))
-            .expect("elementwise_unary");
-    let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-    let creator = if requires_grad {
-        let node = CeluNode {
-            output_grad: grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone(),
-            inputs: vec![a.clone()],
-            input_tensor: a.tensor.clone(),
-            bits,
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+    parameterized_unary_op::<T, B, CeluSpec>(a, bits)
 }
