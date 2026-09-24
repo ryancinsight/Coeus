@@ -66,57 +66,75 @@ impl TcpCommunicator {
         assert!(root < size, "collective root out of bounds");
     }
 
+    /// The element count as sent on the wire.
     #[inline]
-    fn numel_bytes(numel: usize) -> [u8; 8] {
-        (numel as u64).to_le_bytes()
+    fn wire_numel(numel: usize) -> u64 {
+        // usize is at most 64 bits on every supported target.
+        numel as u64
     }
 
     #[inline]
-    fn recv_numel_from(&self, peer: usize) -> Result<usize, TcpMeshError> {
+    fn recv_numel_from(&self, peer: usize) -> Result<u64, TcpMeshError> {
         let mut peer_numel_bytes = [0u8; 8];
         self.mesh.recv(peer, &mut peer_numel_bytes)?;
-        Ok(u64::from_le_bytes(peer_numel_bytes) as usize)
+        Ok(u64::from_le_bytes(peer_numel_bytes))
     }
 
-    #[inline]
+    /// The error for `peer` announcing `received` elements where this rank
+    /// holds `expected`.
+    fn numel_mismatch(&self, peer: usize, expected: u64, received: u64) -> TcpMeshError {
+        TcpMeshError::NumelMismatch {
+            rank: self.mesh.rank(),
+            peer,
+            address: self.mesh.peer_address(peer),
+            expected,
+            received,
+        }
+    }
+
+    /// Agree on the element count with `root` before a rooted collective.
+    ///
+    /// Every rank sends its count to the root, which answers each with
+    /// status 1 (all counts equal its own) or 0 (some count differs). A
+    /// mismatch is an error on every rank rather than a desynchronized byte
+    /// stream: the root reports the first differing peer, the others report
+    /// the root's status 0.
     fn rooted_numel_handshake(
         &self,
-        collective: &'static str,
         rank: usize,
         size: usize,
         root: usize,
         numel: usize,
     ) -> Result<(), TcpMeshError> {
-        let local_numel_bytes = Self::numel_bytes(numel);
+        let local = Self::wire_numel(numel);
         if rank == root {
-            let mut mismatch: Option<(usize, usize)> = None;
-            for other in 0..size {
-                if other == root {
-                    continue;
-                }
-                let peer_numel = self.recv_numel_from(other)?;
-                if mismatch.is_none() && peer_numel != numel {
-                    mismatch = Some((other, peer_numel));
+            let mut mismatch = None;
+            for other in (0..size).filter(|&other| other != root) {
+                let received = self.recv_numel_from(other)?;
+                if mismatch.is_none() && received != local {
+                    mismatch = Some((other, received));
                 }
             }
-            let status = if mismatch.is_some() { [0u8] } else { [1u8] };
-            for other in 0..size {
-                if other != root {
-                    self.mesh.send(other, &status)?;
-                }
+            let status = [u8::from(mismatch.is_none())];
+            for other in (0..size).filter(|&other| other != root) {
+                self.mesh.send(other, &status)?;
             }
-            if let Some((other, peer_numel)) = mismatch {
-                Self::assert_numel(collective, other, peer_numel, numel);
+            if let Some((other, received)) = mismatch {
+                return Err(self.numel_mismatch(other, local, received));
             }
         } else {
-            self.mesh.send(root, &local_numel_bytes)?;
+            self.mesh.send(root, &local.to_le_bytes())?;
             let mut status = [0u8; 1];
             self.mesh.recv(root, &mut status)?;
             match status[0] {
                 1 => {}
-                // The root found mismatched element counts: a caller contract
-                // violation, reported by the root's own assertion as well.
-                0 => panic!("{collective} numel handshake failed on rank {rank}"),
+                0 => {
+                    return Err(TcpMeshError::PeerReportedMismatch {
+                        rank,
+                        peer: root,
+                        address: self.mesh.peer_address(root),
+                    });
+                }
                 status => {
                     return Err(TcpMeshError::InvalidStatus {
                         rank,
@@ -130,28 +148,27 @@ impl TcpCommunicator {
         Ok(())
     }
 
-    #[inline]
+    /// Agree on the element count with every peer, pair by pair, before an
+    /// all-gather; the lower rank of each pair sends first.
     fn pairwise_numel_handshake(
         &self,
-        collective: &'static str,
         rank: usize,
         size: usize,
         numel: usize,
     ) -> Result<(), TcpMeshError> {
-        let local_numel_bytes = Self::numel_bytes(numel);
-        for other in 0..size {
-            if other == rank {
-                continue;
-            }
-            let peer_numel = if rank < other {
-                self.mesh.send(other, &local_numel_bytes)?;
+        let local = Self::wire_numel(numel);
+        for other in (0..size).filter(|&other| other != rank) {
+            let received = if rank < other {
+                self.mesh.send(other, &local.to_le_bytes())?;
                 self.recv_numel_from(other)?
             } else {
-                let peer_numel = self.recv_numel_from(other)?;
-                self.mesh.send(other, &local_numel_bytes)?;
-                peer_numel
+                let received = self.recv_numel_from(other)?;
+                self.mesh.send(other, &local.to_le_bytes())?;
+                received
             };
-            Self::assert_numel(collective, other, peer_numel, numel);
+            if received != local {
+                return Err(self.numel_mismatch(other, local, received));
+            }
         }
         Ok(())
     }
@@ -218,7 +235,7 @@ impl Communicator for TcpCommunicator {
         self.collective(|| {
             // Exchange expected payload lengths first so rank-shape mismatches
             // fail fast instead of desynchronizing the byte stream.
-            self.rooted_numel_handshake("broadcast", rank, size, root, numel)?;
+            self.rooted_numel_handshake(rank, size, root, numel)?;
             if numel == 0 {
                 return Ok(());
             }
@@ -248,7 +265,7 @@ impl Communicator for TcpCommunicator {
             Self::assert_numel("all_gather output", idx, out.numel(), numel);
         }
         self.collective(|| {
-            self.pairwise_numel_handshake("all_gather input", rank, size, numel)?;
+            self.pairwise_numel_handshake(rank, size, numel)?;
             if numel == 0 {
                 return Ok(());
             }
@@ -292,7 +309,7 @@ impl Communicator for TcpCommunicator {
         }
         let numel = tensor.numel();
         self.collective(|| {
-            self.rooted_numel_handshake("reduce input", rank, size, root, numel)?;
+            self.rooted_numel_handshake(rank, size, root, numel)?;
             if numel == 0 {
                 return Ok(());
             }
@@ -332,7 +349,7 @@ impl Communicator for TcpCommunicator {
             }
         }
         self.collective(|| {
-            self.rooted_numel_handshake("gather input", rank, size, root, numel)?;
+            self.rooted_numel_handshake(rank, size, root, numel)?;
             if numel == 0 {
                 return Ok(());
             }
@@ -372,7 +389,7 @@ impl Communicator for TcpCommunicator {
             }
         }
         self.collective(|| {
-            self.rooted_numel_handshake("scatter target", rank, size, root, numel)?;
+            self.rooted_numel_handshake(rank, size, root, numel)?;
             if numel == 0 {
                 return Ok(());
             }

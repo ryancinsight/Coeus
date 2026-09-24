@@ -121,3 +121,39 @@ fn a_root_lost_mid_payload_is_a_typed_error_on_the_receiver() {
     ));
     rank_1.shutdown();
 }
+
+#[test]
+fn a_root_reported_mismatch_is_a_typed_error_that_poisons_the_links() {
+    let (mut root, mut rank_1) = hand_driven_root();
+
+    let outcome = broadcast_against(&rank_1, || {
+        read_element_count(&root);
+        root.send(1, &[0]).unwrap();
+    });
+    match outcome {
+        Err(TcpMeshError::PeerReportedMismatch {
+            rank,
+            peer,
+            address,
+        }) => {
+            assert_eq!((rank, peer), (1, 0));
+            assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
+        }
+        other => panic!("expected PeerReportedMismatch, got {other:?}"),
+    }
+    let mut byte = [0u8; 1];
+    assert!(matches!(
+        root.recv(1, &mut byte),
+        Err(TcpMeshError::Recv { source, .. }) if source.kind() == ErrorKind::UnexpectedEof
+    ));
+    assert!(matches!(
+        rank_1.barrier(),
+        Err(TcpMeshError::LinkPoisoned {
+            rank: 1,
+            peer: 0,
+            ..
+        })
+    ));
+    rank_1.shutdown();
+    root.shutdown();
+}
