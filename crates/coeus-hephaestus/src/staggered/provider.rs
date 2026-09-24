@@ -53,10 +53,7 @@ where
     }
 
     fn staggered_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        HephaestusBackendError::device(
-            operation,
-            HephaestusError::InvalidConfiguration { message: reason },
-        )
+        crate::error::invalid_configuration_error(operation, reason)
     }
 
     fn staggered_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
