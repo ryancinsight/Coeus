@@ -3,7 +3,7 @@
 use crate::autodiff_cache::ComputeGraphCache;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
-use coeus_core::{ComputeBackend, MoiraiBackend, Scalar};
+use coeus_core::{ComputeBackend, MoiraiBackend, Scalar, Shape};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -53,6 +53,42 @@ pub struct Var<T: Scalar, B: ComputeBackend + Default = MoiraiBackend> {
 }
 
 impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
+    /// Allocate a zeroed gradient buffer for an operation result shape.
+    #[inline(always)]
+    pub(crate) fn grad_buffer(shape: Shape, backend: &B) -> Arc<GradBuffer<T, B>> {
+        Arc::new(GradBuffer::new(Tensor::zeros_on(shape, backend)))
+    }
+
+    /// Build an operation result, attaching gradient state and creator only
+    /// when tracking is enabled.
+    #[inline(always)]
+    pub(crate) fn from_tracked_op<N, F>(
+        tensor: Tensor<T, B>,
+        requires_grad: bool,
+        backend: &B,
+        build_node: F,
+    ) -> Self
+    where
+        N: BackwardNode<T, B> + 'static,
+        F: FnOnce(Arc<GradBuffer<T, B>>) -> N,
+    {
+        if !requires_grad {
+            return Self {
+                tensor,
+                grad: None,
+                creator: None,
+            };
+        }
+
+        let output_grad = Self::grad_buffer(tensor.shape_cloned(), backend);
+        let creator = Arc::new(build_node(Arc::clone(&output_grad))) as Arc<dyn BackwardNode<T, B>>;
+        Self {
+            tensor,
+            grad: Some(output_grad),
+            creator: Some(creator),
+        }
+    }
+
     /// Create a new leaf variable.
     ///
     /// When `requires_grad` is `true` the leaf allocates a gradient buffer that
@@ -79,10 +115,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     #[inline]
     pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Self {
         let grad = if requires_grad {
-            Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-                tensor.shape(),
-                &B::default(),
-            ))))
+            Some(Self::grad_buffer(tensor.shape_cloned(), &B::default()))
         } else {
             None
         };

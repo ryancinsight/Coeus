@@ -58,21 +58,18 @@ where
 {
     let backend = B::default();
     let tensor = coeus_ops::rotate_half(&input.tensor, &backend)?;
-    if !crate::grad_mode::should_track_var(input) {
+    let requires_grad = crate::grad_mode::should_track_var(input);
+    if !requires_grad {
         return Ok(Var::new(tensor, false));
     }
 
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
-        tensor.shape_cloned(),
-        &backend,
-    )));
-    let node = RotateHalfNode {
-        output_grad: Arc::clone(&output_grad),
-        inputs: vec![input.clone()],
-    };
-    Ok(Var {
+    Ok(Var::from_tracked_op(
         tensor,
-        grad: Some(output_grad),
-        creator: Some(Arc::new(node)),
-    })
+        requires_grad,
+        &backend,
+        |output_grad| RotateHalfNode {
+            output_grad,
+            inputs: vec![input.clone()],
+        },
+    ))
 }

@@ -183,28 +183,17 @@ pub fn sdp_attention<
         return Ok((Var::new(out_tensor, false), attn_weights));
     }
 
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
-        out_tensor.shape_cloned(),
-        &backend,
-    )));
-    let grad = Some(output_grad.clone());
-
-    let node = ScaledDotProductAttnNode::<T, B, M> {
-        output_grad,
-        inputs: vec![query.clone(), key.clone(), value.clone()],
-        q_clone: query.tensor.clone(),
-        k_clone: key.tensor.clone(),
-        v_clone: value.tensor.clone(),
-        attn_weights: attn_weights.clone(),
-        scale,
-        _mask: std::marker::PhantomData,
-    };
-    let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
-
-    let out_var = Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    };
+    let out_var = Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
+        ScaledDotProductAttnNode::<T, B, M> {
+            output_grad,
+            inputs: vec![query.clone(), key.clone(), value.clone()],
+            q_clone: query.tensor.clone(),
+            k_clone: key.tensor.clone(),
+            v_clone: value.tensor.clone(),
+            attn_weights: attn_weights.clone(),
+            scale,
+            _mask: std::marker::PhantomData,
+        }
+    });
     Ok((out_var, attn_weights))
 }
