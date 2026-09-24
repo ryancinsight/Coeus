@@ -27,3 +27,14 @@ impl HephaestusBackendError {
         Self::Device { operation, source }
     }
 }
+
+#[inline]
+pub(crate) fn invalid_configuration_error(
+    operation: &'static str,
+    reason: String,
+) -> HephaestusBackendError {
+    HephaestusBackendError::device(
+        operation,
+        HephaestusError::InvalidConfiguration { message: reason },
+    )
+}
