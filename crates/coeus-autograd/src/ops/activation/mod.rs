@@ -84,38 +84,18 @@ pub fn unary_op<
 ) -> Var<T, B> {
     let backend = B::default();
     let out_tensor = Op::forward(&a.tensor, &backend);
+    let saved_out_tensor = out_tensor.clone();
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
-        let inputs = vec![a.clone()];
-        let a_tensor = a.tensor.clone();
-        let out_t = out_tensor.clone();
+    Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
         let node: UnaryNode<T, B, Op> = UnaryNode {
             output_grad,
-            inputs,
-            a_tensor,
-            out_tensor: out_t,
+            inputs: vec![a.clone()],
+            a_tensor: a.tensor.clone(),
+            out_tensor: saved_out_tensor,
             _phantom: std::marker::PhantomData,
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+        node
+    })
 }
 
 // ── Leaf modules ──

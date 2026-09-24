@@ -460,38 +460,17 @@ where
 
     let requires_grad =
         crate::grad_mode::should_track_var(a_values) || crate::grad_mode::should_track_var(b);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
-        let inputs = vec![a_values.clone(), b.clone()];
-
-        let node = SparseMatMulNode {
+    Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
+        SparseMatMulNode {
             output_grad,
-            inputs,
+            inputs: vec![a_values.clone(), b.clone()],
             a_values_tensor: a_values.tensor.clone(),
             a_col_indices: a_col_indices.clone(),
             a_row_offsets: a_row_offsets.clone(),
             a_shape,
             b_tensor: b.tensor.clone(),
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+        }
+    })
 }
 
 /// Multiplies a COO sparse matrix by a dense tracked matrix.
@@ -521,37 +500,16 @@ where
 
     let requires_grad =
         crate::grad_mode::should_track_var(a_values) || crate::grad_mode::should_track_var(b);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
-        let inputs = vec![a_values.clone(), b.clone()];
-
-        let node = SparseCooMatMulNode {
+    Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
+        SparseCooMatMulNode {
             output_grad,
-            inputs,
+            inputs: vec![a_values.clone(), b.clone()],
             csr_values_tensor: csr_values,
             csr_col_indices,
             csr_row_offsets,
             sorted_to_orig,
             a_shape,
             b_tensor: b.tensor.clone(),
-        };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+        }
+    })
 }

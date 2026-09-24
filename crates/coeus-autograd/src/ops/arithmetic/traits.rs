@@ -105,41 +105,18 @@ pub fn binary_op<
     let out_tensor = Op::forward(&a.tensor, &b.tensor, &backend);
     let requires_grad =
         crate::grad_mode::should_track_var(a) || crate::grad_mode::should_track_var(b);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
-        let inputs = vec![a.clone(), b.clone()];
-        let a_shape: Shape = a.tensor.shape_cloned();
-        let b_shape: Shape = b.tensor.shape_cloned();
-        let a_tensor = a.tensor.clone();
-        let b_tensor = b.tensor.clone();
+    Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
         let node: BinaryNode<T, B, Op> = BinaryNode {
             output_grad,
-            inputs,
-            a_tensor,
-            b_tensor,
-            a_shape,
-            b_shape,
+            inputs: vec![a.clone(), b.clone()],
+            a_tensor: a.tensor.clone(),
+            b_tensor: b.tensor.clone(),
+            a_shape: a.tensor.shape_cloned(),
+            b_shape: b.tensor.shape_cloned(),
             _phantom: std::marker::PhantomData,
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+        node
+    })
 }
 
 /// Abstract interface for compile-time specialized reduction autograd operations.
@@ -226,35 +203,14 @@ pub fn reduction_op<
     let backend = B::default();
     let out_tensor = Op::forward(&a.tensor, param, &backend);
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
-            out_tensor.shape_cloned(),
-            &backend,
-        ))))
-    } else {
-        None
-    };
-
-    let creator = if requires_grad {
-        let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
-        let inputs = vec![a.clone()];
-        let a_shape: Shape = a.tensor.shape_cloned();
-        let scaler_tensor = Op::scaler(&a.tensor, param, &backend);
+    Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
         let node: ReductionNode<T, B, Op> = ReductionNode {
             output_grad,
-            inputs,
-            a_shape,
-            scaler_tensor,
+            inputs: vec![a.clone()],
+            a_shape: a.tensor.shape_cloned(),
+            scaler_tensor: Op::scaler(&a.tensor, param, &backend),
             _phantom: std::marker::PhantomData,
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
-    } else {
-        None
-    };
-
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+        node
+    })
 }
