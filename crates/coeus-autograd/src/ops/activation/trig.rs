@@ -512,37 +512,42 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     }
 }
 
-/// Tracked Exponential function.
-#[must_use]
-#[inline]
-pub fn exp<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, ExpOp>(a)
+macro_rules! define_tracked_unary_fn {
+    ($(#[$meta:meta])* fn $name:ident => $op:ty;) => {
+        $(#[$meta])*
+        #[must_use]
+        #[inline]
+        pub fn $name<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+            a: &Var<T, B>,
+        ) -> Var<T, B> {
+            unary_op::<T, B, $op>(a)
+        }
+    };
 }
 
-/// Tracked Natural Logarithm.
-#[must_use]
-#[inline]
-pub fn log<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, LogOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked Exponential function.
+    fn exp => ExpOp;
+);
 
-/// Tracked Gauss error function.
-///
-/// Backward: `d/dx erf(x) = (2/√π)·e^(−x²)`.
-#[must_use]
-#[inline]
-pub fn erf<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, ErfOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked Natural Logarithm.
+    fn log => LogOp;
+);
 
-/// Tracked complementary error function.
-///
-/// Backward: `d/dx erfc(x) = -(2/√π)·e^(−x²)`.
-#[must_use]
-#[inline]
-pub fn erfc<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, ErfcOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked Gauss error function.
+    ///
+    /// Backward: `d/dx erf(x) = (2/√π)·e^(−x²)`.
+    fn erf => ErfOp;
+);
+
+define_tracked_unary_fn!(
+    /// Tracked complementary error function.
+    ///
+    /// Backward: `d/dx erfc(x) = -(2/√π)·e^(−x²)`.
+    fn erfc => ErfcOp;
+);
 
 /// Forward-only natural logarithm of the absolute gamma function.
 ///
@@ -558,118 +563,86 @@ pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_ops::lgamma(&a.tensor, &backend)
 }
 
-/// Tracked element-wise sine.
-///
-/// Backward: `d/dx sin(x) = cos(x)`.
-#[must_use]
-#[inline]
-pub fn sin<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, SinOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise sine.
+    ///
+    /// Backward: `d/dx sin(x) = cos(x)`.
+    fn sin => SinOp;
+);
 
-/// Tracked element-wise cosine.
-///
-/// Backward: `d/dx cos(x) = -sin(x)`.
-#[must_use]
-#[inline]
-pub fn cos<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, CosOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise cosine.
+    ///
+    /// Backward: `d/dx cos(x) = -sin(x)`.
+    fn cos => CosOp;
+);
 
-/// Tracked tan.
-#[must_use]
-#[inline]
-pub fn tan<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, TanOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked tan.
+    fn tan => TanOp;
+);
 
-/// Tracked asin.
-#[must_use]
-#[inline]
-pub fn asin<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, AsinOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked asin.
+    fn asin => AsinOp;
+);
 
-/// Tracked acos.
-#[must_use]
-#[inline]
-pub fn acos<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, AcosOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked acos.
+    fn acos => AcosOp;
+);
 
-/// Tracked atan.
-#[must_use]
-#[inline]
-pub fn atan<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, AtanOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked atan.
+    fn atan => AtanOp;
+);
 
-/// Tracked element-wise hyperbolic sine.
-#[must_use]
-#[inline]
-pub fn sinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, SinhOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise hyperbolic sine.
+    fn sinh => SinhOp;
+);
 
-/// Tracked element-wise hyperbolic cosine.
-#[must_use]
-#[inline]
-pub fn cosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, CoshOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise hyperbolic cosine.
+    fn cosh => CoshOp;
+);
 
-/// Tracked element-wise base-2 logarithm.
-#[must_use]
-#[inline]
-pub fn log2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, Log2Op>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise base-2 logarithm.
+    fn log2 => Log2Op;
+);
 
-/// Tracked element-wise base-10 logarithm.
-#[must_use]
-#[inline]
-pub fn log10<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, Log10Op>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise base-10 logarithm.
+    fn log10 => Log10Op;
+);
 
-/// Tracked element-wise base-2 exponential.
-#[must_use]
-#[inline]
-pub fn exp2<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, Exp2Op>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise base-2 exponential.
+    fn exp2 => Exp2Op;
+);
 
-/// Tracked element-wise inverse hyperbolic tangent.
-#[must_use]
-#[inline]
-pub fn atanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, AtanhOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise inverse hyperbolic tangent.
+    fn atanh => AtanhOp;
+);
 
-/// Tracked element-wise inverse hyperbolic sine.
-#[must_use]
-#[inline]
-pub fn asinh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, AsinhOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise inverse hyperbolic sine.
+    fn asinh => AsinhOp;
+);
 
-/// Tracked element-wise inverse hyperbolic cosine.
-#[must_use]
-#[inline]
-pub fn acosh<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, AcoshOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise inverse hyperbolic cosine.
+    fn acosh => AcoshOp;
+);
 
-/// Tracked element-wise exp(x) - 1.
-#[must_use]
-#[inline]
-pub fn expm1<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, Expm1Op>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise exp(x) - 1.
+    fn expm1 => Expm1Op;
+);
 
-/// Tracked element-wise ln(1 + x).
-#[must_use]
-#[inline]
-pub fn log1p<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, Log1pOp>(a)
-}
+define_tracked_unary_fn!(
+    /// Tracked element-wise ln(1 + x).
+    fn log1p => Log1pOp;
+);
