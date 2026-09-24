@@ -220,16 +220,13 @@ where
     }
 
     let backend = B::default();
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(output.shape(), &backend)));
-    let node = SelectiveScanNode::<B> {
-        output_grad: output_grad.clone(),
-        inputs: vec![a_bar.clone(), u.clone()],
-        a_bar: a_bar.tensor.clone(),
-        h: output.clone(),
-    };
-    Var {
-        tensor: output,
-        grad: Some(output_grad),
-        creator: Some(Arc::new(node)),
-    }
+    let h = output.clone();
+    Var::from_tracked_op(output, requires_grad, &backend, |output_grad| {
+        SelectiveScanNode::<B> {
+            output_grad,
+            inputs: vec![a_bar.clone(), u.clone()],
+            a_bar: a_bar.tensor.clone(),
+            h,
+        }
+    })
 }

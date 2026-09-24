@@ -55,21 +55,10 @@ pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B
         return Var::new(out_tensor, false);
     }
 
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
-        out_tensor.shape_cloned(),
-        &backend,
-    )));
-    let grad = Some(output_grad.clone());
-
-    let node = ContiguousNode {
-        output_grad,
-        inputs: vec![x.clone()],
-    };
-    let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
-
-    Var {
-        tensor: out_tensor,
-        grad,
-        creator,
-    }
+    Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
+        ContiguousNode {
+            output_grad,
+            inputs: vec![x.clone()],
+        }
+    })
 }

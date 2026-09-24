@@ -5,9 +5,18 @@
 use std::marker::PhantomData;
 
 use crate::tensor::Tensor;
-use coeus_core::{ComputeBackend, Scalar, Shape};
+use coeus_core::{ComputeBackend, Layout, Scalar, Shape};
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
+    #[inline(always)]
+    fn with_layout(&self, layout: Layout) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            layout,
+            _backend: PhantomData,
+        }
+    }
+
     /// Zero-copy slice. Returns a view sharing the same storage.
     ///
     /// `ranges` is a slice of `(start, end)` pairs, one per dimension.
@@ -16,11 +25,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// If ranges length ≠ ndim, or any range is invalid.
     #[inline]
     pub fn slice(&self, ranges: &[(usize, usize)]) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            layout: self.layout.slice(ranges),
-            _backend: PhantomData,
-        }
+        self.with_layout(self.layout.slice(ranges))
     }
 
     /// Zero-copy transpose of a 2-D tensor.
@@ -58,11 +63,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         let new_shape = new_shape.into();
         let layout = coeus_leto::reshape_layout(&self.layout, &new_shape)
             .expect("coeus-leto reshape validation failed");
-        Self {
-            storage: self.storage.clone(),
-            layout,
-            _backend: PhantomData,
-        }
+        self.with_layout(layout)
     }
 
     /// Zero-copy permute: re-order dimensions.
@@ -72,11 +73,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn permute(&self, dims: &[usize]) -> Self {
         let layout = coeus_leto::permute_layout(&self.layout, dims)
             .expect("coeus-leto permute validation failed");
-        Self {
-            storage: self.storage.clone(),
-            layout,
-            _backend: PhantomData,
-        }
+        self.with_layout(layout)
     }
 
     /// Zero-copy broadcast to a target shape.
@@ -88,42 +85,25 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         let target_shape = target_shape.into();
         let layout = coeus_leto::broadcast_layout(&self.layout, &target_shape)
             .expect("coeus-leto broadcast validation failed");
-
-        Self {
-            storage: self.storage.clone(),
-            layout,
-            _backend: PhantomData,
-        }
+        self.with_layout(layout)
     }
 
     /// Zero-copy squeeze of a specific dimension of size 1.
     #[inline]
     pub fn squeeze(&self, axis: usize) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            layout: self.layout.squeeze(axis),
-            _backend: PhantomData,
-        }
+        self.with_layout(self.layout.squeeze(axis))
     }
 
     /// Zero-copy squeeze of all dimensions of size 1.
     #[inline]
     pub fn squeeze_all(&self) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            layout: self.layout.squeeze_all(),
-            _backend: PhantomData,
-        }
+        self.with_layout(self.layout.squeeze_all())
     }
 
     /// Zero-copy unsqueeze by inserting a dimension of size 1 at `axis`.
     #[inline]
     pub fn unsqueeze(&self, axis: usize) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            layout: self.layout.unsqueeze(axis),
-            _backend: PhantomData,
-        }
+        self.with_layout(self.layout.unsqueeze(axis))
     }
 }
 

@@ -321,6 +321,15 @@ impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
 // ── Generic constructors & device transfers ──
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
+    #[inline(always)]
+    fn from_storage_and_shape(storage: B::DeviceBuffer<T>, shape: Shape) -> Self {
+        Self {
+            storage,
+            layout: Layout::new(shape),
+            _backend: PhantomData,
+        }
+    }
+
     /// Allocate a tensor with the given shape without initializing the elements.
     ///
     /// # Safety
@@ -332,13 +341,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn alloc_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {
         let shape = shape.into();
         let numel: usize = shape.iter().product();
-        let storage = backend.allocate(numel);
-        let layout = Layout::new(shape);
-        Self {
-            storage,
-            layout,
-            _backend: PhantomData,
-        }
+        Self::from_storage_and_shape(backend.allocate(numel), shape)
     }
 
     /// Create a new tensor filled with zeros on the given backend.
@@ -346,13 +349,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn zeros_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {
         let shape = shape.into();
         let numel: usize = shape.iter().product();
-        let storage = backend.allocate_zeroed(numel);
-        let layout = Layout::new(shape);
-        Self {
-            storage,
-            layout,
-            _backend: PhantomData,
-        }
+        Self::from_storage_and_shape(backend.allocate_zeroed(numel), shape)
     }
 
     /// Create a new tensor filled with ones on the given backend.
@@ -362,12 +359,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         let numel: usize = shape.iter().product();
         let mut storage = backend.allocate(numel);
         backend.fill(&mut storage, T::one());
-        let layout = Layout::new(shape);
-        Self {
-            storage,
-            layout,
-            _backend: PhantomData,
-        }
+        Self::from_storage_and_shape(storage, shape)
     }
 
     /// Create a new tensor filled with a constant value on the given backend.
@@ -377,12 +369,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         let numel: usize = shape.iter().product();
         let mut storage = backend.allocate(numel);
         backend.fill(&mut storage, value);
-        let layout = Layout::new(shape);
-        Self {
-            storage,
-            layout,
-            _backend: PhantomData,
-        }
+        Self::from_storage_and_shape(storage, shape)
     }
 
     /// Create from a slice of data and a shape on the given backend.
@@ -396,12 +383,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         assert_eq!(numel, data.len(), "data size mismatch for shape");
         let mut storage = backend.allocate(numel);
         backend.copy_to_device(data, &mut storage);
-        let layout = Layout::new(shape);
-        Self {
-            storage,
-            layout,
-            _backend: PhantomData,
-        }
+        Self::from_storage_and_shape(storage, shape)
     }
 
     /// Construct a tensor from its raw storage and layout parts.

@@ -100,19 +100,18 @@ where
     }
 
     let backend = B::default();
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(output.shape(), &backend)));
-    let node = LinearInterpolationNode::<D, B, P> {
-        output_grad: output_grad.clone(),
-        inputs: vec![image.clone(), grid.clone()],
-        image: image.tensor.clone(),
-        grid: grid.tensor.clone(),
-        policy: PhantomData,
-    };
-    Ok(Var {
-        tensor: output,
-        grad: Some(output_grad),
-        creator: Some(Arc::new(node)),
-    })
+    Ok(Var::from_tracked_op(
+        output,
+        requires_grad,
+        &backend,
+        |output_grad| LinearInterpolationNode::<D, B, P> {
+            output_grad,
+            inputs: vec![image.clone(), grid.clone()],
+            image: image.tensor.clone(),
+            grid: grid.tensor.clone(),
+            policy: PhantomData,
+        },
+    ))
 }
 
 // ── 3-D grid-sample (trilinear warp), PyTorch `grid_sample` semantics ──
@@ -524,16 +523,12 @@ where
     }
 
     let backend = B::default();
-    let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(output.shape(), &backend)));
-    let node = GridSample3dNode::<B> {
-        output_grad: output_grad.clone(),
-        inputs: vec![input.clone(), grid.clone()],
-        input: input.tensor.clone(),
-        grid: grid.tensor.clone(),
-    };
-    Var {
-        tensor: output,
-        grad: Some(output_grad),
-        creator: Some(Arc::new(node)),
-    }
+    Var::from_tracked_op(output, requires_grad, &backend, |output_grad| {
+        GridSample3dNode::<B> {
+            output_grad,
+            inputs: vec![input.clone(), grid.clone()],
+            input: input.tensor.clone(),
+            grid: grid.tensor.clone(),
+        }
+    })
 }
