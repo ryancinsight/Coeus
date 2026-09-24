@@ -20,6 +20,17 @@ fn unsupported_unary_operation(operation: UnaryOp) -> hephaestus_core::Hephaestu
     }
 }
 
+macro_rules! dispatch_unary_into {
+    ($operation:expr, $operations:expr, $device:expr, $input:expr, $output:expr, { $($variant:path => $kernel:ty),+ $(,)? }) => {
+        match $operation {
+            $(
+                $variant => Some($operations.unary_into::<$kernel, N>($device, $input, $output)),
+            )+
+            _ => None,
+        }
+    };
+}
+
 #[inline(always)]
 fn dispatch_core_unary_operations<D, E, T, const N: usize>(
     operations: &E,
@@ -342,6 +353,63 @@ where
         ) {
             return result;
         }
+        if let Some(result) = dispatch_unary_into!(
+            operation,
+            operations,
+            device,
+            input_view,
+            output_view,
+            {
+                UnaryOp::Relu => hephaestus_core::ReluOp,
+                UnaryOp::ReluGrad => hephaestus_core::ReluGradOp,
+                UnaryOp::Sigmoid => hephaestus_core::SigmoidOp,
+                UnaryOp::SigmoidGrad => hephaestus_core::SigmoidGradOp,
+                UnaryOp::Tanh => hephaestus_core::TanhOp,
+                UnaryOp::TanhGrad => hephaestus_core::TanhGradOp,
+                UnaryOp::Gelu => hephaestus_core::GeluOp,
+                UnaryOp::GeluGrad => hephaestus_core::GeluGradOp,
+                UnaryOp::GeluTanh => hephaestus_core::GeluTanhOp,
+                UnaryOp::GeluTanhGrad => hephaestus_core::GeluTanhGradOp,
+                UnaryOp::Silu => hephaestus_core::SiluOp,
+                UnaryOp::SiluGrad => hephaestus_core::SiluGradOp,
+                UnaryOp::Softplus => hephaestus_core::SoftplusOp,
+                UnaryOp::SoftplusGrad => hephaestus_core::SoftplusGradOp,
+                UnaryOp::Mish => hephaestus_core::MishOp,
+                UnaryOp::MishGrad => hephaestus_core::MishGradOp,
+                UnaryOp::Elu => hephaestus_core::EluOp,
+                UnaryOp::EluGrad => hephaestus_core::EluGradOp,
+                UnaryOp::Hardsigmoid => HardsigmoidOp,
+                UnaryOp::HardsigmoidGrad => HardsigmoidGradOp,
+                UnaryOp::Hardswish => HardswishOp,
+                UnaryOp::HardswishGrad => HardswishGradOp,
+                UnaryOp::Softsign => SoftsignOp,
+                UnaryOp::SoftsignGrad => SoftsignGradOp,
+                UnaryOp::Tan => hephaestus_core::TanOp,
+                UnaryOp::Asin => hephaestus_core::AsinOp,
+                UnaryOp::Acos => hephaestus_core::AcosOp,
+                UnaryOp::Atan => hephaestus_core::AtanOp,
+                UnaryOp::Sinh => hephaestus_core::SinhOp,
+                UnaryOp::Cosh => hephaestus_core::CoshOp,
+                UnaryOp::Log2 => hephaestus_core::Log2Op,
+                UnaryOp::Log10 => hephaestus_core::Log10Op,
+                UnaryOp::Exp2 => hephaestus_core::Exp2Op,
+                UnaryOp::Atanh => hephaestus_core::AtanhOp,
+                UnaryOp::Asinh => hephaestus_core::AsinhOp,
+                UnaryOp::Acosh => hephaestus_core::AcoshOp,
+                UnaryOp::Expm1 => hephaestus_core::Expm1Op,
+                UnaryOp::Log1p => hephaestus_core::Log1pOp,
+                UnaryOp::Sign => hephaestus_core::SignOp,
+                UnaryOp::Floor => hephaestus_core::FloorOp,
+                UnaryOp::Ceil => hephaestus_core::CeilOp,
+                UnaryOp::Round => hephaestus_core::RoundOp,
+                UnaryOp::Trunc => hephaestus_core::TruncOp,
+                UnaryOp::Erf => hephaestus_core::ErfOp,
+                UnaryOp::Erfc => hephaestus_core::ErfcOp,
+                UnaryOp::Lgamma => hephaestus_core::LgammaOp
+            }
+        ) {
+            return result;
+        }
         match operation {
             UnaryOp::Hardtanh(_)
             | UnaryOp::HardtanhGrad(_)
@@ -355,188 +423,6 @@ where
             | UnaryOp::ThresholdGrad(_)
             | UnaryOp::Celu(_)
             | UnaryOp::CeluGrad(_) => parameterized_unary::<P, N>(operation, input, output),
-            UnaryOp::Relu => {
-                operations.unary_into::<hephaestus_core::ReluOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::ReluGrad => operations.unary_into::<hephaestus_core::ReluGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Sigmoid => operations.unary_into::<hephaestus_core::SigmoidOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::SigmoidGrad => operations.unary_into::<hephaestus_core::SigmoidGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Tanh => {
-                operations.unary_into::<hephaestus_core::TanhOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::TanhGrad => operations.unary_into::<hephaestus_core::TanhGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Gelu => {
-                operations.unary_into::<hephaestus_core::GeluOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::GeluGrad => operations.unary_into::<hephaestus_core::GeluGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::GeluTanh => operations.unary_into::<hephaestus_core::GeluTanhOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::GeluTanhGrad => operations.unary_into::<hephaestus_core::GeluTanhGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Silu => {
-                operations.unary_into::<hephaestus_core::SiluOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::SiluGrad => operations.unary_into::<hephaestus_core::SiluGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Softplus => operations.unary_into::<hephaestus_core::SoftplusOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::SoftplusGrad => operations.unary_into::<hephaestus_core::SoftplusGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Mish => {
-                operations.unary_into::<hephaestus_core::MishOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::MishGrad => operations.unary_into::<hephaestus_core::MishGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Elu => {
-                operations.unary_into::<hephaestus_core::EluOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::EluGrad => operations.unary_into::<hephaestus_core::EluGradOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Hardsigmoid => {
-                operations.unary_into::<HardsigmoidOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::HardsigmoidGrad => {
-                operations.unary_into::<HardsigmoidGradOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Hardswish => {
-                operations.unary_into::<HardswishOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::HardswishGrad => {
-                operations.unary_into::<HardswishGradOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Softsign => {
-                operations.unary_into::<SoftsignOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::SoftsignGrad => {
-                operations.unary_into::<SoftsignGradOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Tan => {
-                operations.unary_into::<hephaestus_core::TanOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Asin => {
-                operations.unary_into::<hephaestus_core::AsinOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Acos => {
-                operations.unary_into::<hephaestus_core::AcosOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Atan => {
-                operations.unary_into::<hephaestus_core::AtanOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Sinh => {
-                operations.unary_into::<hephaestus_core::SinhOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Cosh => {
-                operations.unary_into::<hephaestus_core::CoshOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Log2 => {
-                operations.unary_into::<hephaestus_core::Log2Op, N>(device, input_view, output_view)
-            }
-            UnaryOp::Log10 => operations.unary_into::<hephaestus_core::Log10Op, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Exp2 => {
-                operations.unary_into::<hephaestus_core::Exp2Op, N>(device, input_view, output_view)
-            }
-            UnaryOp::Atanh => operations.unary_into::<hephaestus_core::AtanhOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Asinh => operations.unary_into::<hephaestus_core::AsinhOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Acosh => operations.unary_into::<hephaestus_core::AcoshOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Expm1 => operations.unary_into::<hephaestus_core::Expm1Op, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Log1p => operations.unary_into::<hephaestus_core::Log1pOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Sign => {
-                operations.unary_into::<hephaestus_core::SignOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Floor => operations.unary_into::<hephaestus_core::FloorOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Ceil => {
-                operations.unary_into::<hephaestus_core::CeilOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Round => operations.unary_into::<hephaestus_core::RoundOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Trunc => operations.unary_into::<hephaestus_core::TruncOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
-            UnaryOp::Erf => {
-                operations.unary_into::<hephaestus_core::ErfOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Erfc => {
-                operations.unary_into::<hephaestus_core::ErfcOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Lgamma => operations.unary_into::<hephaestus_core::LgammaOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
             UnaryOp::Sin
             | UnaryOp::Cos
             | UnaryOp::Exp
@@ -545,6 +431,7 @@ where
             | UnaryOp::Abs
             | UnaryOp::Sqrt
             | UnaryOp::Recip => unreachable!("handled by core unary dispatch"),
+            _ => Err(unsupported_unary_operation(operation)),
         }
     }
 }
