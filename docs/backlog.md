@@ -32,7 +32,7 @@
 <a id="coeus-communicator-fallible-collectives"></a>
 ## COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES — TCP collectives panic on peer I/O failure
 
-- Status: todo; integrator: unclaimed; priority: correctness; [major] (`Communicator` methods gain a `Result`).
+- Status: in-progress; integrator: claude-coeus-tcp; priority: correctness; [major] (`Communicator` methods gain a `Result`); branch `fix/coeus-communicator-fallible-collectives`.
 - Successor to COEUS-TCPMESH-FALLIBLE-SETUP, delivered by the PR that replaced this entry ([ADR 0074](adr/0074-fallible-tcp-mesh.md)).
 - Outcome: `Communicator` collectives return a typed error, so `TcpCommunicator` propagates `TcpMeshError` from `send`/`recv` instead of panicking; `LocalCommunicator` and `synchronize_gradients` follow.
 - Evidence: `crates/coeus-dist/src/tcp/collectives.rs` `TcpCommunicator::send`/`recv` panic with the error chain because the trait has no error channel.
