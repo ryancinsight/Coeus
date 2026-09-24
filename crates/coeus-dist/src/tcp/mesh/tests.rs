@@ -131,7 +131,7 @@ fn accept_reports_a_handshake_cut_short_by_the_peer() {
             assert_eq!(rank, 1);
             assert_eq!(peer, None, "the peer rank was never announced");
             assert_eq!(address, dialler);
-            assert_eq!(source.kind(), io::ErrorKind::UnexpectedEof);
+            assert_eq!(source.kind(), std::io::ErrorKind::UnexpectedEof);
         }
         Err(other) => panic!("expected a Handshake StreamSetup, got {other:?}"),
         Ok(_) => panic!("a truncated rank handshake must fail"),
@@ -154,7 +154,7 @@ fn recv_from_a_closed_peer_is_an_unexpected_end_of_stream() {
         }) => {
             assert_eq!((rank, peer), (0, 1));
             assert_eq!(address, addresses[1]);
-            assert_eq!(source.kind(), io::ErrorKind::UnexpectedEof);
+            assert_eq!(source.kind(), std::io::ErrorKind::UnexpectedEof);
         }
         other => panic!("expected Recv, got {other:?}"),
     }
@@ -187,9 +187,9 @@ fn send_to_a_closed_peer_fails_with_the_reset() {
             assert!(
                 matches!(
                     source.kind(),
-                    io::ErrorKind::ConnectionReset
-                        | io::ErrorKind::ConnectionAborted
-                        | io::ErrorKind::BrokenPipe
+                    std::io::ErrorKind::ConnectionReset
+                        | std::io::ErrorKind::ConnectionAborted
+                        | std::io::ErrorKind::BrokenPipe
                 ),
                 "unexpected source kind {:?}",
                 source.kind()
@@ -320,7 +320,7 @@ fn dial_side_handshake_failure_names_the_dialled_peer() {
     fn dial_with_write_half_closed(
         address: &SocketAddr,
         left: Duration,
-    ) -> io::Result<std::net::TcpStream> {
+    ) -> std::io::Result<std::net::TcpStream> {
         let stream = std::net::TcpStream::connect_timeout(address, left)?;
         stream.shutdown(std::net::Shutdown::Write)?;
         Ok(stream)
@@ -357,7 +357,7 @@ fn dial_side_handshake_failure_names_the_dialled_peer() {
             assert_eq!(address, peer_address);
             // Writing after a local write shutdown: EPIPE on Unix, WSAESHUTDOWN on
             // Windows; std maps both to BrokenPipe.
-            assert_eq!(source.kind(), io::ErrorKind::BrokenPipe);
+            assert_eq!(source.kind(), std::io::ErrorKind::BrokenPipe);
         }
         Err(other) => panic!("expected a Handshake StreamSetup, got {other:?}"),
         Ok(_) => panic!("a handshake over a closed write half must fail"),
@@ -404,7 +404,7 @@ fn poisoning_a_link_ends_the_peer_s_pending_recv() {
             // loopback endpoint.
             assert_eq!(address.ip(), addresses[0].ip());
             // Rank 0 had read everything sent to it, so closing sends FIN.
-            assert_eq!(source.kind(), io::ErrorKind::UnexpectedEof);
+            assert_eq!(source.kind(), std::io::ErrorKind::UnexpectedEof);
         }
         other => panic!("expected rank 1's Recv to end with the close, got {other:?}"),
     }
