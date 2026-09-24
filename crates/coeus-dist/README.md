@@ -7,7 +7,8 @@ distributing tensor work.
 
 ## What is here
 
-- `Communicator` — the collective-operation trait.
+- `Communicator` — the collective-operation trait; each collective returns
+  the implementation's `Error` type.
 - `LocalCommunicator` — a thread-based implementation for single-process
   multi-worker runs.
 - A TCP implementation providing collectives and mesh setup over `std` sockets.

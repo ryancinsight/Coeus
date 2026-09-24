@@ -1,4 +1,4 @@
-use super::error::ErrorChain;
+use super::error::TcpMeshError;
 use super::mesh::TcpMesh;
 use crate::communicator::Communicator;
 use crate::host_access::{
@@ -12,13 +12,14 @@ use coeus_tensor::Tensor;
 /// A socket-based communicator for distributed training.
 ///
 /// Construction is infallible: mesh setup failures surface as a
-/// [`TcpMeshError`](super::TcpMeshError) from [`TcpMesh::new`] or
+/// [`TcpMeshError`] from [`TcpMesh::new`] or
 /// [`TcpMesh::create_loopback_cluster`] before a communicator exists.
 ///
-/// # Panics
-///
-/// [`Communicator`] collectives have no error channel, so a peer I/O failure
-/// during a collective panics with the full error source chain.
+/// A collective that fails on any peer link poisons every link of this rank
+/// and returns the [`TcpMeshError`]. Closing the links ends the waits of the
+/// peers still in the collective, so every surviving rank returns a typed
+/// error within its I/O deadline, and every later collective on this
+/// communicator returns [`TcpMeshError::LinkPoisoned`].
 pub struct TcpCommunicator {
     mesh: TcpMesh,
 }
@@ -29,22 +30,6 @@ impl TcpCommunicator {
         Self { mesh }
     }
 
-    /// Send to `peer`, panicking with the error chain because the
-    /// [`Communicator`] contract is infallible.
-    fn send(&self, peer: usize, bytes: &[u8]) {
-        if let Err(error) = self.mesh.send(peer, bytes) {
-            panic!("{}", ErrorChain(&error));
-        }
-    }
-
-    /// Receive from `peer`, panicking with the error chain because the
-    /// [`Communicator`] contract is infallible.
-    fn recv(&self, peer: usize, bytes: &mut [u8]) {
-        if let Err(error) = self.mesh.recv(peer, bytes) {
-            panic!("{}", ErrorChain(&error));
-        }
-    }
-
     /// Gracefully close the underlying mesh's peer streams and stop its
     /// dedicated runtime.
     ///
@@ -52,6 +37,15 @@ impl TcpCommunicator {
     /// communicator is dropped.
     pub fn shutdown(&mut self) {
         self.mesh.shutdown();
+    }
+
+    /// Run the steps of one collective, poisoning every link if any step
+    /// fails: the collective's streams are then at unknown frame positions.
+    fn collective<R>(
+        &self,
+        steps: impl FnOnce() -> Result<R, TcpMeshError>,
+    ) -> Result<R, TcpMeshError> {
+        steps().inspect_err(|_| self.mesh.poison_all_links())
     }
 
     #[inline]
@@ -78,10 +72,10 @@ impl TcpCommunicator {
     }
 
     #[inline]
-    fn recv_numel_from(&self, peer: usize) -> usize {
+    fn recv_numel_from(&self, peer: usize) -> Result<usize, TcpMeshError> {
         let mut peer_numel_bytes = [0u8; 8];
-        self.recv(peer, &mut peer_numel_bytes);
-        u64::from_le_bytes(peer_numel_bytes) as usize
+        self.mesh.recv(peer, &mut peer_numel_bytes)?;
+        Ok(u64::from_le_bytes(peer_numel_bytes) as usize)
     }
 
     #[inline]
@@ -92,7 +86,7 @@ impl TcpCommunicator {
         size: usize,
         root: usize,
         numel: usize,
-    ) {
+    ) -> Result<(), TcpMeshError> {
         let local_numel_bytes = Self::numel_bytes(numel);
         if rank == root {
             let mut mismatch: Option<(usize, usize)> = None;
@@ -100,7 +94,7 @@ impl TcpCommunicator {
                 if other == root {
                     continue;
                 }
-                let peer_numel = self.recv_numel_from(other);
+                let peer_numel = self.recv_numel_from(other)?;
                 if mismatch.is_none() && peer_numel != numel {
                     mismatch = Some((other, peer_numel));
                 }
@@ -108,22 +102,23 @@ impl TcpCommunicator {
             let status = if mismatch.is_some() { [0u8] } else { [1u8] };
             for other in 0..size {
                 if other != root {
-                    self.send(other, &status);
+                    self.mesh.send(other, &status)?;
                 }
             }
             if let Some((other, peer_numel)) = mismatch {
                 Self::assert_numel(collective, other, peer_numel, numel);
             }
         } else {
-            self.send(root, &local_numel_bytes);
+            self.mesh.send(root, &local_numel_bytes)?;
             let mut status = [0u8; 1];
-            self.recv(root, &mut status);
+            self.mesh.recv(root, &mut status)?;
             match status[0] {
                 1 => {}
                 0 => panic!("{collective} numel handshake failed on rank {rank}"),
                 value => panic!("{collective} numel handshake status invalid: {value}"),
             }
         }
+        Ok(())
     }
 
     #[inline]
@@ -133,26 +128,29 @@ impl TcpCommunicator {
         rank: usize,
         size: usize,
         numel: usize,
-    ) {
+    ) -> Result<(), TcpMeshError> {
         let local_numel_bytes = Self::numel_bytes(numel);
         for other in 0..size {
             if other == rank {
                 continue;
             }
-            if rank < other {
-                self.send(other, &local_numel_bytes);
-                let peer_numel = self.recv_numel_from(other);
-                Self::assert_numel(collective, other, peer_numel, numel);
+            let peer_numel = if rank < other {
+                self.mesh.send(other, &local_numel_bytes)?;
+                self.recv_numel_from(other)?
             } else {
-                let peer_numel = self.recv_numel_from(other);
-                self.send(other, &local_numel_bytes);
-                Self::assert_numel(collective, other, peer_numel, numel);
-            }
+                let peer_numel = self.recv_numel_from(other)?;
+                self.mesh.send(other, &local_numel_bytes)?;
+                peer_numel
+            };
+            Self::assert_numel(collective, other, peer_numel, numel);
         }
+        Ok(())
     }
 }
 
 impl Communicator for TcpCommunicator {
+    type Error = TcpMeshError;
+
     #[inline]
     fn rank(&self) -> usize {
         self.mesh.rank()
@@ -163,34 +161,36 @@ impl Communicator for TcpCommunicator {
         self.mesh.size()
     }
 
-    fn barrier(&self) {
+    fn barrier(&self) -> Result<(), TcpMeshError> {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         if size <= 1 {
-            return;
+            return Ok(());
         }
-        if rank == 0 {
+        self.collective(|| {
             let mut byte = [0u8; 1];
-            for other in 1..size {
-                self.recv(other, &mut byte);
+            if rank == 0 {
+                for other in 1..size {
+                    self.mesh.recv(other, &mut byte)?;
+                }
+                for other in 1..size {
+                    self.mesh.send(other, &[1])?;
+                }
+            } else {
+                self.mesh.send(0, &[1])?;
+                self.mesh.recv(0, &mut byte)?;
             }
-            for other in 1..size {
-                self.send(other, &[1]);
-            }
-        } else {
-            self.send(0, &[1]);
-            let mut byte = [0u8; 1];
-            self.recv(0, &mut byte);
-        }
+            Ok(())
+        })
     }
 
     fn all_reduce<T: Scalar, B: ComputeBackend, Op: ReduceOpTag>(
         &self,
         tensor: &mut Tensor<T, B>,
         backend: &B,
-    ) {
-        self.reduce::<T, B, Op>(tensor, 0, backend);
-        self.broadcast(tensor, 0, backend);
+    ) -> Result<(), TcpMeshError> {
+        self.reduce::<T, B, Op>(tensor, 0, backend)?;
+        self.broadcast(tensor, 0, backend)
     }
 
     fn broadcast<T: Scalar, B: ComputeBackend>(
@@ -198,37 +198,31 @@ impl Communicator for TcpCommunicator {
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), TcpMeshError> {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
         let numel = tensor.numel();
         if size <= 1 {
-            return;
+            return Ok(());
         }
-
-        // Exchange expected payload lengths first so rank-shape mismatches fail fast
-        // instead of desynchronizing the byte stream.
-        self.rooted_numel_handshake("broadcast", rank, size, root, numel);
-        if rank == root {
+        self.collective(|| {
+            // Exchange expected payload lengths first so rank-shape mismatches
+            // fail fast instead of desynchronizing the byte stream.
+            self.rooted_numel_handshake("broadcast", rank, size, root, numel)?;
             if numel == 0 {
-                return;
+                return Ok(());
             }
-            with_tensor_host_bytes(tensor, backend, |slice| {
-                for other in 0..size {
-                    if other != root {
-                        self.send(other, slice);
-                    }
-                }
-            });
-        } else {
-            if numel == 0 {
-                return;
+            if rank == root {
+                with_tensor_host_bytes(tensor, backend, |slice| {
+                    (0..size)
+                        .filter(|&other| other != root)
+                        .try_for_each(|other| self.mesh.send(other, slice))
+                })
+            } else {
+                recv_tensor_data(tensor, backend, |slice| self.mesh.recv(root, slice))
             }
-            recv_tensor_data(tensor, backend, |slice| {
-                self.recv(root, slice);
-            });
-        }
+        })
     }
 
     fn all_gather<T: Scalar, B: ComputeBackend>(
@@ -236,7 +230,7 @@ impl Communicator for TcpCommunicator {
         tensor: &Tensor<T, B>,
         output: &mut [Tensor<T, B>],
         backend: &B,
-    ) {
+    ) -> Result<(), TcpMeshError> {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         assert_eq!(output.len(), size, "all_gather output length mismatch");
@@ -244,34 +238,35 @@ impl Communicator for TcpCommunicator {
         for (idx, out) in output.iter().enumerate().take(size) {
             Self::assert_numel("all_gather output", idx, out.numel(), numel);
         }
-        self.pairwise_numel_handshake("all_gather input", rank, size, numel);
-        if numel == 0 {
-            return;
-        }
-
-        let self_host_data = get_tensor_host_data(tensor, backend);
-        copy_host_slice_to_tensor(&self_host_data, &mut output[rank], backend);
-
-        with_tensor_host_bytes(tensor, backend, |send_raw_slice| {
-            for (other, out_tensor) in output.iter_mut().enumerate().take(size) {
-                if other == rank {
-                    continue;
-                }
-                if rank < other {
-                    self.send(other, send_raw_slice);
-
-                    recv_tensor_data(out_tensor, backend, |slice| {
-                        self.recv(other, slice);
-                    });
-                } else {
-                    recv_tensor_data(out_tensor, backend, |slice| {
-                        self.recv(other, slice);
-                    });
-
-                    self.send(other, send_raw_slice);
-                }
+        self.collective(|| {
+            self.pairwise_numel_handshake("all_gather input", rank, size, numel)?;
+            if numel == 0 {
+                return Ok(());
             }
-        });
+
+            let self_host_data = get_tensor_host_data(tensor, backend);
+            copy_host_slice_to_tensor(&self_host_data, &mut output[rank], backend);
+
+            with_tensor_host_bytes(tensor, backend, |send_raw_slice| {
+                for (other, out_tensor) in output.iter_mut().enumerate().take(size) {
+                    if other == rank {
+                        continue;
+                    }
+                    if rank < other {
+                        self.mesh.send(other, send_raw_slice)?;
+                        recv_tensor_data(out_tensor, backend, |slice| {
+                            self.mesh.recv(other, slice)
+                        })?;
+                    } else {
+                        recv_tensor_data(out_tensor, backend, |slice| {
+                            self.mesh.recv(other, slice)
+                        })?;
+                        self.mesh.send(other, send_raw_slice)?;
+                    }
+                }
+                Ok(())
+            })
+        })
     }
 
     fn reduce<T: Scalar, B: ComputeBackend, Op: ReduceOpTag>(
@@ -279,40 +274,35 @@ impl Communicator for TcpCommunicator {
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), TcpMeshError> {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
         if size <= 1 {
-            return;
+            return Ok(());
         }
         let numel = tensor.numel();
-        self.rooted_numel_handshake("reduce input", rank, size, root, numel);
+        self.collective(|| {
+            self.rooted_numel_handshake("reduce input", rank, size, root, numel)?;
+            if numel == 0 {
+                return Ok(());
+            }
 
-        if numel == 0 {
-            return;
-        }
-
-        if rank == root {
-            let mut reduced = get_tensor_host_data(tensor, backend).into_owned();
-            let mut incoming = vec![T::zero(); numel];
-
-            for other in 0..size {
-                if other != root {
-                    recv_slice_data(&mut incoming, |slice| {
-                        self.recv(other, slice);
-                    });
-                    for i in 0..numel {
-                        reduced[i] = Op::apply(reduced[i], incoming[i]);
+            if rank == root {
+                let mut reduced = get_tensor_host_data(tensor, backend).into_owned();
+                let mut incoming = vec![T::zero(); numel];
+                for other in (0..size).filter(|&other| other != root) {
+                    recv_slice_data(&mut incoming, |slice| self.mesh.recv(other, slice))?;
+                    for (acc, &value) in reduced.iter_mut().zip(&incoming) {
+                        *acc = Op::apply(*acc, value);
                     }
                 }
+                copy_host_slice_to_tensor(&reduced, tensor, backend);
+                Ok(())
+            } else {
+                with_tensor_host_bytes(tensor, backend, |slice| self.mesh.send(root, slice))
             }
-            copy_host_slice_to_tensor(&reduced, tensor, backend);
-        } else {
-            with_tensor_host_bytes(tensor, backend, |slice| {
-                self.send(root, slice);
-            });
-        }
+        })
     }
 
     fn gather<T: Scalar, B: ComputeBackend>(
@@ -321,7 +311,7 @@ impl Communicator for TcpCommunicator {
         output: &mut [Tensor<T, B>],
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), TcpMeshError> {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
@@ -332,27 +322,27 @@ impl Communicator for TcpCommunicator {
                 Self::assert_numel("gather output", idx, out.numel(), numel);
             }
         }
-        self.rooted_numel_handshake("gather input", rank, size, root, numel);
-        if numel == 0 {
-            return;
-        }
-
-        if rank == root {
-            let self_host_data = get_tensor_host_data(tensor, backend);
-            copy_host_slice_to_tensor(&self_host_data, &mut output[root], backend);
-
-            for (other, out_tensor) in output.iter_mut().enumerate().take(size) {
-                if other != root {
-                    recv_tensor_data(out_tensor, backend, |slice| {
-                        self.recv(other, slice);
-                    });
-                }
+        self.collective(|| {
+            self.rooted_numel_handshake("gather input", rank, size, root, numel)?;
+            if numel == 0 {
+                return Ok(());
             }
-        } else {
-            with_tensor_host_bytes(tensor, backend, |slice| {
-                self.send(root, slice);
-            });
-        }
+
+            if rank == root {
+                let self_host_data = get_tensor_host_data(tensor, backend);
+                copy_host_slice_to_tensor(&self_host_data, &mut output[root], backend);
+                for (other, out_tensor) in output.iter_mut().enumerate().take(size) {
+                    if other != root {
+                        recv_tensor_data(out_tensor, backend, |slice| {
+                            self.mesh.recv(other, slice)
+                        })?;
+                    }
+                }
+                Ok(())
+            } else {
+                with_tensor_host_bytes(tensor, backend, |slice| self.mesh.send(root, slice))
+            }
+        })
     }
 
     fn scatter<T: Scalar, B: ComputeBackend>(
@@ -361,7 +351,7 @@ impl Communicator for TcpCommunicator {
         input: &[Tensor<T, B>],
         root: usize,
         backend: &B,
-    ) {
+    ) -> Result<(), TcpMeshError> {
         let rank = self.mesh.rank();
         let size = self.mesh.size();
         Self::assert_root(root, size);
@@ -372,26 +362,26 @@ impl Communicator for TcpCommunicator {
                 Self::assert_numel("scatter input", idx, in_tensor.numel(), numel);
             }
         }
-        self.rooted_numel_handshake("scatter target", rank, size, root, numel);
-        if numel == 0 {
-            return;
-        }
-
-        if rank == root {
-            let self_host_data = get_tensor_host_data(&input[root], backend);
-            copy_host_slice_to_tensor(&self_host_data, tensor, backend);
-
-            for (other, in_tensor) in input.iter().enumerate().take(size) {
-                if other != root {
-                    with_tensor_host_bytes(in_tensor, backend, |slice| {
-                        self.send(other, slice);
-                    });
-                }
+        self.collective(|| {
+            self.rooted_numel_handshake("scatter target", rank, size, root, numel)?;
+            if numel == 0 {
+                return Ok(());
             }
-        } else {
-            recv_tensor_data(tensor, backend, |slice| {
-                self.recv(root, slice);
-            });
-        }
+
+            if rank == root {
+                let self_host_data = get_tensor_host_data(&input[root], backend);
+                copy_host_slice_to_tensor(&self_host_data, tensor, backend);
+                for (other, in_tensor) in input.iter().enumerate().take(size) {
+                    if other != root {
+                        with_tensor_host_bytes(in_tensor, backend, |slice| {
+                            self.mesh.send(other, slice)
+                        })?;
+                    }
+                }
+                Ok(())
+            } else {
+                recv_tensor_data(tensor, backend, |slice| self.mesh.recv(root, slice))
+            }
+        })
     }
 }

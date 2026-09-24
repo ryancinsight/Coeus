@@ -102,6 +102,19 @@ impl TcpMesh {
         }
     }
 
+    /// Poison every link, closing its socket.
+    ///
+    /// A collective that fails on one link leaves its other streams at
+    /// unknown frame positions, and peers waiting on this rank would
+    /// otherwise wait out their I/O deadline. Closing every socket ends those
+    /// waits at once with end of stream or a reset, and every later
+    /// operation on this mesh returns [`TcpMeshError::LinkPoisoned`].
+    pub(crate) fn poison_all_links(&self) {
+        for link in self.links.iter().flatten() {
+            *link.lock() = None;
+        }
+    }
+
     /// Gracefully close every peer stream and stop the mesh's dedicated
     /// runtime.
     ///

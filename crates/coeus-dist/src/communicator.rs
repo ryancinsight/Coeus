@@ -6,6 +6,13 @@ use coeus_tensor::Tensor;
 ///
 /// Implementations mediate synchronization, broadcasting, scattering, and reduction.
 ///
+/// Every collective returns [`Communicator::Error`] when communication with a
+/// peer fails. A failed collective leaves the process group unusable: ranks
+/// may have exchanged different amounts of data, so implementations that can
+/// fail also make every later collective fail rather than exchange misaligned
+/// data. Contract violations by the caller (a root out of range, mismatched
+/// element counts) remain panics.
+///
 /// # Examples
 ///
 /// Create a simulated two-rank cluster, then use [`Communicator::all_reduce`] with the
@@ -26,7 +33,7 @@ use coeus_tensor::Tensor;
 ///         // rank 0 -> [1.0, 2.0], rank 1 -> [2.0, 3.0]
 ///         let mut tensor =
 ///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///         let Ok(()) = comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
 ///         // sum across ranks: [1+2, 2+3] = [3, 5]
 ///         let data = tensor.as_slice();
 ///         assert_eq!(data[0], 3.0);
@@ -38,6 +45,12 @@ use coeus_tensor::Tensor;
 /// }
 /// ```
 pub trait Communicator: Send + Sync + 'static {
+    /// Failure of a collective: [`TcpMeshError`](crate::TcpMeshError) for
+    /// [`TcpCommunicator`](crate::TcpCommunicator), and
+    /// [`Infallible`](std::convert::Infallible) for the in-process
+    /// [`LocalCommunicator`](crate::LocalCommunicator).
+    type Error: std::error::Error + Send + Sync + 'static;
+
     /// Get the rank of the current process within the process group.
     fn rank(&self) -> usize;
 
@@ -45,56 +58,84 @@ pub trait Communicator: Send + Sync + 'static {
     fn size(&self) -> usize;
 
     /// Synchronize all ranks in the process group (blocking barrier).
-    fn barrier(&self);
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Self::Error`] when a peer cannot be reached.
+    fn barrier(&self) -> Result<(), Self::Error>;
 
     /// Reduce and distribute a tensor to all processes in-place.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Self::Error`] when a peer cannot be reached.
     fn all_reduce<T: Scalar, B: ComputeBackend, Op: ReduceOpTag>(
         &self,
         tensor: &mut Tensor<T, B>,
         backend: &B,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Broadcast a tensor from the root process rank to all other processes in-place.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Self::Error`] when a peer cannot be reached.
     fn broadcast<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Gather tensors from all processes into a slice of tensors.
     ///
     /// The length of `output` must be equal to `self.size()`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Self::Error`] when a peer cannot be reached.
     fn all_gather<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &Tensor<T, B>,
         output: &mut [Tensor<T, B>],
         backend: &B,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Reduce a tensor from all processes to a single root process.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Self::Error`] when a peer cannot be reached.
     fn reduce<T: Scalar, B: ComputeBackend, Op: ReduceOpTag>(
         &self,
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Gather tensors from all processes into a single slice on the root process.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Self::Error`] when a peer cannot be reached.
     fn gather<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &Tensor<T, B>,
         output: &mut [Tensor<T, B>],
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// Scatter a slice of tensors from the root process to all processes in-place.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Self::Error`] when a peer cannot be reached.
     fn scatter<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &mut Tensor<T, B>,
         input: &[Tensor<T, B>],
         root: usize,
         backend: &B,
-    );
+    ) -> Result<(), Self::Error>;
 }

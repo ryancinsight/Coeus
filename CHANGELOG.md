@@ -4,6 +4,14 @@
 
 ### Changed
 
+- [major] `Communicator` collectives return `Result<(), Self::Error>`.
+  `TcpCommunicator` returns `TcpMeshError` instead of panicking on peer I/O
+  failure, and a failed collective poisons all of that rank's links so every
+  surviving rank fails at once; `LocalCommunicator` returns `Infallible`.
+  `synchronize_gradients` returns `GradientSyncError`. Python TCP collectives
+  raise `ConnectionError`. See
+  [ADR 0075](docs/adr/0075-fallible-communicator-collectives.md#migration).
+
 - [major] `TcpMesh` setup and peer I/O return `TcpMeshError` instead of
   panicking. `TcpMesh::new` and `TcpMesh::create_loopback_cluster` take
   `MeshDeadlines`, applied in every build profile: a setup bound (default

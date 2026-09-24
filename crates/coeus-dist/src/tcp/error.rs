@@ -180,18 +180,3 @@ pub enum TcpMeshError {
         address: SocketAddr,
     },
 }
-
-/// `Display` of an error followed by each source, separated by `": "`.
-pub(crate) struct ErrorChain<'error>(pub(crate) &'error TcpMeshError);
-
-impl std::fmt::Display for ErrorChain<'_> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", self.0)?;
-        let mut source = std::error::Error::source(self.0);
-        while let Some(cause) = source {
-            write!(formatter, ": {cause}")?;
-            source = cause.source();
-        }
-        Ok(())
-    }
-}

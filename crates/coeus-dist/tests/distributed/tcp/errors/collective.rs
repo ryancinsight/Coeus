@@ -26,7 +26,8 @@ fn test_tcp_all_reduce_mismatched_numel_panics() {
             } else {
                 Tensor::from_slice_on([1], &[3.0f32], &backend)
             };
-            comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+            comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend)
+                .unwrap();
         }));
     }
 
@@ -52,7 +53,8 @@ fn test_tcp_all_reduce_zero_numel_mismatched_numel_panics() {
             } else {
                 Tensor::zeros_on([1], &backend)
             };
-            comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+            comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend)
+                .unwrap();
         }));
     }
 
@@ -80,7 +82,7 @@ fn test_tcp_broadcast_mismatched_numel_panics() {
                 Tensor::zeros_on([1], &backend)
             };
 
-            comm.broadcast(&mut tensor, 0, &backend);
+            comm.broadcast(&mut tensor, 0, &backend).unwrap();
         }));
     }
 
@@ -118,7 +120,7 @@ fn test_tcp_all_gather_mismatched_peer_numel_panics() {
                 ]
             };
 
-            comm.all_gather(&tensor, &mut output, &backend);
+            comm.all_gather(&tensor, &mut output, &backend).unwrap();
         }));
     }
 
@@ -156,7 +158,7 @@ fn test_tcp_all_gather_zero_numel_mismatched_peer_numel_panics() {
                 ]
             };
 
-            comm.all_gather(&tensor, &mut output, &backend);
+            comm.all_gather(&tensor, &mut output, &backend).unwrap();
         }));
     }
 
@@ -184,7 +186,8 @@ fn test_tcp_reduce_mismatched_numel_panics() {
                 Tensor::from_slice_on([1], &[3.0f32], &backend)
             };
 
-            comm.reduce::<f32, _, Sum>(&mut tensor, 0, &backend);
+            comm.reduce::<f32, _, Sum>(&mut tensor, 0, &backend)
+                .unwrap();
         }));
     }
 
@@ -218,7 +221,7 @@ fn test_tcp_gather_mismatched_peer_numel_panics() {
                 vec![]
             };
 
-            comm.gather(&tensor, &mut output, 1, &backend);
+            comm.gather(&tensor, &mut output, 1, &backend).unwrap();
         }));
     }
 
@@ -252,7 +255,7 @@ fn test_tcp_gather_zero_numel_mismatched_peer_numel_panics() {
                 vec![]
             };
 
-            comm.gather(&tensor, &mut output, 1, &backend);
+            comm.gather(&tensor, &mut output, 1, &backend).unwrap();
         }));
     }
 
@@ -287,7 +290,7 @@ fn test_tcp_scatter_mismatched_target_numel_panics() {
                 vec![]
             };
 
-            comm.scatter(&mut tensor, &input, 0, &backend);
+            comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
         }));
     }
 
@@ -322,7 +325,7 @@ fn test_tcp_scatter_zero_numel_mismatched_target_numel_panics() {
                 vec![]
             };
 
-            comm.scatter(&mut tensor, &input, 0, &backend);
+            comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
         }));
     }
 
@@ -341,7 +344,7 @@ fn test_tcp_all_gather_mismatched_output_numel_panics() {
 
     let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend);
     let mut output = vec![Tensor::zeros_on([1], &backend)];
-    comm.all_gather(&tensor, &mut output, &backend);
+    comm.all_gather(&tensor, &mut output, &backend).unwrap();
 }
 
 #[test]
@@ -353,7 +356,7 @@ fn test_tcp_all_gather_zero_numel_output_len_mismatch_panics() {
 
     let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
-    comm.all_gather(&tensor, &mut output, &backend);
+    comm.all_gather(&tensor, &mut output, &backend).unwrap();
 }
 
 #[test]
@@ -365,7 +368,7 @@ fn test_tcp_all_gather_zero_numel_output_numel_mismatch_panics() {
 
     let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output = vec![Tensor::zeros_on([1], &backend)];
-    comm.all_gather(&tensor, &mut output, &backend);
+    comm.all_gather(&tensor, &mut output, &backend).unwrap();
 }
 
 #[test]
@@ -377,7 +380,7 @@ fn test_tcp_scatter_mismatched_input_numel_panics() {
 
     let mut tensor = Tensor::zeros_on([2], &backend);
     let input = vec![Tensor::from_slice_on([1], &[3.0f32], &backend)];
-    comm.scatter(&mut tensor, &input, 0, &backend);
+    comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
 }
 
 #[test]
@@ -387,7 +390,7 @@ fn test_tcp_broadcast_root_out_of_bounds_panics() {
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
-    comm.broadcast(&mut tensor, 1, &backend);
+    comm.broadcast(&mut tensor, 1, &backend).unwrap();
 }
 
 #[test]
@@ -397,7 +400,8 @@ fn test_tcp_reduce_root_out_of_bounds_panics() {
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
-    comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend);
+    comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend)
+        .unwrap();
 }
 
 #[test]
@@ -408,7 +412,7 @@ fn test_tcp_gather_root_out_of_bounds_panics() {
     let backend = SequentialBackend::new();
     let tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
     let mut output = vec![Tensor::zeros_on([1], &backend)];
-    comm.gather(&tensor, &mut output, 1, &backend);
+    comm.gather(&tensor, &mut output, 1, &backend).unwrap();
 }
 
 #[test]
@@ -419,7 +423,7 @@ fn test_tcp_scatter_root_out_of_bounds_panics() {
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::zeros_on([1], &backend);
     let input = vec![Tensor::from_slice_on([1], &[1.0f32], &backend)];
-    comm.scatter(&mut tensor, &input, 1, &backend);
+    comm.scatter(&mut tensor, &input, 1, &backend).unwrap();
 }
 
 #[test]
@@ -430,7 +434,7 @@ fn test_tcp_gather_zero_numel_output_len_mismatch_panics() {
     let backend = SequentialBackend::new();
     let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
-    comm.gather(&tensor, &mut output, 0, &backend);
+    comm.gather(&tensor, &mut output, 0, &backend).unwrap();
 }
 
 #[test]
@@ -441,7 +445,7 @@ fn test_tcp_gather_mismatched_output_numel_panics() {
     let backend = SequentialBackend::new();
     let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend);
     let mut output = vec![Tensor::zeros_on([1], &backend)];
-    comm.gather(&tensor, &mut output, 0, &backend);
+    comm.gather(&tensor, &mut output, 0, &backend).unwrap();
 }
 
 #[test]
@@ -452,7 +456,7 @@ fn test_tcp_gather_zero_numel_output_numel_mismatch_panics() {
     let backend = SequentialBackend::new();
     let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let mut output = vec![Tensor::zeros_on([1], &backend)];
-    comm.gather(&tensor, &mut output, 0, &backend);
+    comm.gather(&tensor, &mut output, 0, &backend).unwrap();
 }
 
 #[test]
@@ -463,7 +467,7 @@ fn test_tcp_scatter_zero_numel_input_len_mismatch_panics() {
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let input: Vec<Tensor<f32, SequentialBackend>> = vec![];
-    comm.scatter(&mut tensor, &input, 0, &backend);
+    comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
 }
 
 #[test]
@@ -474,5 +478,5 @@ fn test_tcp_scatter_zero_numel_input_numel_mismatch_panics() {
     let backend = SequentialBackend::new();
     let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
     let input = vec![Tensor::zeros_on([1], &backend)];
-    comm.scatter(&mut tensor, &input, 0, &backend);
+    comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
 }
