@@ -179,4 +179,20 @@ pub enum TcpMeshError {
         /// Peer address of the stream.
         address: SocketAddr,
     },
+    /// A collective's root answered the element-count handshake with a
+    /// status byte other than 0 (mismatch) or 1 (agreed). The peer is
+    /// malformed or hostile; the link carries no trustworthy frames.
+    #[error(
+        "rank {rank} received invalid handshake status {status} from peer {peer} at {address}"
+    )]
+    InvalidStatus {
+        /// Local rank.
+        rank: usize,
+        /// Rank of the root that sent the status.
+        peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
+        /// The status byte received.
+        status: u8,
+    },
 }

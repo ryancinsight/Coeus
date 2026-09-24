@@ -8,6 +8,8 @@
   `TcpCommunicator` returns `TcpMeshError` instead of panicking on peer I/O
   failure, and a failed collective poisons all of that rank's links so every
   surviving rank fails at once; `LocalCommunicator` returns `Infallible`.
+  A handshake status byte other than 0 or 1 from a root returns
+  `TcpMeshError::InvalidStatus` instead of panicking.
   `synchronize_gradients` returns `GradientSyncError`. Python TCP collectives
   raise `ConnectionError`. See
   [ADR 0075](docs/adr/0075-fallible-communicator-collectives.md#migration).

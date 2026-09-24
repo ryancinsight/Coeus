@@ -32,8 +32,15 @@ between threads of one process; nothing in it performs I/O that can fail.
 - `synchronize_gradients` returns `GradientSyncError<B::Error, C::Error>`, a
   `#[non_exhaustive]` enum with `Communicator` and `Backend` variants that keep
   the cause as `#[source]`.
+- A handshake status byte other than 0 or 1 from a collective's root is
+  untrusted peer data, not a caller error: it returns
+  `TcpMeshError::InvalidStatus { rank, peer, address, status }` and poisons
+  the links like an I/O failure, so a malformed or hostile peer cannot crash
+  a rank.
 - Caller contract violations (a root out of range, mismatched element counts,
-  a failed element-count handshake) stay panics, as before.
+  which the root reports as status 0) stay panics, as before.
+- When a collective returns an error, the contents of the tensors it was
+  writing are unspecified: a receive may have filled part of one.
 
 Rejected: a crate-level `CommunicatorError` wrapping `TcpMeshError`. It would
 force `LocalCommunicator` to declare failures it cannot produce, and a closed
@@ -62,7 +69,10 @@ two survivors under a 20 s I/O bound, and asserts that rank 0 reports
 `Recv { peer: 2, UnexpectedEof }`, rank 1 reports `Recv { peer: 0,
 UnexpectedEof }`, and rank 0's next barrier returns `LinkPoisoned`. Without
 the poison-on-failure step rank 1 reports `RecvTimedOut` after 20 s instead.
-A Python test drops one rank of a two-rank cluster and checks that
-`all_reduce` and the following `barrier` raise `ConnectionError`. A peer
-lost in the middle of a payload transfer, rather than before the collective,
-is covered by the same poisoning path but has no dedicated test.
+`tcp::errors::root_failures` drives rank 0 of a broadcast by hand: a status
+byte of 7 yields `InvalidStatus { rank: 1, peer: 0, status: 7 }`, after which
+the root reads end of stream and rank 1's next barrier returns
+`LinkPoisoned`; a root that sends 8 of 16 payload bytes and shuts down yields
+`Recv { peer: 0, UnexpectedEof }`. A Python test drops one rank of a
+two-rank cluster and checks that `all_reduce` and the following `barrier`
+raise `ConnectionError`.

@@ -114,8 +114,17 @@ impl TcpCommunicator {
             self.mesh.recv(root, &mut status)?;
             match status[0] {
                 1 => {}
+                // The root found mismatched element counts: a caller contract
+                // violation, reported by the root's own assertion as well.
                 0 => panic!("{collective} numel handshake failed on rank {rank}"),
-                value => panic!("{collective} numel handshake status invalid: {value}"),
+                status => {
+                    return Err(TcpMeshError::InvalidStatus {
+                        rank,
+                        peer: root,
+                        address: self.mesh.peer_address(root),
+                        status,
+                    });
+                }
             }
         }
         Ok(())

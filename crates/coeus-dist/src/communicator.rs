@@ -11,7 +11,8 @@ use coeus_tensor::Tensor;
 /// may have exchanged different amounts of data, so implementations that can
 /// fail also make every later collective fail rather than exchange misaligned
 /// data. Contract violations by the caller (a root out of range, mismatched
-/// element counts) remain panics.
+/// element counts) remain panics. When a collective returns an error, the
+/// contents of the tensors it was writing are unspecified.
 ///
 /// # Examples
 ///

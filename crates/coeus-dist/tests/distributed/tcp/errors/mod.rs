@@ -6,5 +6,7 @@ mod collective;
 mod mesh;
 #[path = "peer_loss.rs"]
 mod peer_loss;
+#[path = "root_failures.rs"]
+mod root_failures;
 #[path = "setup.rs"]
 mod setup;
