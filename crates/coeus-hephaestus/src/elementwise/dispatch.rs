@@ -20,6 +20,56 @@ fn unsupported_unary_operation(operation: UnaryOp) -> hephaestus_core::Hephaestu
     }
 }
 
+#[inline(always)]
+fn dispatch_core_unary_operations<D, E, T, const N: usize>(
+    operations: &E,
+    device: &D,
+    operation: UnaryOp,
+    input: StridedView<'_, D::Buffer<T>, N>,
+    output: StridedView<'_, D::Buffer<T>, N>,
+) -> Option<hephaestus_core::Result<()>>
+where
+    D: ComputeDevice,
+    T: eunomia::Pod + DialectScalar<E::Dialect>,
+    E: HephaestusElementwiseOps<D, T>,
+    hephaestus_core::SinOp: UnaryExpr<E::Dialect>,
+    hephaestus_core::CosOp: UnaryExpr<E::Dialect>,
+    hephaestus_core::ExpOp: UnaryExpr<E::Dialect>,
+    hephaestus_core::LnOp: UnaryExpr<E::Dialect>,
+    hephaestus_core::NegOp: UnaryExpr<E::Dialect>,
+    hephaestus_core::AbsOp: UnaryExpr<E::Dialect>,
+    hephaestus_core::SqrtOp: UnaryExpr<E::Dialect>,
+    hephaestus_core::RecipOp: UnaryExpr<E::Dialect>,
+{
+    match operation {
+        UnaryOp::Sin => {
+            Some(operations.unary_into::<hephaestus_core::SinOp, N>(device, input, output))
+        }
+        UnaryOp::Cos => {
+            Some(operations.unary_into::<hephaestus_core::CosOp, N>(device, input, output))
+        }
+        UnaryOp::Exp => {
+            Some(operations.unary_into::<hephaestus_core::ExpOp, N>(device, input, output))
+        }
+        UnaryOp::Log => {
+            Some(operations.unary_into::<hephaestus_core::LnOp, N>(device, input, output))
+        }
+        UnaryOp::Neg => {
+            Some(operations.unary_into::<hephaestus_core::NegOp, N>(device, input, output))
+        }
+        UnaryOp::Abs => {
+            Some(operations.unary_into::<hephaestus_core::AbsOp, N>(device, input, output))
+        }
+        UnaryOp::Sqrt => {
+            Some(operations.unary_into::<hephaestus_core::SqrtOp, N>(device, input, output))
+        }
+        UnaryOp::Recip => {
+            Some(operations.unary_into::<hephaestus_core::RecipOp, N>(device, input, output))
+        }
+        _ => None,
+    }
+}
+
 /// Provider-neutral binary operation dispatch over a Hephaestus elementwise
 /// seam.
 pub trait BinaryElementwiseDispatch<D: ComputeDevice, T: eunomia::Pod> {
@@ -177,32 +227,16 @@ where
         let operations = E::default();
         let input = StridedView::new(input.buffer, input.layout);
         let output = StridedView::new(output.buffer, output.layout);
-        match operation {
-            UnaryOp::Sin => {
-                operations.unary_into::<hephaestus_core::SinOp, N>(device, input, output)
-            }
-            UnaryOp::Cos => {
-                operations.unary_into::<hephaestus_core::CosOp, N>(device, input, output)
-            }
-            UnaryOp::Exp => {
-                operations.unary_into::<hephaestus_core::ExpOp, N>(device, input, output)
-            }
-            UnaryOp::Log => {
-                operations.unary_into::<hephaestus_core::LnOp, N>(device, input, output)
-            }
-            UnaryOp::Neg => {
-                operations.unary_into::<hephaestus_core::NegOp, N>(device, input, output)
-            }
-            UnaryOp::Abs => {
-                operations.unary_into::<hephaestus_core::AbsOp, N>(device, input, output)
-            }
-            UnaryOp::Sqrt => {
-                operations.unary_into::<hephaestus_core::SqrtOp, N>(device, input, output)
-            }
-            UnaryOp::Recip => {
-                operations.unary_into::<hephaestus_core::RecipOp, N>(device, input, output)
-            }
-            _ => Err(unsupported_unary_operation(operation)),
+        if let Some(result) = dispatch_core_unary_operations::<P::Device, E, T, N>(
+            &operations,
+            device,
+            operation,
+            input,
+            output,
+        ) {
+            result
+        } else {
+            Err(unsupported_unary_operation(operation))
         }
     }
 }
@@ -299,6 +333,15 @@ where
         let input_view = StridedView::new(input.buffer, input.layout);
         let output_view = StridedView::new(output.buffer, output.layout);
         let operations = E::default();
+        if let Some(result) = dispatch_core_unary_operations::<P::Device, E, f32, N>(
+            &operations,
+            device,
+            operation,
+            input_view,
+            output_view,
+        ) {
+            return result;
+        }
         match operation {
             UnaryOp::Hardtanh(_)
             | UnaryOp::HardtanhGrad(_)
@@ -312,32 +355,6 @@ where
             | UnaryOp::ThresholdGrad(_)
             | UnaryOp::Celu(_)
             | UnaryOp::CeluGrad(_) => parameterized_unary::<P, N>(operation, input, output),
-            UnaryOp::Sin => {
-                operations.unary_into::<hephaestus_core::SinOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Cos => {
-                operations.unary_into::<hephaestus_core::CosOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Exp => {
-                operations.unary_into::<hephaestus_core::ExpOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Log => {
-                operations.unary_into::<hephaestus_core::LnOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Neg => {
-                operations.unary_into::<hephaestus_core::NegOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Abs => {
-                operations.unary_into::<hephaestus_core::AbsOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Sqrt => {
-                operations.unary_into::<hephaestus_core::SqrtOp, N>(device, input_view, output_view)
-            }
-            UnaryOp::Recip => operations.unary_into::<hephaestus_core::RecipOp, N>(
-                device,
-                input_view,
-                output_view,
-            ),
             UnaryOp::Relu => {
                 operations.unary_into::<hephaestus_core::ReluOp, N>(device, input_view, output_view)
             }
@@ -520,6 +537,14 @@ where
                 input_view,
                 output_view,
             ),
+            UnaryOp::Sin
+            | UnaryOp::Cos
+            | UnaryOp::Exp
+            | UnaryOp::Log
+            | UnaryOp::Neg
+            | UnaryOp::Abs
+            | UnaryOp::Sqrt
+            | UnaryOp::Recip => unreachable!("handled by core unary dispatch"),
         }
     }
 }
