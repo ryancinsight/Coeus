@@ -1,5 +1,14 @@
 # Coeus Development Backlog
 
+<a id="coeus-ci-hook-scope-2026-09-24"></a>
+## COEUS-CI-HOOK-SCOPE-2026-09-24 — Keep hook-only CI within the fast path
+
+- Status: in-progress; integrator: coeus-hook-ci; priority: verification; [patch].
+- Outcome: hook contract changes always report the required `Tests` status without installing Rust or compiling the workspace; Rust, manifest, lockfile, toolchain, test, and workflow changes retain native and doctest coverage.
+- Scope: `.github/workflows/ci.yml`, `scripts/ci_scope.py`, its value-semantic tests, and this item; non-goal: changing `.githooks/**` or hook behavior.
+- Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
+- Evidence: PR #409 Tests job `107824618717` ended with runner exit 143 after unconditionally entering the 45-minute native job on a hook-only change.
+
 <a id="coeus-scatter-add-allocation"></a>
 ## COEUS-SCATTER-ADD-ALLOCATION — Keep scatter-add allocation count independent of shape
 
