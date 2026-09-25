@@ -36,11 +36,11 @@ macro_rules! impl_scalar_int_signed {
                 self.abs()
             }
             #[inline(always)]
-            fn wrapping_add_val(self, rhs: Self) -> Self {
+            fn total_add(self, rhs: Self) -> Self {
                 self.wrapping_add(rhs)
             }
             #[inline(always)]
-            fn wrapping_mul_val(self, rhs: Self) -> Self {
+            fn total_mul(self, rhs: Self) -> Self {
                 self.wrapping_mul(rhs)
             }
         }
@@ -114,11 +114,11 @@ macro_rules! impl_scalar_int_unsigned {
                 self
             }
             #[inline(always)]
-            fn wrapping_add_val(self, rhs: Self) -> Self {
+            fn total_add(self, rhs: Self) -> Self {
                 self.wrapping_add(rhs)
             }
             #[inline(always)]
-            fn wrapping_mul_val(self, rhs: Self) -> Self {
+            fn total_mul(self, rhs: Self) -> Self {
                 self.wrapping_mul(rhs)
             }
         }

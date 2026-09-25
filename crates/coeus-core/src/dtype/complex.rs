@@ -220,6 +220,16 @@ impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
             im: T::zero(),
         }
     }
+
+    #[inline(always)]
+    fn total_add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    #[inline(always)]
+    fn total_mul(self, rhs: Self) -> Self {
+        self * rhs
+    }
 }
 
 impl<T: Float + core::ops::Neg<Output = T>> crate::dtype::CpuUnaryDispatch for Complex<T> {

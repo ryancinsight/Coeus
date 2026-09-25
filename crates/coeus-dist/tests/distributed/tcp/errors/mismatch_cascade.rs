@@ -6,7 +6,7 @@ use coeus_core::SequentialBackend;
 use coeus_dist::{Communicator, MeshDeadlines, TcpCommunicator, TcpMesh, TcpMeshError};
 use coeus_tensor::Tensor;
 use std::io::ErrorKind;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::num::NonZeroUsize;
 use std::thread;
 use std::time::Duration;
@@ -24,12 +24,25 @@ fn three_meshes() -> Vec<TcpMesh> {
     .unwrap()
 }
 
+/// Runs `comm`'s next collective (a barrier), which must fail with
+/// `LinkPoisoned` reported by `rank`, and returns the poisoned link's
+/// `(peer, address)`. Both a mismatch error and the `LinkPoisoned` that
+/// follows it are read from the same `PeerLink`, so comparing this address
+/// against an earlier `NumelMismatch`/`PeerReportedMismatch` address for the
+/// same peer catches a mismatch handler that reports the wrong peer.
+fn poisoned_link(comm: &TcpCommunicator, rank: usize) -> (usize, SocketAddr) {
+    match comm.barrier() {
+        Err(TcpMeshError::LinkPoisoned {
+            rank: r,
+            peer,
+            address,
+        }) if r == rank => (peer, address),
+        other => panic!("rank {rank}: expected LinkPoisoned, got {other:?}"),
+    }
+}
+
 fn assert_poisoned(comm: &TcpCommunicator, rank: usize) {
-    let next = comm.barrier();
-    assert!(
-        matches!(next, Err(TcpMeshError::LinkPoisoned { rank: r, .. }) if r == rank),
-        "rank {rank}: expected LinkPoisoned, got {next:?}"
-    );
+    poisoned_link(comm, rank);
 }
 
 /// Rank 1 is a raw mesh announcing `u64::MAX` elements to broadcast root 0.
@@ -65,7 +78,7 @@ fn a_hostile_element_count_fails_the_root_and_every_rank_promptly() {
         pending.map(|rank| rank.join().unwrap())
     });
 
-    match root_outcome {
+    let root_mismatch_address = match root_outcome {
         Err(TcpMeshError::NumelMismatch {
             rank,
             peer,
@@ -78,17 +91,33 @@ fn a_hostile_element_count_fails_the_root_and_every_rank_promptly() {
                 (0, 1, ELEMENTS as u64, u64::MAX)
             );
             assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
+            address
         }
         other => panic!("root: expected NumelMismatch, got {other:?}"),
-    }
-    match rank_2_outcome {
-        Err(TcpMeshError::PeerReportedMismatch { rank, peer, .. }) => {
+    };
+    let rank_2_report_address = match rank_2_outcome {
+        Err(TcpMeshError::PeerReportedMismatch {
+            rank,
+            peer,
+            address,
+        }) => {
             assert_eq!((rank, peer), (2, 0));
+            address
         }
         other => panic!("rank 2: expected PeerReportedMismatch, got {other:?}"),
-    }
-    assert_poisoned(&root, 0);
-    assert_poisoned(&rank_2, 2);
+    };
+    let (root_poisoned_peer, root_poisoned_address) = poisoned_link(&root, 0);
+    assert_eq!(root_poisoned_peer, 1);
+    assert_eq!(
+        root_poisoned_address, root_mismatch_address,
+        "the root's NumelMismatch and its next LinkPoisoned must name the same peer 1 link"
+    );
+    let (rank_2_poisoned_peer, rank_2_poisoned_address) = poisoned_link(&rank_2, 2);
+    assert_eq!(rank_2_poisoned_peer, 0);
+    assert_eq!(
+        rank_2_poisoned_address, rank_2_report_address,
+        "rank 2's PeerReportedMismatch and its next LinkPoisoned must name the same peer 0 link"
+    );
     for mut comm in [root, rank_2] {
         comm.shutdown();
     }
@@ -128,7 +157,7 @@ fn an_all_gather_mismatch_ends_the_uninvolved_rank_s_wait() {
     });
 
     for (rank, peer) in [(0, 1), (1, 0)] {
-        match &outcomes[rank] {
+        let mismatch_address = match &outcomes[rank] {
             Err(TcpMeshError::NumelMismatch {
                 rank: reporting,
                 peer: reported,
@@ -141,9 +170,16 @@ fn an_all_gather_mismatch_ends_the_uninvolved_rank_s_wait() {
                     (rank, peer, lens[rank] as u64, lens[peer] as u64)
                 );
                 assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
+                *address
             }
             other => panic!("rank {rank}: expected NumelMismatch, got {other:?}"),
-        }
+        };
+        let (poisoned_peer, poisoned_address) = poisoned_link(&comms[rank], rank);
+        assert_eq!(poisoned_peer, peer);
+        assert_eq!(
+            poisoned_address, mismatch_address,
+            "rank {rank}'s NumelMismatch and its next LinkPoisoned must name the same peer {peer} link"
+        );
     }
     match &outcomes[2] {
         Err(TcpMeshError::Recv {
@@ -154,9 +190,7 @@ fn an_all_gather_mismatch_ends_the_uninvolved_rank_s_wait() {
         }
         other => panic!("rank 2: expected Recv, got {other:?}"),
     }
-    for (rank, comm) in comms.iter().enumerate() {
-        assert_poisoned(comm, rank);
-    }
+    assert_poisoned(&comms[2], 2);
     for mut comm in comms {
         comm.shutdown();
     }
