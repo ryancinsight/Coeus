@@ -223,27 +223,37 @@ impl<T: Scalar + core::ops::Neg<Output = T>, B: ElementwiseOps<T>> OutputWrite<T
     }
 }
 
-/// The `Add`/`Sum`/`Product` differential-output-write operations, unified
-/// into one `OutputWrite` impl (see the module-level rationale above). Each
-/// needs only `T: Scalar` and its own backend sub-trait -- `B`'s bound
-/// below is the union of all three, which `SequentialBackend` and
-/// `MoiraiBackend` already satisfy (both were already exercised against
-/// all three operations before this merge).
+/// The `Add`/`Sum` differential-output-write operations, unified into one
+/// `OutputWrite` impl (see the module-level rationale above). Both need
+/// only `T: Scalar` and their own backend sub-trait -- `B`'s bound below is
+/// the union of the two, which every backend exercised against either
+/// operation already satisfies (`SequentialBackend`, `MoiraiBackend`,
+/// `WgpuBackend`, `CudaBackend`, and `HephaestusBackend<WgpuBackend>` /
+/// `HephaestusBackend<CudaBackend>` all implement both `ElementwiseOps<T>`
+/// and `ReductionOps<T>`).
+///
+/// `Product` (`MatmulOps<T>`) deliberately stays its own impl rather than
+/// joining this enum: `HephaestusBackend<WgpuBackend>` and
+/// `HephaestusBackend<CudaBackend>` are exercised against `Add`/`Sum` in
+/// `coeus-wgpu`'s and `coeus-cuda`'s test suites (both `#[path]`-include
+/// this file) but do not implement `MatmulOps<T>` -- folding `Product` in
+/// would add that bound to every `NumericOp` call and break those two
+/// crates' builds. This was caught by CI (`E0277`: `HephaestusBackend<
+/// WgpuBackend>: MatmulOps<_>` not satisfied) after an initial merge that
+/// only checked `coeus-ops`'s own two backends, which do implement all
+/// three traits; the coverage gap is specific to `HephaestusBackend`'s
+/// narrower trait surface in the crates that reuse this file.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum NumericOp {
     Add,
     Sum,
-    Product,
 }
 
-impl<T: Scalar, B: ElementwiseOps<T> + ReductionOps<T> + MatmulOps<T>> OutputWrite<T, B>
-    for NumericOp
-{
+impl<T: Scalar, B: ElementwiseOps<T> + ReductionOps<T>> OutputWrite<T, B> for NumericOp {
     fn columns(&self) -> usize {
         match self {
             Self::Add => 2,
             Self::Sum => 1,
-            Self::Product => 2,
         }
     }
     fn expected(&self, one: T) -> Vec<T> {
@@ -253,7 +263,6 @@ impl<T: Scalar, B: ElementwiseOps<T> + ReductionOps<T> + MatmulOps<T>> OutputWri
         match self {
             Self::Add => vec![three, three, four, four + two],
             Self::Sum => vec![three, three + four],
-            Self::Product => vec![four, one + four, four + four + two, four + four + three],
         }
     }
     fn dispatch(
@@ -283,15 +292,40 @@ impl<T: Scalar, B: ElementwiseOps<T> + ReductionOps<T> + MatmulOps<T>> OutputWri
                 output,
                 output_layout,
             ),
-            Self::Product => backend.matmul(
-                input.storage(),
-                input_layout,
-                rhs.storage(),
-                rhs.layout(),
-                output,
-                output_layout,
-            ),
         }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Product;
+
+impl<T: Scalar, B: MatmulOps<T>> OutputWrite<T, B> for Product {
+    fn columns(&self) -> usize {
+        2
+    }
+    fn expected(&self, one: T) -> Vec<T> {
+        let two = one + one;
+        let three = two + one;
+        let four = two + two;
+        vec![four, one + four, four + four + two, four + four + three]
+    }
+    fn dispatch(
+        &self,
+        backend: &B,
+        input: &Tensor<T, B>,
+        input_layout: &Layout,
+        rhs: &Tensor<T, B>,
+        output: &mut B::DeviceBuffer<T>,
+        output_layout: &Layout,
+    ) -> Result<(), B::Error> {
+        backend.matmul(
+            input.storage(),
+            input_layout,
+            rhs.storage(),
+            rhs.layout(),
+            output,
+            output_layout,
+        )
     }
 }
 

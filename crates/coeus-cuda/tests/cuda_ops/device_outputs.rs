@@ -4,8 +4,8 @@ mod shared;
 use coeus_cuda::CudaBackend;
 use coeus_hephaestus::HephaestusBackend;
 use shared::{
-    preserves_output_clones, rejects_invalid_output_write, scans_preserve_output_clones, Add,
-    Negate, Product, Square, Sum,
+    preserves_output_clones, rejects_invalid_output_write, scans_preserve_output_clones, Negate,
+    NumericOp, Product, Square,
 };
 
 #[test]
@@ -23,9 +23,9 @@ fn backend_add_preserves_output_clones() {
     if !crate::availability::device_available() {
         return;
     }
-    preserves_output_clones(&CudaBackend::new(), Add, 1.0_f32);
-    preserves_output_clones(&CudaBackend::new(), Add, 1.0_f64);
-    preserves_output_clones(&CudaBackend::new(), Add, 1_i32);
+    preserves_output_clones(&CudaBackend::new(), NumericOp::Add, 1.0_f32);
+    preserves_output_clones(&CudaBackend::new(), NumericOp::Add, 1.0_f64);
+    preserves_output_clones(&CudaBackend::new(), NumericOp::Add, 1_i32);
 }
 
 #[test]
@@ -33,8 +33,8 @@ fn backend_sum_preserves_output_clones() {
     if !crate::availability::device_available() {
         return;
     }
-    preserves_output_clones(&CudaBackend::new(), Sum, 1.0_f32);
-    preserves_output_clones(&CudaBackend::new(), Sum, 1_i32);
+    preserves_output_clones(&CudaBackend::new(), NumericOp::Sum, 1.0_f32);
+    preserves_output_clones(&CudaBackend::new(), NumericOp::Sum, 1_i32);
 }
 
 #[test]
@@ -65,11 +65,11 @@ fn backend_invalid_output_requests_preserve_values() {
     rejects_invalid_output_write(&CudaBackend::new(), Negate, 1.0_f32);
     rejects_invalid_output_write(&CudaBackend::new(), Negate, 1.0_f64);
     rejects_invalid_output_write(&CudaBackend::new(), Negate, 1_i32);
-    rejects_invalid_output_write(&CudaBackend::new(), Add, 1.0_f32);
-    rejects_invalid_output_write(&CudaBackend::new(), Add, 1.0_f64);
-    rejects_invalid_output_write(&CudaBackend::new(), Add, 1_i32);
-    rejects_invalid_output_write(&CudaBackend::new(), Sum, 1.0_f32);
-    rejects_invalid_output_write(&CudaBackend::new(), Sum, 1_i32);
+    rejects_invalid_output_write(&CudaBackend::new(), NumericOp::Add, 1.0_f32);
+    rejects_invalid_output_write(&CudaBackend::new(), NumericOp::Add, 1.0_f64);
+    rejects_invalid_output_write(&CudaBackend::new(), NumericOp::Add, 1_i32);
+    rejects_invalid_output_write(&CudaBackend::new(), NumericOp::Sum, 1.0_f32);
+    rejects_invalid_output_write(&CudaBackend::new(), NumericOp::Sum, 1_i32);
     rejects_invalid_output_write(&CudaBackend::new(), Product, 1.0_f32);
     rejects_invalid_output_write(&CudaBackend::new(), Product, 1.0_f64);
     rejects_invalid_output_write(&CudaBackend::new(), Product, 1_i32);
@@ -100,9 +100,21 @@ fn provider_backend_add_preserves_output_clones() {
     if !crate::availability::device_available() {
         return;
     }
-    preserves_output_clones(&HephaestusBackend::<CudaBackend>::new(), Add, 1.0_f32);
-    preserves_output_clones(&HephaestusBackend::<CudaBackend>::new(), Add, 1.0_f64);
-    preserves_output_clones(&HephaestusBackend::<CudaBackend>::new(), Add, 1_i32);
+    preserves_output_clones(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Add,
+        1.0_f32,
+    );
+    preserves_output_clones(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Add,
+        1.0_f64,
+    );
+    preserves_output_clones(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Add,
+        1_i32,
+    );
 }
 
 #[test]
@@ -110,8 +122,16 @@ fn provider_backend_sum_preserves_output_clones() {
     if !crate::availability::device_available() {
         return;
     }
-    preserves_output_clones(&HephaestusBackend::<CudaBackend>::new(), Sum, 1.0_f32);
-    preserves_output_clones(&HephaestusBackend::<CudaBackend>::new(), Sum, 1_i32);
+    preserves_output_clones(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Sum,
+        1.0_f32,
+    );
+    preserves_output_clones(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Sum,
+        1_i32,
+    );
 }
 
 #[test]
@@ -122,11 +142,31 @@ fn provider_backend_invalid_output_requests_preserve_values() {
     rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Negate, 1.0_f32);
     rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Negate, 1.0_f64);
     rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Negate, 1_i32);
-    rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Add, 1.0_f32);
-    rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Add, 1.0_f64);
-    rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Add, 1_i32);
-    rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Sum, 1.0_f32);
-    rejects_invalid_output_write(&HephaestusBackend::<CudaBackend>::new(), Sum, 1_i32);
+    rejects_invalid_output_write(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Add,
+        1.0_f32,
+    );
+    rejects_invalid_output_write(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Add,
+        1.0_f64,
+    );
+    rejects_invalid_output_write(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Add,
+        1_i32,
+    );
+    rejects_invalid_output_write(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Sum,
+        1.0_f32,
+    );
+    rejects_invalid_output_write(
+        &HephaestusBackend::<CudaBackend>::new(),
+        NumericOp::Sum,
+        1_i32,
+    );
 }
 
 #[test]
