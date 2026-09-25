@@ -18,6 +18,16 @@ enum BinOp {
     Div,
 }
 
+#[derive(Copy, Clone, Debug)]
+enum CompareOp {
+    Eq,
+    Lt,
+    Gt,
+    Ne,
+    Ge,
+    Le,
+}
+
 /// Python-exposed tensor class wrapping autograd variables.
 #[pyclass(name = "Tensor")]
 #[derive(Clone)]
@@ -89,11 +99,15 @@ impl PyTensor {
     }
 
     #[inline]
-    fn binary_dispatch<F>(&self, py: Python<'_>, other: &PyTensor, op: F) -> Self
-    where
-        F: FnOnce(&Var<f64>, &Var<f64>) -> Var<f64> + Send,
-    {
-        let inner = py.allow_threads(|| op(&self.inner, &other.inner));
+    fn comparison_dispatch(&self, py: Python<'_>, other: &PyTensor, op: CompareOp) -> Self {
+        let inner = py.allow_threads(|| match op {
+            CompareOp::Eq => coeus_autograd::eq(&self.inner, &other.inner),
+            CompareOp::Lt => coeus_autograd::lt(&self.inner, &other.inner),
+            CompareOp::Gt => coeus_autograd::gt(&self.inner, &other.inner),
+            CompareOp::Ne => coeus_autograd::ne(&self.inner, &other.inner),
+            CompareOp::Ge => coeus_autograd::ge(&self.inner, &other.inner),
+            CompareOp::Le => coeus_autograd::le(&self.inner, &other.inner),
+        });
         Self { inner }
     }
 }
@@ -733,27 +747,27 @@ impl PyTensor {
     // ── Comparison ops ──
 
     fn eq(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        self.binary_dispatch(py, other, coeus_autograd::eq)
+        self.comparison_dispatch(py, other, CompareOp::Eq)
     }
 
     fn lt(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        self.binary_dispatch(py, other, coeus_autograd::lt)
+        self.comparison_dispatch(py, other, CompareOp::Lt)
     }
 
     fn gt(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        self.binary_dispatch(py, other, coeus_autograd::gt)
+        self.comparison_dispatch(py, other, CompareOp::Gt)
     }
 
     fn ne(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        self.binary_dispatch(py, other, coeus_autograd::ne)
+        self.comparison_dispatch(py, other, CompareOp::Ne)
     }
 
     fn ge(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        self.binary_dispatch(py, other, coeus_autograd::ge)
+        self.comparison_dispatch(py, other, CompareOp::Ge)
     }
 
     fn le(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        self.binary_dispatch(py, other, coeus_autograd::le)
+        self.comparison_dispatch(py, other, CompareOp::Le)
     }
 
     fn backward(&self, py: Python<'_>) -> PyResult<()> {

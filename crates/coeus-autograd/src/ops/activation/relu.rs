@@ -8,56 +8,33 @@ use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-/// ZST tag for ReLU autograd.
-pub struct ReluOp;
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for ReluOp {
-    const OP_NAME: &'static str = "relu";
-
-    #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-        coeus_ops::relu(x, backend)
+unary_autograd!(
+    /// Tracked ReLU activation.
+    ///
+    /// # Examples
+    ///
+    /// `relu(x) = max(0, x)`; the gradient is 1 where `x > 0` and 0 otherwise.
+    /// For the scalar sum of `relu([2, -1])`, `dx = [1, 0]`.
+    ///
+    /// ```
+    /// use coeus_autograd::Var;
+    /// use coeus_core::MoiraiBackend;
+    /// use coeus_tensor::Tensor;
+    ///
+    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, -1.0]), true);
+    /// let y = coeus_autograd::relu(&x);
+    /// assert!((y.tensor.as_slice()[0] - 2.0).abs() < 1e-5);
+    /// assert!((y.tensor.as_slice()[1] - 0.0).abs() < 1e-5);
+    /// let loss = coeus_autograd::sum(&y);
+    /// loss.backward().expect("invariant: valid autograd fixture completes backward");
+    /// let grad = x.grad().unwrap();
+    /// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5); // x > 0
+    /// assert!((grad.as_slice()[1] - 0.0).abs() < 1e-5); // x < 0
+    /// ```
+    {Scalar} ReluOp, "relu", relu, |g, x, _y, b| {
+        super::backward_via_unary_derivative(g, x, b, coeus_ops::UnaryOp::ReluGrad)
     }
-
-    #[inline(always)]
-    fn backward(
-        grad_out: &Tensor<T, B>,
-        x: &Tensor<T, B>,
-        _y: &Tensor<T, B>,
-        backend: &B,
-    ) -> Tensor<T, B> {
-        let mask = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::ReluGrad)
-            .expect("elementwise_unary");
-        coeus_ops::mul(grad_out, &mask, backend)
-    }
-}
-
-/// Tracked ReLU activation.
-///
-/// # Examples
-///
-/// `relu(x) = max(0, x)`; the gradient is 1 where `x > 0` and 0 otherwise.
-/// For the scalar sum of `relu([2, -1])`, `dx = [1, 0]`.
-///
-/// ```
-/// use coeus_autograd::Var;
-/// use coeus_core::MoiraiBackend;
-/// use coeus_tensor::Tensor;
-///
-/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, -1.0]), true);
-/// let y = coeus_autograd::relu(&x);
-/// assert!((y.tensor.as_slice()[0] - 2.0).abs() < 1e-5);
-/// assert!((y.tensor.as_slice()[1] - 0.0).abs() < 1e-5);
-/// let loss = coeus_autograd::sum(&y);
-/// loss.backward().expect("invariant: valid autograd fixture completes backward");
-/// let grad = x.grad().unwrap();
-/// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5); // x > 0
-/// assert!((grad.as_slice()[1] - 0.0).abs() < 1e-5); // x < 0
-/// ```
-#[must_use]
-#[inline]
-pub fn relu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, ReluOp>(a)
-}
+);
 
 /// Inline backward node for LeakyReLU.
 struct LeakyReluNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
@@ -85,12 +62,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let deriv = coeus_ops::elementwise_unary(
+            let mask = super::backward_via_unary_derivative(
+                grad_out,
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::LeakyReluGrad(self.negative_slope),
-            )?;
-            let mask = coeus_ops::mul(grad_out, &deriv, &backend);
+            );
             let lock = g.write();
             coeus_ops::add_assign(lock, &mask, &backend)?;
         }
@@ -137,36 +114,10 @@ pub fn leaky_relu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     }
 }
 
-/// ZST tag for ELU autograd (alpha=1.0).
-pub struct EluOp;
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for EluOp {
-    const OP_NAME: &'static str = "elu";
-
-    #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-        coeus_ops::elu(x, backend)
-    }
-
-    #[inline(always)]
-    fn backward(
-        grad_out: &Tensor<T, B>,
-        x: &Tensor<T, B>,
-        _y: &Tensor<T, B>,
-        backend: &B,
-    ) -> Tensor<T, B> {
-        // EluGrad takes the original input x and returns exp(x) or 1
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::EluGrad)
-            .expect("elementwise_unary");
-        coeus_ops::mul(grad_out, &deriv, backend)
-    }
-}
-
-/// Tracked ELU activation.
-#[must_use]
-#[inline]
-pub fn elu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, EluOp>(a)
-}
+unary_autograd!(EluOp, "elu", elu, |g, x, _y, b| {
+    // EluGrad takes the original input x and returns exp(x) or 1.
+    super::backward_via_unary_derivative(g, x, b, coeus_ops::UnaryOp::EluGrad)
+});
 
 /// SELU ELU parameter α.
 const SELU_ALPHA: f64 = 1.673_263_242_354_377_2;
