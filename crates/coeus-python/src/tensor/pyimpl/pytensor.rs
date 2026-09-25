@@ -87,6 +87,15 @@ impl PyTensor {
         let inner = py.allow_threads(|| op(&self.inner));
         Ok(Self::from_var(inner))
     }
+
+    #[inline]
+    fn binary_dispatch<F>(&self, py: Python<'_>, other: &PyTensor, op: F) -> Self
+    where
+        F: FnOnce(&Var<f64>, &Var<f64>) -> Var<f64> + Send,
+    {
+        let inner = py.allow_threads(|| op(&self.inner, &other.inner));
+        Self { inner }
+    }
 }
 
 #[pymethods]
@@ -267,13 +276,11 @@ impl PyTensor {
     }
 
     fn __rmul__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::scalar_mul(&self.inner, scalar));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::scalar_mul(x, scalar))
     }
 
     fn __radd__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::scalar_add(&self.inner, scalar));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::scalar_add(x, scalar))
     }
 
     fn __rsub__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
@@ -422,113 +429,92 @@ impl PyTensor {
     }
 
     fn pow(&self, exp: f64, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::pow(&self.inner, exp));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::pow(x, exp))
     }
 
     fn __pow__(&self, exp: f64, _modulo: Option<i64>, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::pow(&self.inner, exp));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::pow(x, exp))
     }
 
     fn clamp(&self, min_val: f64, max_val: f64, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::clamp(&self.inner, min_val, max_val));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::clamp(x, min_val, max_val))
     }
 
     fn scale(&self, s: f64, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::scalar_mul(&self.inner, s));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::scalar_mul(x, s))
     }
 
     // ── Reduction ops ──
 
     fn sum_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::sum_axis(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::sum_axis(x, axis))
     }
 
     fn mean_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::mean_axis(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::mean_axis(x, axis))
     }
 
     fn sum(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::sum(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::sum)
     }
 
     fn mean(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::mean(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::mean)
     }
 
     fn softmax(&self, dim: i64, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::softmax(&self.inner, dim as isize));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::softmax(x, dim as isize))
     }
 
     fn log_softmax(&self, dim: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::log_softmax(&self.inner, dim));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::log_softmax(x, dim))
     }
 
     fn cumsum(&self, dim: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::cumsum(&self.inner, dim));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::cumsum(x, dim))
     }
 
     fn max_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::max_axis(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::max_axis(x, axis))
     }
 
     fn min_axis(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::min_axis(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::min_axis(x, axis))
     }
 
     fn log_sum_exp(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::log_sum_exp(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::log_sum_exp(x, axis))
     }
 
     // ── Shape manipulation ──
 
     fn reshape(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, shape));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::reshape(x, shape))
     }
 
     fn permute(&self, dims: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::permute(&self.inner, &dims));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::permute(x, &dims))
     }
 
     #[pyo3(signature = (axis = None))]
     fn squeeze(&self, axis: Option<usize>, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::squeeze(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::squeeze(x, axis))
     }
 
     fn unsqueeze(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::unsqueeze(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::unsqueeze(x, axis))
     }
 
     fn t(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::transpose_2d(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::transpose_2d)
     }
 
     fn transpose(&self, dim0: usize, dim1: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::transpose(&self.inner, dim0, dim1));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::transpose(x, dim0, dim1))
     }
 
     fn contiguous(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::contiguous(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::contiguous)
     }
 
     #[pyo3(signature = (start_dim = 0, end_dim = -1))]
@@ -548,13 +534,11 @@ impl PyTensor {
         let mut new_shape: Vec<usize> = shape[..start].to_vec();
         new_shape.push(shape[start..=end].iter().product());
         new_shape.extend_from_slice(&shape[end + 1..]);
-        let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, new_shape));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::reshape(x, new_shape))
     }
 
     fn view(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::reshape(&self.inner, shape));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::reshape(x, shape))
     }
 
     fn expand(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
@@ -588,8 +572,7 @@ impl PyTensor {
     }
 
     fn flip(&self, axis: usize, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::flip(&self.inner, axis));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, |x| coeus_autograd::flip(x, axis))
     }
 
     fn repeat(&self, reps: Vec<usize>, py: Python<'_>) -> Self {
@@ -750,33 +733,27 @@ impl PyTensor {
     // ── Comparison ops ──
 
     fn eq(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        let inner = py.allow_threads(|| coeus_autograd::eq(&self.inner, &other.inner));
-        Self { inner }
+        self.binary_dispatch(py, other, coeus_autograd::eq)
     }
 
     fn lt(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        let inner = py.allow_threads(|| coeus_autograd::lt(&self.inner, &other.inner));
-        Self { inner }
+        self.binary_dispatch(py, other, coeus_autograd::lt)
     }
 
     fn gt(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        let inner = py.allow_threads(|| coeus_autograd::gt(&self.inner, &other.inner));
-        Self { inner }
+        self.binary_dispatch(py, other, coeus_autograd::gt)
     }
 
     fn ne(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        let inner = py.allow_threads(|| coeus_autograd::ne(&self.inner, &other.inner));
-        Self { inner }
+        self.binary_dispatch(py, other, coeus_autograd::ne)
     }
 
     fn ge(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        let inner = py.allow_threads(|| coeus_autograd::ge(&self.inner, &other.inner));
-        Self { inner }
+        self.binary_dispatch(py, other, coeus_autograd::ge)
     }
 
     fn le(&self, other: &PyTensor, py: Python<'_>) -> Self {
-        let inner = py.allow_threads(|| coeus_autograd::le(&self.inner, &other.inner));
-        Self { inner }
+        self.binary_dispatch(py, other, coeus_autograd::le)
     }
 
     fn backward(&self, py: Python<'_>) -> PyResult<()> {
