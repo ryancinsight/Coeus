@@ -58,6 +58,32 @@ fn assert_float_total_ops<T: Float + Debug>() {
     assert_eq!(six, three.total_add(three));
 }
 
+/// `Complex<T>` for every float component `T` this crate ships: it
+/// implements `Scalar` but not `Float`, and its arithmetic is component-wise,
+/// so overflow and normal cases follow the same IEEE 754 rule at the
+/// component level as [`assert_float_total_ops`]'s real float types.
+fn assert_complex_total_ops<T: Float + core::ops::Neg<Output = T> + Debug>() {
+    let huge = Complex::<T>::new(T::MAX, T::zero());
+    let overflowed = huge.total_add(huge);
+    assert!(
+        overflowed.re.is_infinite(),
+        "Complex<{:?}> total_add must overflow its real part to infinity",
+        T::MAX
+    );
+    let one = T::one();
+    let two = one.total_add(one);
+    let three = two.total_add(one);
+    let four = two.total_add(two);
+    let six = two.total_mul(three);
+    let ten = four.total_add(six);
+    let neg_five = -(one.total_add(four));
+    let one_two = Complex::<T>::new(one, two);
+    let three_four = Complex::<T>::new(three, four);
+    assert_eq!(one_two.total_add(three_four), Complex::new(four, six));
+    // (1 + 2i)(3 + 4i) = (1*3 - 2*4) + (1*4 + 2*3)i = -5 + 10i
+    assert_eq!(one_two.total_mul(three_four), Complex::new(neg_five, ten));
+}
+
 #[test]
 fn total_add_and_mul_are_defined_for_every_scalar_type() {
     assert_int_total_ops!(i8);
@@ -74,18 +100,8 @@ fn total_add_and_mul_are_defined_for_every_scalar_type() {
     assert_float_total_ops::<F16>();
     assert_float_total_ops::<Bf16>();
 
-    // `Complex<T>` implements `Scalar` but not `Float`; its arithmetic is
-    // component-wise, so overflow and normal cases follow the same IEEE 754
-    // rule at the component level as the real float types above.
-    let huge = Complex::<f32>::new(f32::MAX, 0.0);
-    let overflowed = huge.total_add(huge);
-    assert!(
-        overflowed.re.is_infinite(),
-        "Complex<f32> total_add must overflow its real part to infinity"
-    );
-    let one_two = Complex::<f32>::new(1.0, 2.0);
-    let three_four = Complex::<f32>::new(3.0, 4.0);
-    assert_eq!(one_two.total_add(three_four), Complex::new(4.0, 6.0));
-    // (1 + 2i)(3 + 4i) = (1*3 - 2*4) + (1*4 + 2*3)i = -5 + 10i
-    assert_eq!(one_two.total_mul(three_four), Complex::new(-5.0, 10.0));
+    assert_complex_total_ops::<f32>();
+    assert_complex_total_ops::<f64>();
+    assert_complex_total_ops::<F16>();
+    assert_complex_total_ops::<Bf16>();
 }

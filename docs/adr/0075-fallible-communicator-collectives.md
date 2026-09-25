@@ -128,15 +128,20 @@ reporting a different peer's address fails (the earlier "address is a
 loopback IP" check passed such a mutant, since every peer in the test shares
 that IP). The same exact-address comparison covers `PeerReportedMismatch`.
 `tcp::errors::root_failures` drives a two-rank cluster by hand and covers
-`PeerReportedMismatch` and `InvalidStatus`, not `NumelMismatch` (a two-rank
-mismatch has no third rank to receive the root's report). `tcp::collectives`
+`PeerReportedMismatch` and `InvalidStatus`, not `NumelMismatch`: its raw
+`TcpMesh` plays the root and its `TcpCommunicator` under test is always rank
+1, and only the root ever returns `NumelMismatch` — the two-rank
+`NumelMismatch` case is covered instead in `tcp::errors::collective` (from
+`test_tcp_all_reduce_mismatched_numel_is_a_typed_mismatch` onward), where both
+ranks run as `TcpCommunicator`s and the root does. `tcp::collectives`
 runs `Sum`/`Product` with an `i32::MAX`-valued peer contribution
 (`test_tcp_reduce_sum_wraps_on_integer_overflow_from_a_peer` and its
 `Product` counterpart) and asserts the exact two's-complement wrapped result
 on the root, in place of the panic the unchecked `+`/`*` previously produced
 under overflow checks. `core_ops::scalars::scalar_total_ops` runs one test
 across every `Scalar` implementor (`i8`–`u64`, `f32`, `f64`, `F16`, `Bf16`,
-`Complex`), asserting `MAX.total_add(1) == MIN` and the wrapped product for
-integers (cross-verified against `wrapping_mul`), and `MAX.total_add(MAX)`/
-`total_mul(MAX)` overflowing to infinity for floats, plus a normal-value case
-for each.
+and `Complex<f32>`/`Complex<f64>`/`Complex<F16>`/`Complex<Bf16>`), asserting
+`MAX.total_add(1) == MIN` and the wrapped product for integers
+(cross-verified against `wrapping_mul`), and `MAX.total_add(MAX)`/
+`total_mul(MAX)` overflowing to infinity for floats and each `Complex`
+instantiation, plus a normal-value case for each.
