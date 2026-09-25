@@ -106,16 +106,17 @@ where
 }
 
 /// Try to receive data directly into the tensor's mut slice, or fallback to host buffer.
-pub(crate) fn recv_tensor_data<T: Scalar, B: ComputeBackend, F>(
+pub(crate) fn recv_tensor_data<T: Scalar, B: ComputeBackend, F, E>(
     tensor: &mut Tensor<T, B>,
     backend: &B,
     recv_fn: F,
-) where
-    F: FnOnce(&mut [u8]),
+) -> Result<(), E>
+where
+    F: FnOnce(&mut [u8]) -> Result<(), E>,
 {
     let numel = tensor.numel();
     if numel == 0 {
-        return;
+        return Ok(());
     }
     let bytes_len = numel * std::mem::size_of::<T>();
 
@@ -123,28 +124,28 @@ pub(crate) fn recv_tensor_data<T: Scalar, B: ComputeBackend, F>(
         if let Some(slice) = tensor.storage_mut().try_as_mut_slice() {
             let raw_ptr = slice.as_mut_ptr() as *mut u8;
             let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
-            recv_fn(raw_slice);
-            return;
+            return recv_fn(raw_slice);
         }
     }
 
     let mut host_data = vec![T::zero(); numel];
     let raw_ptr = host_data.as_mut_ptr() as *mut u8;
     let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
-    recv_fn(raw_slice);
+    recv_fn(raw_slice)?;
     copy_host_slice_to_tensor(&host_data, tensor, backend);
+    Ok(())
 }
 
 /// Helper to read raw bytes from a source into a mutable host slice.
-pub(crate) fn recv_slice_data<T: Scalar, F>(data: &mut [T], recv_fn: F)
+pub(crate) fn recv_slice_data<T: Scalar, F, E>(data: &mut [T], recv_fn: F) -> Result<(), E>
 where
-    F: FnOnce(&mut [u8]),
+    F: FnOnce(&mut [u8]) -> Result<(), E>,
 {
     if data.is_empty() {
-        return;
+        return Ok(());
     }
     let bytes_len = std::mem::size_of_val(data);
     let raw_ptr = data.as_mut_ptr() as *mut u8;
     let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
-    recv_fn(raw_slice);
+    recv_fn(raw_slice)
 }

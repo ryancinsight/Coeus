@@ -33,6 +33,14 @@ macro_rules! impl_scalar_float_native {
             fn abs_val(self) -> Self {
                 self.abs()
             }
+            #[inline(always)]
+            fn total_add(self, rhs: Self) -> Self {
+                self + rhs
+            }
+            #[inline(always)]
+            fn total_mul(self, rhs: Self) -> Self {
+                self * rhs
+            }
             #[inline]
             fn add_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
                 if hermes_simd::elementwise_add::<$t>(a, b, out).is_err() {

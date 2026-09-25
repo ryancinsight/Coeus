@@ -298,3 +298,35 @@ for rank in range(2):
 "#,
     );
 }
+
+#[test]
+fn test_pycoeus_tcp_collective_with_a_lost_peer_raises_connection_error() {
+    run_pycoeus_script(
+        r#"
+import gc
+import pycoeus
+
+survivor, lost = pycoeus.create_tcp_loopback_cluster(2)
+# Dropping the last reference closes rank 1's sockets.
+del lost
+gc.collect()
+
+tensor = pycoeus.Tensor([1.0, 2.0])
+try:
+    survivor.all_reduce(tensor)
+except ConnectionError as error:
+    message = str(error)
+    assert message.startswith("rank 0 could not receive from peer 1 at 127.0.0.1:"), message
+else:
+    raise AssertionError("all_reduce with a lost peer did not raise")
+
+# The failed collective poisoned the survivor's links.
+try:
+    survivor.barrier()
+except ConnectionError as error:
+    assert "is poisoned by an earlier failure" in str(error), str(error)
+else:
+    raise AssertionError("barrier after a failed collective did not raise")
+"#,
+    );
+}

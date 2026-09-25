@@ -6,3 +6,5 @@ mod activation_parameters;
 mod scalar_dot_scale;
 #[path = "scalars/scalar_index_conversion.rs"]
 mod scalar_index_conversion;
+#[path = "scalars/scalar_total_ops.rs"]
+mod scalar_total_ops;

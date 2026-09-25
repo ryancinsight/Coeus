@@ -4,6 +4,25 @@
 
 ### Changed
 
+- [major] `Communicator` collectives return `Result<(), Self::Error>`.
+  `TcpCommunicator` returns `TcpMeshError` instead of panicking on peer I/O
+  failure, and a failed collective poisons all of that rank's links so every
+  surviving rank fails at once; `LocalCommunicator` returns `Infallible`.
+  A handshake status byte other than 0 or 1 from a root returns
+  `TcpMeshError::InvalidStatus` instead of panicking. A peer-reported
+  element-count mismatch also stops panicking: it returns
+  `TcpMeshError::NumelMismatch` on the rank that detects it and
+  `TcpMeshError::PeerReportedMismatch` on the others, both poisoning links
+  like any other collective failure. Integer `Sum`/`Product` reductions now
+  wrap on overflow (`Scalar::total_add`/`total_mul`, added in `coeus-core`
+  with no default body — every `Scalar` implementor states its own overflow
+  behavior: wrap for integers, IEEE 754 ±infinity for floats) instead of
+  overflow-panicking on a peer-supplied value; float reduction semantics are
+  unchanged.
+  `synchronize_gradients` returns `GradientSyncError`. Python TCP collectives
+  raise `ConnectionError`. See
+  [ADR 0075](docs/adr/0075-fallible-communicator-collectives.md#migration).
+
 - [major] `TcpMesh` setup and peer I/O return `TcpMeshError` instead of
   panicking. `TcpMesh::new` and `TcpMesh::create_loopback_cluster` take
   `MeshDeadlines`, applied in every build profile: a setup bound (default

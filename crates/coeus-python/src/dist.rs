@@ -1,4 +1,4 @@
-use crate::error::map_tcp_mesh_error;
+use crate::error::{map_backend_error, map_tcp_mesh_error};
 use crate::tensor::PyTensor;
 use coeus_dist::Communicator;
 use pyo3::exceptions::PyRuntimeError;
@@ -29,7 +29,7 @@ impl PyLocalCommunicator {
         let comm = self.inner.clone();
         py.allow_threads(move || {
             use coeus_dist::Communicator;
-            comm.barrier();
+            let Ok(()) = comm.barrier();
         });
     }
 
@@ -41,7 +41,7 @@ impl PyLocalCommunicator {
         let t_val = py.allow_threads(move || {
             let backend = coeus_core::MoiraiBackend::new();
             let mut t_val = t_val;
-            comm.all_reduce::<f64, _, coeus_dist::Sum>(&mut t_val, &backend);
+            let Ok(()) = comm.all_reduce::<f64, _, coeus_dist::Sum>(&mut t_val, &backend);
             t_val
         });
         t_borrow.inner.tensor = t_val;
@@ -56,7 +56,7 @@ impl PyLocalCommunicator {
         let t_val = py.allow_threads(move || {
             let backend = coeus_core::MoiraiBackend::new();
             let mut t_val = t_val;
-            comm.broadcast::<f64, _>(&mut t_val, root, &backend);
+            let Ok(()) = comm.broadcast::<f64, _>(&mut t_val, root, &backend);
             t_val
         });
         t_borrow.inner.tensor = t_val;
@@ -89,7 +89,7 @@ impl PyLocalCommunicator {
         let rust_tensors = py.allow_threads(move || {
             let backend = coeus_core::MoiraiBackend::new();
             let mut rust_tensors = rust_tensors;
-            comm.all_gather::<f64, _>(&input_tensor, &mut rust_tensors, &backend);
+            let Ok(()) = comm.all_gather::<f64, _>(&input_tensor, &mut rust_tensors, &backend);
             rust_tensors
         });
 
@@ -108,7 +108,7 @@ impl PyLocalCommunicator {
         let t_val = py.allow_threads(move || {
             let backend = coeus_core::MoiraiBackend::new();
             let mut t_val = t_val;
-            comm.reduce::<f64, _, coeus_dist::Sum>(&mut t_val, root, &backend);
+            let Ok(()) = comm.reduce::<f64, _, coeus_dist::Sum>(&mut t_val, root, &backend);
             t_val
         });
         t_borrow.inner.tensor = t_val;
@@ -143,7 +143,7 @@ impl PyLocalCommunicator {
         let rust_tensors = py.allow_threads(move || {
             let backend = coeus_core::MoiraiBackend::new();
             let mut rust_tensors = rust_tensors;
-            comm.gather::<f64, _>(&input_tensor, &mut rust_tensors, root, &backend);
+            let Ok(()) = comm.gather::<f64, _>(&input_tensor, &mut rust_tensors, root, &backend);
             rust_tensors
         });
 
@@ -185,7 +185,7 @@ impl PyLocalCommunicator {
         let (t_val, _rust_tensors) = py.allow_threads(move || {
             let backend = coeus_core::MoiraiBackend::new();
             let mut t_val = t_val;
-            comm.scatter::<f64, _>(&mut t_val, &rust_tensors, root, &backend);
+            let Ok(()) = comm.scatter::<f64, _>(&mut t_val, &rust_tensors, root, &backend);
             (t_val, rust_tensors)
         });
 
@@ -246,7 +246,10 @@ pub fn synchronize_gradients(
 
     let comm_inner = comm.inner.clone();
     py.allow_threads(move || coeus_dist::synchronize_gradients(&mut rust_params, &comm_inner))
-        .map_err(|error| PyRuntimeError::new_err(error.to_string()))
+        .map_err(|error| match error {
+            coeus_dist::GradientSyncError::Backend(source) => map_backend_error(source),
+            other => PyRuntimeError::new_err(other.to_string()),
+        })
 }
 
 /// Python-exposed TcpMesh.
@@ -318,12 +321,10 @@ impl PyTcpCommunicator {
     }
 
     /// Synchronize all ranks in the process group (blocking barrier, releasing GIL).
-    fn barrier(&self, py: Python<'_>) {
+    fn barrier(&self, py: Python<'_>) -> PyResult<()> {
         let comm = self.inner.clone();
-        py.allow_threads(move || {
-            use coeus_dist::Communicator;
-            comm.barrier();
-        });
+        py.allow_threads(move || comm.barrier())
+            .map_err(map_tcp_mesh_error)
     }
 
     /// Reduce and distribute a tensor to all processes in-place (releasing GIL).
@@ -331,12 +332,14 @@ impl PyTcpCommunicator {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let t_val = t_borrow.inner.tensor.clone();
-        let t_val = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            comm.all_reduce::<f64, _, coeus_dist::Sum>(&mut t_val, &backend);
-            t_val
-        });
+        let t_val = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.all_reduce::<f64, _, coeus_dist::Sum>(&mut t_val, &backend)?;
+                Ok::<_, coeus_dist::TcpMeshError>(t_val)
+            })
+            .map_err(map_tcp_mesh_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -346,12 +349,14 @@ impl PyTcpCommunicator {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let t_val = t_borrow.inner.tensor.clone();
-        let t_val = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            comm.broadcast::<f64, _>(&mut t_val, root, &backend);
-            t_val
-        });
+        let t_val = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.broadcast::<f64, _>(&mut t_val, root, &backend)?;
+                Ok::<_, coeus_dist::TcpMeshError>(t_val)
+            })
+            .map_err(map_tcp_mesh_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -379,12 +384,14 @@ impl PyTcpCommunicator {
             rust_tensors.push(item.bind(py).borrow().inner.tensor.clone());
         }
 
-        let rust_tensors = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut rust_tensors = rust_tensors;
-            comm.all_gather::<f64, _>(&input_tensor, &mut rust_tensors, &backend);
-            rust_tensors
-        });
+        let rust_tensors = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut rust_tensors = rust_tensors;
+                comm.all_gather::<f64, _>(&input_tensor, &mut rust_tensors, &backend)?;
+                Ok::<_, coeus_dist::TcpMeshError>(rust_tensors)
+            })
+            .map_err(map_tcp_mesh_error)?;
 
         for (item, rust_t) in output.iter().zip(rust_tensors) {
             item.bind(py).borrow_mut().inner.tensor = rust_t;
@@ -398,12 +405,14 @@ impl PyTcpCommunicator {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let t_val = t_borrow.inner.tensor.clone();
-        let t_val = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            comm.reduce::<f64, _, coeus_dist::Sum>(&mut t_val, root, &backend);
-            t_val
-        });
+        let t_val = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.reduce::<f64, _, coeus_dist::Sum>(&mut t_val, root, &backend)?;
+                Ok::<_, coeus_dist::TcpMeshError>(t_val)
+            })
+            .map_err(map_tcp_mesh_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -433,12 +442,14 @@ impl PyTcpCommunicator {
             rust_tensors.push(item.bind(py).borrow().inner.tensor.clone());
         }
 
-        let rust_tensors = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut rust_tensors = rust_tensors;
-            comm.gather::<f64, _>(&input_tensor, &mut rust_tensors, root, &backend);
-            rust_tensors
-        });
+        let rust_tensors = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut rust_tensors = rust_tensors;
+                comm.gather::<f64, _>(&input_tensor, &mut rust_tensors, root, &backend)?;
+                Ok::<_, coeus_dist::TcpMeshError>(rust_tensors)
+            })
+            .map_err(map_tcp_mesh_error)?;
 
         if rank == root {
             for (item, rust_t) in output.iter().zip(rust_tensors) {
@@ -475,12 +486,14 @@ impl PyTcpCommunicator {
             rust_tensors.push(item.bind(py).borrow().inner.tensor.clone());
         }
 
-        let (t_val, _rust_tensors) = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            comm.scatter::<f64, _>(&mut t_val, &rust_tensors, root, &backend);
-            (t_val, rust_tensors)
-        });
+        let (t_val, _rust_tensors) = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.scatter::<f64, _>(&mut t_val, &rust_tensors, root, &backend)?;
+                Ok::<_, coeus_dist::TcpMeshError>((t_val, rust_tensors))
+            })
+            .map_err(map_tcp_mesh_error)?;
 
         t_borrow.inner.tensor = t_val;
         Ok(())

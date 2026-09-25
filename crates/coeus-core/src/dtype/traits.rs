@@ -372,6 +372,25 @@ pub trait Scalar:
     /// Scalar absolute value.
     fn abs_val(self) -> Self;
 
+    /// Addition defined for every input: integers wrap modulo 2^bits on
+    /// overflow (two's-complement `wrapping_add`); floats follow IEEE 754
+    /// (overflow saturates to ±infinity, matching native `+`). Named after
+    /// `total_cmp`'s "the well-defined variant of the usual operator" sense,
+    /// not because it changes float behavior — float `+` is already total.
+    ///
+    /// Every `Scalar` implementor states this explicitly (no default): the
+    /// reduction operations (`coeus_dist::Sum`/`Product`) fold peer-supplied
+    /// values through this method rather than `+`/`*` directly, so an
+    /// adversarial or merely large peer value can never panic a debug or
+    /// overflow-checked build. Integer wrapping matches the two's-complement
+    /// behavior release builds already give unchecked `+`, and the reduction
+    /// semantics of MPI/NCCL integer sums.
+    fn total_add(self, rhs: Self) -> Self;
+
+    /// Multiplication defined for every input. See [`Scalar::total_add`] for
+    /// the wrap/IEEE split and the rationale.
+    fn total_mul(self, rhs: Self) -> Self;
+
     // The slice-kernel default methods below are the backend
     // extension surface — the per-type seam onto `hermes-simd`'s
     // SIMD-effect SSOT. They are mode-stable across the rebase (`hermes-simd`

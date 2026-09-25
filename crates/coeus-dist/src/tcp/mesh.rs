@@ -349,6 +349,11 @@ impl TcpMesh {
             .unwrap_or_else(|| panic!("{op} stream not established for peer {peer}"))
     }
 
+    /// The address the link to `peer` was established with.
+    pub(crate) fn peer_address(&self, peer: usize) -> SocketAddr {
+        self.link_for_peer(peer, "address").address
+    }
+
     /// Access local rank.
     #[inline]
     pub fn rank(&self) -> usize {

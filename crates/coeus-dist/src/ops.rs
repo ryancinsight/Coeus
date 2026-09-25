@@ -28,7 +28,7 @@ pub trait ReduceOpTag: 'static + Copy + Clone + Send + Sync {
 ///         let rank = comm.rank() as f32;
 ///         let mut tensor =
 ///             Tensor::from_slice_on([1], &[rank + 1.0], &backend);
-///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///         let Ok(()) = comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
 ///         // 1 + 2 = 3
 ///         assert_eq!(tensor.as_slice()[0], 3.0);
 ///     }));
@@ -42,7 +42,11 @@ pub struct Sum;
 impl ReduceOpTag for Sum {
     #[inline(always)]
     fn apply<T: Scalar>(a: T, b: T) -> T {
-        a + b
+        // Wraps on integer overflow (IEEE 754 for floats): a collective
+        // combines a peer-supplied value, and a hostile or desynchronized
+        // peer must never overflow-panic this rank. See `Scalar::total_add`
+        // (ADR 0075).
+        a.total_add(b)
     }
 }
 
@@ -65,7 +69,7 @@ impl ReduceOpTag for Sum {
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
 ///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Max>(&mut tensor, &backend);
+///         let Ok(()) = comm.all_reduce::<f32, _, Max>(&mut tensor, &backend);
 ///         // max across 3 ranks: [3, 4]
 ///         assert_eq!(tensor.as_slice(), &[3.0, 4.0]);
 ///     }));
@@ -106,7 +110,7 @@ impl ReduceOpTag for Max {
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
 ///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Min>(&mut tensor, &backend);
+///         let Ok(()) = comm.all_reduce::<f32, _, Min>(&mut tensor, &backend);
 ///         // min across 3 ranks: [1, 2]
 ///         assert_eq!(tensor.as_slice(), &[1.0, 2.0]);
 ///     }));
@@ -147,7 +151,7 @@ impl ReduceOpTag for Min {
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
 ///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         comm.all_reduce::<f32, _, Product>(&mut tensor, &backend);
+///         let Ok(()) = comm.all_reduce::<f32, _, Product>(&mut tensor, &backend);
 ///         // product across 3 ranks: [1*2*3, 2*3*4] = [6, 24]
 ///         assert_eq!(tensor.as_slice(), &[6.0, 24.0]);
 ///     }));
@@ -161,6 +165,7 @@ pub struct Product;
 impl ReduceOpTag for Product {
     #[inline(always)]
     fn apply<T: Scalar>(a: T, b: T) -> T {
-        a * b
+        // Wraps on integer overflow; see `Sum::apply` and `ADR 0075`.
+        a.total_mul(b)
     }
 }

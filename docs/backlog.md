@@ -29,15 +29,6 @@
   `coeus-core` pass against the current provider graph.
 - Lease: discharged by this commit; RITK's consumer lock refresh follows merge.
 
-<a id="coeus-communicator-fallible-collectives"></a>
-## COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES — TCP collectives panic on peer I/O failure
-
-- Status: todo; integrator: unclaimed; priority: correctness; [major] (`Communicator` methods gain a `Result`).
-- Successor to COEUS-TCPMESH-FALLIBLE-SETUP, delivered by the PR that replaced this entry ([ADR 0074](adr/0074-fallible-tcp-mesh.md)).
-- Outcome: `Communicator` collectives return a typed error, so `TcpCommunicator` propagates `TcpMeshError` from `send`/`recv` instead of panicking; `LocalCommunicator` and `synchronize_gradients` follow.
-- Evidence: `crates/coeus-dist/src/tcp/collectives.rs` `TcpCommunicator::send`/`recv` panic with the error chain because the trait has no error channel.
-- Acceptance: no panic on an I/O result in `tcp/collectives.rs`; a test drops a peer mid-collective and asserts the typed error; Python collectives raise `ConnectionError`.
-
 <a id="coeus-cpu-storage-ownership"></a>
 ## COEUS-CPU-STORAGE-OWNERSHIP — Keep allocation ownership private
 - Status: done; [PR #383](https://github.com/ryancinsight/Coeus/pull/383) merged as `3263fa47` on 2026-09-08.

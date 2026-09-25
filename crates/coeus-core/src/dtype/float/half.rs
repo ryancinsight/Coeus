@@ -34,6 +34,14 @@ macro_rules! impl_scalar_float_half {
             fn abs_val(self) -> Self {
                 <Self as NumericElement>::abs(self)
             }
+            #[inline(always)]
+            fn total_add(self, rhs: Self) -> Self {
+                self + rhs
+            }
+            #[inline(always)]
+            fn total_mul(self, rhs: Self) -> Self {
+                self * rhs
+            }
         }
         impl FloatOps for $t {
             #[inline(always)]
