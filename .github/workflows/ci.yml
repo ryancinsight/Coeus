@@ -74,18 +74,6 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      # Bounded below the runner's default nproc-derived parallelism.
-      # Measured 2026-09-24: a single rustc process compiling the
-      # (pre-split) coeus-ops `ops` integration-test crate alone peaked at
-      # ~11.8 GiB resident on an identical toolchain/profile, and this job's
-      # SIGKILL/"runner received a shutdown signal" failures on PR #407 and
-      # #408 line up with several such workspace-member compiles running
-      # concurrently on this job's 16 GiB runner. Bounding concurrent rustc
-      # invocations to 2 keeps worst-case concurrent peak well under the
-      # runner budget; see crates/coeus-ops/tests/ops_*.rs for the
-      # compile-unit split that is the primary fix.
-      CARGO_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

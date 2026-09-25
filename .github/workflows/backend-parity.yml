@@ -173,18 +173,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-leto --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
-          # coeus-ops carries the workspace's largest integration-test
-          # compile units. Measured 2026-09-24: its output-ownership
-          # differential family alone peaks at ~10.8 GiB resident in one
-          # rustc process (split out of a former single 7721-line test
-          # crate that peaked at ~11.8 GiB; see
-          # crates/coeus-ops/tests/ops_ownership.rs), and this job has
-          # died to SIGKILL / "runner has received a shutdown signal"
-          # (OOM) compiling it on PR #407 and #408. Bounding this one
-          # invocation to one rustc job at a time keeps its test
-          # binaries from compiling concurrently with each other,
-          # without slowing the rest of this job.
-          CARGO_BUILD_JOBS=1 cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-ops --doc
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-nn \
             -E "test(test_cross_entropy_loss_parity) or test(cross_entropy_rejects_invalid_contracts_before_autograd_registration)"
@@ -328,9 +317,7 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
-              # See the wgpu job above for the measured coeus-ops
-              # compile-memory rationale.
-              CARGO_BUILD_JOBS=1 cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
+              cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-ops --doc
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings

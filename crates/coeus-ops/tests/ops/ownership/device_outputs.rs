@@ -22,6 +22,58 @@ pub(crate) trait OutputWrite<T: Scalar, B: ComputeBackend>: core::fmt::Debug {
     ) -> Result<(), B::Error>;
 }
 
+// The functions below are instantiated once per (scalar type, backend,
+// operation) triple -- required coverage per the generic-instantiation
+// policy, not a redundancy to collapse (five operations times up to twelve
+// scalar types times two backends is the compile-memory-dominant fan-out
+// in this file). What is a redundancy: none of the arithmetic below the
+// `for offset_view` loop depends on the scalar type, backend, or
+// operation, and every `assert_eq!` invocation independently re-expands
+// its `Debug`-formatting and panic path per instantiation even though the
+// comparison logic is identical across every operation for a given `T`.
+// Hoisting both into plain functions -- `usize`/`bool`-only for the index
+// arithmetic, `T`-only (never `B` or `O`) for the assertions -- lets rustc
+// monomorphize each shared piece once (or once per `T`) instead of once
+// per triple, mirroring the pattern `optimizer::assert_values` already
+// uses elsewhere in this harness. No assertion, message, or test case
+// changes: this only moves where the code that produces them lives.
+
+/// The destination-view shape for a given operation's column count and
+/// offset mode. Depends only on `columns` and `offset_view` (both plain
+/// runtime values, not generic parameters), so this compiles once for the
+/// whole harness rather than once per `(T, B, O)` triple.
+fn view_shape(columns: usize, offset_view: bool) -> [usize; 2] {
+    if offset_view {
+        [4, columns + 2]
+    } else {
+        [2, columns]
+    }
+}
+
+/// The flat index into the destination/expected buffers for output
+/// position `(row, column)` under the given shape and offset mode.
+fn destination_flat_index(
+    row: usize,
+    column: usize,
+    columns: usize,
+    shape1: usize,
+    offset_view: bool,
+) -> usize {
+    if offset_view {
+        (row + 1) * shape1 + column + 1
+    } else {
+        row * columns + column
+    }
+}
+
+/// Compares two value vectors for exact equality, panicking with `context`
+/// on mismatch. Generic over `T` alone (never `B` or the operation type),
+/// so rustc monomorphizes this once per scalar type instead of once per
+/// `(T, B, O)` triple.
+fn assert_vec_eq<T: Scalar>(actual: Vec<T>, expected: &[T], context: String) {
+    assert_eq!(actual, expected, "{context}");
+}
+
 pub(crate) fn preserves_output_clones<T, B, O>(backend: &B, operation: O, one: T)
 where
     T: Scalar,
@@ -39,11 +91,7 @@ where
     let columns = O::COLUMNS;
 
     for offset_view in [false, true] {
-        let shape = if offset_view {
-            [4, columns + 2]
-        } else {
-            [2, columns]
-        };
+        let shape = view_shape(columns, offset_view);
         let original_values: Vec<_> = (0..shape[0] * shape[1])
             .map(|index| [four, three, two, one][index % 4])
             .collect();
@@ -56,11 +104,7 @@ where
         let mut expected_storage = original_values.clone();
         for row in 0..2 {
             for column in 0..columns {
-                let index = if offset_view {
-                    (row + 1) * shape[1] + column + 1
-                } else {
-                    row * columns + column
-                };
+                let index = destination_flat_index(row, column, columns, shape[1], offset_view);
                 expected_storage[index] = expected[row * columns + column];
             }
         }
@@ -68,22 +112,25 @@ where
         operation
             .dispatch(backend, &input, input.layout(), &rhs, output, output_layout)
             .expect("valid output operation");
-        assert_eq!(
+        assert_vec_eq(
             original.to_vec_on(backend),
-            original_values,
-            "{operation:?} changed its destination clone ({offset_view}, {})",
-            core::any::type_name::<T>()
+            &original_values,
+            format!(
+                "{operation:?} changed its destination clone ({offset_view}, {})",
+                core::any::type_name::<T>()
+            ),
         );
-        assert_eq!(
+        assert_vec_eq(
             destination.to_vec_on(backend),
-            expected,
-            "{operation:?} computed incorrect logical output"
+            &expected,
+            format!("{operation:?} computed incorrect logical output"),
         );
         let mut actual_storage = vec![T::zero(); expected_storage.len()];
         backend.copy_to_host(destination.storage(), &mut actual_storage);
-        assert_eq!(
-            actual_storage, expected_storage,
-            "{operation:?} changed elements outside its output view"
+        assert_vec_eq(
+            actual_storage,
+            &expected_storage,
+            format!("{operation:?} changed elements outside its output view"),
         );
     }
 }
@@ -114,15 +161,15 @@ where
             output_layout,
         )
         .expect_err("an input layout extending beyond its allocation must fail");
-    assert_eq!(
+    assert_vec_eq(
         original.to_vec_on(backend),
-        original_values,
-        "{operation:?} changed shared values on rejection"
+        &original_values,
+        format!("{operation:?} changed shared values on rejection"),
     );
-    assert_eq!(
+    assert_vec_eq(
         destination.to_vec_on(backend),
-        original_values,
-        "{operation:?} wrote output before rejecting an invalid input"
+        &original_values,
+        format!("{operation:?} wrote output before rejecting an invalid input"),
     );
 }
 
