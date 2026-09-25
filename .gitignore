@@ -19,6 +19,8 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+# The `dist` Rust module of the Python bindings is source, not build output.
+!crates/coeus-python/src/dist/
 downloads/
 eggs/
 .eggs/
