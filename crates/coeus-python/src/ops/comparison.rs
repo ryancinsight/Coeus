@@ -1,41 +1,31 @@
 use crate::tensor::PyTensor;
+use coeus_autograd::Var;
 use pyo3::prelude::*;
 
-#[pyfunction]
-pub fn eq(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::eq(&a.inner, &b.inner));
+#[inline]
+fn comparison_dispatch<F>(a: &PyTensor, b: &PyTensor, py: Python<'_>, op: F) -> PyTensor
+where
+    F: FnOnce(&Var<f64>, &Var<f64>) -> Var<f64> + Send,
+{
+    let inner = py.allow_threads(|| op(&a.inner, &b.inner));
     PyTensor { inner }
 }
 
-#[pyfunction]
-pub fn ne(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::ne(&a.inner, &b.inner));
-    PyTensor { inner }
+macro_rules! comparison_fn {
+    ($name:ident, $op:path) => {
+        #[pyfunction]
+        pub fn $name(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
+            comparison_dispatch(a, b, py, $op)
+        }
+    };
 }
 
-#[pyfunction]
-pub fn lt(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::lt(&a.inner, &b.inner));
-    PyTensor { inner }
-}
-
-#[pyfunction]
-pub fn gt(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::gt(&a.inner, &b.inner));
-    PyTensor { inner }
-}
-
-#[pyfunction]
-pub fn le(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::le(&a.inner, &b.inner));
-    PyTensor { inner }
-}
-
-#[pyfunction]
-pub fn ge(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
-    let inner = py.allow_threads(|| coeus_autograd::ge(&a.inner, &b.inner));
-    PyTensor { inner }
-}
+comparison_fn!(eq, coeus_autograd::eq);
+comparison_fn!(ne, coeus_autograd::ne);
+comparison_fn!(lt, coeus_autograd::lt);
+comparison_fn!(gt, coeus_autograd::gt);
+comparison_fn!(le, coeus_autograd::le);
+comparison_fn!(ge, coeus_autograd::ge);
 
 #[pyfunction]
 pub fn where_fn(

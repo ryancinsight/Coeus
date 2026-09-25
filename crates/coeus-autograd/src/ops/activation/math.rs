@@ -97,39 +97,14 @@ pub fn abs<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 // ── SqrtOp ─────────────────────────────────────────────────────────────────
+//
+// `d/dx √x = 1 / (2√x) = grad_out / (2·y)` where `y = √x` (stored forward output).
 
-/// ZST tag for square-root autograd.
-pub struct SqrtOp;
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for SqrtOp {
-    const OP_NAME: &'static str = "sqrt";
-
-    #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-        coeus_ops::sqrt(x, backend)
-    }
-
-    /// d/dx √x = 1 / (2√x) = grad_out / (2·y) where y = √x.
-    ///
-    /// Uses the stored forward output `y` to avoid a redundant sqrt call.
-    #[inline(always)]
-    fn backward(
-        grad_out: &Tensor<T, B>,
-        _x: &Tensor<T, B>,
-        y: &Tensor<T, B>,
-        backend: &B,
-    ) -> Tensor<T, B> {
-        let two = Tensor::full_on(y.shape(), T::from_f64(2.0), backend);
-        let denom = coeus_ops::mul(y, &two, backend);
-        coeus_ops::div(grad_out, &denom, backend)
-    }
-}
-
-/// Tracked element-wise square root.
-#[must_use]
-#[inline]
-pub fn sqrt<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
-    unary_op::<T, B, SqrtOp>(a)
-}
+unary_autograd!(SqrtOp, "sqrt", sqrt, |g, _x, y, b| {
+    let two = Tensor::full_on(y.shape(), T::from_f64(2.0), b);
+    let denom = coeus_ops::mul(y, &two, b);
+    coeus_ops::div(g, &denom, b)
+});
 
 // ── PowNode ────────────────────────────────────────────────────────────────
 //
@@ -591,86 +566,32 @@ pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 // ── RecipOp ────────────────────────────────────────────────────────────────
+//
+// `d/dx [1/x] = −1/x² = −y²` where `y = 1/x` (stored forward output).
 
-/// ZST tag for reciprocal autograd.
-pub struct RecipOp;
-impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B>
-    for RecipOp
-{
-    const OP_NAME: &'static str = "recip";
-
-    #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-        coeus_ops::recip(x, backend)
-    }
-
-    /// d/dx [1/x] = −1/x² = −y² where y = 1/x.
-    #[inline(always)]
-    fn backward(
-        grad_out: &Tensor<T, B>,
-        _x: &Tensor<T, B>,
-        y: &Tensor<T, B>,
-        backend: &B,
-    ) -> Tensor<T, B> {
-        let y_sq = coeus_ops::mul(y, y, backend);
-        let neg_y_sq = coeus_ops::neg(&y_sq, backend);
-        coeus_ops::mul(grad_out, &neg_y_sq, backend)
-    }
-}
-
-/// Tracked element-wise reciprocal.
-#[must_use]
-#[inline]
-pub fn recip<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
-    a: &Var<T, B>,
-) -> Var<T, B> {
-    unary_op::<T, B, RecipOp>(a)
-}
+unary_autograd!({Scalar + FloatOps} RecipOp, "recip", recip, |g, _x, y, b| {
+    let y_sq = coeus_ops::mul(y, y, b);
+    let neg_y_sq = coeus_ops::neg(&y_sq, b);
+    coeus_ops::mul(g, &neg_y_sq, b)
+});
 
 // ── Zero-gradient ops ───────────────────────────────────────────────────────
 //
 // Sign, floor, ceil, round, trunc are non-differentiable (or have zero
 // gradient almost everywhere). Their backward returns a zero tensor.
 
-macro_rules! impl_zero_grad_op {
-    ($struct:ident, $func:ident, $op_name:expr, $forward_fn:ident) => {
-        #[doc = concat!("Zero-gradient unary op marker for `", stringify!($struct), "`.")]
-        pub struct $struct;
-        impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B>
-            for $struct
-        {
-            const OP_NAME: &'static str = $op_name;
-
-            #[inline(always)]
-            fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-                coeus_ops::$forward_fn(x, backend)
-            }
-
-            /// Zero gradient — these ops are non-differentiable.
-            #[inline(always)]
-            fn backward(
-                grad_out: &Tensor<T, B>,
-                _x: &Tensor<T, B>,
-                _y: &Tensor<T, B>,
-                backend: &B,
-            ) -> Tensor<T, B> {
-                Tensor::zeros_on(grad_out.shape(), backend)
-            }
-        }
-
-        /// Tracked element-wise `$op_name`.
-        #[must_use]
-        #[inline]
-        pub fn $func<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
-            a: &Var<T, B>,
-        ) -> Var<T, B> {
-            unary_op::<T, B, $struct>(a)
-        }
-    };
-}
-
-impl_zero_grad_op!(SignOp, sign, "sign", sign);
-impl_zero_grad_op!(FloorOp, floor, "floor", floor);
-impl_zero_grad_op!(CeilOp, ceil, "ceil", ceil);
-impl_zero_grad_op!(RoundOp, round, "round", round);
-impl_zero_grad_op!(TruncOp, trunc, "trunc", trunc);
+unary_autograd!({Scalar + FloatOps} SignOp, "sign", sign, |g, _x, _y, b| {
+    super::zero_unary_grad(g, b)
+});
+unary_autograd!({Scalar + FloatOps} FloorOp, "floor", floor, |g, _x, _y, b| {
+    super::zero_unary_grad(g, b)
+});
+unary_autograd!({Scalar + FloatOps} CeilOp, "ceil", ceil, |g, _x, _y, b| {
+    super::zero_unary_grad(g, b)
+});
+unary_autograd!({Scalar + FloatOps} RoundOp, "round", round, |g, _x, _y, b| {
+    super::zero_unary_grad(g, b)
+});
+unary_autograd!({Scalar + FloatOps} TruncOp, "trunc", trunc, |g, _x, _y, b| {
+    super::zero_unary_grad(g, b)
+});
