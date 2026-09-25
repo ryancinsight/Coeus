@@ -78,6 +78,15 @@ impl PyTensor {
             )))
         }
     }
+
+    #[inline]
+    fn unary_dispatch<F>(&self, py: Python<'_>, op: F) -> PyResult<Self>
+    where
+        F: FnOnce(&Var<f64>) -> Var<f64> + Send,
+    {
+        let inner = py.allow_threads(|| op(&self.inner));
+        Ok(Self::from_var(inner))
+    }
 }
 
 #[pymethods]
@@ -250,13 +259,11 @@ impl PyTensor {
     }
 
     fn __neg__(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::neg(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::neg)
     }
 
     fn __abs__(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::abs(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::abs)
     }
 
     fn __rmul__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
@@ -299,148 +306,119 @@ impl PyTensor {
     // ── Unary math ops ──
 
     fn exp(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::exp(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::exp)
     }
 
     fn erf(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::erf(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::erf)
     }
 
     fn erfc(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::erfc(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::erfc)
     }
 
     fn tan(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::tan(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::tan)
     }
 
     fn asin(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::asin(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::asin)
     }
 
     fn acos(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::acos(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::acos)
     }
 
     fn atan(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::atan(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::atan)
     }
 
     fn atanh(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::atanh(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::atanh)
     }
 
     fn asinh(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::asinh(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::asinh)
     }
 
     fn acosh(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::acosh(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::acosh)
     }
 
     fn expm1(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::expm1(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::expm1)
     }
 
     fn log1p(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::log1p(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::log1p)
     }
 
     fn sinh(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::sinh(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::sinh)
     }
 
     fn cosh(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::cosh(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::cosh)
     }
 
     fn log2(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::log2(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::log2)
     }
 
     fn log10(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::log10(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::log10)
     }
 
     fn exp2(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::exp2(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::exp2)
     }
 
     fn selu(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::selu(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::selu)
     }
 
     fn log(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::log(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::log)
     }
 
     fn abs(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::abs(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::abs)
     }
 
     fn sqrt(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::sqrt(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::sqrt)
     }
 
     fn recip(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::recip(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::recip)
     }
 
     fn sign(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::sign(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::sign)
     }
 
     fn floor(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::floor(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::floor)
     }
 
     fn ceil(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::ceil(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::ceil)
     }
 
     fn round(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::round(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::round)
     }
 
     fn trunc(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::trunc(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::trunc)
     }
 
     fn sin(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::sin(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::sin)
     }
 
     fn cos(&self, py: Python<'_>) -> PyResult<Self> {
-        let inner = py.allow_threads(|| coeus_autograd::cos(&self.inner));
-        Ok(Self::from_var(inner))
+        self.unary_dispatch(py, coeus_autograd::cos)
     }
 
     fn pow(&self, exp: f64, py: Python<'_>) -> PyResult<Self> {
