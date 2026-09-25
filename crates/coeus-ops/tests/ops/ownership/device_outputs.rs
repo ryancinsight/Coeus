@@ -5,7 +5,13 @@ use coeus_ops::{
 use coeus_tensor::Tensor;
 
 pub(crate) trait OutputWrite<T: Scalar, B: ComputeBackend>: core::fmt::Debug {
-    const COLUMNS: usize;
+    /// The operation's output column count. An instance method (not an
+    /// associated const) so one enum can carry several operations whose
+    /// column counts differ -- see `NumericOp` below, whose `Add`/`Sum`/
+    /// `Product` variants would otherwise be unable to share one
+    /// `OutputWrite` impl and one `preserves_output_clones`/
+    /// `rejects_invalid_output_write` instantiation per `(T, B)`.
+    fn columns(&self) -> usize;
     fn input(one: T) -> [T; 4] {
         let two = one + one;
         [one, two, two + one, two + two]
@@ -22,26 +28,38 @@ pub(crate) trait OutputWrite<T: Scalar, B: ComputeBackend>: core::fmt::Debug {
     ) -> Result<(), B::Error>;
 }
 
-// The functions below are instantiated once per (scalar type, backend,
-// operation) triple -- required coverage per the generic-instantiation
-// policy, not a redundancy to collapse (five operations times up to twelve
-// scalar types times two backends is the compile-memory-dominant fan-out
-// in this file). What is a redundancy: none of the arithmetic below the
-// `for offset_view` loop depends on the scalar type, backend, or
-// operation, and every `assert_eq!` invocation independently re-expands
-// its `Debug`-formatting and panic path per instantiation even though the
-// comparison logic is identical across every operation for a given `T`.
-// Hoisting both into plain functions -- `usize`/`bool`-only for the index
-// arithmetic, `T`-only (never `B` or `O`) for the assertions -- lets rustc
-// monomorphize each shared piece once (or once per `T`) instead of once
-// per triple, mirroring the pattern `optimizer::assert_values` already
-// uses elsewhere in this harness. No assertion, message, or test case
-// changes: this only moves where the code that produces them lives.
+// `preserves_output_clones`/`rejects_invalid_output_write` are instantiated
+// once per (scalar type, backend, `OutputWrite` impl) -- required
+// generic-instantiation coverage, not a redundancy to collapse by itself.
+// The *number of `OutputWrite` impls* is a real lever, though: `Negate`,
+// `Add`, `Sum`, `Product`, and `Square` were five separate impls, each
+// forcing its own instantiation set even where the same `(T, B)` pairs
+// were exercised by more than one of them. `Add`, `Sum`, and `Product` need
+// no per-type bound beyond `Scalar` (`Negate` additionally needs
+// `Neg<Output = T>`, restricting it to signed/float types; `Square` needs
+// `Float`), so they fold into one `NumericOp` enum -- the same
+// runtime-dispatch pattern `Scan` below already uses -- cutting their
+// combined instantiation count roughly 3x for every `(T, B)` pair actually
+// shared across the three (measured 2026-09-25: see the module-level
+// harness for the before/after numbers). `Negate` and `Square` keep their
+// own impls: merging either with `NumericOp` would force every `NumericOp`
+// caller's `T` to additionally satisfy `Neg<Output = T>` or `Float`,
+// breaking the unsigned-integer calls that exercise `Add`/`Sum`/`Product`
+// today.
+//
+// None of the arithmetic below the `for offset_view` loop depends on the
+// scalar type, backend, or operation, and every `assert_eq!` invocation
+// independently re-expanded its `Debug`-formatting and panic path per
+// instantiation even though the comparison logic is identical across every
+// operation for a given `T`. Both are hoisted into plain functions --
+// `usize`/`bool`-only for the index arithmetic, `T`-only (never `B` or the
+// operation type) for the assertions -- mirroring the
+// `optimizer::assert_values` pattern used elsewhere in this harness.
 
 /// The destination-view shape for a given operation's column count and
 /// offset mode. Depends only on `columns` and `offset_view` (both plain
 /// runtime values, not generic parameters), so this compiles once for the
-/// whole harness rather than once per `(T, B, O)` triple.
+/// whole harness rather than once per instantiation.
 fn view_shape(columns: usize, offset_view: bool) -> [usize; 2] {
     if offset_view {
         [4, columns + 2]
@@ -69,7 +87,7 @@ fn destination_flat_index(
 /// Compares two value vectors for exact equality, panicking with `context`
 /// on mismatch. Generic over `T` alone (never `B` or the operation type),
 /// so rustc monomorphizes this once per scalar type instead of once per
-/// `(T, B, O)` triple.
+/// instantiation.
 fn assert_vec_eq<T: Scalar>(actual: Vec<T>, expected: &[T], context: String) {
     assert_eq!(actual, expected, "{context}");
 }
@@ -88,7 +106,7 @@ where
     let input = Tensor::from_slice_on([2, 2], &input_values, backend);
     let rhs = Tensor::from_slice_on([2, 2], &rhs_values, backend);
     let expected = operation.expected(one);
-    let columns = O::COLUMNS;
+    let columns = operation.columns();
 
     for offset_view in [false, true] {
         let shape = view_shape(columns, offset_view);
@@ -144,7 +162,7 @@ where
     let two = one + one;
     let input = Tensor::from_slice_on([2, 2], &[one, two, two, one], backend);
     let invalid_input_layout = Layout::new([2, 3].into());
-    let columns = O::COLUMNS;
+    let columns = operation.columns();
     let original_values: Vec<_> = (0..2 * columns)
         .map(|index| [two, one][index % 2])
         .collect();
@@ -177,7 +195,9 @@ where
 pub(crate) struct Negate;
 
 impl<T: Scalar + core::ops::Neg<Output = T>, B: ElementwiseOps<T>> OutputWrite<T, B> for Negate {
-    const COLUMNS: usize = 2;
+    fn columns(&self) -> usize {
+        2
+    }
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
         let three = two + one;
@@ -203,16 +223,38 @@ impl<T: Scalar + core::ops::Neg<Output = T>, B: ElementwiseOps<T>> OutputWrite<T
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct Add;
+/// The `Add`/`Sum`/`Product` differential-output-write operations, unified
+/// into one `OutputWrite` impl (see the module-level rationale above). Each
+/// needs only `T: Scalar` and its own backend sub-trait -- `B`'s bound
+/// below is the union of all three, which `SequentialBackend` and
+/// `MoiraiBackend` already satisfy (both were already exercised against
+/// all three operations before this merge).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum NumericOp {
+    Add,
+    Sum,
+    Product,
+}
 
-impl<T: Scalar, B: ElementwiseOps<T>> OutputWrite<T, B> for Add {
-    const COLUMNS: usize = 2;
+impl<T: Scalar, B: ElementwiseOps<T> + ReductionOps<T> + MatmulOps<T>> OutputWrite<T, B>
+    for NumericOp
+{
+    fn columns(&self) -> usize {
+        match self {
+            Self::Add => 2,
+            Self::Sum => 1,
+            Self::Product => 2,
+        }
+    }
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
         let three = two + one;
         let four = two + two;
-        vec![three, three, four, four + two]
+        match self {
+            Self::Add => vec![three, three, four, four + two],
+            Self::Sum => vec![three, three + four],
+            Self::Product => vec![four, one + four, four + four + two, four + four + three],
+        }
     }
     fn dispatch(
         &self,
@@ -223,77 +265,33 @@ impl<T: Scalar, B: ElementwiseOps<T>> OutputWrite<T, B> for Add {
         output: &mut B::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), B::Error> {
-        backend.elementwise_binary(
-            BinaryOp::Add,
-            input.storage(),
-            input_layout,
-            rhs.storage(),
-            rhs.layout(),
-            output,
-            output_layout,
-        )
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Sum;
-
-impl<T: Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Sum {
-    const COLUMNS: usize = 1;
-    fn expected(&self, one: T) -> Vec<T> {
-        let two = one + one;
-        let three = two + one;
-        let four = two + two;
-        vec![three, three + four]
-    }
-    fn dispatch(
-        &self,
-        backend: &B,
-        input: &Tensor<T, B>,
-        input_layout: &Layout,
-        _rhs: &Tensor<T, B>,
-        output: &mut B::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) -> Result<(), B::Error> {
-        backend.reduce(
-            ReductionOp::Sum,
-            input.storage(),
-            input_layout,
-            1,
-            output,
-            output_layout,
-        )
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Product;
-
-impl<T: Scalar, B: MatmulOps<T>> OutputWrite<T, B> for Product {
-    const COLUMNS: usize = 2;
-    fn expected(&self, one: T) -> Vec<T> {
-        let two = one + one;
-        let three = two + one;
-        let four = two + two;
-        vec![four, one + four, four + four + two, four + four + three]
-    }
-    fn dispatch(
-        &self,
-        backend: &B,
-        input: &Tensor<T, B>,
-        input_layout: &Layout,
-        rhs: &Tensor<T, B>,
-        output: &mut B::DeviceBuffer<T>,
-        output_layout: &Layout,
-    ) -> Result<(), B::Error> {
-        backend.matmul(
-            input.storage(),
-            input_layout,
-            rhs.storage(),
-            rhs.layout(),
-            output,
-            output_layout,
-        )
+        match self {
+            Self::Add => backend.elementwise_binary(
+                BinaryOp::Add,
+                input.storage(),
+                input_layout,
+                rhs.storage(),
+                rhs.layout(),
+                output,
+                output_layout,
+            ),
+            Self::Sum => backend.reduce(
+                ReductionOp::Sum,
+                input.storage(),
+                input_layout,
+                1,
+                output,
+                output_layout,
+            ),
+            Self::Product => backend.matmul(
+                input.storage(),
+                input_layout,
+                rhs.storage(),
+                rhs.layout(),
+                output,
+                output_layout,
+            ),
+        }
     }
 }
 
@@ -301,7 +299,9 @@ impl<T: Scalar, B: MatmulOps<T>> OutputWrite<T, B> for Product {
 pub(crate) struct Square;
 
 impl<T: Float, B: ScalarPowerOps<T>> OutputWrite<T, B> for Square {
-    const COLUMNS: usize = 2;
+    fn columns(&self) -> usize {
+        2
+    }
     fn input(one: T) -> [T; 4] {
         let two = one + one;
         let four = two + two;
@@ -342,7 +342,9 @@ pub(crate) enum Scan {
 }
 
 impl<T: Scalar + leto_ops::Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Scan {
-    const COLUMNS: usize = 2;
+    fn columns(&self) -> usize {
+        2
+    }
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
         let three = two + one;

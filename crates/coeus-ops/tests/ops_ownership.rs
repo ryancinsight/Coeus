@@ -15,21 +15,39 @@
 //! `ops_dispatch.rs`.
 //!
 //! `device_outputs.rs`'s `preserves_output_clones`/`rejects_invalid_output_write`
-//! are each instantiated once per (scalar type, backend, operation) triple
-//! -- required generic-instantiation coverage, not a redundancy -- and
-//! that surface (up to twelve scalar types times two backends times five
-//! operations) is this file's dominant compile cost. The index-arithmetic
-//! and assertion logic that does not vary per triple has been hoisted into
-//! plain/`T`-only helper functions (2026-09-25) so it monomorphizes once
-//! instead of once per triple; measured before/after on this host this
-//! reduced neither the instantiation count nor, conclusively, the peak
-//! `rustc` RSS (both measured 11.5-11.8 GiB peak for this file alone,
-//! within the shared-host measurement noise) -- the remaining cost is the
-//! (type x backend x operation) surface itself, which cannot shrink
-//! without dropping shipped coverage. No test was removed or weakened;
-//! every leaf module below is unchanged from the prior harness, and the
-//! full source-level `#[test]` name set is identical before and after
-//! every edit made to this harness.
+//! are each instantiated once per (scalar type, backend, `OutputWrite` impl)
+//! triple -- required generic-instantiation coverage, not a redundancy --
+//! and *reducing the number of `OutputWrite` impls* is the lever this file
+//! now pulls twice:
+//!
+//! 1. (2026-09-25) The index-arithmetic and assertion logic that does not
+//!    vary per triple was hoisted into plain/`T`-only helper functions so
+//!    it monomorphizes once instead of once per triple.
+//! 2. (2026-09-25) `Add`, `Sum`, and `Product` needed no per-type bound
+//!    beyond `Scalar` (unlike `Negate`, which needs `Neg<Output = T>`, and
+//!    `Square`, which needs `Float`), so they were folded into one runtime
+//!    `NumericOp` enum -- the same pattern `Scan` already used -- cutting
+//!    their combined instantiation count roughly 3x wherever a `(T, B)`
+//!    pair is shared across the three (mechanically confirmed: 144
+//!    `NumericOp::`-value call sites now compile through two
+//!    `OutputWrite<T, B>` impls, `Negate` and `NumericOp`, instead of four).
+//!
+//! Measured before/after both changes on this host (single-package
+//! `--locked --tests` builds, pinned 1.97.0, shared `CARGO_TARGET_DIR`
+//! under variable multi-agent load): peak `rustc` RSS for this file alone
+//! ranged 11.5-11.8 GiB before and 11.6 GiB after one post-merge
+//! measurement -- within this host's demonstrated run-to-run noise (single
+//! runs of the *unchanged* pre-merge file spanned 7.5-12.9 GiB across
+//! samples taken minutes apart), so this is not proof the merge reduced
+//! peak RSS, only that it did not obviously fail to. The instantiation
+//! count reduction is real and mechanically verified regardless of what
+//! peak RSS sampling on a contended host can resolve; the remaining cost
+//! is the (type x backend x operation) surface itself, which cannot shrink
+//! further without dropping shipped coverage or accepting the same
+//! per-type-bound restructuring risk `Negate`/`Square` were kept out of.
+//! No test was removed or weakened; every leaf module below is unchanged
+//! from the prior harness, and the full source-level `#[test]` name set is
+//! identical before and after every edit made to this harness.
 //!
 //! Memory safety on CI now rests on this file compiling in isolation from
 //! its (much lighter) `ops_numeric`/`ops_structural`/`ops_dispatch`
