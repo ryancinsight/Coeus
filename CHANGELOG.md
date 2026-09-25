@@ -9,7 +9,14 @@
   failure, and a failed collective poisons all of that rank's links so every
   surviving rank fails at once; `LocalCommunicator` returns `Infallible`.
   A handshake status byte other than 0 or 1 from a root returns
-  `TcpMeshError::InvalidStatus` instead of panicking.
+  `TcpMeshError::InvalidStatus` instead of panicking. A peer-reported
+  element-count mismatch also stops panicking: it returns
+  `TcpMeshError::NumelMismatch` on the rank that detects it and
+  `TcpMeshError::PeerReportedMismatch` on the others, both poisoning links
+  like any other collective failure. Integer `Sum`/`Product` reductions now
+  wrap on overflow (`Scalar::wrapping_add_val`/`wrapping_mul_val`, added in
+  `coeus-core`) instead of overflow-panicking on a peer-supplied value; float
+  reduction semantics are unchanged.
   `synchronize_gradients` returns `GradientSyncError`. Python TCP collectives
   raise `ConnectionError`. See
   [ADR 0075](docs/adr/0075-fallible-communicator-collectives.md#migration).

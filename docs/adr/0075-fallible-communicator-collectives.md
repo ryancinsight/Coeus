@@ -6,6 +6,12 @@ Change class: [major]  \
 Board item: COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES (deleted by its delivering
 PR); builds on [ADR 0074](0074-fallible-tcp-mesh.md)
 
+Revision (2026-09-24): an independent review of the delivering PR found that
+element-count mismatches were still panics, contradicting the "hostile peer
+cannot crash a rank" decision above, and that integer `Sum`/`Product` could
+still overflow-panic on a peer-supplied value. Both are now typed errors /
+wrapping arithmetic; see the mismatch and overflow bullets in Decision below.
+
 ## Context
 
 After ADR 0074, `TcpMesh::send` and `recv` return `TcpMeshError`, but the
@@ -37,8 +43,28 @@ between threads of one process; nothing in it performs I/O that can fail.
   `TcpMeshError::InvalidStatus { rank, peer, address, status }` and poisons
   the links like an I/O failure, so a malformed or hostile peer cannot crash
   a rank.
-- Caller contract violations (a root out of range, mismatched element counts,
-  which the root reports as status 0) stay panics, as before.
+- A root out of range is a caller contract violation and stays a panic. A
+  peer-reported element-count mismatch is untrusted peer data, not a caller
+  error: the rank that detects the mismatch returns
+  `TcpMeshError::NumelMismatch { rank, peer, address, expected, received }`,
+  the other ranks return `PeerReportedMismatch { rank, peer, address }` for
+  the root's status-0 answer, and both poison the rank's links like any other
+  collective failure — a hostile peer announcing any count, valid or not,
+  never panics a rank.
+- Integer `Sum`/`Product` reductions (`coeus_dist::ops`) fold a peer-supplied
+  value through `Scalar::wrapping_add_val`/`wrapping_mul_val` (added to
+  `coeus-core`), which wrap on overflow for `i8`–`u64` and default to plain
+  `+`/`*` for floats. Overflow checks are enabled in dev/test builds, so
+  `a + b` on a hostile or merely large peer value (e.g. `i32::MAX` reduced
+  against a local `1`) panicked the root before this change — the same class
+  of defect the numel-mismatch fix addresses, and equally a violation of "a
+  malformed or hostile peer cannot crash a rank" above. Rejected: a checked
+  reduction returning a typed overflow error, which would make every local
+  (non-networked) reduction fallible solely to cover the peer-input path;
+  wrapping instead matches what release builds already do (`+`/`*` wrap
+  silently once checks are off), matches MPI's and NCCL's integer-reduction
+  semantics, and needs no new error variant. Float reduction semantics are
+  unchanged.
 - When a collective returns an error, the contents of the tensors it was
   writing are unspecified: a receive may have filled part of one.
 
@@ -76,3 +102,13 @@ the root reads end of stream and rank 1's next barrier returns
 `Recv { peer: 0, UnexpectedEof }`. A Python test drops one rank of a
 two-rank cluster and checks that `all_reduce` and the following `barrier`
 raise `ConnectionError`.
+`tcp::errors::mismatch_cascade` drives a three-rank mesh where a hostile peer
+announces `u64::MAX` elements to a broadcast root and where two ranks
+all-gather mismatched lengths, asserting the exact `NumelMismatch`
+rank/peer/address/expected/received fields, the corresponding
+`PeerReportedMismatch` on the other ranks, and `LinkPoisoned` on every rank's
+next collective. `tcp::errors::root_failures` covers the same fields by hand
+for a two-rank cluster. `ops::tests` runs `Sum`/`Product` with an
+`i32::MAX`-valued peer contribution and asserts the exact two's-complement
+wrapped result on the root, in place of the panic the unchecked `+`/`*`
+previously produced under overflow checks.

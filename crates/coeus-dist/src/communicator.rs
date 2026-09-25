@@ -10,9 +10,11 @@ use coeus_tensor::Tensor;
 /// peer fails. A failed collective leaves the process group unusable: ranks
 /// may have exchanged different amounts of data, so implementations that can
 /// fail also make every later collective fail rather than exchange misaligned
-/// data. Contract violations by the caller (a root out of range, mismatched
-/// element counts) remain panics. When a collective returns an error, the
-/// contents of the tensors it was writing are unspecified.
+/// data. A root out of range is a caller contract violation and panics; a
+/// peer-reported element-count mismatch is untrusted peer data, not a caller
+/// error, and returns a typed `NumelMismatch`/`PeerReportedMismatch` instead
+/// (ADR 0075). When a collective returns an error, the contents of the
+/// tensors it was writing are unspecified.
 ///
 /// # Examples
 ///

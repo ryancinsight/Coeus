@@ -42,7 +42,11 @@ pub struct Sum;
 impl ReduceOpTag for Sum {
     #[inline(always)]
     fn apply<T: Scalar>(a: T, b: T) -> T {
-        a + b
+        // Wraps on integer overflow (native `+` for floats): a collective
+        // combines a peer-supplied value, and a hostile or desynchronized
+        // peer must never overflow-panic this rank. See
+        // `Scalar::wrapping_add_val` (ADR 0075).
+        a.wrapping_add_val(b)
     }
 }
 
@@ -161,6 +165,7 @@ pub struct Product;
 impl ReduceOpTag for Product {
     #[inline(always)]
     fn apply<T: Scalar>(a: T, b: T) -> T {
-        a * b
+        // Wraps on integer overflow; see `Sum::apply` and `ADR 0075`.
+        a.wrapping_mul_val(b)
     }
 }

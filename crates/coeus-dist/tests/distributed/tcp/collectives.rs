@@ -3,6 +3,7 @@
 use super::super::support::loopback_meshes;
 use coeus_core::SequentialBackend;
 use coeus_dist::Communicator;
+use coeus_dist::Product;
 use coeus_dist::Sum;
 use coeus_dist::TcpCommunicator;
 use coeus_tensor::Tensor;
@@ -152,6 +153,62 @@ fn test_tcp_reduce() {
         handles.push(handle);
     }
 
+    for h in handles {
+        h.join().unwrap();
+    }
+}
+
+/// A peer contributing `i32::MAX` to an integer `Sum` reduce wraps on the
+/// root instead of overflow-panicking it (`1_i32.wrapping_add(i32::MAX) ==
+/// i32::MIN`), matching ADR 0075's wrapping-integer-reduction decision. The
+/// peer value is not malformed protocol data — it is a legitimate, merely
+/// extreme, tensor element a hostile or careless peer can hold.
+#[test]
+fn test_tcp_reduce_sum_wraps_on_integer_overflow_from_a_peer() {
+    let meshes = loopback_meshes(2);
+    let mut handles = vec![];
+
+    for (rank, mesh) in meshes.into_iter().enumerate() {
+        handles.push(thread::spawn(move || {
+            let mut comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+            let local = if rank == 0 { 1_i32 } else { i32::MAX };
+            let mut tensor = Tensor::from_slice_on([1], &[local], &backend);
+            comm.reduce::<i32, _, Sum>(&mut tensor, 0, &backend)
+                .unwrap();
+            if rank == 0 {
+                assert_eq!(tensor.as_slice()[0], i32::MIN);
+            }
+            comm.shutdown();
+        }));
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+}
+
+/// The `Product` counterpart: `2_i32.wrapping_mul(i32::MAX)` wraps instead of
+/// panicking under overflow checks. See
+/// [`test_tcp_reduce_sum_wraps_on_integer_overflow_from_a_peer`].
+#[test]
+fn test_tcp_reduce_product_wraps_on_integer_overflow_from_a_peer() {
+    let meshes = loopback_meshes(2);
+    let mut handles = vec![];
+
+    for (rank, mesh) in meshes.into_iter().enumerate() {
+        handles.push(thread::spawn(move || {
+            let mut comm = TcpCommunicator::new(mesh);
+            let backend = SequentialBackend::new();
+            let local = if rank == 0 { 2_i32 } else { i32::MAX };
+            let mut tensor = Tensor::from_slice_on([1], &[local], &backend);
+            comm.reduce::<i32, _, Product>(&mut tensor, 0, &backend)
+                .unwrap();
+            if rank == 0 {
+                assert_eq!(tensor.as_slice()[0], 2_i32.wrapping_mul(i32::MAX));
+            }
+            comm.shutdown();
+        }));
+    }
     for h in handles {
         h.join().unwrap();
     }

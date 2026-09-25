@@ -212,7 +212,7 @@ pub enum TcpMeshError {
     /// status byte other than 0 (mismatch) or 1 (agreed). The peer is
     /// malformed or hostile; the link carries no trustworthy frames.
     #[error(
-        "rank {rank} received invalid handshake status {status} from peer {peer} at {address}"
+        "rank {rank} received invalid handshake status {status} from peer {peer} at {address}; expected 0 (mismatch) or 1 (agreed)"
     )]
     InvalidStatus {
         /// Local rank.

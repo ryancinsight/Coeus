@@ -6,6 +6,7 @@ use coeus_core::SequentialBackend;
 use coeus_dist::{Communicator, MeshDeadlines, TcpCommunicator, TcpMesh, TcpMeshError};
 use coeus_tensor::Tensor;
 use std::io::ErrorKind;
+use std::net::Ipv4Addr;
 use std::num::NonZeroUsize;
 use std::thread;
 use std::time::Duration;
@@ -68,13 +69,16 @@ fn a_hostile_element_count_fails_the_root_and_every_rank_promptly() {
         Err(TcpMeshError::NumelMismatch {
             rank,
             peer,
+            address,
             expected,
             received,
-            ..
-        }) => assert_eq!(
-            (rank, peer, expected, received),
-            (0, 1, ELEMENTS as u64, u64::MAX)
-        ),
+        }) => {
+            assert_eq!(
+                (rank, peer, expected, received),
+                (0, 1, ELEMENTS as u64, u64::MAX)
+            );
+            assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
+        }
         other => panic!("root: expected NumelMismatch, got {other:?}"),
     }
     match rank_2_outcome {
@@ -128,13 +132,16 @@ fn an_all_gather_mismatch_ends_the_uninvolved_rank_s_wait() {
             Err(TcpMeshError::NumelMismatch {
                 rank: reporting,
                 peer: reported,
+                address,
                 expected,
                 received,
-                ..
-            }) => assert_eq!(
-                (*reporting, *reported, *expected, *received),
-                (rank, peer, lens[rank] as u64, lens[peer] as u64)
-            ),
+            }) => {
+                assert_eq!(
+                    (*reporting, *reported, *expected, *received),
+                    (rank, peer, lens[rank] as u64, lens[peer] as u64)
+                );
+                assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
+            }
             other => panic!("rank {rank}: expected NumelMismatch, got {other:?}"),
         }
     }

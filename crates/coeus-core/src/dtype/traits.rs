@@ -372,6 +372,29 @@ pub trait Scalar:
     /// Scalar absolute value.
     fn abs_val(self) -> Self;
 
+    /// Wrapping (modular) addition: `self + rhs`, discarding overflow.
+    ///
+    /// The default is plain `self + rhs`, correct as-is for floating-point
+    /// types (no overflow to wrap). Integer implementations override this
+    /// with the native `wrapping_add`, matching the two's-complement
+    /// behavior release builds already give unchecked `+` and the reduction
+    /// semantics of MPI/NCCL integer sums — see the reduction operations
+    /// (`coeus_dist::Sum`/`Product`) that fold peer-supplied values through
+    /// this method rather than `+`/`*` directly, so an adversarial peer
+    /// value can never panic a debug or overflow-checked build.
+    #[inline]
+    fn wrapping_add_val(self, rhs: Self) -> Self {
+        self + rhs
+    }
+
+    /// Wrapping (modular) multiplication: `self * rhs`, discarding overflow.
+    ///
+    /// See [`Scalar::wrapping_add_val`] for the rationale and default.
+    #[inline]
+    fn wrapping_mul_val(self, rhs: Self) -> Self {
+        self * rhs
+    }
+
     // The slice-kernel default methods below are the backend
     // extension surface — the per-type seam onto `hermes-simd`'s
     // SIMD-effect SSOT. They are mode-stable across the rebase (`hermes-simd`

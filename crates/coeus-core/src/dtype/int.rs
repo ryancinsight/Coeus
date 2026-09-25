@@ -35,6 +35,14 @@ macro_rules! impl_scalar_int_signed {
             fn abs_val(self) -> Self {
                 self.abs()
             }
+            #[inline(always)]
+            fn wrapping_add_val(self, rhs: Self) -> Self {
+                self.wrapping_add(rhs)
+            }
+            #[inline(always)]
+            fn wrapping_mul_val(self, rhs: Self) -> Self {
+                self.wrapping_mul(rhs)
+            }
         }
         impl Int for $t {
             #[inline(always)]
@@ -104,6 +112,14 @@ macro_rules! impl_scalar_int_unsigned {
             #[inline(always)]
             fn abs_val(self) -> Self {
                 self
+            }
+            #[inline(always)]
+            fn wrapping_add_val(self, rhs: Self) -> Self {
+                self.wrapping_add(rhs)
+            }
+            #[inline(always)]
+            fn wrapping_mul_val(self, rhs: Self) -> Self {
+                self.wrapping_mul(rhs)
             }
         }
         impl Int for $t {
