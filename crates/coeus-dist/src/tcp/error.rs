@@ -179,19 +179,49 @@ pub enum TcpMeshError {
         /// Peer address of the stream.
         address: SocketAddr,
     },
-}
-
-/// `Display` of an error followed by each source, separated by `": "`.
-pub(crate) struct ErrorChain<'error>(pub(crate) &'error TcpMeshError);
-
-impl std::fmt::Display for ErrorChain<'_> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", self.0)?;
-        let mut source = std::error::Error::source(self.0);
-        while let Some(cause) = source {
-            write!(formatter, ": {cause}")?;
-            source = cause.source();
-        }
-        Ok(())
-    }
+    /// A peer announced a different element count for a collective than this
+    /// rank holds. The ranks called the collective with mismatched tensors,
+    /// or the peer is malformed or hostile.
+    #[error(
+        "rank {rank} holds {expected} elements but peer {peer} at {address} announced {received}"
+    )]
+    NumelMismatch {
+        /// Local rank.
+        rank: usize,
+        /// Rank of the peer whose count differs.
+        peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
+        /// This rank's element count.
+        expected: u64,
+        /// The count the peer announced.
+        received: u64,
+    },
+    /// A collective's root reported (status 0) that some rank's element count
+    /// differs from its own; the root's own error names that rank.
+    #[error("rank {rank} was told by root {peer} at {address} that element counts differ")]
+    PeerReportedMismatch {
+        /// Local rank.
+        rank: usize,
+        /// Rank of the root that reported the mismatch.
+        peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
+    },
+    /// A collective's root answered the element-count handshake with a
+    /// status byte other than 0 (mismatch) or 1 (agreed). The peer is
+    /// malformed or hostile; the link carries no trustworthy frames.
+    #[error(
+        "rank {rank} received invalid handshake status {status} from peer {peer} at {address}; expected 0 (mismatch) or 1 (agreed)"
+    )]
+    InvalidStatus {
+        /// Local rank.
+        rank: usize,
+        /// Rank of the root that sent the status.
+        peer: usize,
+        /// Peer address of the stream.
+        address: SocketAddr,
+        /// The status byte received.
+        status: u8,
+    },
 }

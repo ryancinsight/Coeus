@@ -4,9 +4,8 @@ Status: Accepted  \
 Date: 2026-09-23  \
 Change class: [major]  \
 Board item: COEUS-TCPMESH-FALLIBLE-SETUP (deleted by its delivering PR);
-successor [COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES][successor]
-
-[successor]: ../backlog.md#coeus-communicator-fallible-collectives
+successor COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES, delivered with
+[ADR 0075](0075-fallible-communicator-collectives.md)
 
 ## Context
 
@@ -58,9 +57,9 @@ loopback connect takes about 2 s on Windows regardless of any deadline.
 - Configuration errors (`size == 0`, `rank >= size`, address-count mismatch)
   and peer-index misuse in `send`/`recv` stay panics: they are caller bugs.
 - `TcpCommunicator` keeps an infallible constructor over an established mesh.
-  The `Communicator` trait has no error channel, so a collective's peer I/O
-  failure panics with the full error chain; making collectives fallible is the
-  successor item.
+  Revised 2026-09-24: collectives now return `TcpMeshError` instead of
+  panicking, and a failed collective poisons every link of its rank; see
+  [ADR 0075](0075-fallible-communicator-collectives.md).
 
 Rejected: a separate `connect` constructor on `TcpCommunicator` (a second
 construction path for the same mesh), and a per-attempt retry count (the
