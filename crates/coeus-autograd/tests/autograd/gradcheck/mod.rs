@@ -32,8 +32,37 @@
 //! derivation. A check that needs a wider bound passes an explicit
 //! [`GradcheckConfig`](coeus_autograd::GradcheckConfig) and states the
 //! conditioning that justifies it at the call site.
+//!
+//! # Two roles, two scalar types
+//!
+//! Every check in this module runs at both `f64` and `f32`, and the two
+//! instantiations verify different things:
+//!
+//! - **`f64` is the sensitivity oracle.** Its accuracy floor is
+//!   `ε^(2/3) ≈ 3.7e-11`, five orders of magnitude below `f32`'s `2.4e-5`, so a
+//!   wrong gradient — an off-by-a-term derivation, a transposed factor, a
+//!   dropped chain-rule multiplicand — has nowhere to hide inside the
+//!   tolerance.
+//! - **`f32` is instantiation coverage.** The backward implementations under
+//!   test are generic over `T: Float`, and `f64`-only testing never compiles,
+//!   let alone runs, the `f32` monomorphization of a formula. `f32` catches a
+//!   distinct defect class the `f64` run structurally cannot: a
+//!   `T::from_f64` constant that rounds badly at `f32` width, an `exp`/`log`
+//!   argument range that overflows or underflows only at `f32`'s narrower
+//!   exponent, and cancellation in a derivative formula that is negligible in
+//!   `f64` but visible at `f32`'s `ε`. Backend parity suites compare the same
+//!   scalar type across backends; they do not exercise a different scalar
+//!   type's arithmetic at all, so they are not a substitute for this.
+//!
+//! `f32` still uses [`fn@coeus_autograd::gradcheck`]'s own derived floor
+//! (`ε^(2/3)` at `f32`'s `ε`, not a widened or hand-picked tolerance) and the
+//! same kink-avoiding [`Sampler`] fixtures, chosen well-conditioned for both
+//! widths. A check that fails at `f32` under that derived bound is a real
+//! defect to root-cause (a genuine `f32`-only numerical instability in the
+//! backward formula) — never grounds to widen the tolerance.
 
 mod activation;
+mod arithmetic;
 mod attention;
 mod core_ops;
 mod losses;
@@ -43,16 +72,37 @@ mod shape;
 
 use coeus_autograd::{mul, sum, Var};
 use coeus_core::MoiraiBackend;
+use coeus_core::{CpuAddressableStorage, Float};
 use coeus_tensor::Tensor;
 
-/// The scalar and backend every check in this module differentiates.
+/// The backend every check in this module differentiates against.
 ///
-/// `f64` is the strongest setting for a finite-difference oracle: its accuracy
-/// floor is `ε^(2/3) ≈ 3.7e-11`, five orders of magnitude below `f32`'s
-/// `2.4e-5`, so a wrong gradient has nowhere to hide inside the tolerance. The
-/// backward implementations under test are generic over `T: Float`, and the
-/// `f32` instantiation is exercised by the crate's parity suites.
+/// `MoiraiBackend` is the CPU reference backend; accelerator backends are
+/// covered by the differential parity suites (`standards`: Differential
+/// Verification), which compare a fixed scalar type across backends rather
+/// than a fixed backend across scalar types.
 pub type T64 = Tensor<f64, MoiraiBackend>;
+
+/// Bound shared by every scalar type this module instantiates checks at.
+///
+/// `CpuAddressableStorage` is required by [`fn@coeus_autograd::gradcheck`]
+/// itself to read perturbed values back off the backend; naming it here once
+/// lets a generic check function state a single bound instead of repeating
+/// gradcheck's own where-clause at every call site.
+pub trait GradcheckScalar: Float + leto_ops::Scalar
+where
+    MoiraiBackend: coeus_ops::BackendOps<Self>,
+    <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<Self>: CpuAddressableStorage<Self>,
+{
+}
+
+impl<T> GradcheckScalar for T
+where
+    T: Float + leto_ops::Scalar,
+    MoiraiBackend: coeus_ops::BackendOps<T>,
+    <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+}
 
 /// Reciprocal of the golden ratio: the rotation step of [`Sampler`].
 ///
@@ -126,20 +176,21 @@ impl Sampler {
             .collect()
     }
 
-    /// A tensor of `shape` filled with the configured sequence.
-    pub fn tensor(&self, shape: &[usize]) -> T64 {
+    /// A tensor of `shape` filled with the configured sequence, at scalar `T`.
+    pub fn tensor<T: GradcheckScalar>(&self, shape: &[usize]) -> Tensor<T, MoiraiBackend> {
         let count = shape.iter().product();
-        T64::from_slice_on(shape.to_vec(), &self.values(count), &MoiraiBackend::new())
+        let values: Vec<T> = self.values(count).into_iter().map(T::from_f64).collect();
+        Tensor::from_slice_on(shape.to_vec(), &values, &MoiraiBackend::new())
     }
 
     /// A non-differentiated [`Var`] of `shape`, for constants a closure captures.
-    pub fn constant(&self, shape: &[usize]) -> Var<f64, MoiraiBackend> {
+    pub fn constant<T: GradcheckScalar>(&self, shape: &[usize]) -> Var<T, MoiraiBackend> {
         Var::new(self.tensor(shape), false)
     }
 }
 
 /// A tensor of `shape` from the default signed sequence at `phase`.
-pub fn tensor(shape: &[usize], phase: f64) -> T64 {
+pub fn tensor<T: GradcheckScalar>(shape: &[usize], phase: f64) -> Tensor<T, MoiraiBackend> {
     Sampler::signed(phase).tensor(shape)
 }
 
@@ -148,7 +199,7 @@ pub fn tensor(shape: &[usize], phase: f64) -> T64 {
 /// Held constant across every perturbed evaluation so the loss stays a pure
 /// function of the differentiated inputs, and non-uniform so that reductions
 /// over a Jacobian with constant row sums do not cancel to zero.
-pub fn weighting(shape: &[usize]) -> Var<f64, MoiraiBackend> {
+pub fn weighting<T: GradcheckScalar>(shape: &[usize]) -> Var<T, MoiraiBackend> {
     Sampler::new(0.311, -1.3, 1.7).constant(shape)
 }
 
@@ -158,9 +209,9 @@ pub fn weighting(shape: &[usize]) -> Var<f64, MoiraiBackend> {
 /// rather than the all-ones a bare `sum` would supply. That distinction is what
 /// keeps a Jacobian with constant row sums (softmax, the normalizations) from
 /// cancelling to an identically-zero comparison.
-pub fn weighted(
-    output: &Var<f64, MoiraiBackend>,
-    w: &Var<f64, MoiraiBackend>,
-) -> Var<f64, MoiraiBackend> {
+pub fn weighted<T: GradcheckScalar>(
+    output: &Var<T, MoiraiBackend>,
+    w: &Var<T, MoiraiBackend>,
+) -> Var<T, MoiraiBackend> {
     sum(&mul(output, w))
 }

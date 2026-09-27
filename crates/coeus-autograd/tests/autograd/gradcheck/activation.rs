@@ -39,8 +39,8 @@ const SHAPE: [usize; 2] = [3, 4];
 /// The non-uniform weighting is what makes the reduction non-vacuous; see the
 /// module documentation of the parent module.
 fn check(sampler: &Sampler, op: impl Fn(&Var<f64, MoiraiBackend>) -> Var<f64, MoiraiBackend>) {
-    let x = sampler.tensor(&SHAPE);
-    let w = weighting(&SHAPE);
+    let x = sampler.tensor::<f64>(&SHAPE);
+    let w = weighting::<f64>(&SHAPE);
     gradcheck(&[x], |v| weighted(&op(&v[0]), &w))
         .expect("activation backward must match central differences");
 }
@@ -262,9 +262,9 @@ fn relu_backward_is_zero_on_the_negative_branch() {
     // numeric gradient are zero and `gradcheck` would correctly reject the
     // comparison as vacuous. The claim is therefore asserted directly — the
     // gradient must be exactly zero, not merely small.
-    let x = Sampler::new(0.54, -1.8, -0.2).tensor(&SHAPE);
+    let x = Sampler::new(0.54, -1.8, -0.2).tensor::<f64>(&SHAPE);
     let tracked = Var::new(x, true);
-    let w = weighting(&SHAPE);
+    let w = weighting::<f64>(&SHAPE);
     weighted(&relu(&tracked), &w)
         .backward()
         .expect("relu backward completes");
@@ -371,9 +371,9 @@ fn prelu_backward_matches_finite_differences_below_the_kink() {
     // The learned slope is differentiated alongside the input: dL/da = Σ x·dy
     // over the negative entries only, a rule distinct from the input's and one
     // that a shared implementation gets wrong by summing over all entries.
-    let x = Sampler::new(0.92, -1.8, -0.2).tensor(&SHAPE);
+    let x = Sampler::new(0.92, -1.8, -0.2).tensor::<f64>(&SHAPE);
     let slope = T64::from_slice_on([1], &[0.25], &MoiraiBackend::new());
-    let w = weighting(&SHAPE);
+    let w = weighting::<f64>(&SHAPE);
 
     gradcheck(&[x, slope], |v| weighted(&prelu(&v[0], &v[1]), &w))
         .expect("prelu backward must match central differences");
