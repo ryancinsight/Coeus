@@ -14,10 +14,14 @@
 //! checking the node from outside the layer; the alternative — trusting the
 //! layer to build the saved tensors correctly — would put the thing under test
 //! on both sides of the comparison.
+//!
+//! Each check runs at both `f64` and `f32` (see the module documentation for
+//! what each scalar width verifies).
 
-use super::{tensor, weighted, weighting, Sampler, T64};
+use super::{tensor, weighted, weighting, GradcheckScalar, Sampler};
 use coeus_autograd::{batchnorm1d, gradcheck, rmsnorm, BatchNormArgs};
 use coeus_core::MoiraiBackend;
+use coeus_tensor::Tensor;
 
 /// Epsilon added inside the normalizing square root.
 ///
@@ -26,8 +30,7 @@ use coeus_core::MoiraiBackend;
 /// here is to keep the derivative of the square root bounded.
 const EPS: f64 = 1e-5;
 
-#[test]
-fn rmsnorm_backward_matches_finite_differences() {
+fn rmsnorm_case<T: GradcheckScalar>() {
     // RMSNorm normalizes by r = sqrt(mean(x²) + eps) without centering, so
     //
     //   dL/dx_i = (1/r)·[ (dy·w)_i - x̂_i·mean_j((dy·w)_j·x̂_j) ]
@@ -40,16 +43,20 @@ fn rmsnorm_backward_matches_finite_differences() {
     const ROWS: usize = 3;
     const WIDTH: usize = 4;
 
-    let x = tensor::<f64>(&[ROWS, WIDTH], 0.27);
-    let weight = Sampler::new(0.53, 0.4, 1.6).tensor::<f64>(&[WIDTH]);
-    let w = weighting::<f64>(&[ROWS, WIDTH]);
+    let x = tensor::<T>(&[ROWS, WIDTH], 0.27);
+    let weight = Sampler::new(0.53, 0.4, 1.6).tensor::<T>(&[WIDTH]);
+    let w = weighting::<T>(&[ROWS, WIDTH]);
 
     gradcheck(&[x, weight], |v| {
         let backend = MoiraiBackend::new();
 
         let x_sq = coeus_ops::mul(&v[0].tensor, &v[0].tensor, &backend);
         let mut rms = coeus_ops::mean_axis(&x_sq, 1, &backend).expect("row mean square");
-        let epsilon = T64::full_on([1], EPS, &backend);
+        let epsilon = Tensor::<T, MoiraiBackend>::full_on(
+            [1],
+            <T as coeus_core::Scalar>::from_f64(EPS),
+            &backend,
+        );
         coeus_ops::add_assign(&mut rms, &epsilon, &backend).expect("mean square + eps");
         coeus_ops::sqrt_assign(&mut rms, &backend).expect("root mean square");
 
@@ -63,7 +70,12 @@ fn rmsnorm_backward_matches_finite_differences() {
 }
 
 #[test]
-fn batchnorm1d_backward_matches_finite_differences() {
+fn rmsnorm_backward_matches_finite_differences() {
+    rmsnorm_case::<f64>();
+    rmsnorm_case::<f32>();
+}
+
+fn batchnorm1d_case<T: GradcheckScalar>() {
     // BatchNorm in training mode normalizes by statistics taken over the batch,
     // so element (n, c, l) influences the output of *every* sample in channel c.
     // The gradient therefore carries the mean and variance correction terms
@@ -79,10 +91,10 @@ fn batchnorm1d_backward_matches_finite_differences() {
     const L: usize = 2;
     const M: usize = N * L;
 
-    let x = tensor::<f64>(&[N, C, L], 0.19);
-    let weight = Sampler::new(0.61, 0.4, 1.6).tensor::<f64>(&[C]);
-    let bias = tensor::<f64>(&[C], 0.83);
-    let w = weighting::<f64>(&[N, C, L]);
+    let x = tensor::<T>(&[N, C, L], 0.19);
+    let weight = Sampler::new(0.61, 0.4, 1.6).tensor::<T>(&[C]);
+    let bias = tensor::<T>(&[C], 0.83);
+    let w = weighting::<T>(&[N, C, L]);
 
     gradcheck(&[x, weight, bias], |v| {
         let backend = MoiraiBackend::new();
@@ -97,11 +109,15 @@ fn batchnorm1d_backward_matches_finite_differences() {
         let variance = coeus_ops::mean_axis(&xmu_sq, 0, &backend).expect("per-channel variance");
 
         let mut stdev = variance;
-        let epsilon = T64::full_on([1], EPS, &backend);
+        let epsilon = Tensor::<T, MoiraiBackend>::full_on(
+            [1],
+            <T as coeus_core::Scalar>::from_f64(EPS),
+            &backend,
+        );
         coeus_ops::add_assign(&mut stdev, &epsilon, &backend).expect("variance + eps");
         coeus_ops::sqrt_assign(&mut stdev, &backend).expect("standard deviation");
 
-        let mut istdev = T64::ones_on([1, C], &backend);
+        let mut istdev = Tensor::<T, MoiraiBackend>::ones_on([1, C], &backend);
         coeus_ops::div_assign(&mut istdev, &stdev, &backend).expect("inverse standard deviation");
 
         let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
@@ -124,9 +140,21 @@ fn batchnorm1d_backward_matches_finite_differences() {
                 x_hat,
                 xmu,
                 istdev,
-                m_const: T64::full_on([1], M as f64, &backend),
-                minus_half: T64::full_on([1], -0.5, &backend),
-                two_const: T64::full_on([1], 2.0, &backend),
+                m_const: Tensor::<T, MoiraiBackend>::full_on(
+                    [1],
+                    <T as coeus_core::Scalar>::from_f64(M as f64),
+                    &backend,
+                ),
+                minus_half: Tensor::<T, MoiraiBackend>::full_on(
+                    [1],
+                    <T as coeus_core::Scalar>::from_f64(-0.5),
+                    &backend,
+                ),
+                two_const: Tensor::<T, MoiraiBackend>::full_on(
+                    [1],
+                    <T as coeus_core::Scalar>::from_f64(2.0),
+                    &backend,
+                ),
                 n: N,
                 c: C,
                 spatial: [L, 1, 1],
@@ -136,4 +164,10 @@ fn batchnorm1d_backward_matches_finite_differences() {
         weighted(&normalized, &w)
     })
     .expect("batchnorm1d backward must match central differences");
+}
+
+#[test]
+fn batchnorm1d_backward_matches_finite_differences() {
+    batchnorm1d_case::<f64>();
+    batchnorm1d_case::<f32>();
 }
