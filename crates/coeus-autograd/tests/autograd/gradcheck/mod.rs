@@ -64,6 +64,7 @@
 mod activation;
 mod arithmetic;
 mod attention;
+mod conv;
 mod core_ops;
 mod losses;
 mod normalization;
@@ -90,7 +91,7 @@ pub type T64 = Tensor<f64, MoiraiBackend>;
 /// itself to read perturbed values back off the backend; naming it here once
 /// lets a generic check function state a single bound instead of repeating
 /// gradcheck's own where-clause at every call site.
-pub trait GradcheckScalar: Float + leto_ops::Scalar
+pub trait GradcheckScalar: Float + leto_ops::Scalar + coeus_leto::RealScalar
 where
     MoiraiBackend: coeus_ops::BackendOps<Self>,
     <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<Self>: CpuAddressableStorage<Self>,
@@ -99,7 +100,7 @@ where
 
 impl<T> GradcheckScalar for T
 where
-    T: Float + leto_ops::Scalar,
+    T: Float + leto_ops::Scalar + coeus_leto::RealScalar,
     MoiraiBackend: coeus_ops::BackendOps<T>,
     <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
@@ -180,7 +181,11 @@ impl Sampler {
     /// A tensor of `shape` filled with the configured sequence, at scalar `T`.
     pub fn tensor<T: GradcheckScalar>(&self, shape: &[usize]) -> Tensor<T, MoiraiBackend> {
         let count = shape.iter().product();
-        let values: Vec<T> = self.values(count).into_iter().map(T::from_f64).collect();
+        let values: Vec<T> = self
+            .values(count)
+            .into_iter()
+            .map(<T as coeus_core::Scalar>::from_f64)
+            .collect();
         Tensor::from_slice_on(shape.to_vec(), &values, &MoiraiBackend::new())
     }
 
