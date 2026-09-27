@@ -60,7 +60,7 @@ verification, tightening, feature}.
 <a id="coeus-device-output-ownership"></a>
 ## COEUS-DEVICE-OUTPUT-OWNERSHIP — Collect the device/hardware verification half
 
-- Status: in-progress (core landed); priority: correctness; [major] [arch].
+- Status: todo (core landed); priority: correctness; [major] [arch].
 - Outcome: every mutable GPU kernel output preserves other tensor clones; CUDA/WGPU own generic provider storage with no temporary `from_arc` owner.
 - Delivered: commit `9f897f2e` ("Give CUDA and WGPU generic provider storage") lands the core migration on `main` — vendor storage types and `from_arc` bridges are gone (`grep from_arc crates/coeus-{cuda,wgpu}/src` is empty), CPU scans propagate rejection, 267/267 CPU tests pass.
 - Residual: device/hardware matrices still need collecting, and the commit's own message names the open half — "the upstream CUDA scalar compiler correction" — tracked upstream at `hephaestus/backlog.md#heph-cuda-dense-product-scalars`.
@@ -70,7 +70,7 @@ verification, tightening, feature}.
 <a id="coeus-scatter-add-allocation"></a>
 ## COEUS-SCATTER-ADD-ALLOCATION — Keep scatter-add allocation count independent of shape
 
-- Status: in-progress; priority: correctness; [patch].
+- Status: todo; priority: correctness; [patch].
 - Outcome: `scatter_add` preserves value semantics without shape-scaled allocation calls.
 - Scope: `crates/coeus-ops/src/shape/select/scatter.rs`, focused allocation regression; non-goal: changing scatter indexing semantics.
 - Acceptance: the allocation-budget test passes for small and large 3-D shapes; strict package Clippy, nextest, docs pass.
@@ -110,7 +110,7 @@ verification, tightening, feature}.
 <a id="atlas-coeus-backend-045"></a>
 ## ATLAS-COEUS-BACKEND-045 — Unseal ComputeBackend and unify matmul (residual)
 
-- Status: in-progress (matmul unification landed); priority: architecture; [minor] [arch].
+- Status: todo (matmul unification landed); priority: architecture; [minor] [arch].
 - Outcome: matmul reaches every provider through one generic dispatch; no vendor crate carries a matmul kernel. Delivered: `ComputeBackend` unsealed, `coeus-hephaestus::matmul` added over `DenseProductOps`, `CudaBackend`/`WgpuBackend` migrated, `MatmulProvider<f32>` declared for Metal/ROCm.
 - Residual 1 (external blocker): `HephaestusBackend<P>` still lacks `PoolOps`/`UnfoldFoldOps`, so it does not satisfy `BackendOps<f32>` for Metal/ROCm; re-open trigger is a `PoolOps<D,T>`/`UnfoldFoldOps<D,T>` seam landing upstream in `hephaestus-core`. ~2.8k pool + ~0.9k-1.0k unfold/fold lines per vendor crate stay forked until then.
 - Residual 2: device-side equivalence of the provider matmul kernel against the deleted consumer kernel needs a GPU-capable CI run (no adapter on the development host).
@@ -129,7 +129,7 @@ verification, tightening, feature}.
 <a id="coeus-ci-hook-scope-2026-09-24"></a>
 ## COEUS-CI-HOOK-SCOPE-2026-09-24 — Keep hook-only CI within the fast path
 
-- Status: in-progress; integrator: coeus-hook-ci; priority: verification; [patch].
+- Status: todo; integrator: coeus-hook-ci; priority: verification; [patch].
 - Outcome: hook contract changes always report the required `Tests` status without installing Rust or compiling the workspace; Rust, manifest, lockfile, toolchain, test, and workflow changes retain native and doctest coverage.
 - Scope: `.github/workflows/ci.yml`, `scripts/ci_scope.py`, its value-semantic tests, and this item; non-goal: changing `.githooks/**` or hook behavior.
 - Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
@@ -145,20 +145,10 @@ verification, tightening, feature}.
 - Acceptance: compiler timing/codegen evidence identifies the dominant work; an evidence-backed structural change preserves the enumerated test matrix and lowers its attributed compile cost, or records why the proposed partition does not help.
 - Needs: [kernel output correction](#coeus-device-output-ownership); keep compiler flags and shared target policy fixed for comparison.
 
-<a id="coeus-workspace-lint-floor"></a>
-## COEUS-WORKSPACE-LINT-FLOOR — Recover the inherited lint floor
-
-- Status: todo; priority: verification; [patch].
-- Outcome: one workspace `[workspace.lints]` table governs every member (currently absent from `Cargo.toml` — verified).
-- Scope: workspace lint inheritance and measured existing suppressions.
-- Evidence: unique `74fd5c11` survives on `perf/coeus-ops-index-decode` and `fix/coeus-autograd-honest-cache`; current manifest lacks its floor.
-- Acceptance: strict all-target Clippy, non-increasing residual counts, native/doc gates, no blanket suppression growth.
-- Next step: add `[workspace.lints]` with `clippy::pedantic` inheritance per `standards`, then integrate the two surviving branches' floor once.
-
 <a id="coeus-provider-resolution-2026-09-07"></a>
 ## COEUS-PROVIDER-RESOLUTION-2026-09-07 — Restore fresh provider resolution after upstream alignment
 
-- Status: review; priority: verification; [arch].
+- Status: todo; priority: verification; [arch].
 - Outcome: fresh lock generation and default/all-feature locked resolution agree, including against current upstream (not only offline idempotence).
 - Evidence: a frozen tree regenerates the same offline lock twice and both activation checks pass — this proves closure/idempotence, not remote freshness against the current upstream state.
 - Acceptance: standalone regeneration is idempotent and all configured gates pass against a freshly fetched upstream.
@@ -167,7 +157,7 @@ verification, tightening, feature}.
 <a id="coeus-autograd-l1-provider-001"></a>
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Collect hosted evidence for the provider-owned L1 loss
 
-- Status: in-progress (implementation + local verification complete); priority: verification; [patch] [arch].
+- Status: todo (implementation + local verification complete); priority: verification; [patch] [arch].
 - Outcome: L1 forward/backward compose provider `sub`/`abs`/`mean_axis`/`sign`/`mul`/`neg`; no host-resident `Vec<T>`. Already true in the merged implementation.
 - Residual: hosted WGPU/CUDA/ROCm/Metal evidence remains pending before this child can close; the pre-1.0 `L1LossNode` representation change (`diffs: Vec<T>` → provider-resident `Tensor<T,B>`) needs the package's next SemVer review.
 - Local evidence: focused Clippy, Nextest 3/3, doctests (autograd 16/16, nn 8/8 with 2 intentionally ignored), formatting, residue scan, diff hygiene pass.
@@ -176,7 +166,7 @@ verification, tightening, feature}.
 <a id="coeus-autograd-lp-norm-provider-001"></a>
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Collect doctest/SemVer evidence for provider-owned Lp norms
 
-- Status: review; priority: verification; [major] [arch].
+- Status: todo; priority: verification; [major] [arch].
 - Outcome: `norm_p`/`norm_p_axis` perform provider-resident forward/backward (CPU via Leto `PowfOp`, WGPU/CUDA/ROCm/Metal via Hephaestus scalar-strided `PowOp`) — already merged (`4b915102`, `d775cd90`, provider blocker resolved in `cd36ee64`).
 - Residual: collect workspace-doctest evidence against the delivered revision, and run SemVer against the intended baseline (existing published-0.9.0 comparison found three pre-existing cumulative-scan/fusion breaks unrelated to this item; classify Lp-norm-specific breaks separately).
 - Evidence so far: `cd36ee64` records passing locked provider checks, provider Clippy, Hephaestus regressions, and backend-parity run `31052471989` for WGPU/CUDA/ROCm/Metal.
@@ -186,7 +176,7 @@ verification, tightening, feature}.
 <a id="coeus-frobenius-norm-provider-001"></a>
 ## COEUS-FROBENIUS-NORM-PROVIDER-001 — Collect hosted provider contracts for provider-owned Frobenius norm
 
-- Status: in-progress (local implementation complete); priority: verification; [patch] [arch].
+- Status: todo (local implementation complete); priority: verification; [patch] [arch].
 - Outcome: `coeus_ops::frobenius_norm_batched` composes provider elementwise/reduction/sqrt instead of a rank-3-and-higher host fold; rank-2 scalar behavior, batched output shape, and strided-input materialization preserved.
 - Local evidence: locked workspace all-targets check, warning-denied `coeus-ops` Clippy, full `coeus-ops` Nextest (209/209 including 7 Frobenius tests), 23 doctests pass.
 - Residual: exact-head hosted WGPU/CUDA/ROCm/Metal provider contracts not yet run.
@@ -226,7 +216,7 @@ verification, tightening, feature}.
 <a id="ms-445-python-release-wheels"></a>
 ## MS-445 — Python release wheels
 
-- Status: in-progress; priority: feature; [patch]; owner: root.
+- Status: todo; priority: feature; [patch]; owner: root.
 - Outcome: a GitHub Release tagged `coeus-python-v<version>` builds locked Linux/Windows/macOS wheels for CPython 3.9-3.13, installs and imports each as `pycoeus`, attests and attaches artifacts, then publishes to the `coeus-python` PyPI project through OIDC.
 - Delivered: the release workflow (`.github/workflows/python-release.yml`) and distribution contract are implemented; GitHub environment `pypi` accepts only `coeus-python-v*` tags; a locked CPython 3.13 wheel builds, installs, and imports as `pycoeus`.
 - Residual: hosted CI on the exact release-automation head, and PyPI pending-trusted-publisher registration, remain open.
@@ -235,7 +225,7 @@ verification, tightening, feature}.
 <a id="coeus-registry-package-1"></a>
 ## COEUS-REGISTRY-PACKAGE-1 — Publish reusable crates through Trusted Publishing
 
-- Status: in-progress; priority: feature; [patch]; owner: root.
+- Status: todo; priority: feature; [patch]; owner: root.
 - Outcome: Coeus's publishable Rust crates (currently all `publish = false` or unset) release to crates.io in dependency order via OIDC trusted publishing.
 - Delivered: Moirai/Mnemosyne/Themis imports bind to their published packages (no `rev =` pin — verified in `Cargo.toml`); the exact external lock graph is refreshed after the Apollo/Hephaestus/Moirai/Mnemosyne merges it depended on.
 - Residual: exact-head provider CI on the release-preparation branch, then publish in dependency order through Trusted Publishing (engineering_gates: publish pipelines).
