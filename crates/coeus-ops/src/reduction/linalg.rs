@@ -1,12 +1,19 @@
 // ── Vector arithmetic (dot / cross) ──
 //
-// Element-wise flat inner-product and per-channel cross product, matching
-// `torch.dot` / `torch.cross` semantics over any equal-shape tensors. Both
-// kernels materialize to a contiguous host slice and fold in native `T`
-// precision: zero backend-dispatch surface expansion, zero new `BinaryOp`
-// opcode, full zero-copy on the GPU→CPU copy step (already-provided
-// `BackendOps::copy_to_host` reads from the device storage straight into
-// `&mut [T]`).
+// `dot` composes on the existing elementwise-multiply and sum reductions —
+// the same `mul` + `sum` decomposition `norm` already uses (see
+// `reduction/norms.rs`) — so the O(n) work stays on the selected provider for
+// every backend that provides on-device `ElementwiseOps`/`ReductionOps`
+// (CPU, CUDA, WGPU, ROCm, Metal); only the single resulting scalar crosses
+// `BackendOps::copy_to_host`. No new `BinaryOp`/`ReductionOp` opcode.
+//
+// `cross` has no such decomposition available (the per-channel 3-vector
+// product is not an elementwise-then-reduce operation), and no on-device
+// provider seam for it exists yet (`hephaestus-core`'s `CrossProductOps` is
+// tracked but unimplemented downstream — see `COEUS-HEPHAESTUS-DOT-NORM-
+// PROVIDER-BINDING`'s recorded non-goal). It keeps the host-fold path: two
+// contiguous materialisations, a `B::copy_to_host` transfer per operand, and
+// a register-precision fold, to be replaced once that seam lands.
 
 use crate::backend_ops::BackendOps;
 use coeus_core::Scalar;
@@ -18,37 +25,38 @@ use coeus_tensor::Tensor;
 /// the same number of elements; empty input returns `T::zero()`.
 ///
 /// # Precision
-/// Single-pass fold in the native precision of `T` (no widening accumulator;
-/// `Scalar` already enforces native arithmetic). The two inputs are
-/// materialised to contiguous and read via `B::copy_to_host` in one transfer
-/// per operand; the per-pair scalar mults and final sum happen in registers.
+/// Native `T` precision throughout (no widening accumulator; `Scalar`
+/// already enforces native arithmetic).
+///
+/// # Provider residency
+/// Decomposes as `sum(a * b)` over flattened views, reusing the existing
+/// elementwise-multiply and sum-reduction seams (`crate::binary::mul`,
+/// `super::sum`) exactly as [`super::norm`] already does. Every backend with
+/// on-device `ElementwiseOps`/`ReductionOps` (CPU via Leto, CUDA, WGPU, ROCm,
+/// Metal via their Hephaestus-backed seams) therefore runs the O(n) multiply
+/// and reduction on the selected provider; only the one-element result
+/// crosses `B::copy_to_host`, not both full operands.
 #[inline]
 #[must_use]
 pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> T {
-    assert_eq!(
-        a.numel(),
-        b.numel(),
-        "dot: numel mismatch: a={}, b={}",
-        a.numel(),
-        b.numel()
-    );
-    if a.numel() == 0 {
+    let n = a.numel();
+    assert_eq!(n, b.numel(), "dot: numel mismatch: a={n}, b={}", b.numel());
+    if n == 0 {
         return T::zero();
     }
-    // Backend dispatch to materialise a contiguous snapshot; identical to
-    // the `prod` / `sum` reduction pattern (already-tested).
     let backend = B::default();
-    let a_c = a.to_contiguous_on(&backend);
-    let b_c = b.to_contiguous_on(&backend);
-    let mut a_host = vec![T::zero(); a_c.numel()];
-    let mut b_host = vec![T::zero(); b_c.numel()];
-    backend.copy_to_host(a_c.storage(), &mut a_host);
-    backend.copy_to_host(b_c.storage(), &mut b_host);
-    let mut acc = T::zero();
-    for (&ai, &bi) in a_host.iter().zip(b_host.iter()) {
-        acc += ai * bi;
-    }
-    acc
+    let flatten = |x: &Tensor<T, B>| -> Tensor<T, B> {
+        if x.is_contiguous() && x.layout().offset() == 0 {
+            x.reshape([n])
+        } else {
+            x.to_contiguous_on(&backend).reshape([n])
+        }
+    };
+    let a_flat = flatten(a);
+    let b_flat = flatten(b);
+    let product = crate::binary::mul(&a_flat, &b_flat, &backend);
+    super::sum(&product, &backend)
+        .expect("invariant: sum over a freshly reshaped rank-1 tensor at axis 0 cannot fail")
 }
 
 /// Per-channel 3-vector cross product along `dim`.
