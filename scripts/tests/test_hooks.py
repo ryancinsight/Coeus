@@ -26,16 +26,10 @@ _HOOK_COMMANDS = (
 REPOSITORY = Path(__file__).resolve().parents[2]
 HOOKS = ("pre-commit", "pre-push")
 ZERO = "0" * 40
-# `pre-push` reads the pushed range from stdin to decide whether the range
-# touches Cargo.lock/Cargo.toml at all (a legitimate skip, not a bypass) and
-# to select the revision it exports and checks. These fixtures have no
-# `origin` remote, so `default_branch_base` cannot resolve one and the hook
-# falls back to its conservative default: run the check anyway. The SHA does
-# not need to resolve to a real commit for that fallback to trigger -- it
-# only needs to be a non-zero placeholder for a "new branch" update, so one
-# probe line serves every test below regardless of what the fixture has
-# committed.
-PROBE_PUSH_LINE = f"refs/heads/probe {'1' * 40} refs/heads/probe {ZERO}\n"
+# `pre-push` reads the pushed range from stdin and judges the pushed
+# revision itself -- never `HEAD` in its place -- so the probe names the
+# fixture's current commit as a new branch. These fixtures have no `origin`
+# remote, so no base resolves and the whole revision is checked.
 
 
 class HookInstallationTests(unittest.TestCase):
@@ -135,7 +129,10 @@ class LockHookTests(unittest.TestCase):
         # `pre-push` alone reads a push range from stdin; feeding it to
         # `pre-commit` too would be inert (the commit hook never reads stdin)
         # but stays scoped to the hook that needs it for clarity.
-        input_text = PROBE_PUSH_LINE if name == "pre-push" else None
+        input_text = None
+        if name == "pre-push":
+            head = self.run_command([self.git, "rev-parse", "HEAD"]).stdout.strip()
+            input_text = f"refs/heads/probe {head} refs/heads/probe {ZERO}\n"
         return self.run_command(
             [self.bash, "--noprofile", "--norc", f".githooks/{name}"],
             environment=environment, expected=None, input_text=input_text,
@@ -295,7 +292,10 @@ class LockHookTests(unittest.TestCase):
         self.run_command([
             self.git, "commit", "-qm", "Add hook fixture consumer",
         ])
-        result = self.hook("pre-push")
+        # The lock check is under test; the pushed revision is now judged
+        # whole (no origin, so no base), and this fixture crate carries no
+        # tests for the package gate to run.
+        result = self.hook("pre-push", SKIP_LOCAL_GATE="1")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(
             "resolves under --locked; 1 first-party git sources",
@@ -313,7 +313,7 @@ class LockHookTests(unittest.TestCase):
         )
         self.run_command([self.git, "add", "Cargo.toml"])
         self.run_command([self.git, "commit", "-qm", "Bump the consumer version"])
-        result = self.hook("pre-push")
+        result = self.hook("pre-push", SKIP_LOCAL_GATE="1")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("locked dependency hydration failed", result.stderr)
         self.assertIn("lock file", result.stderr)
