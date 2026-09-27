@@ -19,8 +19,6 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-# The `dist` Rust module of the Python bindings is source, not build output.
-!crates/coeus-python/src/dist/
 downloads/
 eggs/
 .eggs/
@@ -88,3 +86,8 @@ docs/.doctrees/
 
 # Built Python wheels are release artefacts, never sources.
 *.whl
+
+# Agent-local state, never a shared artifact.
+.claude/settings.local.json
+.claude/agent-memory/
+.claude/worktrees/
