@@ -1,6 +1,6 @@
 //! Instance normalization layers.
 //!
-//! [`InstanceNorm`] is the single const-generic implementation behind the
+//! [`InstanceNorm`](crate::normalization::instancenorm::InstanceNorm) is the single const-generic implementation behind the
 //! [`InstanceNorm1d`], [`InstanceNorm2d`] and [`InstanceNorm3d`] aliases: each
 //! sample/channel slice is normalized across its spatial dimensions
 //! independently. This is equivalent to group normalization with one channel
@@ -184,7 +184,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Instance
     }
 }
 
-/// Implements the [`Module`] interface for every [`InstanceNorm`] rank.
+/// Implements the [`Module`] interface for every [`InstanceNorm`](crate::normalization::instancenorm::InstanceNorm) rank.
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
     for InstanceNorm<T, B, DIM>
 {

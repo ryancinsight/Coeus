@@ -1,6 +1,6 @@
 //! Generic N-dimensional batch normalization.
 //!
-//! [`BatchNorm`] is the one implementation behind the
+//! [`BatchNorm`](crate::normalization::batchnorm::BatchNorm) is the one implementation behind the
 //! [`BatchNorm1d`](crate::normalization::BatchNorm1d),
 //! [`BatchNorm2d`](crate::normalization::BatchNorm2d) and
 //! [`BatchNorm3d`](crate::normalization::BatchNorm3d) aliases: the forward
