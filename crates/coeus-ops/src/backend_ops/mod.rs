@@ -12,12 +12,16 @@ pub mod trait_def;
 pub mod traits;
 
 pub use cpu_impl::CpuBackend;
+/// Host-memory cross-product fold shared by every backend without an
+/// on-device seam (`CrossOps` implementors outside this crate use it
+/// directly; see ADR 0077).
+pub use defaults::cross::cross_fold;
 pub use ops::{BinaryOp, ReductionOp, UnaryOp};
 pub use trait_def::BackendOps;
 pub use traits::Axis;
 pub use traits::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward,
-    CrossEntropyOps, CtcBatch, CtcOps, ElementwiseOps, FiniteDifference3DOps,
+    CrossEntropyOps, CrossOps, CtcBatch, CtcOps, ElementwiseOps, FiniteDifference3DOps,
     FiniteDifference3DScheme, MatmulOps, OptimizerOps, OptimizerStateRef, OptimizerStepRule,
     OptimizerStepValidation, PoolOps, RandomInitOps, ReductionOps, RotateHalfOps, ScalarPowerOps,
     StaggeredPairOps, UnfoldFoldOps,

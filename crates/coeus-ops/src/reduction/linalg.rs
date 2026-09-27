@@ -8,14 +8,14 @@
 // `BackendOps::copy_to_host`. No new `BinaryOp`/`ReductionOp` opcode.
 //
 // `cross` has no such decomposition available (the per-channel 3-vector
-// product is not an elementwise-then-reduce operation), and no on-device
-// provider seam for it exists yet (`hephaestus-core`'s `CrossProductOps` is
-// tracked but unimplemented downstream — see `COEUS-HEPHAESTUS-DOT-NORM-
-// PROVIDER-BINDING`'s recorded non-goal). It keeps the host-fold path: two
-// contiguous materialisations, a `B::copy_to_host` transfer per operand, and
-// a register-precision fold, to be replaced once that seam lands.
+// product is not an elementwise-then-reduce operation). It dispatches
+// through the `CrossOps` capability (ADR 0077): every backend computes it
+// via the shared host-fold path (`cross_fold`), except `WgpuBackend`, which
+// routes through hephaestus's on-device `CrossProductOps` seam for the
+// layout that seam can express (contiguous, `dim` the last axis) and falls
+// back to the same host-fold otherwise.
 
-use crate::backend_ops::BackendOps;
+use crate::backend_ops::{BackendOps, CrossOps};
 use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
@@ -70,9 +70,14 @@ pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T
 /// # Precision
 /// Single-pass fold in the native precision of `T`; no widening accumulator.
 /// Equal-shape precondition is asserted (matches the PyTorch binding).
+///
+/// # Provider residency
+/// Dispatches through [`CrossOps`] (ADR 0077): `WgpuBackend` runs on-device
+/// for a contiguous tensor with `dim` the last axis; every other backend
+/// (and `WgpuBackend` outside that layout) uses the shared host-fold.
 #[inline]
 #[must_use]
-pub fn cross<T: Scalar, B: BackendOps<T> + Default>(
+pub fn cross<T: Scalar, B: CrossOps<T> + Default>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     dim: usize,
@@ -97,11 +102,6 @@ pub fn cross<T: Scalar, B: BackendOps<T> + Default>(
         shape[dim]
     );
 
-    let pre: usize = shape[..dim].iter().product();
-    let post: usize = shape[dim + 1..].iter().product();
-    let stride_pre = 3 * post;
-    let stride_k = post;
-
     let mut out_shape: Vec<usize> = shape.to_vec();
     out_shape[dim] = 3;
 
@@ -109,37 +109,11 @@ pub fn cross<T: Scalar, B: BackendOps<T> + Default>(
     let a_c = a.to_contiguous_on(&backend);
     let b_c = b.to_contiguous_on(&backend);
 
-    let mut a_host = vec![T::zero(); a_c.numel()];
-    let mut b_host = vec![T::zero(); b_c.numel()];
-    backend.copy_to_host(a_c.storage(), &mut a_host);
-    backend.copy_to_host(b_c.storage(), &mut b_host);
+    let storage = backend
+        .cross_storage(a_c.storage(), a_c.layout(), b_c.storage(), dim)
+        .expect("invariant: shape/axis already asserted above");
 
-    let mut out_host = vec![T::zero(); a_c.numel()];
-
-    // Walk the channel grid as (pre_outer, post_inner) and emit the three
-    // slice elements at offsets base + k * stride_k for k = 0, 1, 2. The
-    // formula is layout-correct for any `dim` because `stride_pre` and
-    // `stride_k` derive from the row-major stride cascade.
-    for pre_idx in 0..pre {
-        for post_idx in 0..post {
-            let base = pre_idx * stride_pre + post_idx;
-            // dim-0 (x): base + 0 · stride_k
-            // dim-1 (y): base + 1 · stride_k
-            // dim-2 (z): base + 2 · stride_k
-            let ax = base;
-            let ay = base + stride_k;
-            let az = base + 2 * stride_k;
-            let bx = ax;
-            let by = ay;
-            let bz = az;
-            // Right-handed cross: (a_y b_z - a_z b_y, a_z b_x - a_x b_z, a_x b_y - a_y b_x)
-            out_host[ax] = a_host[ay] * b_host[bz] - a_host[az] * b_host[by];
-            out_host[ay] = a_host[az] * b_host[bx] - a_host[ax] * b_host[bz];
-            out_host[az] = a_host[ax] * b_host[by] - a_host[ay] * b_host[bx];
-        }
-    }
-
-    Tensor::from_slice(out_shape, &out_host)
+    Tensor::from_raw_parts(storage, coeus_core::Layout::new(out_shape.into()))
 }
 
 #[cfg(test)]
