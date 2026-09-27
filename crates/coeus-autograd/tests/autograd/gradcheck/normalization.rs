@@ -40,9 +40,9 @@ fn rmsnorm_backward_matches_finite_differences() {
     const ROWS: usize = 3;
     const WIDTH: usize = 4;
 
-    let x = tensor(&[ROWS, WIDTH], 0.27);
-    let weight = Sampler::new(0.53, 0.4, 1.6).tensor(&[WIDTH]);
-    let w = weighting(&[ROWS, WIDTH]);
+    let x = tensor::<f64>(&[ROWS, WIDTH], 0.27);
+    let weight = Sampler::new(0.53, 0.4, 1.6).tensor::<f64>(&[WIDTH]);
+    let w = weighting::<f64>(&[ROWS, WIDTH]);
 
     gradcheck(&[x, weight], |v| {
         let backend = MoiraiBackend::new();
@@ -79,10 +79,10 @@ fn batchnorm1d_backward_matches_finite_differences() {
     const L: usize = 2;
     const M: usize = N * L;
 
-    let x = tensor(&[N, C, L], 0.19);
-    let weight = Sampler::new(0.61, 0.4, 1.6).tensor(&[C]);
-    let bias = tensor(&[C], 0.83);
-    let w = weighting(&[N, C, L]);
+    let x = tensor::<f64>(&[N, C, L], 0.19);
+    let weight = Sampler::new(0.61, 0.4, 1.6).tensor::<f64>(&[C]);
+    let bias = tensor::<f64>(&[C], 0.83);
+    let w = weighting::<f64>(&[N, C, L]);
 
     gradcheck(&[x, weight, bias], |v| {
         let backend = MoiraiBackend::new();
