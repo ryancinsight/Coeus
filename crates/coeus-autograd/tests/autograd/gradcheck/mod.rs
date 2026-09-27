@@ -67,6 +67,7 @@ mod attention;
 mod core_ops;
 mod losses;
 mod normalization;
+mod pooling;
 mod reduction;
 mod shape;
 
