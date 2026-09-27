@@ -25,6 +25,7 @@ thiserror    = { workspace = true }
 [dev-dependencies]
 eunomia = { workspace = true }
 coeus-nn = { workspace = true, default-features = false }
+coeus-leto = { version = "0.10.0", path = "../coeus-leto" }
 
 [lints]
 workspace = true

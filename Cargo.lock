@@ -383,6 +383,7 @@ version = "0.10.0"
 dependencies = [
  "apollo-fft",
  "coeus-core",
+ "coeus-leto",
  "coeus-nn",
  "coeus-ops",
  "coeus-sparse",
