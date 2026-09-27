@@ -72,7 +72,7 @@ fn l1_loss_backward_matches_finite_differences() {
     // d/dpred mean|pred - target| = sign(pred - target)/N. The residuals carry
     // both signs, so a backward that dropped the sign — or applied `abs` to the
     // gradient — disagrees on the negative entries.
-    let pred = tensor(&PAIR_SHAPE, 0.19);
+    let pred = tensor::<f64>(&PAIR_SHAPE, 0.19);
     let target = target_below(&pred, &RESIDUALS);
 
     gradcheck(&[pred], |v| l1_loss(&v[0], &target))
@@ -84,7 +84,7 @@ fn smooth_l1_loss_backward_matches_finite_differences() {
     // Exercises both branches: r/beta inside the quadratic region, sign(r)
     // outside it. A backward that used the wrong branch boundary, or forgot the
     // 1/beta scaling of the quadratic arm, fails on the entries that straddle.
-    let pred = tensor(&PAIR_SHAPE, 0.43);
+    let pred = tensor::<f64>(&PAIR_SHAPE, 0.43);
     let target = target_below(&pred, &RESIDUALS);
 
     gradcheck(&[pred], |v| smooth_l1_loss(&v[0], &target, SMOOTH_L1_BETA))
@@ -96,7 +96,7 @@ fn huber_loss_backward_matches_finite_differences() {
     // Huber differs from smooth_l1 by a factor of delta on the quadratic arm;
     // conflating the two is the classic implementation error, and it shows up
     // only on the entries inside |r| < delta.
-    let pred = tensor(&PAIR_SHAPE, 0.61);
+    let pred = tensor::<f64>(&PAIR_SHAPE, 0.61);
     let target = target_below(&pred, &RESIDUALS);
 
     gradcheck(&[pred], |v| {
@@ -110,8 +110,8 @@ fn binary_cross_entropy_backward_matches_finite_differences() {
     // d/dp mean(-[y log p + (1-y) log(1-p)]) = (p - y)/(p(1-p)N). Both p and y
     // stay inside (0.1, 0.9), so neither log term approaches its singularity and
     // the derived tolerance holds.
-    let pred = Sampler::probability(0.29).tensor(&PAIR_SHAPE);
-    let target = Sampler::probability(0.73).constant(&PAIR_SHAPE);
+    let pred = Sampler::probability(0.29).tensor::<f64>(&PAIR_SHAPE);
+    let target = Sampler::probability(0.73).constant::<f64>(&PAIR_SHAPE);
 
     gradcheck(&[pred], |v| binary_cross_entropy(&v[0], &target, 1e-12))
         .expect("binary_cross_entropy backward must match central differences");
@@ -131,7 +131,7 @@ const LOGITS: [f64; 6] = [1.35, -0.82, 0.47, -1.91, 2.06, -0.55];
 fn bce_with_logits_backward_matches_finite_differences() {
     // d/dz mean(softplus(z) - z·y) = (sigmoid(z) - y)/N.
     let logits = T64::from_slice_on(PAIR_SHAPE.to_vec(), &LOGITS, &MoiraiBackend::new());
-    let target = Sampler::probability(0.37).constant(&PAIR_SHAPE);
+    let target = Sampler::probability(0.37).constant::<f64>(&PAIR_SHAPE);
 
     gradcheck(&[logits], |v| bce_with_logits(&v[0], &target))
         .expect("bce_with_logits backward must match central differences");
@@ -143,8 +143,8 @@ fn kl_divergence_backward_matches_finite_differences() {
     // the constant -target/N. Linear is not trivial here: the check catches a
     // missing 1/N, a sign error, or a gradient that accidentally depends on
     // `input`.
-    let log_q = Sampler::new(0.23, -2.5, -0.3).tensor(&PAIR_SHAPE);
-    let p = Sampler::positive(0.59).constant(&PAIR_SHAPE);
+    let log_q = Sampler::new(0.23, -2.5, -0.3).tensor::<f64>(&PAIR_SHAPE);
+    let p = Sampler::positive(0.59).constant::<f64>(&PAIR_SHAPE);
 
     gradcheck(&[log_q], |v| kl_divergence(&v[0], &p))
         .expect("kl_divergence backward must match central differences");
@@ -155,8 +155,8 @@ fn poisson_nll_backward_matches_finite_differences() {
     // mean(exp(input) - target·input); d/dinput = (exp(input) - target)/N. The
     // log-rate stays in (-1.2, 1.2) so exp() is O(1) and the loss magnitude does
     // not inflate the derived tolerance.
-    let log_rate = Sampler::new(0.31, -1.2, 1.2).tensor(&PAIR_SHAPE);
-    let counts = Sampler::positive(0.67).constant(&PAIR_SHAPE);
+    let log_rate = Sampler::new(0.31, -1.2, 1.2).tensor::<f64>(&PAIR_SHAPE);
+    let counts = Sampler::positive(0.67).constant::<f64>(&PAIR_SHAPE);
 
     gradcheck(&[log_rate], |v| poisson_nll(&v[0], &counts))
         .expect("poisson_nll backward must match central differences");
@@ -170,7 +170,7 @@ fn soft_margin_backward_matches_finite_differences() {
     // mean log(1 + exp(-y·x)) is smooth everywhere; d/dx = -y·sigmoid(-y·x)/N.
     // Both label signs appear, so a backward that dropped the `-y` factor fails
     // on the negative half.
-    let input = tensor(&PAIR_SHAPE, 0.47);
+    let input = tensor::<f64>(&PAIR_SHAPE, 0.47);
     let labels = Var::new(
         T64::from_slice_on(PAIR_SHAPE.to_vec(), &SIGNS, &MoiraiBackend::new()),
         false,
@@ -186,7 +186,7 @@ fn nll_loss_backward_matches_finite_differences() {
     // scaled one-hot mask. The check verifies the mask lands on the right
     // column: a transposed or off-by-one index produces a gradient in the wrong
     // place, which finite differences localise exactly.
-    let log_probs = Sampler::new(0.17, -2.4, -0.4).tensor(&[3, 4]);
+    let log_probs = Sampler::new(0.17, -2.4, -0.4).tensor::<f64>(&[3, 4]);
     let targets = [2usize, 0, 3];
 
     gradcheck(&[log_probs], |v| nll_loss(&v[0], &targets))
@@ -216,7 +216,7 @@ fn margin_ranking_loss_backward_matches_finite_differences() {
     // differentiated, so the check covers the -y/N and +y/N rules together and
     // a swapped pair surfaces as a sign mismatch.
     let backend = MoiraiBackend::new();
-    let b = Sampler::signed(0.41).tensor(&[4]);
+    let b = Sampler::signed(0.41).tensor::<f64>(&[4]);
     let a_values: Vec<f64> = b
         .as_slice()
         .iter()
@@ -299,9 +299,9 @@ fn cosine_similarity_backward_matches_finite_differences() {
     // sampled strictly positive-magnitude, so neither norm approaches the eps
     // clamp and the full norm-derivative path — not the clamped constant one —
     // is the branch under test.
-    let x1 = Sampler::new(0.13, 0.3, 1.6).tensor(&[3, 4]);
-    let x2 = Sampler::new(0.79, -1.6, -0.3).tensor(&[3, 4]);
-    let w = weighting(&[3]);
+    let x1 = Sampler::new(0.13, 0.3, 1.6).tensor::<f64>(&[3, 4]);
+    let x2 = Sampler::new(0.79, -1.6, -0.3).tensor::<f64>(&[3, 4]);
+    let w = weighting::<f64>(&[3]);
 
     gradcheck(&[x1, x2], |v| {
         weighted(&cosine_similarity(&v[0], &v[1], 1, 1e-8), &w)
@@ -315,8 +315,8 @@ fn cosine_embedding_loss_backward_matches_finite_differences() {
     // margin). With margin = -0.5 and the operands below anti-aligned, the
     // y = -1 hinge is firmly active, so both the smooth and the hinge branch are
     // covered without either sitting on its break.
-    let x1 = Sampler::new(0.13, 0.3, 1.6).tensor(&[3, 4]);
-    let x2 = Sampler::new(0.79, -1.6, -0.3).tensor(&[3, 4]);
+    let x1 = Sampler::new(0.13, 0.3, 1.6).tensor::<f64>(&[3, 4]);
+    let x2 = Sampler::new(0.79, -1.6, -0.3).tensor::<f64>(&[3, 4]);
     let labels = [1.0f64, -1.0, 1.0];
 
     gradcheck(&[x1, x2], |v| {
@@ -332,9 +332,9 @@ fn pairwise_distance_backward_matches_finite_differences() {
     // from disjoint intervals, so every difference is bounded away from zero and
     // the row sums stay well clear of the origin where the p-norm is
     // non-differentiable.
-    let x1 = Sampler::new(0.23, 0.4, 1.7).tensor(&[3, 4]);
-    let x2 = Sampler::new(0.61, -1.7, -0.4).tensor(&[3, 4]);
-    let w = weighting(&[3]);
+    let x1 = Sampler::new(0.23, 0.4, 1.7).tensor::<f64>(&[3, 4]);
+    let x2 = Sampler::new(0.61, -1.7, -0.4).tensor::<f64>(&[3, 4]);
+    let w = weighting::<f64>(&[3]);
 
     gradcheck(&[x1, x2], |v| {
         weighted(&pairwise_distance(&v[0], &v[1], 2.0, 1e-6), &w)
@@ -347,9 +347,9 @@ fn pairwise_distance_backward_matches_finite_differences_at_p_three() {
     // p = 3 exercises the general |d|^(p-1)·sign(d) path rather than the p = 2
     // special case, where the sign factor cancels and an implementation can be
     // wrong without the p = 2 check noticing.
-    let x1 = Sampler::new(0.37, 0.4, 1.7).tensor(&[2, 3]);
-    let x2 = Sampler::new(0.83, -1.7, -0.4).tensor(&[2, 3]);
-    let w = weighting(&[2]);
+    let x1 = Sampler::new(0.37, 0.4, 1.7).tensor::<f64>(&[2, 3]);
+    let x2 = Sampler::new(0.83, -1.7, -0.4).tensor::<f64>(&[2, 3]);
+    let w = weighting::<f64>(&[2]);
 
     gradcheck(&[x1, x2], |v| {
         weighted(&pairwise_distance(&v[0], &v[1], 3.0, 1e-6), &w)

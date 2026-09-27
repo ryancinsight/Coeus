@@ -46,10 +46,10 @@ const SCALE: f64 = 0.5;
 #[test]
 fn sdp_attention_backward_matches_finite_differences() {
     // Unmasked attention, all three operands differentiated together.
-    let q = tensor(&[BATCH, SEQ, HEAD_DIM], 0.17);
-    let k = tensor(&[BATCH, SEQ, HEAD_DIM], 0.43);
-    let v = tensor(&[BATCH, SEQ, HEAD_DIM], 0.71);
-    let w = weighting(&[BATCH, SEQ, HEAD_DIM]);
+    let q = tensor::<f64>(&[BATCH, SEQ, HEAD_DIM], 0.17);
+    let k = tensor::<f64>(&[BATCH, SEQ, HEAD_DIM], 0.43);
+    let v = tensor::<f64>(&[BATCH, SEQ, HEAD_DIM], 0.71);
+    let w = weighting::<f64>(&[BATCH, SEQ, HEAD_DIM]);
 
     gradcheck(&[q, k, v], |vars| {
         let (output, _weights) = sdp_attention::<f64, MoiraiBackend, NullMask>(
@@ -69,10 +69,10 @@ fn causal_sdp_attention_backward_matches_finite_differences() {
     // not at all on the reverse pass — leaks gradient into the upper triangle,
     // and the finite difference of the genuinely masked forward reports zero
     // there.
-    let q = tensor(&[BATCH, SEQ, HEAD_DIM], 0.29);
-    let k = tensor(&[BATCH, SEQ, HEAD_DIM], 0.61);
-    let v = tensor(&[BATCH, SEQ, HEAD_DIM], 0.13);
-    let w = weighting(&[BATCH, SEQ, HEAD_DIM]);
+    let q = tensor::<f64>(&[BATCH, SEQ, HEAD_DIM], 0.29);
+    let k = tensor::<f64>(&[BATCH, SEQ, HEAD_DIM], 0.61);
+    let v = tensor::<f64>(&[BATCH, SEQ, HEAD_DIM], 0.13);
+    let w = weighting::<f64>(&[BATCH, SEQ, HEAD_DIM]);
 
     gradcheck(&[q, k, v], |vars| {
         let (output, _weights) = sdp_attention::<f64, MoiraiBackend, CausalMask>(
@@ -91,8 +91,8 @@ fn log_softmax_backward_matches_finite_differences() {
     // to zero, so the common error of copying the softmax backward into
     // log_softmax produces a gradient that is wrong by softmax(x)·Σdy — an
     // O(1) discrepancy this check reports per element.
-    let x = tensor(&[3, 5], 0.37);
-    let w = weighting(&[3, 5]);
+    let x = tensor::<f64>(&[3, 5], 0.37);
+    let w = weighting::<f64>(&[3, 5]);
 
     gradcheck(&[x], |v| weighted(&log_softmax(&v[0], 1), &w))
         .expect("log_softmax backward must match central differences");
@@ -103,8 +103,8 @@ fn softmin_backward_matches_finite_differences() {
     // softmin is softmax of the negation, so its gradient must carry the extra
     // -1 from the chain rule. A softmin that reused the softmax node without
     // negating differs from the finite difference by exactly a sign.
-    let x = tensor(&[2, 4], 0.53);
-    let w = weighting(&[2, 4]);
+    let x = tensor::<f64>(&[2, 4], 0.53);
+    let w = weighting::<f64>(&[2, 4]);
 
     gradcheck(&[x], |v| weighted(&softmin(&v[0], 1), &w))
         .expect("softmin backward must match central differences");
@@ -115,8 +115,8 @@ fn causal_softmax_backward_matches_finite_differences() {
     // A square score matrix, so the lower-triangular mask is well defined. The
     // masked entries are excluded from the forward's normalisation, and their
     // gradient must be exactly zero rather than merely small.
-    let x = tensor(&[4, 4], 0.23);
-    let w = weighting(&[4, 4]);
+    let x = tensor::<f64>(&[4, 4], 0.23);
+    let w = weighting::<f64>(&[4, 4]);
 
     gradcheck(&[x], |v| weighted(&causal_softmax(&v[0], 1), &w))
         .expect("causal_softmax backward must match central differences");
@@ -129,13 +129,13 @@ fn masked_softmax_backward_matches_finite_differences() {
     // is deliberately not a triangle, so a backward that hard-coded the causal
     // shape instead of reading the mask disagrees.
     let backend = MoiraiBackend::new();
-    let x = tensor(&[2, 5], 0.79);
+    let x = tensor::<f64>(&[2, 5], 0.79);
     let mask = T64::from_slice_on(
         [2, 5],
         &[1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0],
         &backend,
     );
-    let w = weighting(&[2, 5]);
+    let w = weighting::<f64>(&[2, 5]);
 
     gradcheck(&[x], |v| weighted(&masked_softmax(&v[0], &mask, 1), &w))
         .expect("masked_softmax backward must match central differences");
@@ -147,10 +147,10 @@ fn sdp_attention_backward_matches_finite_differences_on_wide_values() {
     // dV = Aᵀ·dO rule on a non-square contraction, where a transposed operand
     // cannot be absorbed by symmetry. Q and K keep HEAD_DIM; V is sampled from a
     // separate phase so the three operands are not translates of each other.
-    let q = Sampler::signed(0.11).tensor(&[BATCH, SEQ, HEAD_DIM]);
-    let k = Sampler::signed(0.47).tensor(&[BATCH, SEQ, HEAD_DIM]);
-    let v = Sampler::signed(0.89).tensor(&[BATCH, SEQ, HEAD_DIM]);
-    let w = weighting(&[BATCH, SEQ, HEAD_DIM]);
+    let q = Sampler::signed(0.11).tensor::<f64>(&[BATCH, SEQ, HEAD_DIM]);
+    let k = Sampler::signed(0.47).tensor::<f64>(&[BATCH, SEQ, HEAD_DIM]);
+    let v = Sampler::signed(0.89).tensor::<f64>(&[BATCH, SEQ, HEAD_DIM]);
+    let w = weighting::<f64>(&[BATCH, SEQ, HEAD_DIM]);
 
     gradcheck(&[q, k, v], |vars| {
         let (output, _weights) = sdp_attention::<f64, MoiraiBackend, NullMask>(
