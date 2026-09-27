@@ -76,3 +76,4 @@
 | [0073](0073-cpu-allocation-ownership.md) | Private CPU allocation ownership | Accepted |
 | [0074](0074-fallible-tcp-mesh.md) | Fallible, deadline-bounded TCP mesh | Accepted |
 | [0075](0075-fallible-communicator-collectives.md) | Fallible communicator collectives | Accepted |
+| [0076](0076-fallible-unary-autograd-execution.md) | Fallible unary autograd execution | Proposed |
