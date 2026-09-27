@@ -61,6 +61,7 @@ pub use ops::{
     batchnorm1d,
     batchnorm2d,
     batchnorm3d,
+    batchnorm_nd,
     bce_with_logits,
     binary_cross_entropy,
     // Shape ops

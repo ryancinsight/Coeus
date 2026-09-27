@@ -265,6 +265,21 @@ fn batchnorm_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM
     }
 }
 
+/// Tracked N-dimensional Batch Normalization.
+///
+/// Const-generic entry point behind [`batchnorm1d`], [`batchnorm2d`] and
+/// [`batchnorm3d`]; kept public so callers that are themselves const-generic
+/// over the spatial rank (e.g. `coeus-nn`'s `BatchNorm<T, B, DIM>`) can reach
+/// the shared implementation without dispatching through a per-rank wrapper.
+pub fn batchnorm_nd<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
+    input: &Var<T, B>,
+    weight: &Var<T, B>,
+    bias: &Var<T, B>,
+    args: BatchNormArgs<T, B, DIM>,
+) -> Var<T, B> {
+    batchnorm_nd_inner::<T, B, DIM>(input, weight, bias, args)
+}
+
 /// Tracked 1D Batch Normalization.
 pub fn batchnorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,

@@ -1,8 +1,10 @@
 //! Instance normalization layers.
 //!
-//! [`InstanceNorm1d`], [`InstanceNorm2d`], and [`InstanceNorm3d`] normalize
-//! each sample/channel slice across its spatial dimensions independently. This
-//! is equivalent to group normalization with one channel per group.
+//! [`InstanceNorm`] is the single const-generic implementation behind the
+//! [`InstanceNorm1d`], [`InstanceNorm2d`] and [`InstanceNorm3d`] aliases: each
+//! sample/channel slice is normalized across its spatial dimensions
+//! independently. This is equivalent to group normalization with one channel
+//! per group.
 
 use super::validation;
 use crate::module::{Module, ModuleError};
@@ -10,6 +12,26 @@ use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
+
+/// Diagnostic module name for a given spatial rank.
+const fn module_name<const DIM: usize>() -> &'static str {
+    match DIM {
+        1 => "InstanceNorm1d",
+        2 => "InstanceNorm2d",
+        3 => "InstanceNorm3d",
+        _ => "InstanceNormNd",
+    }
+}
+
+/// Expected-rank description for the rank check (`1-D` also accepts `[N, C]`).
+const fn rank_str<const DIM: usize>() -> &'static str {
+    match DIM {
+        1 => "2 or 3",
+        2 => "4",
+        3 => "5",
+        _ => "configured instance-normalization rank",
+    }
+}
 
 // ── Shared cache ──────────────────────────────────────────────────────────────
 
@@ -122,7 +144,101 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     Ok(coeus_autograd::add(&scaled, &bv))
 }
 
-// ── InstanceNorm1d ────────────────────────────────────────────────────────────
+// ── Generic layer ─────────────────────────────────────────────────────────────
+
+/// Instance Normalization for `DIM`-spatial-rank inputs.
+///
+/// `InstanceNorm<T, B, DIM>` normalizes each sample/channel slice over its
+/// spatial dimensions independently. `DIM = 1` accepts `[N, C]` or `[N, C, L]`,
+/// `DIM = 2` accepts `[N, C, H, W]` and `DIM = 3` accepts `[N, C, D, H, W]`.
+/// Prefer the [`InstanceNorm1d`], [`InstanceNorm2d`] and [`InstanceNorm3d`]
+/// aliases.
+#[derive(Clone)]
+pub struct InstanceNorm<
+    T: Float,
+    B: coeus_ops::BackendOps<T> + Default = MoiraiBackend,
+    const DIM: usize = 1,
+> {
+    /// Trainable scale (gamma): shape `[num_features]`.
+    pub weight: Var<T, B>,
+    /// Trainable shift (beta): shape `[num_features]`.
+    pub bias: Var<T, B>,
+    /// Number of channels.
+    pub num_features: usize,
+    /// Numerical stability constant added to variance.
+    pub eps: f64,
+    cache: RefCell<Option<InstanceNormCache<T, B>>>,
+}
+
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> InstanceNorm<T, B, DIM> {
+    /// Create an `InstanceNorm` layer for `DIM` spatial dimensions.
+    pub fn new(num_features: usize, eps: f64) -> Self {
+        let backend = B::default();
+        Self {
+            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
+            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
+            num_features,
+            eps,
+            cache: RefCell::new(None),
+        }
+    }
+}
+
+/// Implements the [`Module`] interface for every [`InstanceNorm`] rank.
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
+    for InstanceNorm<T, B, DIM>
+{
+    fn parameters(&self) -> Vec<Var<T, B>> {
+        vec![self.weight.clone(), self.bias.clone()]
+    }
+
+    /// Forward: input `[N, C, ...spatial]` (and `[N, C]` for `DIM = 1`).
+    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
+        let module: &str = module_name::<DIM>();
+        let shape = input.tensor.shape_cloned();
+        let rank_ok = shape.len() == DIM + 2 || (DIM == 1 && shape.len() == 2);
+        if !rank_ok {
+            return Err(validation::invalid_rank(
+                module,
+                rank_str::<DIM>(),
+                shape.len(),
+            ));
+        }
+        let n = shape[0];
+        let c = shape[1];
+        if c != self.num_features {
+            return Err(validation::channel_mismatch(module, self.num_features, c));
+        }
+        for (parameter, actual) in [
+            ("weight", self.weight.tensor.shape()),
+            ("bias", self.bias.tensor.shape()),
+        ] {
+            if actual != [c] {
+                return Err(validation::shape_mismatch(module, parameter, &[c], actual));
+            }
+        }
+        if !self.eps.is_finite() || self.eps < 0.0 {
+            return Err(ModuleError::InvalidEpsilon { module });
+        }
+        // Spatial extent is the product of the trailing axes; the empty product
+        // for the `[N, C]` form is the degenerate spatial size 1.
+        let spatial: usize = shape[2..].iter().product();
+        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
+
+        let mut cache = self
+            .cache
+            .try_borrow_mut()
+            .map_err(|_| validation::state_borrow(module, "cache"))?;
+        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
+        let Some(cache) = cache.as_ref() else {
+            unreachable!("invariant: ensure_cache initializes the InstanceNorm cache")
+        };
+
+        instance_norm_forward(&flat, &self.weight, &self.bias, cache, n, c, shape)
+    }
+}
+
+// ── Fixed-rank aliases ────────────────────────────────────────────────────────
 
 /// Instance Normalization for 1D inputs `[N, C, L]` or `[N, C]`.
 ///
@@ -141,79 +257,7 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// let y = in1.forward(&x).expect("valid InstanceNorm1d input");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 8]);
 /// ```
-#[derive(Clone)]
-pub struct InstanceNorm1d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
-    /// Trainable scale (gamma): shape `[num_features]`.
-    pub weight: Var<T, B>,
-    /// Trainable shift (beta): shape `[num_features]`.
-    pub bias: Var<T, B>,
-    /// Number of channels.
-    pub num_features: usize,
-    /// Numerical stability constant added to variance.
-    pub eps: f64,
-    cache: RefCell<Option<InstanceNormCache<T, B>>>,
-}
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm1d<T, B> {
-    /// Create an InstanceNorm1d layer.
-    pub fn new(num_features: usize, eps: f64) -> Self {
-        let backend = B::default();
-        Self {
-            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
-            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
-            num_features,
-            eps,
-            cache: RefCell::new(None),
-        }
-    }
-}
-
-/// Implements the [`crate::module::Module`] interface for [`InstanceNorm1d`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceNorm1d<T, B> {
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![self.weight.clone(), self.bias.clone()]
-    }
-
-    /// Forward: input `[N, C]` or `[N, C, L]`.
-    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        const MODULE: &str = "InstanceNorm1d";
-        let shape = input.tensor.shape_cloned();
-        if !matches!(shape.len(), 2 | 3) {
-            return Err(validation::invalid_rank(MODULE, "2 or 3", shape.len()));
-        }
-        let n = shape[0];
-        let c = shape[1];
-        if c != self.num_features {
-            return Err(validation::channel_mismatch(MODULE, self.num_features, c));
-        }
-        for (parameter, actual) in [
-            ("weight", self.weight.tensor.shape()),
-            ("bias", self.bias.tensor.shape()),
-        ] {
-            if actual != [c] {
-                return Err(validation::shape_mismatch(MODULE, parameter, &[c], actual));
-            }
-        }
-        if !self.eps.is_finite() || self.eps < 0.0 {
-            return Err(ModuleError::InvalidEpsilon { module: MODULE });
-        }
-        let spatial = shape.get(2).copied().unwrap_or(1);
-        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
-
-        let mut cache = self
-            .cache
-            .try_borrow_mut()
-            .map_err(|_| validation::state_borrow(MODULE, "cache"))?;
-        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
-        let Some(cache) = cache.as_ref() else {
-            unreachable!("invariant: ensure_cache initializes InstanceNorm1d cache")
-        };
-
-        instance_norm_forward(&flat, &self.weight, &self.bias, cache, n, c, shape)
-    }
-}
-
-// ── InstanceNorm2d ────────────────────────────────────────────────────────────
+pub type InstanceNorm1d<T, B = MoiraiBackend> = InstanceNorm<T, B, 1>;
 
 /// Instance Normalization for 2D inputs `[N, C, H, W]`.
 ///
@@ -232,79 +276,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
 /// let y = in2.forward(&x).expect("valid InstanceNorm2d input");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 8, 8]);
 /// ```
-#[derive(Clone)]
-pub struct InstanceNorm2d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
-    /// Trainable scale (gamma): shape `[num_features]`.
-    pub weight: Var<T, B>,
-    /// Trainable shift (beta): shape `[num_features]`.
-    pub bias: Var<T, B>,
-    /// Number of channels.
-    pub num_features: usize,
-    /// Numerical stability constant added to variance.
-    pub eps: f64,
-    cache: RefCell<Option<InstanceNormCache<T, B>>>,
-}
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm2d<T, B> {
-    /// Create an InstanceNorm2d layer.
-    pub fn new(num_features: usize, eps: f64) -> Self {
-        let backend = B::default();
-        Self {
-            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
-            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
-            num_features,
-            eps,
-            cache: RefCell::new(None),
-        }
-    }
-}
-
-/// Implements the [`crate::module::Module`] interface for [`InstanceNorm2d`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceNorm2d<T, B> {
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![self.weight.clone(), self.bias.clone()]
-    }
-
-    /// Forward: input `[N, C, H, W]`.
-    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        const MODULE: &str = "InstanceNorm2d";
-        let shape = input.tensor.shape_cloned();
-        if shape.len() != 4 {
-            return Err(validation::invalid_rank(MODULE, "4", shape.len()));
-        }
-        let n = shape[0];
-        let c = shape[1];
-        if c != self.num_features {
-            return Err(validation::channel_mismatch(MODULE, self.num_features, c));
-        }
-        for (parameter, actual) in [
-            ("weight", self.weight.tensor.shape()),
-            ("bias", self.bias.tensor.shape()),
-        ] {
-            if actual != [c] {
-                return Err(validation::shape_mismatch(MODULE, parameter, &[c], actual));
-            }
-        }
-        if !self.eps.is_finite() || self.eps < 0.0 {
-            return Err(ModuleError::InvalidEpsilon { module: MODULE });
-        }
-        let spatial = shape.get(2).copied().unwrap_or(1) * shape.get(3).copied().unwrap_or(1);
-        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
-
-        let mut cache = self
-            .cache
-            .try_borrow_mut()
-            .map_err(|_| validation::state_borrow(MODULE, "cache"))?;
-        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
-        let Some(cache) = cache.as_ref() else {
-            unreachable!("invariant: ensure_cache initializes InstanceNorm2d cache")
-        };
-
-        instance_norm_forward(&flat, &self.weight, &self.bias, cache, n, c, shape)
-    }
-}
-
-// ── InstanceNorm3d ────────────────────────────────────────────────────────────
+pub type InstanceNorm2d<T, B = MoiraiBackend> = InstanceNorm<T, B, 2>;
 
 /// Instance Normalization for 3D inputs `[N, C, D, H, W]`.
 ///
@@ -323,76 +295,4 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceN
 /// let y = in3.forward(&x).expect("valid InstanceNorm3d input");
 /// assert_eq!(y.tensor.shape(), &[1, 4, 4, 4, 4]);
 /// ```
-#[derive(Clone)]
-pub struct InstanceNorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
-    /// Trainable scale (gamma): shape `[num_features]`.
-    pub weight: Var<T, B>,
-    /// Trainable shift (beta): shape `[num_features]`.
-    pub bias: Var<T, B>,
-    /// Number of channels.
-    pub num_features: usize,
-    /// Numerical stability constant added to variance.
-    pub eps: f64,
-    cache: RefCell<Option<InstanceNormCache<T, B>>>,
-}
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> InstanceNorm3d<T, B> {
-    /// Create an InstanceNorm3d layer.
-    pub fn new(num_features: usize, eps: f64) -> Self {
-        let backend = B::default();
-        Self {
-            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
-            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
-            num_features,
-            eps,
-            cache: RefCell::new(None),
-        }
-    }
-}
-
-/// Implements the [`crate::module::Module`] interface for [`InstanceNorm3d`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for InstanceNorm3d<T, B> {
-    fn parameters(&self) -> Vec<Var<T, B>> {
-        vec![self.weight.clone(), self.bias.clone()]
-    }
-
-    /// Forward: input `[N, C, D, H, W]`.
-    fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        const MODULE: &str = "InstanceNorm3d";
-        let shape = input.tensor.shape_cloned();
-        if shape.len() != 5 {
-            return Err(validation::invalid_rank(MODULE, "5", shape.len()));
-        }
-        let n = shape[0];
-        let c = shape[1];
-        if c != self.num_features {
-            return Err(validation::channel_mismatch(MODULE, self.num_features, c));
-        }
-        for (parameter, actual) in [
-            ("weight", self.weight.tensor.shape()),
-            ("bias", self.bias.tensor.shape()),
-        ] {
-            if actual != [c] {
-                return Err(validation::shape_mismatch(MODULE, parameter, &[c], actual));
-            }
-        }
-        if !self.eps.is_finite() || self.eps < 0.0 {
-            return Err(ModuleError::InvalidEpsilon { module: MODULE });
-        }
-        let spatial = shape.get(2).copied().unwrap_or(1)
-            * shape.get(3).copied().unwrap_or(1)
-            * shape.get(4).copied().unwrap_or(1);
-        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
-
-        let mut cache = self
-            .cache
-            .try_borrow_mut()
-            .map_err(|_| validation::state_borrow(MODULE, "cache"))?;
-        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
-        let Some(cache) = cache.as_ref() else {
-            unreachable!("invariant: ensure_cache initializes InstanceNorm3d cache")
-        };
-
-        instance_norm_forward(&flat, &self.weight, &self.bias, cache, n, c, shape)
-    }
-}
+pub type InstanceNorm3d<T, B = MoiraiBackend> = InstanceNorm<T, B, 3>;
