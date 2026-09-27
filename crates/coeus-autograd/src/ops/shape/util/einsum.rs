@@ -9,6 +9,41 @@
 use crate::var::Var;
 use coeus_core::Scalar;
 
+/// Why a tracked [`fn@einsum`]/[`fn@einsum3`] call was rejected.
+///
+/// Caller-supplied subscript strings are untrusted input (numpy/torch-style
+/// einsum notation typed by the calling code, including across the Python
+/// binding boundary): an unrecognized pattern is a typed error, never a
+/// panic.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum EinsumError {
+    /// The subscript names a pattern this tracked implementation does not
+    /// recognize for the given operand count.
+    UnsupportedPattern {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Number of operands the subscript was evaluated against.
+        operand_count: usize,
+    },
+}
+
+impl core::fmt::Display for EinsumError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::UnsupportedPattern {
+                subscript,
+                operand_count,
+            } => write!(
+                f,
+                "einsum: unsupported {operand_count}-operand pattern '{subscript}'"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for EinsumError {}
+
 /// Tracked Einstein summation for common ML patterns.
 ///
 /// Supported patterns:
@@ -18,15 +53,18 @@ use coeus_core::Scalar;
 /// - `"i,i->"` — dot product (tracked via element-wise mul + sum)
 /// - `"i,j->ij"` — outer product (tracked via unsqueeze + broadcast + mul)
 /// - `"ij,j->i"` — matrix-vector multiply (tracked via matmul + squeeze)
-/// - Other unsupported patterns: panics.
 ///
 /// Gradients flow through the delegated tracked operations automatically.
-#[must_use]
+///
+/// # Errors
+///
+/// Returns [`EinsumError::UnsupportedPattern`] for a single-operand
+/// subscript this implementation does not recognize.
 #[inline]
 pub fn einsum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,
     operands: &[&Var<T, B>],
-) -> Var<T, B>
+) -> Result<Var<T, B>, EinsumError>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -57,7 +95,7 @@ where
         // "ij->ji" — 2-D transpose
         if lhs == "ij" && rhs == "ji" {
             assert_eq!(a.tensor.ndim(), 2, "einsum ij->ji: requires 2-D input");
-            return crate::ops::permute(a, &[1, 0]);
+            return Ok(crate::ops::permute(a, &[1, 0]));
         }
 
         // generic last-two-dims swap (e.g. "bij->bji")
@@ -71,7 +109,7 @@ where
                 if rhs_chars == expected_rhs {
                     let mut perm: Vec<usize> = (0..a.tensor.ndim()).collect();
                     perm.swap(a.tensor.ndim() - 2, a.tensor.ndim() - 1);
-                    return crate::ops::permute(a, &perm);
+                    return Ok(crate::ops::permute(a, &perm));
                 }
             }
         }
@@ -81,10 +119,13 @@ where
             assert_eq!(a.tensor.ndim(), 2, "einsum ii->: requires 2-D input");
             let backend = B::default();
             let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend).expect("einsum");
-            return Var::new(t, false);
+            return Ok(Var::new(t, false));
         }
 
-        panic!("einsum: unsupported single-operand pattern '{subscript}'");
+        return Err(EinsumError::UnsupportedPattern {
+            subscript: subscript.to_string(),
+            operand_count: 1,
+        });
     }
 
     // ── Two-operand ───────────────────────────────────────────────────────
@@ -97,7 +138,7 @@ where
     // "i,i->" — dot product (element-wise mul then sum)
     if a_lhs == "i" && b_lhs == "i" && rhs.is_empty() {
         let product = crate::ops::mul(a, b);
-        return crate::ops::sum(&product);
+        return Ok(crate::ops::sum(&product));
     }
 
     // "i,j->ij" — outer product via broadcast + mul
@@ -108,14 +149,14 @@ where
         let b_row = crate::ops::unsqueeze(b, 0); // [1, n]
         let a_bcast = crate::ops::broadcast_to(&a_col, vec![m, n]);
         let b_bcast = crate::ops::broadcast_to(&b_row, vec![m, n]);
-        return crate::ops::mul(&a_bcast, &b_bcast);
+        return Ok(crate::ops::mul(&a_bcast, &b_bcast));
     }
 
     // "ij,jk->ik" — 2-D matrix multiply
     if a_lhs == "ij" && b_lhs == "jk" && rhs == "ik" {
         assert_eq!(a.tensor.ndim(), 2, "einsum ij,jk->ik: a must be 2-D");
         assert_eq!(b.tensor.ndim(), 2, "einsum ij,jk->ik: b must be 2-D");
-        return crate::ops::matmul(a, b);
+        return Ok(crate::ops::matmul(a, b));
     }
 
     // "bij,bjk->bik" — batched 3-D matrix multiply via per-batch slice + matmul + cat
@@ -156,7 +197,7 @@ where
             })
             .collect();
         let refs: Vec<&Var<T, B>> = batch_results.iter().collect();
-        return crate::ops::cat(&refs, 0);
+        return Ok(crate::ops::cat(&refs, 0));
     }
 
     // "ij,j->i" — matrix-vector multiply
@@ -166,7 +207,7 @@ where
         let k = b.tensor.shape()[0];
         let b_col = crate::ops::reshape(b, vec![k, 1]);
         let mm = crate::ops::matmul(a, &b_col);
-        return crate::ops::squeeze(&mm, Some(1));
+        return Ok(crate::ops::squeeze(&mm, Some(1)));
     }
 
     // Fallback: run the non-tracked op and return non-differentiable result.
@@ -174,7 +215,7 @@ where
     let raw_operands: Vec<&coeus_tensor::Tensor<T, B>> =
         operands.iter().map(|v| &v.tensor).collect();
     let out = coeus_ops::einsum(subscript, &raw_operands, &backend).expect("einsum");
-    Var::new(out, false)
+    Ok(Var::new(out, false))
 }
 
 /// Tracked 3-operand einsum via sequential pairwise contraction.
@@ -182,14 +223,17 @@ where
 /// Supported patterns:
 /// - `"ij,jk,kl->il"` — triple matmul chain
 /// - `"bij,bjk,bkl->bil"` — batched triple matmul chain
-#[must_use]
+///
+/// # Errors
+///
+/// Returns [`EinsumError::UnsupportedPattern`] for any other subscript.
 #[inline]
 pub fn einsum3<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,
     a: &Var<T, B>,
     b: &Var<T, B>,
     c: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, EinsumError>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -197,13 +241,16 @@ where
     let sub = subscript.trim();
     match sub {
         "ij,jk,kl->il" => {
-            let ab = einsum("ij,jk->ik", &[a, b]);
+            let ab = einsum("ij,jk->ik", &[a, b])?;
             einsum("ij,jk->ik", &[&ab, c])
         }
         "bij,bjk,bkl->bil" => {
-            let ab = einsum("bij,bjk->bik", &[a, b]);
+            let ab = einsum("bij,bjk->bik", &[a, b])?;
             einsum("bij,bjk->bik", &[&ab, c])
         }
-        _ => panic!("einsum3: unsupported 3-operand pattern '{subscript}'"),
+        _ => Err(EinsumError::UnsupportedPattern {
+            subscript: subscript.to_string(),
+            operand_count: 3,
+        }),
     }
 }
