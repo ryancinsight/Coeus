@@ -24,6 +24,7 @@ thiserror    = { workspace = true }
 
 [dev-dependencies]
 eunomia = { workspace = true }
+coeus-nn = { workspace = true, default-features = false }
 
 [lints]
 workspace = true
