@@ -3,7 +3,7 @@
 Status: Accepted  \
 Date: 2026-09-07  \
 Change class: [major] [arch]  \
-Board item: [COEUS-CTC-SEQUENCE-CONTRACT](../backlog.md#coeus-ctc-sequence-contract)
+Board item: [COEUS-CTC-SEQUENCE-CONTRACT](../../backlog.md#coeus-ctc-sequence-contract)
 
 ## Context
 

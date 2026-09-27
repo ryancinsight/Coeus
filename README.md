@@ -74,9 +74,9 @@ Bindings:
 
 The current development focus is transitioning Coeus to a heterogeneous execution model supporting GPU acceleration as first-class targets.
 
-Refer to the global checklist and backlog documents:
-- **Checklist**: [CHECKLIST.md](CHECKLIST.md)
-- **Backlog**: [docs/backlog.md](docs/backlog.md)
+Refer to the open-work queue and the risk register:
+- **Backlog**: [backlog.md](backlog.md)
+- **Gap audit**: [gap_audit.md](gap_audit.md)
 
 ---
 

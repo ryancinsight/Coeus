@@ -105,7 +105,7 @@ pub fn cross(input: &PyTensor, other: &PyTensor, dim: usize, py: Python<'_>) -> 
 /// `ord` is currently restricted to `'fro'`, the canonical Frobenius
 /// default. Other norms (`'nuc'`, `inf`, `-inf`, `1`, `-1`, `2`, `-2`)
 /// require SVD or column/row-sum analysis and are intentionally deferred
-/// (see `docs/backlog.md` MS-86 for the staged roll-out).
+/// (staged roll-out tracked historically as MS-86; see `backlog.md`).
 ///
 /// The dispatch pattern mirrors `coeus_python::ops::statistics::sum_axis`:
 /// Python receives a `float` only when the result is a 0-D scalar
