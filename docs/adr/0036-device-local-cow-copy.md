@@ -4,10 +4,10 @@
 
 Accepted
 
-Revision 2026-09-08: [backend writes](../backlog.md#coeus-backend-write-ownership)
+Revision 2026-09-08: [backend writes](../../backlog.md#coeus-backend-write-ownership)
 must detach shared storage at the mutation boundary. Explicit detachment tests
 did not cover direct backend fill and upload calls. The subsequent
-[kernel-output audit](../backlog.md#coeus-device-output-ownership) finds the
+[kernel-output audit](../../backlog.md#coeus-device-output-ownership) finds the
 same ownership gap in mathematical dispatch and temporary vendor storage
 bridges. This revision extends the ownership boundary to every mutable output.
 

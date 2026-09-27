@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-05
 - Scope: `coeus-autograd::bce_with_logits`
-- Tracking: `docs/backlog.md#coeus-bce-logits-provider-001`
+- Tracking: `../../backlog.md#coeus-bce-logits-provider-001`
 
 ## Context
 

@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-05
 - Scope: `coeus-ops::{norm_p,norm_p_axis}` and tracked autograd nodes
-- Tracking: `docs/backlog.md#coeus-autograd-lp-norm-provider-001`
+- Tracking: `../../backlog.md#coeus-autograd-lp-norm-provider-001`
 
 ## Context
 

@@ -3,7 +3,7 @@
 Status: Accepted  \
 Date: 2026-09-08  \
 Change class: [major]  \
-Board item: [COEUS-CPU-STORAGE-OWNERSHIP](../backlog.md#coeus-cpu-storage-ownership)
+Board item: [COEUS-CPU-STORAGE-OWNERSHIP](../../backlog.md#coeus-cpu-storage-ownership)
 
 ## Context
 
