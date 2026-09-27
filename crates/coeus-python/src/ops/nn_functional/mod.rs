@@ -288,7 +288,11 @@ pub fn softmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
 }
 
 #[pyfunction]
-pub fn einsum(subscript: &str, operands: Vec<pyo3::Py<PyTensor>>, py: Python<'_>) -> PyTensor {
+pub fn einsum(
+    subscript: &str,
+    operands: Vec<pyo3::Py<PyTensor>>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let rust_vars: Vec<coeus_autograd::Var<f64>> = operands
         .iter()
         .map(|t| t.bind(py).borrow().inner.clone())
@@ -301,7 +305,9 @@ pub fn einsum(subscript: &str, operands: Vec<pyo3::Py<PyTensor>>, py: Python<'_>
             coeus_autograd::einsum(subscript, &refs)
         }
     });
-    PyTensor::from_var(inner)
+    inner
+        .map(PyTensor::from_var)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
 #[pyfunction]
