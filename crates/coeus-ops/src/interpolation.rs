@@ -1,6 +1,6 @@
 //! Dimension-generic coordinate-grid interpolation operations.
 
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
 use coeus_tensor::Tensor;
 
 mod private {
@@ -10,7 +10,7 @@ mod private {
 /// Static boundary behavior for linear interpolation.
 pub trait BoundaryPolicy: private::Sealed + Copy + Default {
     /// Returns lower/upper indices and their interpolation weights.
-    fn neighbours(coordinate: f32, extent: usize) -> (usize, usize, f32, f32);
+    fn neighbours<T: Float>(coordinate: T, extent: usize) -> (usize, usize, T, T);
 }
 
 /// Replicate the nearest border value outside the image extent.
@@ -20,13 +20,23 @@ pub struct Replicate;
 impl private::Sealed for Replicate {}
 
 impl BoundaryPolicy for Replicate {
-    fn neighbours(coordinate: f32, extent: usize) -> (usize, usize, f32, f32) {
+    fn neighbours<T: Float>(coordinate: T, extent: usize) -> (usize, usize, T, T) {
         let lower_value = coordinate.floor();
         let upper_weight = coordinate - lower_value;
-        let upper_bound = (extent - 1) as f32;
-        let lower = lower_value.clamp(0.0, upper_bound) as usize;
-        let upper = (lower_value + 1.0).clamp(0.0, upper_bound) as usize;
-        (lower, upper, 1.0 - upper_weight, upper_weight)
+        let zero = T::zero();
+        let upper_bound = T::from_f64((extent - 1) as f64);
+        let clamp = |v: T| {
+            if v < zero {
+                zero
+            } else if v > upper_bound {
+                upper_bound
+            } else {
+                v
+            }
+        };
+        let lower = Scalar::to_f64(clamp(lower_value)) as usize;
+        let upper = Scalar::to_f64(clamp(lower_value + T::one())) as usize;
+        (lower, upper, T::one() - upper_weight, upper_weight)
     }
 }
 
@@ -43,11 +53,11 @@ impl SupportedDimension for Dimension<2> {}
 impl SupportedDimension for Dimension<3> {}
 
 /// Gradients produced by dimension-generic linear interpolation reverse mode.
-pub struct InterpolationGradients<B: Backend> {
+pub struct InterpolationGradients<T: Scalar, B: Backend> {
     /// Gradient with respect to image values.
-    pub image: Tensor<f32, B>,
+    pub image: Tensor<T, B>,
     /// Gradient with respect to sampling coordinates.
-    pub grid: Tensor<f32, B>,
+    pub grid: Tensor<T, B>,
 }
 
 /// Contract failures for [`linear_interpolation`].
@@ -209,16 +219,17 @@ fn spatial_offset(indices: &[usize], extents: &[usize]) -> usize {
 /// Returns [`InterpolationError`] when ranks, batches, coordinate channels,
 /// spatial extents, finite-coordinate requirement, or shape products violate
 /// the contract.
-pub fn linear_interpolation<const D: usize, B, P>(
-    image: &Tensor<f32, B>,
-    grid: &Tensor<f32, B>,
+pub fn linear_interpolation<const D: usize, T, B, P>(
+    image: &Tensor<T, B>,
+    grid: &Tensor<T, B>,
     _policy: P,
-) -> Result<Tensor<f32, B>, InterpolationError>
+) -> Result<Tensor<T, B>, InterpolationError>
 where
+    T: Float,
     B: Backend + Default,
     P: BoundaryPolicy,
     Dimension<D>: SupportedDimension,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let contract = validate::<D>(image.shape(), grid.shape())?;
     let image = image.to_contiguous();
@@ -226,25 +237,25 @@ where
     let image_values = image.as_slice();
     let grid_values = grid.as_slice();
     let output_len = checked_product(&contract.output_shape)?;
-    let mut output = vec![0.0; output_len];
+    let mut output = vec![T::zero(); output_len];
     let corner_count = 1usize << D;
 
     for batch in 0..contract.batch {
         for point in 0..contract.output_points {
-            let mut neighbours = [(0, 0, 0.0, 0.0); D];
+            let mut neighbours = [(0, 0, T::zero(), T::zero()); D];
             for (axis, entry) in neighbours.iter_mut().enumerate() {
                 let coordinate = grid_values[(batch * D + axis) * contract.output_points + point];
-                if !coordinate.is_finite() {
+                if !coeus_core::Float::is_finite(coordinate) {
                     return Err(InterpolationError::NonFiniteCoordinate { axis, point });
                 }
                 *entry = P::neighbours(coordinate, contract.input_spatial[axis]);
             }
             for channel in 0..contract.channels {
                 let base = (batch * contract.channels + channel) * contract.input_points;
-                let mut value = 0.0;
+                let mut value = T::zero();
                 for corner in 0..corner_count {
                     let mut indices = [0; D];
-                    let mut weight = 1.0;
+                    let mut weight = T::one();
                     for (axis, &(lower, upper, lower_weight, upper_weight)) in
                         neighbours.iter().enumerate()
                     {
@@ -284,17 +295,18 @@ where
 /// Returns [`InterpolationError`] under the forward contract failures or when
 /// `grad_output` does not have the implied output shape. Non-finite sampling
 /// coordinates are rejected before derivative arithmetic.
-pub fn linear_interpolation_backward<const D: usize, B, P>(
-    image: &Tensor<f32, B>,
-    grid: &Tensor<f32, B>,
-    grad_output: &Tensor<f32, B>,
+pub fn linear_interpolation_backward<const D: usize, T, B, P>(
+    image: &Tensor<T, B>,
+    grid: &Tensor<T, B>,
+    grad_output: &Tensor<T, B>,
     _policy: P,
-) -> Result<InterpolationGradients<B>, InterpolationError>
+) -> Result<InterpolationGradients<T, B>, InterpolationError>
 where
+    T: Float,
     B: Backend + Default,
     P: BoundaryPolicy,
     Dimension<D>: SupportedDimension,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let contract = validate::<D>(image.shape(), grid.shape())?;
     if grad_output.shape() != contract.output_shape {
@@ -309,16 +321,16 @@ where
     let image_values = image.as_slice();
     let grid_values = grid.as_slice();
     let upstream = grad_output.as_slice();
-    let mut image_gradient = vec![0.0; image_values.len()];
-    let mut grid_gradient = vec![0.0; grid_values.len()];
+    let mut image_gradient = vec![T::zero(); image_values.len()];
+    let mut grid_gradient = vec![T::zero(); grid_values.len()];
     let corner_count = 1usize << D;
 
     for batch in 0..contract.batch {
         for point in 0..contract.output_points {
-            let mut neighbours = [(0, 0, 0.0, 0.0); D];
+            let mut neighbours = [(0, 0, T::zero(), T::zero()); D];
             for (axis, entry) in neighbours.iter_mut().enumerate() {
                 let coordinate = grid_values[(batch * D + axis) * contract.output_points + point];
-                if !coordinate.is_finite() {
+                if !coeus_core::Float::is_finite(coordinate) {
                     return Err(InterpolationError::NonFiniteCoordinate { axis, point });
                 }
                 *entry = P::neighbours(coordinate, contract.input_spatial[axis]);
@@ -330,7 +342,7 @@ where
                 let grad = upstream[output_index];
                 for corner in 0..corner_count {
                     let mut indices = [0; D];
-                    let mut weights = [0.0; D];
+                    let mut weights = [T::zero(); D];
                     for (axis, &(lower, upper, lower_weight, upper_weight)) in
                         neighbours.iter().enumerate()
                     {
@@ -344,22 +356,25 @@ where
                     }
                     let input_index = base + spatial_offset(&indices, &contract.input_spatial);
                     let value = image_values[input_index];
-                    let weight = weights.iter().product::<f32>();
+                    let weight = weights.iter().fold(T::one(), |acc, &w| acc * w);
                     image_gradient[input_index] += grad * weight;
                     for axis in 0..D {
                         let (lower, upper, _, _) = neighbours[axis];
                         if lower == upper {
                             continue;
                         }
-                        let sign = if corner & (1 << axis) != 0 { 1.0 } else { -1.0 };
+                        let sign = if corner & (1 << axis) != 0 {
+                            T::one()
+                        } else {
+                            T::zero() - T::one()
+                        };
                         let other_weight = weights
                             .iter()
                             .enumerate()
                             .filter(|(candidate, _)| *candidate != axis)
-                            .map(|(_, weight)| *weight)
-                            .product::<f32>();
-                        grid_gradient[(batch * D + axis) * contract.output_points + point] +=
-                            grad * value * sign * other_weight;
+                            .fold(T::one(), |acc, (_, &w)| acc * w);
+                        let index = (batch * D + axis) * contract.output_points + point;
+                        grid_gradient[index] += grad * value * sign * other_weight;
                     }
                 }
             }

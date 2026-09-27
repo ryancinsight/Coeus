@@ -2,12 +2,7 @@
 //! CTC, dropout, sparse matmul (CSR and COO), `transpose_2d`, `index_put`,
 //! `rotate_half`, and `linear_interpolation`.
 //!
-//! Every check here runs at both `f64` and `f32` except
-//! [`linear_interpolation_backward_matches_finite_differences`]: that op's
-//! signature is pinned to `f32` end to end (`Var<f32, B>` on both the image
-//! and the grid, in both `coeus-autograd` and `coeus-ops`), so there is no
-//! `f32`-monomorphization gap for a wider check to close — the `f32` run is
-//! this op's only instantiation, not a narrowed one.
+//! Every check here runs at both `f64` and `f32`.
 
 use super::{tensor, weighted, weighting, GradcheckScalar, Sampler};
 use coeus_autograd::{
@@ -210,30 +205,38 @@ fn ctc_backward_matches_finite_differences() {
     ctc_case::<f32>();
 }
 
-fn linear_interpolation_case() {
+fn linear_interpolation_case<T: GradcheckScalar>()
+where
+    <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<T>:
+        coeus_core::CpuAddressableStorageMut<T>,
+{
     // Grid coordinates are chosen away from every integer pixel boundary —
     // `linear_interpolation`'s `Replicate` policy has a kink wherever a
     // coordinate crosses an integer, exactly like `floor` in the shape ops
     // above — so the central difference lands inside one bilinear cell on
     // both sides of the perturbation.
     let backend = MoiraiBackend;
-    let image_values: Vec<f32> = Sampler::signed(0.41)
+    let image_values: Vec<T> = Sampler::signed(0.41)
         .values(16)
         .into_iter()
-        .map(|value| value as f32)
+        .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
     let image = Tensor::from_slice_on([1, 1, 4, 4], &image_values, &backend);
-    let grid = Tensor::from_slice_on([1, 2, 2, 1], &[0.37_f32, 2.63, 1.19, 1.81], &backend);
+    let grid_values: Vec<T> = [0.37_f64, 2.63, 1.19, 1.81]
+        .into_iter()
+        .map(<T as coeus_core::Scalar>::from_f64)
+        .collect();
+    let grid = Tensor::from_slice_on([1, 2, 2, 1], &grid_values, &backend);
     // Only the image is differentiated here: the grid's own gradient is
     // covered by the analytical checks in `autograd_ops::interpolation`, and
     // gradcheck perturbs every input it is given, so mixing a coordinate
     // input into the same call would let a perturbation cross the kink this
     // fixture was built to avoid.
-    let w = weighting::<f32>(&[1, 1, 2, 1]);
+    let w = weighting::<T>(&[1, 1, 2, 1]);
 
     gradcheck(&[image], |v| {
         let sampled =
-            linear_interpolation::<2, _, _>(&v[0], &Var::new(grid.clone(), false), Replicate)
+            linear_interpolation::<2, _, _, _>(&v[0], &Var::new(grid.clone(), false), Replicate)
                 .expect("invariant: valid interpolation fixture completes forward");
         weighted(&sampled, &w)
     })
@@ -242,5 +245,6 @@ fn linear_interpolation_case() {
 
 #[test]
 fn linear_interpolation_backward_matches_finite_differences() {
-    linear_interpolation_case();
+    linear_interpolation_case::<f64>();
+    linear_interpolation_case::<f32>();
 }

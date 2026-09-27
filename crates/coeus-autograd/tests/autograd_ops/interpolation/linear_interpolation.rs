@@ -18,7 +18,7 @@ fn three_dimensional_backward_matches_analytical_derivatives() {
         Tensor::from_slice_on([1, 3, 1, 1, 1], &[0.5, 0.5, 0.5], &backend),
         true,
     );
-    let sampled = linear_interpolation::<3, _, _>(&image, &grid, Replicate)
+    let sampled = linear_interpolation::<3, _, _, _>(&image, &grid, Replicate)
         .expect("valid three-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[3.5]);
     sum(&sampled)
@@ -45,7 +45,7 @@ fn two_dimensional_backward_matches_analytical_derivatives() {
         Tensor::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend),
         true,
     );
-    let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
+    let sampled = linear_interpolation::<2, _, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[1.25]);
     sum(&sampled)
@@ -72,7 +72,7 @@ fn constant_image_has_zero_coordinate_gradient() {
         Tensor::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend),
         true,
     );
-    let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
+    let sampled = linear_interpolation::<2, _, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     sum(&sampled)
         .backward()

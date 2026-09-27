@@ -1,7 +1,7 @@
 //! Differentiable dimension-generic coordinate-grid interpolation.
 
 use crate::{grad_buffer::GradBuffer, node::BackwardNode, var::Var};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_ops::{
     linear_interpolation_backward, BoundaryPolicy, Dimension, InterpolationError, Replicate,
     SupportedDimension,
@@ -10,47 +10,49 @@ use coeus_tensor::Tensor;
 use std::{marker::PhantomData, sync::Arc};
 
 /// Reverse-mode node for linear sampling.
-pub struct LinearInterpolationNode<const D: usize, B, P = Replicate>
+pub struct LinearInterpolationNode<const D: usize, T, B, P = Replicate>
 where
-    B: Backend + coeus_ops::BackendOps<f32> + Default,
+    T: Float,
+    B: Backend + coeus_ops::BackendOps<T> + Default,
     P: BoundaryPolicy,
 {
     /// Accumulated output gradient.
-    pub output_grad: Arc<GradBuffer<f32, B>>,
+    pub output_grad: Arc<GradBuffer<T, B>>,
     /// Image and sampling-grid variables.
-    pub inputs: Vec<Var<f32, B>>,
+    pub inputs: Vec<Var<T, B>>,
     /// Saved image values required by the coordinate derivative.
-    pub image: Tensor<f32, B>,
+    pub image: Tensor<T, B>,
     /// Saved sampling coordinates required by both derivatives.
-    pub grid: Tensor<f32, B>,
+    pub grid: Tensor<T, B>,
     policy: PhantomData<P>,
 }
 
-impl<const D: usize, B, P> BackwardNode<f32, B> for LinearInterpolationNode<D, B, P>
+impl<const D: usize, T, B, P> BackwardNode<T, B> for LinearInterpolationNode<D, T, B, P>
 where
-    B: Backend + coeus_ops::BackendOps<f32> + Default,
+    T: Float,
+    B: Backend + coeus_ops::BackendOps<T> + Default,
     P: BoundaryPolicy + Send + Sync + 'static,
     Dimension<D>: SupportedDimension,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     fn op_name(&self) -> &'static str {
         "linear_interpolation"
     }
 
-    fn output_grad(&self) -> &Arc<GradBuffer<f32, B>> {
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
         &self.output_grad
     }
 
-    fn inputs(&self) -> &[Var<f32, B>] {
+    fn inputs(&self) -> &[Var<T, B>] {
         &self.inputs
     }
 
     fn backward(
         &self,
-        grad_out: &Tensor<f32, B>,
-        input_grads: &[Option<Arc<GradBuffer<f32, B>>>],
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
-        let updates = linear_interpolation_backward::<D, _, P>(
+        let updates = linear_interpolation_backward::<D, T, _, P>(
             &self.image,
             &self.grid,
             grad_out,
@@ -81,18 +83,20 @@ where
 ///
 /// Returns [`InterpolationError`] when image or grid shape violates the
 /// dimension-generic interpolation contract.
-pub fn linear_interpolation<const D: usize, B, P>(
-    image: &Var<f32, B>,
-    grid: &Var<f32, B>,
+pub fn linear_interpolation<const D: usize, T, B, P>(
+    image: &Var<T, B>,
+    grid: &Var<T, B>,
     policy: P,
-) -> Result<Var<f32, B>, InterpolationError>
+) -> Result<Var<T, B>, InterpolationError>
 where
-    B: Backend + coeus_ops::BackendOps<f32> + Default,
+    T: Float,
+    B: Backend + coeus_ops::BackendOps<T> + Default,
     P: BoundaryPolicy + Send + Sync + 'static,
     Dimension<D>: SupportedDimension,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let output = coeus_ops::linear_interpolation::<D, _, P>(&image.tensor, &grid.tensor, policy)?;
+    let output =
+        coeus_ops::linear_interpolation::<D, T, _, P>(&image.tensor, &grid.tensor, policy)?;
     let requires_grad =
         crate::grad_mode::should_track_var(image) || crate::grad_mode::should_track_var(grid);
     if !requires_grad {
@@ -104,7 +108,7 @@ where
         output,
         requires_grad,
         &backend,
-        |output_grad| LinearInterpolationNode::<D, B, P> {
+        |output_grad| LinearInterpolationNode::<D, T, B, P> {
             output_grad,
             inputs: vec![image.clone(), grid.clone()],
             image: image.tensor.clone(),
