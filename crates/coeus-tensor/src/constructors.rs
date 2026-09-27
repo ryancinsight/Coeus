@@ -2,7 +2,7 @@
 // Factory functions for creating tensors.
 
 use crate::tensor::Tensor;
-use coeus_core::{ComputeBackend, CpuAddressableStorageMut, Scalar, Shape};
+use coeus_core::{ComputeBackend, CpuAddressableStorageMut, Float, Scalar, Shape};
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
 where
@@ -23,28 +23,16 @@ where
         Self::eye_on(n, &B::default())
     }
 
-    /// Linspace: n evenly spaced values from start to end (inclusive).
-    #[inline]
-    pub fn linspace(start: T, end: T, n: usize) -> Self {
-        Self::linspace_on(start, end, n, &B::default())
-    }
-
     /// Arange: values from [0, n) with step 1.
     #[inline]
     pub fn arange(n: usize) -> Self {
         Self::arange_on(n, &B::default())
     }
 
-    /// Logspace: `n` values from `base^start` to `base^end` (inclusive).
+    /// Linspace: n evenly spaced values from start to end (inclusive).
     #[inline]
-    pub fn logspace(start: T, end: T, n: usize, base: T) -> Self {
-        Self::logspace_on(start, end, n, base, &B::default())
-    }
-
-    /// Geometric progression: `n` values from `start` to `end` (inclusive).
-    #[inline]
-    pub fn geomspace(start: T, end: T, n: usize) -> Self {
-        Self::geomspace_on(start, end, n, &B::default())
+    pub fn linspace(start: T, end: T, n: usize) -> Self {
+        Self::linspace_on(start, end, n, &B::default())
     }
 }
 
@@ -78,23 +66,6 @@ where
         Self::from_slice_on([n, n], &values, backend)
     }
 
-    /// Linspace: n evenly spaced values from start to end (inclusive) on the given backend.
-    #[inline]
-    pub fn linspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
-        let start_f = <T as Scalar>::to_f64(start);
-        let end_f = <T as Scalar>::to_f64(end);
-        let step = if n > 1 {
-            (end_f - start_f) / (n - 1) as f64
-        } else {
-            0.0
-        };
-        let values = coeus_leto::from_shape_fn_values(&[n], |index| {
-            <T as Scalar>::from_f64(start_f + step * index[0] as f64)
-        })
-        .expect("coeus-leto linspace generation failed");
-        Self::from_slice_on([n], &values, backend)
-    }
-
     /// Arange: values from [0, n) with step 1 on the given backend.
     #[inline]
     pub fn arange_on(n: usize, backend: &B) -> Self {
@@ -103,20 +74,54 @@ where
         Self::from_slice_on([n], &values, backend)
     }
 
+    /// Linspace: n evenly spaced values from start to end (inclusive) on the given backend.
+    ///
+    /// Computes natively in `T` (no `f64` widen-compute-narrow detour); valid
+    /// for any [`Scalar`], including integer types (exact-division steps).
+    #[inline]
+    pub fn linspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
+        let step = if n > 1 {
+            (end - start) / T::from_usize(n - 1)
+        } else {
+            T::zero()
+        };
+        let values =
+            coeus_leto::from_shape_fn_values(&[n], |index| start + step * T::from_usize(index[0]))
+                .expect("coeus-leto linspace generation failed");
+        Self::from_slice_on([n], &values, backend)
+    }
+}
+
+impl<T: Float, B: ComputeBackend + Default> Tensor<T, B>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    /// Logspace: `n` values from `base^start` to `base^end` (inclusive).
+    #[inline]
+    pub fn logspace(start: T, end: T, n: usize, base: T) -> Self {
+        Self::logspace_on(start, end, n, base, &B::default())
+    }
+
+    /// Geometric progression: `n` values from `start` to `end` (inclusive).
+    #[inline]
+    pub fn geomspace(start: T, end: T, n: usize) -> Self {
+        Self::geomspace_on(start, end, n, &B::default())
+    }
+
     /// Logspace: `n` values from `base^start` to `base^end` (inclusive)
     /// on the given backend.
+    ///
+    /// Computes natively in `T` (no `f64` widen-compute-narrow detour).
     #[inline]
     pub fn logspace_on(start: T, end: T, n: usize, base: T, backend: &B) -> Self {
-        let start_f = <T as Scalar>::to_f64(start);
-        let end_f = <T as Scalar>::to_f64(end);
-        let base_f = <T as Scalar>::to_f64(base);
+        let n_minus_1 = T::from_usize(if n > 1 { n - 1 } else { 1 });
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
             let exp = if n > 1 {
-                start_f + (end_f - start_f) * index[0] as f64 / (n - 1) as f64
+                start + (end - start) * T::from_usize(index[0]) / n_minus_1
             } else {
-                start_f
+                start
             };
-            <T as Scalar>::from_f64(base_f.powf(exp))
+            base.powf(exp)
         })
         .expect("coeus-leto logspace generation failed");
         Self::from_slice_on([n], &values, backend)
@@ -125,34 +130,34 @@ where
     /// Geometric progression: `n` values from `start` to `end` (inclusive)
     /// on the given backend.
     ///
-    /// Requires non-zero endpoints with the same sign.
+    /// Requires non-zero endpoints with the same sign. Computes natively in
+    /// `T` (no `f64` widen-compute-narrow detour).
     #[inline]
     pub fn geomspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
-        let start_f = <T as Scalar>::to_f64(start);
-        let end_f = <T as Scalar>::to_f64(end);
+        let zero = T::zero();
         assert!(
-            start_f != 0.0 && end_f != 0.0,
+            start != zero && end != zero,
             "geomspace requires non-zero start/end"
         );
         assert!(
-            start_f.signum() == end_f.signum(),
+            Float::signum(start) == Float::signum(end),
             "geomspace requires start/end to have the same sign"
         );
-        let sign = start_f.signum();
-        let start_abs = start_f.abs();
-        let end_abs = end_f.abs();
+        let sign = Float::signum(start);
+        let start_abs = Float::abs(start);
+        let end_abs = Float::abs(end);
+        let one = T::one();
         let ratio = if n > 1 {
-            (end_abs / start_abs).powf(1.0 / (n - 1) as f64)
+            Float::powf(end_abs / start_abs, one / T::from_usize(n - 1))
         } else {
-            1.0
+            one
         };
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
-            let value = if n > 1 {
-                sign * start_abs * ratio.powf(index[0] as f64)
+            if n > 1 {
+                sign * start_abs * ratio.powf(T::from_usize(index[0]))
             } else {
-                start_f
-            };
-            <T as Scalar>::from_f64(value)
+                start
+            }
         })
         .expect("coeus-leto geomspace generation failed");
         Self::from_slice_on([n], &values, backend)

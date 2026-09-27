@@ -6,12 +6,13 @@
 // all other `coeus-ops` free functions (`matmul`, `dot`, `topk`, …).
 
 use crate::BackendOps;
-use coeus_core::{CpuAddressableStorageMut, Float, Scalar};
+use coeus_core::{CpuAddressableStorageMut, Float};
 use coeus_tensor::Tensor;
 
 /// `n` evenly-spaced values from `start` to `end` (inclusive) on `backend`.
 ///
 /// Equivalent to `numpy.linspace(start, end, n)` / `torch.linspace(start, end, n)`.
+/// Delegates to [`Tensor::linspace_on`], the one native-`T` implementation.
 ///
 /// # Panics
 /// Panics if `n == 0` (matches NumPy / PyTorch behaviour — zero-element
@@ -27,23 +28,14 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     assert!(n > 0, "linspace: n must be > 0");
-    let start_f = <T as Scalar>::to_f64(start);
-    let end_f = <T as Scalar>::to_f64(end);
-    let step = if n > 1 {
-        (end_f - start_f) / (n - 1) as f64
-    } else {
-        0.0
-    };
-    let values: Vec<T> = (0..n)
-        .map(|i| <T as Scalar>::from_f64(start_f + step * i as f64))
-        .collect();
-    Tensor::from_slice_on(vec![n], &values, backend)
+    Tensor::linspace_on(start, end, n, backend)
 }
 
 /// `n` values from `base^start` to `base^end` (inclusive) on `backend`.
 ///
 /// Equivalent to `numpy.logspace(start, end, n, base=base)` /
 /// `torch.logspace(start, end, n, base)`.
+/// Delegates to [`Tensor::logspace_on`], the one native-`T` implementation.
 ///
 /// # Panics
 /// Panics if `n == 0`.
@@ -59,25 +51,13 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     assert!(n > 0, "logspace: n must be > 0");
-    let start_f = <T as Scalar>::to_f64(start);
-    let end_f = <T as Scalar>::to_f64(end);
-    let base_f = <T as Scalar>::to_f64(base);
-    let values: Vec<T> = (0..n)
-        .map(|i| {
-            let exp = if n > 1 {
-                start_f + (end_f - start_f) * i as f64 / (n - 1) as f64
-            } else {
-                start_f
-            };
-            <T as Scalar>::from_f64(base_f.powf(exp))
-        })
-        .collect();
-    Tensor::from_slice_on(vec![n], &values, backend)
+    Tensor::logspace_on(start, end, n, base, backend)
 }
 
 /// `n` geometrically-spaced values from `start` to `end` (inclusive) on `backend`.
 ///
 /// Equivalent to `numpy.geomspace(start, end, n)`.
+/// Delegates to [`Tensor::geomspace_on`], the one native-`T` implementation.
 ///
 /// # Panics
 /// Panics if `n == 0`, if either endpoint is zero, or if they have opposite signs.
@@ -92,34 +72,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     assert!(n > 0, "geomspace: n must be > 0");
-    let start_f = <T as Scalar>::to_f64(start);
-    let end_f = <T as Scalar>::to_f64(end);
-    assert!(
-        start_f != 0.0 && end_f != 0.0,
-        "geomspace: start and end must be non-zero"
-    );
-    assert!(
-        start_f.signum() == end_f.signum(),
-        "geomspace: start and end must have the same sign"
-    );
-    let sign = start_f.signum();
-    let start_abs = start_f.abs();
-    let end_abs = end_f.abs();
-    let ratio = if n > 1 {
-        (end_abs / start_abs).powf(1.0 / (n - 1) as f64)
-    } else {
-        1.0
-    };
-    let values: Vec<T> = (0..n)
-        .map(|i| {
-            if n == 1 {
-                start
-            } else {
-                <T as Scalar>::from_f64(sign * start_abs * ratio.powf(i as f64))
-            }
-        })
-        .collect();
-    Tensor::from_slice_on(vec![n], &values, backend)
+    Tensor::geomspace_on(start, end, n, backend)
 }
 
 #[cfg(test)]
