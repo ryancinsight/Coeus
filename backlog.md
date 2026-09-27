@@ -351,3 +351,13 @@ verification, tightening, feature}.
 - Blocker: hephaestus PadOps seam not yet merged upstream (re-open trigger: hephaestus-core PadOps<D,T> lands).
 - Scope: `coeus-hephaestus` padding call sites.
 - Acceptance: coeus-hephaestus padding routes through the upstream seam; no duplicated padding logic remains locally.
+
+<a id="coeus-scatter-add-alloc-ci-only"></a>
+## COEUS-SCATTER-ADD-ALLOC-CI-ONLY — scatter_add allocation-count regression on hosted CI only
+
+- Status: todo; priority: correctness; [patch]; owner: unclaimed.
+- Outcome: `scatter_add_allocation_count_is_independent_of_index_size` (coeus-ops/tests/alloc_budget.rs) passes on hosted CI, not only locally.
+- Evidence: hosted `Tests` job on PR #425 (run 36285453725, job 108526331877) fails with small=6, large=10 allocations for shapes [4,8,4]/[16,32,16]; reproduced locally on Windows with the identical revision and the same nextest invocation and it PASSES (1 passed; 0 failed). This is a landed, pre-existing defect on `main` (predates every PR in this session's reconciliation) — `main` at the failing revision was `db144251`, before any of PRs 421-428 merged.
+- Investigated and ruled out: `scatter_add`'s own flat-index loop is allocation-free by design (no per-element or per-slice buffer, per its own code comment); `Tensor::alloc_on`/`CpuStorage::allocate` are single-call allocations independent of `numel`. The divergence is Linux-CI-only, suggesting an allocator- or SIMD-dispatch-path difference (e.g. a size-threshold in `to_contiguous()`, `hermes-simd`, or a moirai/leto dependency) not yet isolated.
+- Next step: reproduce on a Linux runner (`act` or a scheduled CI debug job with `RUST_BACKTRACE=1` and allocation-site logging), or bisect `to_contiguous()`/`hermes-simd` dispatch thresholds against the two shapes.
+- Blocks: PR #425 and any other PR whose `Tests` job runs the full workspace suite on hosted CI.
