@@ -251,3 +251,103 @@ verification, tightening, feature}.
 - Acceptance: verified against an analytical oracle with a known minimum and against a published test-problem set; convergence criterion is a derived relative-residual bound, never a fixed iteration count.
 - Next step: draft the batched Jacobian/normal-equations layout (SoA over the batch axis) and its `Scalar`-generic contract before implementation.
 - Links: meta ATLAS-COEUS-NLLS-004.
+
+<a id="coeus-linspace-fake-generic"></a>
+## COEUS-LINSPACE-FAKE-GENERIC — Native-T linspace/logspace/geomspace
+
+- Status: todo; priority: correctness; [patch]; owner: unclaimed.
+- Outcome: `linspace`/`logspace`/`geomspace` compute in `T: Scalar` natively; no `to_f64`/`from_f64` widen-compute-narrow.
+- Scope: `coeus-ops/src/constructors.rs:20-118`, `coeus-tensor/src/constructors.rs:84-155` (duplicated implementation — consolidate to one).
+- Acceptance: `cargo asm`/source review shows no `f64` intermediate for `f32` instantiation; value-semantic test against analytical endpoints/ratios per dtype.
+- Next step: derive the native-T step/ratio formula, implement once, delete the duplicate.
+
+<a id="coeus-expect-swallowed-results"></a>
+## COEUS-EXPECT-SWALLOWED-RESULTS — Propagate typed errors instead of `.expect()`
+
+- Status: todo; priority: correctness; [patch]; owner: unclaimed.
+- Outcome: public elementwise ops and device/alloc paths return typed `Result` instead of panicking via `.expect()` on backend/allocator failure.
+- Scope: `coeus-ops/src/unary/math.rs` (69 ops via `.expect("<opname>")`), `coeus-autograd/src/ops/activation/{ext,gelu,math}.rs`, `coeus-cuda/src/backend/mod.rs:21,101-120`, `coeus-hephaestus/src/storage.rs:56,63`, `coeus-hephaestus/src/reduction.rs:279,285`, `coeus-tensor/src/tensor.rs:438,452`, `coeus-core/src/storage/cpu.rs:131`.
+- Acceptance: no bare `.expect()` on backend-Result in listed files; failure surfaces as a typed error to the caller; existing behavior tests still pass.
+- Next step: start with `coeus-ops/src/unary/math.rs` (highest count), thread the `Result` through its callers.
+
+<a id="coeus-einsum-panic"></a>
+## COEUS-EINSUM-PANIC — einsum rejects invalid subscripts via typed error
+
+- Status: todo; priority: correctness; [patch]; owner: unclaimed.
+- Outcome: caller-supplied einsum subscript strings that are malformed or mismatched no longer panic.
+- Scope: `coeus-autograd/src/ops/shape/util/einsum.rs:87,207`.
+- Acceptance: a negative test with a malformed subscript returns a typed error, never panics.
+- Next step: replace the panicking parse/validation with a typed error path.
+
+<a id="coeus-gradcheck-generic-scalar"></a>
+## COEUS-GRADCHECK-GENERIC-SCALAR — Generic finite-difference gradcheck over f32/f64
+
+- Status: todo; priority: verification; [patch]; owner: unclaimed.
+- Outcome: the finite-difference gradient-check harness is one generic function/macro instantiated per scalar type (f32 and f64), each with its own analytically derived tolerance, not an f64-only harness.
+- Scope: coeus-autograd's gradcheck test infrastructure.
+- Acceptance: existing f64 gradcheck coverage still passes; f32 instantiation runs with an f32-appropriate tolerance derived from step size and precision.
+- Next step: parameterize the harness's step size and tolerance by `T::EPSILON`, add the f32 instantiation.
+
+<a id="coeus-gradcheck-missing-ops"></a>
+## COEUS-GRADCHECK-MISSING-OPS — Fill finite-difference gradient-check gaps
+
+- Status: todo; priority: verification; [minor]; owner: unclaimed.
+- Outcome: every differentiable op has a finite-difference gradient-check test (depends on COEUS-GRADCHECK-GENERIC-SCALAR landing first).
+- Scope: add/sub/div/remainder/maximum/minimum/neg, all pooling ops, conv1d/conv3d/conv_transpose1d/2d/3d, fold/unfold, cross_entropy, ctc, dropout (mask-fixed), embedding, sparse_matmul/sparse_matmul_coo, transpose_2d, index_put, rotate_half, linear_interpolation.
+- Needs: COEUS-GRADCHECK-GENERIC-SCALAR.
+- Acceptance: each listed op has a passing FD gradcheck against its analytical Jacobian within the derived tolerance.
+- Next step: work the list in dependency-free batches (e.g. arithmetic ops first, since they share the harness shape).
+
+<a id="coeus-existence-only-nn-tests"></a>
+## COEUS-EXISTENCE-ONLY-NN-TESTS — Value-semantic nn test assertions
+
+- Status: todo; priority: verification; [patch]; owner: unclaimed.
+- Outcome: nn tests assert value-semantic correctness against an analytical reference, not existence/shape only.
+- Scope: `coeus-nn` batch_norm tests (`batch_norm.rs:5-15,35-37,143-145`), `nn_normalization_tests.rs` (group/instance norm), attention `tests.rs:52-75,181-200`.
+- Acceptance: each listed test asserts a computed numeric value against a derived reference, not only `Ok`/shape.
+- Next step: derive the analytical reference (e.g. hand-computed normalization on a small fixture) for each listed test group.
+
+<a id="coeus-dot-cross-host-copy"></a>
+## COEUS-DOT-CROSS-HOST-COPY — Device-resident dot/cross on accelerator backends
+
+- Status: blocked; priority: tightening; [patch]; owner: unclaimed.
+- Outcome: `dot`/`cross` on accelerator backends stay device-resident instead of copying both operands to host.
+- Scope: `coeus-ops/src/reduction/linalg.rs`.
+- Blocker: hephaestus is adding device dot/cross; bind to it once it lands (re-open trigger: hephaestus device dot/cross merges).
+- Acceptance: no host round-trip for accelerator dot/cross; differential test against the CPU reference.
+
+<a id="coeus-python-elementwise-dedup"></a>
+## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
+
+- Status: todo; priority: tightening; [patch]; owner: unclaimed.
+- Outcome: one generic entry point for elementwise op bindings instead of 28 duplicated wrappers.
+- Scope: `coeus-python/src/ops/elementwise.rs` vs `pytensor.rs`.
+- Acceptance: one shared dispatch path; binding-level pytest suite still passes.
+- Next step: extract the common per-op call pattern into a macro or generic helper (pytensor.rs is already the split target: 933 lines, see COEUS-OVERSIZED-FILES).
+
+<a id="coeus-oversized-files"></a>
+## COEUS-OVERSIZED-FILES — Split files past the 500-line target
+
+- Status: todo; priority: tightening; [patch]; owner: unclaimed.
+- Outcome: the 14 files currently over 500 lines (worst: `pytensor.rs` 933) split into leaf modules by operation family.
+- Scope: repo-wide scan (`coeus-python/src/tensor/pyimpl/pytensor.rs` first).
+- Acceptance: each split file's module retains domain cohesion; no file regresses over 500 lines.
+- Next step: split `pytensor.rs` first since COEUS-PYTHON-ELEMENTWISE-DEDUP touches it anyway.
+
+<a id="coeus-cuda-safety-comment"></a>
+## COEUS-CUDA-SAFETY-COMMENT — Correct misleading SAFETY comment on CudaBackend::parallel_for
+
+- Status: todo; priority: correctness; [patch]; owner: unclaimed.
+- Outcome: the `# Safety`/`// SAFETY:` comment on `CudaBackend::parallel_for` accurately states the invariants it relies on.
+- Scope: coeus-cuda backend `parallel_for`.
+- Acceptance: comment reviewed against the actual unsafe preconditions; miri/sanitizer coverage unaffected.
+- Next step: re-derive the actual safety obligation from the call site and rewrite the comment.
+
+<a id="coeus-hephaestus-padops-adoption"></a>
+## COEUS-HEPHAESTUS-PADOPS-ADOPTION — Adopt hephaestus's PadOps<D, T> seam
+
+- Status: blocked; priority: architecture; [patch]; owner: unclaimed.
+- Outcome: `coeus-hephaestus` consumes hephaestus-core's `PadOps<D, T>` seam once merged, instead of any local padding duplication.
+- Blocker: hephaestus PadOps seam not yet merged upstream (re-open trigger: hephaestus-core PadOps<D,T> lands).
+- Scope: `coeus-hephaestus` padding call sites.
+- Acceptance: coeus-hephaestus padding routes through the upstream seam; no duplicated padding logic remains locally.
