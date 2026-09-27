@@ -363,12 +363,3 @@ verification, tightening, feature}.
 - Acceptance: every listed op has a generic FD check instantiated at both types; all 11 existing files are dual-instantiated; a check that fails at `f32` under gradcheck's own derived `ε^(2/3)` bound is root-caused, never given a widened tolerance.
 - Next step: convert `activation.rs` next (largest remaining, ~50 tests) then `losses`/`reduction`/`shape`, each its own PR; then the remaining missing-coverage ops as dependency-ordered per-family PRs.
 
-<a id="coeus-autograd-linear-interpolation-generic-scalar"></a>
-## COEUS-AUTOGRAD-LINEAR-INTERPOLATION-GENERIC-SCALAR — Generalize linear_interpolation over T: Float
-
-- Status: todo; priority: tightening; [patch]; owner: unclaimed.
-- Outcome: `linear_interpolation`/`linear_interpolation_backward` in `coeus-autograd` and `coeus-ops` take `Var<T, B>`/`Tensor<T, B>` for `T: Float` instead of being pinned to `f32` end-to-end, matching the variation-first-authorship standard every other autograd op in this crate already follows.
-- Scope: `crates/coeus-ops/src/interpolation.rs::linear_interpolation`/`linear_interpolation_backward` and `crates/coeus-autograd/src/ops/interpolation.rs::linear_interpolation` hardcode `f32` in every signature (`image: &Var<f32, B>`, `grid: &Var<f32, B>`); `BoundaryPolicy::neighbours` also hardcodes `f32` coordinates. Found while adding this op's finite-difference gradcheck coverage (`COEUS-GRADCHECK-DUAL-COVERAGE`): the check could only be written at `f32`, the sole instantiation that compiles, rather than choosing `f32` as one of two.
-- Acceptance: `linear_interpolation` is generic over `T: Float` (or the minimal bound the interpolation math needs); existing `f32` callers and tests are unaffected; `crates/coeus-autograd/tests/autograd/gradcheck/new_ops.rs::linear_interpolation_backward_matches_finite_differences` extends to a generic `<T: GradcheckScalar>` case function instantiated at both `f64` and `f32`, following this module's established pattern.
-- Non-goal: changing `BoundaryPolicy`'s trait shape beyond making its coordinate type generic; adding new boundary policies.
-- Next step: generalize `BoundaryPolicy::neighbours`'s coordinate parameter over `T: Float` first (the narrowest dependency), then the two `linear_interpolation` call chains, then extend the gradcheck.
