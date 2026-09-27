@@ -240,3 +240,14 @@ verification, tightening, feature}.
 - Delivered: Moirai/Mnemosyne/Themis imports bind to their published packages (no `rev =` pin — verified in `Cargo.toml`); the exact external lock graph is refreshed after the Apollo/Hephaestus/Moirai/Mnemosyne merges it depended on.
 - Residual: exact-head provider CI on the release-preparation branch, then publish in dependency order through Trusted Publishing (engineering_gates: publish pipelines).
 - Next step: run the hosted gate on the release branch, then execute the publish sequence.
+
+<a id="coeus-nlls-004"></a>
+## COEUS-NLLS-004 — Batched nonlinear least squares for diffusion fitting
+
+- Status: todo; priority: feature; [minor]; owner: unclaimed.
+- Outcome: `coeus-optim` gains a damped Gauss-Newton (or equivalent second-order) nonlinear least-squares optimizer batched over a leading problem axis, for per-voxel diffusion fitting (millions of independent small dense residual problems) where the shipped first-order optimizers (SGD/Adam/AdamW/RMSProp/Adagrad) are the wrong instrument by orders of magnitude.
+- Scope: `crates/coeus-optim`; non-goal: log-linear DTI (already routes through `leto-ops`).
+- Blocks: DKI, NODDI, IVIM, free-water, and every other nonlinear diffusion model.
+- Acceptance: verified against an analytical oracle with a known minimum and against a published test-problem set; convergence criterion is a derived relative-residual bound, never a fixed iteration count.
+- Next step: draft the batched Jacobian/normal-equations layout (SoA over the batch axis) and its `Scalar`-generic contract before implementation.
+- Links: meta ATLAS-COEUS-NLLS-004.
