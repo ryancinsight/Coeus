@@ -195,7 +195,8 @@ fn test_einsum3_matmul_chain_backward() {
         true,
     );
 
-    let y = coeus_autograd::einsum3("ij,jk,kl->il", &a, &b, &c);
+    let y =
+        coeus_autograd::einsum3("ij,jk,kl->il", &a, &b, &c).expect("valid einsum3 test subscript");
     assert_eq!(y.tensor.shape(), &[2, 2]);
     assert_eq!(y.tensor.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
 
