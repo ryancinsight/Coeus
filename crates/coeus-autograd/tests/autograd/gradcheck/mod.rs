@@ -78,15 +78,13 @@ use coeus_core::MoiraiBackend;
 use coeus_core::{CpuAddressableStorage, Float};
 use coeus_tensor::Tensor;
 
-/// The backend every check in this module differentiates against.
-///
-/// `MoiraiBackend` is the CPU reference backend; accelerator backends are
-/// covered by the differential parity suites (`standards`: Differential
-/// Verification), which compare a fixed scalar type across backends rather
-/// than a fixed backend across scalar types.
-pub type T64 = Tensor<f64, MoiraiBackend>;
-
 /// Bound shared by every scalar type this module instantiates checks at.
+///
+/// `MoiraiBackend` is the CPU reference backend every check in this module
+/// differentiates against; accelerator backends are covered by the
+/// differential parity suites (`standards`: Differential Verification),
+/// which compare a fixed scalar type across backends rather than a fixed
+/// backend across scalar types.
 ///
 /// `CpuAddressableStorage` is required by [`fn@coeus_autograd::gradcheck`]
 /// itself to read perturbed values back off the backend; naming it here once
