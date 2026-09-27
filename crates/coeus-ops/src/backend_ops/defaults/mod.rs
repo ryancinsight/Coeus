@@ -7,5 +7,6 @@
 // method signature.  Trait default methods delegate to these free functions
 // so backends that override the method are unaffected.
 
+pub mod cross;
 pub mod matmul;
 pub mod reductions;

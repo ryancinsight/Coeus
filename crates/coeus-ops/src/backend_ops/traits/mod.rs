@@ -18,6 +18,7 @@
 //! - [`MatmulOps`] — matmul, batched matmul, accumulate variants
 //! - [`ReductionOps`] — reduce, argmax/argmin, topk, cumulative sum/product scans
 //! - [`ConvOps`] — regular convolution and 1D/2D transposed convolution
+//! - [`CrossOps`] — per-channel 3-vector cross product
 //! - [`PoolOps`] — max/avg pool 1D/2D/3D forward+backward
 //! - [`AttentionOps`] — scaled dot-product attention forward+backward
 //! - [`CrossEntropyOps`] — mean classification loss and additive backward
@@ -31,6 +32,8 @@
 
 pub mod attention;
 pub mod conv;
+/// Per-channel 3-vector cross product capability.
+pub mod cross;
 pub mod cross_entropy;
 pub mod ctc;
 pub mod elementwise;
@@ -47,6 +50,7 @@ pub mod unfold_fold;
 
 pub use attention::{AttentionOps, AttentionScalar};
 pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
+pub use cross::CrossOps;
 pub use cross_entropy::CrossEntropyOps;
 pub use ctc::{CtcBatch, CtcOps};
 pub use elementwise::{ElementwiseOps, ScalarPowerOps};

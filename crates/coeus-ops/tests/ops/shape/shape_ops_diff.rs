@@ -284,7 +284,7 @@ where
 
 fn check_cross<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f64> + Default,
+    B: coeus_ops::BackendOps<f64> + coeus_ops::CrossOps<f64> + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     // [1,0,0] x [0,1,0] = [0,0,1] (e1 x e2 = e3)
@@ -317,7 +317,7 @@ where
 
 fn check_all<B>(backend: &B)
 where
-    B: coeus_ops::BackendOps<f64> + Default,
+    B: coeus_ops::BackendOps<f64> + coeus_ops::CrossOps<f64> + Default,
     B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
 {
     check_flip(backend);
