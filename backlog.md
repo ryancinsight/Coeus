@@ -20,11 +20,11 @@ verification, tightening, feature}.
 
 - Status: todo; priority: correctness; [major] [arch].
 - Outcome: provider failures reach callers without input-dependent panics for shared unary autograd execution.
-- Scope: shared unary autograd execution and its Rust/Python callers.
+- Scope: `UnaryAutogradOp::forward`/`backward` (`coeus-autograd/src/ops/activation/mod.rs`), `unary_op`, and their ~44 implementors' public wrappers (macro-emitted and hand-written) across `coeus-autograd`, `coeus-nn`, `coeus-python`. Confirmed by falsification, not estimate: an unpushed, since-reverted attempt at widening `coeus-ops`'s unary functions alone broke `coeus-autograd` at exactly these 44 call sites — `UnaryAutogradOp` is infallible by trait contract even though the lower `BackwardNode::backward` already returns `Result`.
 - Acceptance: complete caller migration, typed failure/gradient tests, full native/device gates, SemVer classification with an updated ADR.
-- Needs: [fallible tensor storage](#coeus-fallible-tensor-storage) — its allocation/COW cutover must include the unary, derivative arithmetic and NN/Python callers it makes fallible.
+- Needs: [fallible tensor storage](#coeus-fallible-tensor-storage) — its allocation/COW cutover must include the unary, derivative arithmetic and NN/Python callers it makes fallible; landing unary first would touch the same ~44 signatures twice.
 - Non-goal: resurrect superseded dependency pins or storage implementations.
-- Next step: reserve a forward ADR (0042/0045 cover backward/module contracts only); wrap unary results after fallible storage lands.
+- Next step: [ADR 0076](adr/0076-fallible-unary-autograd-execution.md) (Proposed) drafts the recommended migration order and rejected alternatives; implement per it once `COEUS-FALLIBLE-TENSOR-STORAGE` lands.
 
 <a id="coeus-fallible-index-reduction"></a>
 ## COEUS-FALLIBLE-INDEX-REDUCTION — Return index-reduction failures
@@ -352,3 +352,13 @@ verification, tightening, feature}.
 - Critical finding: this is FLAKY on hosted CI, not a deterministic regression. `main`'s own push-triggered `CI` run at the identical commit (`db144251`, run 36286664346, job 108528635313, 2026-09-27T02:03) shows this exact test **PASS**, while PR #425's `pull_request`-triggered run at essentially the same tree (run 36285453725, ~2026-09-27T01:46) shows it **FAIL** with small=6/large=10. Six concurrent copies of the compiled test binary, each pinned to a 2-core `ProcessorAffinity` mask, all pass locally (`multi_{0..5}.log`) — a scheduler-race reproduction attempt per the "two-core pinning reproduces CI scheduler flakes" pattern also did not reproduce. Per policy, a flaky test is root-caused, never silently retried: the counting allocator (`alloc_budget.rs`'s `#[global_allocator]`) is process-wide, so any concurrent or lazily-initialized background allocation (a `OnceLock`/thread-pool first-touch in a dependency, unrelated to `scatter_add` itself) racing with the small/large calls would produce exactly this nondeterministic +4 without any code-path difference in `scatter_add`.
 - Next step: add allocation-site attribution (capture a backtrace or a monotonic sequence id per counted allocation) to `alloc_budget.rs`'s global allocator so a failing run identifies *which* allocation is extra, rather than only the count; run that instrumented binary repeatedly on the hosted runner (matching its exact core count and load) until it flakes again.
 - Blocks: PR #425 and any other PR whose `Tests` job runs the full workspace suite on hosted CI.
+
+<a id="coeus-gradcheck-generic-instantiation"></a>
+## COEUS-GRADCHECK-GENERIC-INSTANTIATION — Generic-instantiation gradcheck coverage
+
+- Status: todo; priority: verification; [patch]; owner: unclaimed.
+- Outcome: every finite-difference check in `crates/coeus-autograd/tests/autograd/gradcheck/` runs at both `f64` (sensitivity oracle) and `f32` (instantiation coverage, per `standards`: Generic Instantiation Coverage), plus FD coverage for the ops that had none.
+- Delivered: `mod.rs`'s shared fixtures (`Sampler`, `tensor`, `weighting`, `weighted`) are generic over a new `GradcheckScalar` bound (`Float + leto_ops::Scalar` plus the `CpuAddressableStorage` bound gradcheck itself needs); the module doc states the two-role f64/f32 rationale. New FD coverage for `add`/`sub`/`div`/`remainder`/`maximum`/`minimum`/`neg` in `arithmetic.rs`, each one generic fn instantiated at both types from a single `#[test]` (never per-type-named tests). All 125 gradcheck tests pass (`cargo nextest run -p coeus-autograd --test autograd_ops -- gradcheck`).
+- Remaining: (1) convert the 7 existing check files (`activation`, `attention`, `core_ops`, `losses`, `normalization`, `reduction`, `shape`) from f64-only to dual-instantiation — this PR only added the mechanical `::<f64>` turbofish needed to keep them compiling against the now-generic helpers, it did not change what they test; (2) FD coverage still missing: `max_pool1d/2d/3d`, `avg_pool1d/2d/3d`, `conv1d/3d`, `conv_transpose1d/2d/3d`, `fold`/`unfold`, `ctc`, `dropout` (fixed mask), `sparse_matmul(_coo)`, `transpose_2d`, `index_put`, `rotate_half`, `linear_interpolation` (`cross_entropy` and `embedding` already have coverage in `losses.rs`).
+- Acceptance: every listed op has a generic FD check instantiated at both types; the 7 existing files are converted; a check that fails at `f32` under gradcheck's own derived `ε^(2/3)` bound is root-caused, never given a widened tolerance.
+- Next step: convert the 7 existing files to dual-instantiation (one PR, under the review budget); then add the missing-coverage ops as dependency-ordered per-family PRs (pooling, then conv, then the remainder).
