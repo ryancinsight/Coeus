@@ -1,7 +1,7 @@
 //! 3-D batch normalization (`[N, C, D, H, W]` inputs).
 //!
 //! [`BatchNorm3d`] is the fixed-rank alias for the generic
-//! [`BatchNorm`](super::batchnorm::BatchNorm) implementation.
+//! [`BatchNorm`](crate::normalization::batchnorm::BatchNorm) implementation.
 
 use coeus_core::MoiraiBackend;
 
@@ -11,5 +11,5 @@ use coeus_core::MoiraiBackend;
 /// Running stats are updated during each forward call.
 ///
 /// Alias for `BatchNorm<T, B, 3>`; see
-/// [`BatchNorm`](super::batchnorm::BatchNorm) for the shared implementation.
+/// [`BatchNorm`](crate::normalization::batchnorm::BatchNorm) for the shared implementation.
 pub type BatchNorm3d<T, B = MoiraiBackend> = super::batchnorm::BatchNorm<T, B, 3>;

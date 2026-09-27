@@ -1,7 +1,7 @@
 //! 1-D batch normalization (`[N, C]` or `[N, C, L]` inputs).
 //!
 //! [`BatchNorm1d`] is the fixed-rank alias for the generic
-//! [`BatchNorm`](super::batchnorm::BatchNorm) implementation.
+//! [`BatchNorm`](crate::normalization::batchnorm::BatchNorm) implementation.
 
 use coeus_core::MoiraiBackend;
 
