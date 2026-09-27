@@ -33,6 +33,8 @@ pub use loss::{
     smooth_l1_loss, soft_margin,
 };
 pub use masked_softmax::{causal_softmax, masked_softmax};
-pub use normalization::{batchnorm1d, batchnorm2d, batchnorm3d, layernorm, rmsnorm, BatchNormArgs};
+pub use normalization::{
+    batchnorm1d, batchnorm2d, batchnorm3d, batchnorm_nd, layernorm, rmsnorm, BatchNormArgs,
+};
 pub use pool::{avg_pool1d, avg_pool2d, avg_pool3d, max_pool1d, max_pool2d, max_pool3d};
 pub use softmax::{softmax, softmin};

@@ -1,3 +1,5 @@
+/// Generic N-dimensional batch normalization (shared implementation).
+pub mod batchnorm;
 /// Batch normalization for 1D inputs `[N, C, L]`.
 pub mod batchnorm1d;
 /// Batch normalization for 2D inputs `[N, C, H, W]`.

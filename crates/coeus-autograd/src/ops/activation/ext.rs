@@ -45,7 +45,11 @@ pub fn pack_pairs(low: f64, high: f64) -> u64 {
 // ── Hardtanh: y = clamp(x, min_val, max_val) ────────────────────────────────
 
 /// Compile-time spec for parameterized unary autograd operations.
-trait ParameterizedUnarySpec {
+///
+/// The spec is a zero-sized marker carried in the node only as a `PhantomData`,
+/// so the `Send + Sync` supertraits are the ones a zero-sized marker already
+/// satisfies; they are required because [`BackwardNode`] is itself `Send + Sync`.
+trait ParameterizedUnarySpec: Send + Sync {
     const OP_NAME: &'static str;
 
     fn forward(bits: u64) -> coeus_ops::UnaryOp;
