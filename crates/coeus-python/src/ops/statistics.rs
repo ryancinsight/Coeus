@@ -242,13 +242,15 @@ pub fn clip_grad_norm_(
             "clip_grad_norm_: max_norm must be positive, got {max_norm}"
         )));
     }
-    // Collect all gradient slices.
-    let mut grad_data: Vec<Vec<f64>> = Vec::new();
+    // Collect every gradient's values into one contiguous buffer: the global
+    // norm sums over all elements of all parameters, never indexed per row,
+    // so a flat Vec replaces the per-parameter Vec<Vec<f64>>.
+    let mut grad_data: Vec<f64> = Vec::new();
     for p in &parameters {
         let p_ref = p.bind(py).borrow();
         if let Some(g) = p_ref.inner.grad() {
             let cont = g.to_contiguous();
-            grad_data.push(cont.as_slice().to_vec());
+            grad_data.extend_from_slice(cont.as_slice());
         }
     }
     if grad_data.is_empty() {
@@ -256,18 +258,10 @@ pub fn clip_grad_norm_(
     }
     // Compute global norm.
     let global_norm = if (norm_type - 2.0).abs() < 1e-9 {
-        let sum_sq: f64 = grad_data
-            .iter()
-            .flat_map(|g| g.iter())
-            .map(|&v| v * v)
-            .sum();
+        let sum_sq: f64 = grad_data.iter().map(|&v| v * v).sum();
         sum_sq.sqrt()
     } else {
-        let sum_p: f64 = grad_data
-            .iter()
-            .flat_map(|g| g.iter())
-            .map(|&v| v.abs().powf(norm_type))
-            .sum();
+        let sum_p: f64 = grad_data.iter().map(|&v| v.abs().powf(norm_type)).sum();
         sum_p.powf(1.0 / norm_type)
     };
     // Scale if norm exceeds max_norm.
