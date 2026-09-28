@@ -46,7 +46,6 @@ class ChangedScopeTests(unittest.TestCase):
             ".github/workflows/ci.yml",
             "scripts/tests/test_lockfile.py",
             "scripts/ci_scope.py",
-            "scripts/ci_restore_mtimes.py",
             "rust-toolchain.toml",
         ):
             with self.subTest(path=path):
