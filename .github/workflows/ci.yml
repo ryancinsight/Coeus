@@ -3,7 +3,11 @@ name: CI
 # Device-specific contracts run in backend-parity.yml. Native tests and
 # documentation compile in separate jobs to retain their existing cache and
 # time budgets. Pull requests restore caches; only main updates them.
-
+#
+# `changed_scope` also selects `skip` for changes that cannot affect a Rust
+# build (Markdown/license paths only -- see `scripts/ci_scope.py`): nothing
+# under `crates/` or the build/toolchain manifests reads them, so a diff
+# entirely inside that set pays no native or doctest compile at all.
 on:
   push:
     branches: [main]
@@ -65,7 +69,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - id: classify
-        name: Select native or hook-contract tests
+        name: Select native, hook-contract, or no Rust-affecting tests
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
