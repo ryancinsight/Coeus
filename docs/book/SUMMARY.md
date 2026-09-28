@@ -15,6 +15,7 @@
 - [5. Matrix Multiplication](matmul.md)
   - [Example: Matrix Multiplication](examples/matmul.md)
 - [6. Convolution](convolution.md)
+- [Linear interpolation scalar migration](interpolation-migration.md)
 
 # Part III — Autodiff and NN
 

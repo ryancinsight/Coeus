@@ -10,7 +10,7 @@ use coeus_tensor::Tensor;
 use std::{marker::PhantomData, sync::Arc};
 
 /// Reverse-mode node for linear sampling.
-pub struct LinearInterpolationNode<const D: usize, T, B, P = Replicate>
+pub struct LinearInterpolationNode<const D: usize, B, P = Replicate, T = f32>
 where
     T: Float,
     B: Backend + coeus_ops::BackendOps<T> + Default,
@@ -27,7 +27,7 @@ where
     policy: PhantomData<P>,
 }
 
-impl<const D: usize, T, B, P> BackwardNode<T, B> for LinearInterpolationNode<D, T, B, P>
+impl<const D: usize, T, B, P> BackwardNode<T, B> for LinearInterpolationNode<D, B, P, T>
 where
     T: Float,
     B: Backend + coeus_ops::BackendOps<T> + Default,
@@ -52,7 +52,7 @@ where
         grad_out: &Tensor<T, B>,
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
-        let updates = linear_interpolation_backward::<D, T, _, P>(
+        let updates = linear_interpolation_backward::<D, B, P, T>(
             &self.image,
             &self.grid,
             grad_out,
@@ -83,7 +83,34 @@ where
 ///
 /// Returns [`InterpolationError`] when image or grid shape violates the
 /// dimension-generic interpolation contract.
-pub fn linear_interpolation<const D: usize, T, B, P>(
+///
+/// # Examples
+///
+/// ```
+/// use coeus_autograd::{linear_interpolation, sum, Var};
+/// use coeus_core::MoiraiBackend;
+/// use coeus_ops::Replicate;
+/// use coeus_tensor::Tensor;
+///
+/// let backend = MoiraiBackend;
+/// let image = Var::new(
+///     Tensor::from_slice_on([1, 1, 2, 2], &[0.0_f64, 1.0, 2.0, 3.0], &backend),
+///     true,
+/// );
+/// let grid = Var::new(
+///     Tensor::from_slice_on([1, 2, 1, 1], &[0.25_f64, 0.75], &backend),
+///     true,
+/// );
+/// let sampled = linear_interpolation::<2, _, _, _>(&image, &grid, Replicate)
+///     .expect("valid interpolation fixture");
+/// assert_eq!(sampled.tensor.as_slice(), &[1.25]);
+/// sum(&sampled)
+///     .backward()
+///     .expect("valid interpolation graph");
+/// assert_eq!(image.grad().expect("image gradient").as_slice(), &[0.1875, 0.5625, 0.0625, 0.1875]);
+/// assert_eq!(grid.grad().expect("grid gradient").as_slice(), &[2.0, 1.0]);
+/// ```
+pub fn linear_interpolation<const D: usize, B, P, T>(
     image: &Var<T, B>,
     grid: &Var<T, B>,
     policy: P,
@@ -96,7 +123,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let output =
-        coeus_ops::linear_interpolation::<D, T, _, P>(&image.tensor, &grid.tensor, policy)?;
+        coeus_ops::linear_interpolation::<D, B, P, T>(&image.tensor, &grid.tensor, policy)?;
     let requires_grad =
         crate::grad_mode::should_track_var(image) || crate::grad_mode::should_track_var(grid);
     if !requires_grad {
@@ -108,7 +135,7 @@ where
         output,
         requires_grad,
         &backend,
-        |output_grad| LinearInterpolationNode::<D, T, B, P> {
+        |output_grad| LinearInterpolationNode::<D, B, P, T> {
             output_grad,
             inputs: vec![image.clone(), grid.clone()],
             image: image.tensor.clone(),

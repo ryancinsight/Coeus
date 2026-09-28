@@ -227,20 +227,26 @@ where
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
     let grid = Tensor::from_slice_on([1, 2, 2, 1], &grid_values, &backend);
-    // Only the image is differentiated here: the grid's own gradient is
-    // covered by the analytical checks in `autograd_ops::interpolation`, and
-    // gradcheck perturbs every input it is given, so mixing a coordinate
-    // input into the same call would let a perturbation cross the kink this
-    // fixture was built to avoid.
+    // Check the image and coordinate gradients independently. The coordinates
+    // stay inside one voxel cell under the gradcheck perturbation, so the
+    // piecewise-linear derivative has a stable finite-difference oracle.
     let w = weighting::<T>(&[1, 1, 2, 1]);
 
-    gradcheck(&[image], |v| {
+    gradcheck(&[image.clone()], |v| {
         let sampled =
             linear_interpolation::<2, _, _, _>(&v[0], &Var::new(grid.clone(), false), Replicate)
                 .expect("invariant: valid interpolation fixture completes forward");
         weighted(&sampled, &w)
     })
-    .expect("linear_interpolation backward must match central differences");
+    .expect("linear_interpolation image backward must match central differences");
+
+    gradcheck(&[grid], |v| {
+        let sampled =
+            linear_interpolation::<2, _, _, _>(&Var::new(image.clone(), false), &v[0], Replicate)
+                .expect("invariant: valid interpolation fixture completes forward");
+        weighted(&sampled, &w)
+    })
+    .expect("linear_interpolation coordinate backward must match central differences");
 }
 
 #[test]

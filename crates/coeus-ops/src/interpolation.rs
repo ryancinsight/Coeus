@@ -10,6 +10,8 @@ mod private {
 /// Static boundary behavior for linear interpolation.
 pub trait BoundaryPolicy: private::Sealed + Copy + Default {
     /// Returns lower/upper indices and their interpolation weights.
+    ///
+    /// `coordinate` must be finite and `extent` must be non-zero.
     fn neighbours<T: Float>(coordinate: T, extent: usize) -> (usize, usize, T, T);
 }
 
@@ -24,18 +26,25 @@ impl BoundaryPolicy for Replicate {
         let lower_value = coordinate.floor();
         let upper_weight = coordinate - lower_value;
         let zero = T::zero();
-        let upper_bound = T::from_f64((extent - 1) as f64);
-        let clamp = |v: T| {
-            if v < zero {
-                zero
-            } else if v > upper_bound {
-                upper_bound
-            } else {
-                v
-            }
-        };
-        let lower = Scalar::to_f64(clamp(lower_value)) as usize;
-        let upper = Scalar::to_f64(clamp(lower_value + T::one())) as usize;
+        if coordinate < zero {
+            return (0, 0, T::one() - upper_weight, upper_weight);
+        }
+
+        let last = extent - 1;
+        // The coordinate selects a discrete voxel here; converting its floored
+        // value to an index is the boundary between scalar arithmetic and the
+        // integer address space. The float-to-integer cast saturates, then the
+        // original integer extent enforces the valid index range.
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "Voxel selection converts a finite floored scalar to a discrete index; the result is clamped to the validated integer extent."
+        )]
+        #[expect(
+            clippy::cast_sign_loss,
+            reason = "Negative coordinates are handled above before conversion to an unsigned index."
+        )]
+        let lower = (Scalar::to_f64(lower_value) as usize).min(last);
+        let upper = lower.saturating_add(1).min(last);
         (lower, upper, T::one() - upper_weight, upper_weight)
     }
 }
@@ -53,7 +62,10 @@ impl SupportedDimension for Dimension<2> {}
 impl SupportedDimension for Dimension<3> {}
 
 /// Gradients produced by dimension-generic linear interpolation reverse mode.
-pub struct InterpolationGradients<T: Scalar, B: Backend> {
+///
+/// `T` is the scalar type used by the image and coordinate gradients. It
+/// defaults to `f32` for existing type annotations.
+pub struct InterpolationGradients<B: Backend, T: Scalar = f32> {
     /// Gradient with respect to image values.
     pub image: Tensor<T, B>,
     /// Gradient with respect to sampling coordinates.
@@ -214,12 +226,41 @@ fn spatial_offset(indices: &[usize], extents: &[usize]) -> usize {
 /// axis order. `D` is restricted to 2 or 3, while `P` selects boundary
 /// behavior at compile time with zero runtime storage.
 ///
+/// Image values, coordinates, interpolation weights, and accumulation all use
+/// the same `T: Float`; the operation does not change scalar precision.
+///
 /// # Errors
 ///
 /// Returns [`InterpolationError`] when ranks, batches, coordinate channels,
 /// spatial extents, finite-coordinate requirement, or shape products violate
 /// the contract.
-pub fn linear_interpolation<const D: usize, T, B, P>(
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), coeus_ops::InterpolationError> {
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::{linear_interpolation, linear_interpolation_backward, Replicate};
+/// use coeus_tensor::Tensor;
+///
+/// let backend = SequentialBackend;
+/// let image = Tensor::from_slice_on(
+///     [1, 1, 2, 2],
+///     &[0.0_f64, 1.0, 2.0, 3.0],
+///     &backend,
+/// );
+/// let grid = Tensor::from_slice_on([1, 2, 1, 1], &[0.25_f64, 0.75], &backend);
+/// let sampled = linear_interpolation::<2, _, _, _>(&image, &grid, Replicate)?;
+/// assert_eq!(sampled.as_slice(), &[1.25]);
+///
+/// let grad_output = Tensor::from_slice_on([1, 1, 1, 1], &[1.0_f64], &backend);
+/// let gradients =
+///     linear_interpolation_backward::<2, _, _, _>(&image, &grid, &grad_output, Replicate)?;
+/// assert_eq!(gradients.grid.as_slice(), &[2.0, 1.0]);
+/// # Ok(())
+/// # }
+/// ```
+pub fn linear_interpolation<const D: usize, B, P, T>(
     image: &Tensor<T, B>,
     grid: &Tensor<T, B>,
     _policy: P,
@@ -290,17 +331,20 @@ where
 /// multilinear polynomial; replicated axes have zero derivative when both
 /// neighbours resolve to one border element.
 ///
+/// Gradients, coordinates, weights, and accumulation all use the input scalar
+/// type `T`.
+///
 /// # Errors
 ///
 /// Returns [`InterpolationError`] under the forward contract failures or when
 /// `grad_output` does not have the implied output shape. Non-finite sampling
 /// coordinates are rejected before derivative arithmetic.
-pub fn linear_interpolation_backward<const D: usize, T, B, P>(
+pub fn linear_interpolation_backward<const D: usize, B, P, T>(
     image: &Tensor<T, B>,
     grid: &Tensor<T, B>,
     grad_output: &Tensor<T, B>,
     _policy: P,
-) -> Result<InterpolationGradients<T, B>, InterpolationError>
+) -> Result<InterpolationGradients<B, T>, InterpolationError>
 where
     T: Float,
     B: Backend + Default,
