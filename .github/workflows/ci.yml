@@ -3,7 +3,19 @@ name: CI
 # Device-specific contracts run in backend-parity.yml. Native tests and
 # documentation compile in separate jobs to retain their existing cache and
 # time budgets. Pull requests restore caches; only main updates them.
-
+#
+# `changed_scope` also selects `skip` for changes that cannot affect a Rust
+# build (Markdown/license paths only -- see `scripts/ci_scope.py`), and the
+# `test` job caches each workspace crate's own build output, not just its
+# third-party dependencies (`cache-workspace-crates: true`). Cargo's local
+# fingerprint compares a crate's input-file mtimes exactly, and
+# `actions/checkout` stamps every file with the checkout instant, so a cached
+# `target/` alone still forced a full rebuild of all 14 workspace crates on
+# every run (measured: PR run 36435596625, "Native tests" 17m34s compiling
+# only `coeus-*`, third-party deps already cache-hit). `ci_restore_mtimes.py`
+# derives each tracked file's mtime from the commit that last touched it, so
+# two checkouts of identical content -- any branch, any moment -- produce the
+# identical mtime and Cargo's freshness check works as intended again.
 on:
   push:
     branches: [main]
@@ -65,7 +77,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - id: classify
-        name: Select native or hook-contract tests
+        name: Select native, hook-contract, or no Rust-affecting tests
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
@@ -102,6 +114,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Full history: `ci_restore_mtimes.py` derives each tracked file's
+          # mtime from the commit that last touched it, which a shallow
+          # checkout's single available commit cannot answer correctly for
+          # files unchanged since before that commit.
+          fetch-depth: 0
       - name: Require changed-scope classification
         if: always()
         run: test -n "${{ needs.changed_scope.outputs.test_path }}"
@@ -112,10 +129,20 @@ jobs:
         if: needs.changed_scope.outputs.test_path == 'native'
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
+      # Restore each tracked file's mtime from git history before the cache
+      # restore below, so Cargo's exact-match fingerprint freshness check
+      # sees content-identical files as unchanged rather than as "checked out
+      # just now" -- see the workflow-level comment for the mechanism.
+      - name: Restore tracked file mtimes for cache freshness
+        if: needs.changed_scope.outputs.test_path == 'native'
+        run: python3 scripts/ci_restore_mtimes.py
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
         if: needs.changed_scope.outputs.test_path == 'native'
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          # Also cache each workspace crate's own build output, not just
+          # third-party dependencies -- see the workflow-level comment.
+          cache-workspace-crates: true
       - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e # nextest
         if: needs.changed_scope.outputs.test_path == 'native'
         with:
