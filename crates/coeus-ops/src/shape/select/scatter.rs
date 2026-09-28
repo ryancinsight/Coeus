@@ -15,8 +15,7 @@
 // `scatter_add` is the **backward operator** of `gather`: if `out = gather(x, dim, idx)`,
 // then `dx = scatter_add(zeros_like(x), dim, idx, grad_out)`.
 
-use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Scatter-accumulate: `out = input` then `out[…, index[…,k,…], …] += src[…,k,…]`.
@@ -29,7 +28,7 @@ use coeus_tensor::Tensor;
 /// - `dim` out of range.
 /// - Any index value ≥ `input.shape()[dim]`.
 #[inline]
-pub fn scatter_add<T: Scalar, B: BackendOps<T> + Default>(
+pub fn scatter_add<T: Scalar, B: ComputeBackend + Default>(
     input: &Tensor<T, B>,
     dim: usize,
     index: &Tensor<T, B>,

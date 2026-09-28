@@ -47,26 +47,6 @@ verification, tightening, feature}.
 - Acceptance: real-device regressions over each supported operation/scalar matrix pass; SemVer confirms the declared major removals (already 222/223 checks pass per the landed commit).
 - Next step: run the final workspace/device/SemVer gates once the upstream Hephaestus fix lands, then close.
 
-<a id="coeus-scatter-add-allocation"></a>
-## COEUS-SCATTER-ADD-ALLOCATION — Keep scatter-add allocation count independent of shape
-
-- Status: todo; priority: correctness; [patch].
-- Outcome: `scatter_add` preserves value semantics without shape-scaled allocation calls.
-- Scope: `crates/coeus-ops/src/shape/select/scatter.rs`, focused allocation regression; non-goal: changing scatter indexing semantics.
-- Acceptance: the allocation-budget test passes for small and large 3-D shapes; strict package Clippy, nextest, docs pass.
-- Evidence: merged-main WGPU provider run `35660423617` failed `scatter_add_allocation_count_is_independent_of_index_size` with 7 versus 11 allocations.
-- Related: [COEUS-ALLOC-BUDGET-INTERMITTENT](#coeus-alloc-budget-intermittent) — same test now shows platform-dependent counts; investigate together.
-- Branch: `fix/coeus-scatter-add-allocation`.
-
-<a id="coeus-alloc-budget-intermittent"></a>
-## COEUS-ALLOC-BUDGET-INTERMITTENT — scatter_add allocation budget fails intermittently on Linux CI
-
-- Status: todo; priority: correctness; [patch].
-- Outcome: `scatter_add_allocation_count_is_independent_of_index_size` gives the same count on Linux CI as on Windows (12/12 local runs, 3/3 main runs), or the root cause is identified and fixed.
-- Observed: one PR run failed `small=7, large=11` (4 allocations more for a 64x larger workload — log2(64)=6, not the ~16 a per-slice defect would give); the changed line in that PR did not touch the exercised job.
-- Acceptance: reproduce on a Linux runner with the counter printed at each step of the measured window; identify whether it is size-dependent `Vec` growth inside the kernel or an allocation from outside the kernel entering the measured window.
-- Next step: re-run the failing job with `--no-capture` and per-step counter output; not reproducible from Windows (12/12 local runs pass).
-
 <a id="atlas-coeus-safety-001"></a>
 ## ATLAS-COEUS-SAFETY-001 — Hephaestus provider device-acquisition panics
 
