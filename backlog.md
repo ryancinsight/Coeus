@@ -5,16 +5,6 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
-<a id="coeus-communicator-fallible-collectives"></a>
-## COEUS-COMMUNICATOR-FALLIBLE-COLLECTIVES — TCP collectives panic on peer I/O failure
-
-- Status: todo; priority: correctness; [major] (`Communicator` methods gain a `Result`).
-- Outcome: `Communicator` collectives return a typed error, so `TcpCommunicator` propagates `TcpMeshError` from `send`/`recv` instead of panicking; `LocalCommunicator` and `synchronize_gradients` follow.
-- Scope: `crates/coeus-dist/src/tcp/collectives.rs` (`TcpCommunicator::send`/`recv` still call `panic!("{}", ErrorChain(&error))` at lines 34/42).
-- Acceptance: no panic on an I/O result in `tcp/collectives.rs`; a test drops a peer mid-collective and asserts the typed error; Python collectives raise `ConnectionError`.
-- Next step: add the `Result` channel to the `Communicator` trait, migrate `TcpCommunicator`/`LocalCommunicator`, update Python bindings.
-- Links: [ADR 0074](adr/0074-fallible-tcp-mesh.md) (successor to the closed COEUS-TCPMESH-FALLIBLE-SETUP).
-
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
 
