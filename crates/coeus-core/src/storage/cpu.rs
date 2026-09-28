@@ -238,11 +238,6 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
 
 impl<T: crate::Scalar> Storage<T> for CpuStorage<T> {
     #[inline]
-    fn allocate(len: usize) -> Self {
-        Self::new(len)
-    }
-
-    #[inline]
     fn len(&self) -> usize {
         self.len
     }

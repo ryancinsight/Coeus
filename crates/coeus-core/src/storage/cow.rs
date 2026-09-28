@@ -57,13 +57,6 @@ where
 
 impl<S: Storage<T>, T> Storage<T> for CowStorage<S> {
     #[inline]
-    fn allocate(len: usize) -> Self {
-        Self {
-            inner: S::allocate(len),
-        }
-    }
-
-    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }

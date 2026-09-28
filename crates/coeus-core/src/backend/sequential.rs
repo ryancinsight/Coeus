@@ -3,7 +3,7 @@
 
 use crate::backend::{Backend, ComputeBackend};
 use crate::dtype::Scalar;
-use crate::storage::{CpuStorage, Storage};
+use crate::storage::CpuStorage;
 
 /// Sequential (single-threaded) backend.
 ///
@@ -61,7 +61,7 @@ impl ComputeBackend for SequentialBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CpuStorage::allocate(len)
+        CpuStorage::new(len)
     }
 
     #[inline]

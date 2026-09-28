@@ -3,7 +3,7 @@
 
 use crate::backend::{Backend, ComputeBackend};
 use crate::dtype::Scalar;
-use crate::storage::{CpuStorage, Storage};
+use crate::storage::CpuStorage;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 
@@ -91,7 +91,7 @@ impl ComputeBackend for MoiraiBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CpuStorage::allocate(len)
+        CpuStorage::new(len)
     }
 
     #[inline]
