@@ -532,10 +532,10 @@ where
 /// - A non-finite coordinate yields 0 output and 0 gradient at that point.
 ///
 /// # Precision
-/// Concrete `f32`, matching the interpolation subsystem
-/// ([`linear_interpolation`]). All arithmetic and accumulation run in `f32`
-/// (no widen/narrow), so the op is honestly single-precision rather than a
-/// generic body that would cast to a fixed type.
+/// This operation accepts `f32` input and grid tensors and returns `f32`
+/// results. Interpolation weights and gradient accumulation execute in `f32`;
+/// the separate [`linear_interpolation`] operation is generic over its scalar
+/// type.
 ///
 /// # Panics
 /// If `input` is not rank-5, `grid` is not rank-5 with last dim 3, the batch

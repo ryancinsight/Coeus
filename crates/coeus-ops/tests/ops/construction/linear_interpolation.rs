@@ -114,7 +114,7 @@ where
         Ok(_) => panic!("malformed upstream gradient must be rejected"),
     }
 
-    let non_finite_values = [T::NAN, T::zero()];
+    let non_finite_values = [<T as Float>::NAN, T::zero()];
     let non_finite = Tensor::from_slice_on([1, 2, 1, 1], &non_finite_values, &backend);
     match linear_interpolation::<2, B, _, T>(&image, &non_finite, Replicate) {
         Err(error) => assert_eq!(
@@ -199,7 +199,8 @@ where
 
 fn verify_three_dimensional_coordinate_gradients<T: Float>()
 where
-    SequentialBackend::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+    <SequentialBackend as ComputeBackend>::DeviceBuffer<T>:
+        CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let backend = SequentialBackend;
     // The fixture is at least 1/4 from a voxel boundary. A dyadic step of 1/8
