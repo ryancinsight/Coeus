@@ -298,13 +298,15 @@ verification, tightening, feature}.
 - Next step: derive the analytical reference (e.g. hand-computed normalization on a small fixture) for each listed test group.
 
 <a id="coeus-dot-cross-host-copy"></a>
-## COEUS-DOT-CROSS-HOST-COPY — Device-resident dot/cross on accelerator backends
+## COEUS-DOT-CROSS-HOST-COPY — CUDA/ROCm/Metal on-device cross
 
 - Status: blocked; priority: tightening; [patch]; owner: unclaimed.
-- Outcome: `dot`/`cross` on accelerator backends stay device-resident instead of copying both operands to host.
-- Scope: `coeus-ops/src/reduction/linalg.rs`.
-- Blocker: hephaestus is adding device dot/cross; bind to it once it lands (re-open trigger: hephaestus device dot/cross merges).
-- Acceptance: no host round-trip for accelerator dot/cross; differential test against the CPU reference.
+- Outcome: `coeus_ops::cross` runs on-device for CUDA, ROCm, and Metal, not only WGPU.
+- Delivered: `dot` composes as `sum(a * b)` over the existing `mul`/`sum` seam (PR #439) — on-device for every backend with `ElementwiseOps`/`ReductionOps`, no hephaestus binding needed. `cross` dispatches through the `CrossOps` trait (ADR 0077, PR merged): `WgpuBackend` routes through hephaestus's on-device `CrossProductOps` seam for a contiguous tensor with `dim` the last axis; every other backend (and `WgpuBackend` outside that layout) uses the shared `cross_host_fold`.
+- Scope: `coeus-ops::backend_ops::CrossOps` impls for `CudaBackend` and `HephaestusBackend<RocmProvider>`/`HephaestusBackend<MetalProvider>` (`crates/coeus-ops/src/reduction/linalg.rs`).
+- Blocker: `hephaestus-core`'s `CrossProductOps` has no CUDA, ROCm, or Metal device-API implementation yet (host/WGPU only); re-open trigger: hephaestus lands one of those.
+- Acceptance: each newly-covered backend's `CrossOps` impl routes through the upstream on-device seam; differential parity test against `cross_host_fold` within the derived floating-point tolerance.
+- Next step: once hephaestus lands a device-API impl, add the corresponding `CrossOps` impl following the WGPU precedent in ADR 0077.
 
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
@@ -352,14 +354,4 @@ verification, tightening, feature}.
 - Critical finding: this is FLAKY on hosted CI, not a deterministic regression. `main`'s own push-triggered `CI` run at the identical commit (`db144251`, run 36286664346, job 108528635313, 2026-09-27T02:03) shows this exact test **PASS**, while PR #425's `pull_request`-triggered run at essentially the same tree (run 36285453725, ~2026-09-27T01:46) shows it **FAIL** with small=6/large=10. Six concurrent copies of the compiled test binary, each pinned to a 2-core `ProcessorAffinity` mask, all pass locally (`multi_{0..5}.log`) — a scheduler-race reproduction attempt per the "two-core pinning reproduces CI scheduler flakes" pattern also did not reproduce. Per policy, a flaky test is root-caused, never silently retried: the counting allocator (`alloc_budget.rs`'s `#[global_allocator]`) is process-wide, so any concurrent or lazily-initialized background allocation (a `OnceLock`/thread-pool first-touch in a dependency, unrelated to `scatter_add` itself) racing with the small/large calls would produce exactly this nondeterministic +4 without any code-path difference in `scatter_add`.
 - Next step: add allocation-site attribution (capture a backtrace or a monotonic sequence id per counted allocation) to `alloc_budget.rs`'s global allocator so a failing run identifies *which* allocation is extra, rather than only the count; run that instrumented binary repeatedly on the hosted runner (matching its exact core count and load) until it flakes again.
 - Blocks: PR #425 and any other PR whose `Tests` job runs the full workspace suite on hosted CI.
-
-<a id="coeus-gradcheck-generic-instantiation"></a>
-## COEUS-GRADCHECK-GENERIC-INSTANTIATION — Generic-instantiation gradcheck coverage
-
-- Status: todo; priority: verification; [patch]; owner: unclaimed.
-- Outcome: every finite-difference check in `crates/coeus-autograd/tests/autograd/gradcheck/` runs at both `f64` (sensitivity oracle) and `f32` (instantiation coverage, per `standards`: Generic Instantiation Coverage), plus FD coverage for the ops that had none.
-- Delivered: `mod.rs`'s shared fixtures (`Sampler`, `tensor`, `weighting`, `weighted`) are generic over `GradcheckScalar` (`Float + leto_ops::Scalar + coeus_leto::RealScalar` plus the `CpuAddressableStorage` bound gradcheck itself needs); the module doc states the two-role f64/f32 rationale. New FD coverage, each a generic fn instantiated at both types from a single `#[test]`: `add`/`sub`/`div`/`remainder`/`maximum`/`minimum`/`neg` (`arithmetic.rs`); `max_pool1d/2d/3d`/`avg_pool1d/2d/3d` (`pooling.rs`, via `coeus-nn` `Module` layers, new dev-dependency); `conv1d`/`conv3d`/`conv_transpose1d/2d/3d`/`unfold1d/2d`/`fold1d/2d` (`conv.rs`, via `coeus-nn` `Module` layers). Converted to dual-instantiation: `normalization.rs`, `core_ops.rs`, `attention.rs`.
-- Remaining: (1) convert the 4 remaining existing check files (`activation`, `losses`, `reduction`, `shape`) to dual-instantiation; (2) FD coverage still missing: `ctc`, `dropout` (fixed mask), `sparse_matmul(_coo)`, `transpose_2d`, `index_put`, `rotate_half`, `linear_interpolation` (`cross_entropy` and `embedding` already have coverage in `losses.rs`).
-- Acceptance: every listed op has a generic FD check instantiated at both types; all 11 existing files are dual-instantiated; a check that fails at `f32` under gradcheck's own derived `ε^(2/3)` bound is root-caused, never given a widened tolerance.
-- Next step: convert `activation.rs` next (largest remaining, ~50 tests) then `losses`/`reduction`/`shape`, each its own PR; then the remaining missing-coverage ops as dependency-ordered per-family PRs.
 
