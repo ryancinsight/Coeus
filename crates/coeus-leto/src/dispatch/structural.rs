@@ -145,18 +145,24 @@ fn split_values_n<T: Clone, const N: usize>(
     a: &[T],
     axis: usize,
     sizes: &[usize],
-) -> Result<Vec<Vec<T>>> {
+) -> Result<(Vec<T>, Vec<usize>)> {
     let input = to_leto_view::<T, N>(a_layout, a)?;
     let views = leto::application::split(&input, axis, sizes)?;
-    Ok(views
-        .iter()
-        .map(|view| view.to_contiguous().storage().as_slice().to_vec())
-        .collect())
+    let mut flat = Vec::new();
+    let mut offsets = Vec::with_capacity(views.len() + 1);
+    offsets.push(0);
+    for view in &views {
+        let contiguous = view.to_contiguous();
+        flat.extend_from_slice(contiguous.storage().as_slice());
+        offsets.push(flat.len());
+    }
+    Ok((flat, offsets))
 }
 
 /// Split coeus CPU tensor values along `axis`, dispatched from dynamic rank to
-/// the matching monomorphized leto structural kernel. Each returned chunk is
-/// C-contiguous in row-major output order.
+/// the matching monomorphized leto structural kernel. Chunks are returned as a
+/// single C-contiguous buffer plus CSR-style offsets: chunk `i` is
+/// `flat[offsets[i]..offsets[i + 1]]`, so `offsets.len() == sizes.len() + 1`.
 ///
 /// # Examples
 ///
@@ -173,17 +179,17 @@ fn split_values_n<T: Clone, const N: usize>(
 ///     Strides::from_slice(&[1, 2]),
 ///     0,
 /// );
-/// let chunks = split_values(&view, &storage, 1, &[2, 1]).unwrap();
-/// assert_eq!(chunks.len(), 2);
-/// assert_eq!(chunks[0], vec![1.0, 2.0, 4.0, 5.0]);
-/// assert_eq!(chunks[1], vec![3.0, 6.0]);
+/// let (flat, offsets) = split_values(&view, &storage, 1, &[2, 1]).unwrap();
+/// assert_eq!(offsets, vec![0, 4, 6]);
+/// assert_eq!(flat[offsets[0]..offsets[1]], [1.0, 2.0, 4.0, 5.0]);
+/// assert_eq!(flat[offsets[1]..offsets[2]], [3.0, 6.0]);
 /// ```
 pub fn split_values<T: Clone>(
     a_layout: &CoeusLayout,
     a: &[T],
     axis: usize,
     sizes: &[usize],
-) -> Result<Vec<Vec<T>>> {
+) -> Result<(Vec<T>, Vec<usize>)> {
     match a_layout.ndim() {
         1 => split_values_n::<T, 1>(a_layout, a, axis, sizes),
         2 => split_values_n::<T, 2>(a_layout, a, axis, sizes),

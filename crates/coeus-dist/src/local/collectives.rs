@@ -55,8 +55,8 @@ impl Communicator for LocalCommunicator {
                 let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "all_reduce")
             };
-            let mut reduced = staged[0].clone();
-            for r_data in staged.iter().skip(1) {
+            let mut reduced = staged[..numel].to_vec();
+            for r_data in staged.chunks_exact(numel).skip(1) {
                 for i in 0..numel {
                     reduced[i] = Op::apply(reduced[i], r_data[i]);
                 }
@@ -175,8 +175,8 @@ impl Communicator for LocalCommunicator {
             let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
             Self::snapshot_payloads::<T>(&bufs, self.size, numel, "all_gather")
         };
-        for r in 0..self.size {
-            copy_host_slice_to_tensor(&staged[r], &mut output[r], backend);
+        for (row, out) in staged.chunks_exact(numel).zip(output.iter_mut()) {
+            copy_host_slice_to_tensor(row, out, backend);
         }
 
         self.barrier();
@@ -222,8 +222,8 @@ impl Communicator for LocalCommunicator {
                 let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "reduce")
             };
-            reduced = staged[0].clone();
-            for r_data in staged.iter().skip(1) {
+            reduced = staged[..numel].to_vec();
+            for r_data in staged.chunks_exact(numel).skip(1) {
                 for i in 0..numel {
                     reduced[i] = Op::apply(reduced[i], r_data[i]);
                 }
@@ -293,8 +293,8 @@ impl Communicator for LocalCommunicator {
                 let bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
                 Self::snapshot_payloads::<T>(&bufs, self.size, numel, "gather")
             };
-            for r in 0..self.size {
-                copy_host_slice_to_tensor(&staged[r], &mut output[r], backend);
+            for (row, out) in staged.chunks_exact(numel).zip(output.iter_mut()) {
+                copy_host_slice_to_tensor(row, out, backend);
             }
         }
 
@@ -340,16 +340,16 @@ impl Communicator for LocalCommunicator {
         }
 
         if self.rank == root {
-            let staged_inputs = input
-                .iter()
-                .enumerate()
-                .take(self.size)
-                .map(|(_, in_tensor)| get_tensor_host_data(in_tensor, backend).into_owned())
-                .collect::<Vec<Vec<T>>>();
+            // Every input tensor was asserted to numel above, so one
+            // contiguous buffer at a fixed stride replaces a per-rank Vec.
+            let mut staged_flat = Vec::with_capacity(self.size * numel);
+            for in_tensor in input.iter().take(self.size) {
+                staged_flat.extend(get_tensor_host_data(in_tensor, backend).into_owned());
+            }
 
             let mut bufs = self.shared.buffers.lock().expect("invariant: no prior holder of the local-cluster staging lock panicked while holding it");
-            for (r, host_data) in staged_inputs.into_iter().enumerate() {
-                bufs[r] = Some(Box::new(host_data));
+            for (r, row) in staged_flat.chunks_exact(numel).enumerate() {
+                bufs[r] = Some(Box::new(row.to_vec()));
             }
         }
 

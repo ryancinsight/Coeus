@@ -109,18 +109,21 @@ impl LocalCommunicator {
         );
     }
 
+    /// Snapshot every rank's staged payload into one contiguous buffer, row
+    /// `r` at `staged[r * numel..(r + 1) * numel]` (every row has the same
+    /// `numel`, asserted below, so a fixed stride replaces per-row storage).
     #[inline]
     fn snapshot_payloads<T: Scalar>(
         bufs: &[Option<Box<dyn std::any::Any + Send>>],
         size: usize,
         numel: usize,
         collective: &'static str,
-    ) -> Vec<Vec<T>> {
-        let mut staged = Vec::with_capacity(size);
+    ) -> Vec<T> {
+        let mut staged = Vec::with_capacity(size * numel);
         for (r, slot) in bufs.iter().enumerate().take(size) {
             let r_data = Self::slot_vec_ref::<T>(slot, r, collective);
             Self::assert_numel(r_data.len(), numel, r, collective);
-            staged.push(r_data.clone());
+            staged.extend_from_slice(r_data);
         }
         staged
     }

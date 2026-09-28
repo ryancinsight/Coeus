@@ -33,16 +33,16 @@ where
         .step_by(chunk_size)
         .map(|start| (dim_size - start).min(chunk_size))
         .collect();
-    let values = coeus_leto::split_values(x.layout(), x.storage().as_slice(), dim, &sizes)
+    let (flat, offsets) = coeus_leto::split_values(x.layout(), x.storage().as_slice(), dim, &sizes)
         .expect("coeus-leto split failed");
 
-    values
-        .iter()
+    offsets
+        .windows(2)
         .zip(sizes)
-        .map(|(chunk, chunk_dim)| {
+        .map(|(bounds, chunk_dim)| {
             let mut out_shape = x.shape_cloned();
             out_shape[dim] = chunk_dim;
-            Tensor::from_slice_on(out_shape, chunk, &backend)
+            Tensor::from_slice_on(out_shape, &flat[bounds[0]..bounds[1]], &backend)
         })
         .collect()
 }

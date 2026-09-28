@@ -112,11 +112,11 @@ fn split_dispatch_covers_strided_input_view() {
         0,
     );
 
-    let chunks = split_values(&transposed, &storage, 1, &[2, 1]).unwrap();
+    let (flat, offsets) = split_values(&transposed, &storage, 1, &[2, 1]).unwrap();
 
-    assert_eq!(chunks.len(), 2);
-    assert_eq!(chunks[0], vec![1.0, 2.0, 4.0, 5.0]);
-    assert_eq!(chunks[1], vec![3.0, 6.0]);
+    assert_eq!(offsets, vec![0, 4, 6]);
+    assert_eq!(flat[offsets[0]..offsets[1]], [1.0, 2.0, 4.0, 5.0]);
+    assert_eq!(flat[offsets[1]..offsets[2]], [3.0, 6.0]);
 }
 
 #[test]
