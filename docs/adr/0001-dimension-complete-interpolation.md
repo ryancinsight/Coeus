@@ -47,6 +47,9 @@ image values, dyadic coordinates, and a `1/8` step that stays within one cell;
 all products and central differences are exactly representable in `f32` and
 `f64`, so the derivatives compare exactly.
 
+`F16` and `Bf16` floor check every 16-bit encoding against exact `f32`
+widening and floor, including signed zeros and non-finite encodings.
+
 ## Revisit trigger
 
 Add another sealed boundary policy only when a consumer requires different
@@ -56,3 +59,5 @@ policy- or dimension-named algorithm.
 - Revision (2026-09-28, PR #451): generalize the scalar contract and move
   neighbour indexing to integer space after BF16 boundary tests exposed
   precision loss.
+- Revision (2026-09-28, PR #451): compute `F16` and `Bf16` floor directly from
+  format bits after scalar-contract review found a widen-and-narrow path.

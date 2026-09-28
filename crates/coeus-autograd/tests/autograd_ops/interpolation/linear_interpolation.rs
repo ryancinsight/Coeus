@@ -1,7 +1,6 @@
 use coeus_autograd::{linear_interpolation, sum, Var};
 use coeus_core::{
     Backend, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend,
-    Scalar,
 };
 use coeus_ops::Replicate;
 use coeus_tensor::Tensor;

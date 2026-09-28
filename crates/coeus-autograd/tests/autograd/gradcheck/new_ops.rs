@@ -232,7 +232,7 @@ where
     // piecewise-linear derivative has a stable finite-difference oracle.
     let w = weighting::<T>(&[1, 1, 2, 1]);
 
-    gradcheck(&[image.clone()], |v| {
+    gradcheck(std::slice::from_ref(&image), |v| {
         let sampled =
             linear_interpolation::<2, _, _, _>(&v[0], &Var::new(grid.clone(), false), Replicate)
                 .expect("invariant: valid interpolation fixture completes forward");

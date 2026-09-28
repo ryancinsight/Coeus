@@ -5,7 +5,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
         impl $crate::dtype::CpuUnaryDispatch for $t {
             #[inline(always)]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
-                use $crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
+                use $crate::dtype::{CpuUnaryOp, Float, FloatOps, Scalar};
                 match op {
                     CpuUnaryOp::Relu => {
                         if x > Self::zero() {
@@ -324,7 +324,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                             Self::zero()
                         }
                     }
-                    CpuUnaryOp::Floor => Self::from_f64(Self::to_f64(x).floor()),
+                    CpuUnaryOp::Floor => <Self as Float>::floor(x),
                     CpuUnaryOp::Ceil => Self::from_f64(Self::to_f64(x).ceil()),
                     // Ties-to-even (banker's rounding) per IEEE-754 roundTiesToEven,
                     // matching torch.round, WGSL round(), and CUDA rintf.

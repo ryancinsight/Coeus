@@ -2,8 +2,58 @@ use crate::dtype::traits::{private, Float, FloatOps, Scalar};
 use eunomia::NumericElement;
 use eunomia::{Bf16, F16};
 
+/// Computes floor directly from a binary floating-point encoding.
+///
+/// Non-finite encodings and signed zero retain their bits. For finite values
+/// with magnitude below one, the result is positive zero or negative one.
+/// Otherwise the fractional significand bits are cleared, and a negative
+/// value with any cleared bits set is advanced to the next integer magnitude.
+fn floor_bits<const EXPONENT_BITS: u8, const FRACTION_BITS: u8, const EXPONENT_BIAS: u16>(
+    bits: u16,
+) -> u16 {
+    let sign_mask = 1_u16 << (EXPONENT_BITS + FRACTION_BITS);
+    let sign = bits & sign_mask;
+    let exponent_mask = (1_u16 << EXPONENT_BITS) - 1;
+    let exponent = (bits >> FRACTION_BITS) & exponent_mask;
+
+    if exponent == exponent_mask {
+        return bits;
+    }
+
+    let magnitude = bits & !sign_mask;
+    if magnitude == 0 {
+        return bits;
+    }
+
+    if exponent < EXPONENT_BIAS {
+        return if sign == 0 {
+            0
+        } else {
+            sign | (EXPONENT_BIAS << FRACTION_BITS)
+        };
+    }
+
+    let integer_exponent = exponent - EXPONENT_BIAS;
+    if integer_exponent >= u16::from(FRACTION_BITS) {
+        return bits;
+    }
+
+    let fractional_bits = u16::from(FRACTION_BITS) - integer_exponent;
+    let fractional_mask = (1_u16 << fractional_bits) - 1;
+    if magnitude & fractional_mask == 0 {
+        return bits;
+    }
+
+    let truncated = bits & !fractional_mask;
+    if sign == 0 {
+        truncated
+    } else {
+        truncated + (1_u16 << fractional_bits)
+    }
+}
+
 macro_rules! impl_scalar_float_half {
-    ($t:ty, $max:expr, $min_pos:expr) => {
+    ($t:ty, $max:expr, $min_pos:expr, $exponent_bits:literal, $fraction_bits:literal, $exponent_bias:literal) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
@@ -165,8 +215,9 @@ macro_rules! impl_scalar_float_half {
             const INFINITY: Self = Self::INFINITY;
             #[inline(always)]
             fn floor(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.floor())
+                Self::from_bits(
+                    floor_bits::<$exponent_bits, $fraction_bits, $exponent_bias>(self.to_bits()),
+                )
             }
             #[inline(always)]
             fn ceil(self) -> Self {
@@ -294,6 +345,90 @@ macro_rules! impl_scalar_float_half {
 }
 
 // F16: largest finite = 65504.0, smallest positive normal = 2^-14
-impl_scalar_float_half!(F16, F16(0x7BFF), F16(0x0040));
+impl_scalar_float_half!(F16, F16(0x7BFF), F16(0x0040), 5, 10, 15);
 // Bf16: largest finite ≈ 3.3895e38, smallest positive normal = 2^-126
-impl_scalar_float_half!(Bf16, Bf16(0x7F7F), Bf16(0x0080));
+impl_scalar_float_half!(Bf16, Bf16(0x7F7F), Bf16(0x0080), 8, 7, 127);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_floor_matches_f32_reference<T: Float>(
+        from_bits: fn(u16) -> T,
+        to_bits: fn(T) -> u16,
+        to_f32: fn(T) -> f32,
+        from_f32: fn(f32) -> T,
+    ) {
+        for bits in u16::MIN..=u16::MAX {
+            let value = from_bits(bits);
+            let widened = to_f32(value);
+            let expected = if widened.is_finite() {
+                to_bits(from_f32(widened.floor()))
+            } else {
+                bits
+            };
+
+            assert_eq!(
+                to_bits(<T as Float>::floor(value)),
+                expected,
+                "floor mismatch for input bits {bits:#06x}"
+            );
+        }
+    }
+
+    #[test]
+    fn half_float_floor_matches_reference_for_all_encodings() {
+        assert_floor_matches_f32_reference::<F16>(
+            F16::from_bits,
+            F16::to_bits,
+            F16::to_f32,
+            F16::from_f32,
+        );
+        assert_floor_matches_f32_reference::<Bf16>(
+            Bf16::from_bits,
+            Bf16::to_bits,
+            Bf16::to_f32,
+            Bf16::from_f32,
+        );
+    }
+
+    fn assert_floor_special_values<T: Float>(positive_subnormal: T, negative_subnormal: T) {
+        let to_f64 = <T as Scalar>::to_f64;
+        let positive_zero = <T as Scalar>::from_f64(0.0);
+        let negative_zero = <T as Scalar>::from_f64(-0.0);
+
+        assert_eq!(
+            to_f64(<T as Float>::floor(positive_zero)).to_bits(),
+            0.0_f64.to_bits()
+        );
+        assert_eq!(
+            to_f64(<T as Float>::floor(negative_zero)).to_bits(),
+            (-0.0_f64).to_bits()
+        );
+        assert_eq!(
+            to_f64(<T as Float>::floor(<T as Float>::INFINITY)),
+            f64::INFINITY
+        );
+        assert_eq!(
+            to_f64(<T as Float>::floor(<T as Float>::NEG_INFINITY)),
+            f64::NEG_INFINITY
+        );
+        assert!(<T as Float>::is_nan(<T as Float>::floor(<T as Float>::NAN)));
+        assert_eq!(to_f64(<T as Float>::floor(positive_subnormal)), 0.0_f64);
+        assert_eq!(to_f64(<T as Float>::floor(negative_subnormal)), -1.0_f64);
+    }
+
+    #[test]
+    fn floor_preserves_its_special_value_contract() {
+        assert_floor_special_values::<F16>(F16::from_bits(0x0001), F16::from_bits(0x8001));
+        assert_floor_special_values::<Bf16>(Bf16::from_bits(0x0001), Bf16::from_bits(0x8001));
+        assert_floor_special_values::<f32>(
+            f32::from_bits(0x0000_0001),
+            f32::from_bits(0x8000_0001),
+        );
+        assert_floor_special_values::<f64>(
+            f64::from_bits(0x0000_0000_0000_0001),
+            f64::from_bits(0x8000_0000_0000_0001),
+        );
+    }
+}

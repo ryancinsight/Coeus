@@ -1,5 +1,5 @@
 use super::UnaryOpTag;
-use coeus_core::{FloatOps, Scalar};
+use coeus_core::{Float, FloatOps, Scalar};
 
 #[derive(Clone, Copy)]
 /// ReLU operation tag.
@@ -80,11 +80,11 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sign {
 /// Element-wise floor.
 #[derive(Clone, Copy)]
 pub struct Floor;
-impl<T: Scalar + FloatOps> UnaryOpTag<T> for Floor {
+impl<T: Float> UnaryOpTag<T> for Floor {
     const WGSL_TEMPLATE: &'static str = "floor(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).floor())
+        <T as Float>::floor(x)
     }
 }
 

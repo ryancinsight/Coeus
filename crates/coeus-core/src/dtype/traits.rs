@@ -560,8 +560,11 @@ pub trait Float: Scalar + FloatOps {
     /// Positive infinity.
     const INFINITY: Self;
 
-    /// Floor: largest integer ≤ self.
-    /// Floor: largest integer ≤ self.
+    /// Returns the largest integer less than or equal to `self`.
+    ///
+    /// NaN remains NaN, infinities remain unchanged, and signed zero retains
+    /// its sign. Positive subnormals floor to positive zero; negative
+    /// subnormals floor to negative one.
     fn floor(self) -> Self;
     /// Ceiling: smallest integer ≥ self.
     fn ceil(self) -> Self;
