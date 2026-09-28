@@ -111,10 +111,6 @@ where
         self.buffer.len()
     }
 
-    fn allocate(len: usize) -> Self {
-        Self::new(len)
-    }
-
     fn try_as_slice(&self) -> Option<&[T]> {
         None
     }

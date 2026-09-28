@@ -37,7 +37,7 @@
 | [0029](0029-coeus-hephaestus-lgamma-provider.md) | Route Coeus lgamma through Hephaestus providers | Accepted |
 | [0030](0030-coeus-hephaestus-activation-tail-providers.md) | Route Coeus activation-tail operations through Hephaestus | Accepted |
 | [0036](0036-device-local-cow-copy.md) | Keep accelerator COW copies on-device | Accepted |
-| [0037](0037-uninitialized-cow-consumer.md) | Separate accelerator initialization contracts | Accepted |
+| [0037](0037-uninitialized-cow-consumer.md) | Assign storage construction to backends | Accepted |
 | [0038](0038-coeus-hephaestus-activation-tail.md) | Complete Hephaestus activation provider parity | Accepted |
 | [0039](0039-cuda-fused-dispatch-errors.md) | Typed CUDA fused-dispatch failures | Accepted |
 | [0040](0040-cuda-math-dispatch-hierarchy.md) | Vertical CUDA math dispatch modules | Accepted |

@@ -27,9 +27,6 @@ pub trait Storage<T>: private::Sealed + Clone + Send + Sync + 'static {
         self.len() == 0
     }
 
-    /// Allocate new storage for `len` elements statically (contents unspecified).
-    fn allocate(len: usize) -> Self;
-
     /// Borrow data as a host CPU slice if addressable.
     fn try_as_slice(&self) -> Option<&[T]>;
 }
