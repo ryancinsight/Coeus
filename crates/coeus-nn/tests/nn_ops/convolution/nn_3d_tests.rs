@@ -4,15 +4,18 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_conv3d_comprehensive() {
-    let mut conv = Conv3d::<f64>::with_params(1, 1, 2, 1, 0, 1, true);
+    let mut conv = Conv3d::<f64>::with_params(1, 1, 2, 1, 0, 1, true)
+        .expect("invariant: test operation succeeds");
 
     // Set custom weight values to verify lookup values
     // Weight shape: [1, 1, 2, 2, 2]
     let w_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-    conv.weight.tensor = Tensor::from_slice(vec![1, 1, 2, 2, 2], &w_data);
+    conv.weight.tensor = Tensor::from_slice(vec![1, 1, 2, 2, 2], &w_data)
+        .expect("invariant: test backend operation succeeds");
 
     if let Some(ref mut bias) = conv.bias {
-        bias.tensor = Tensor::from_slice(vec![1], &[0.5]);
+        bias.tensor = Tensor::from_slice(vec![1], &[0.5])
+            .expect("invariant: test backend operation succeeds");
     }
 
     // Construct a non-contiguous input tensor of shape [1, 1, 2, 2, 2]
@@ -22,11 +25,12 @@ fn test_conv3d_comprehensive() {
         &[
             1.0, 2.0, 999.0, 3.0, 4.0, 999.0, 5.0, 6.0, 999.0, 7.0, 8.0, 999.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 1), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("invariant: test backend operation succeeds");
 
     // Forward pass
     let output = conv.forward(&input).expect("valid Conv3d input");
@@ -85,11 +89,12 @@ fn test_max_pool3d_comprehensive() {
         &[
             1.0, 2.0, -999.0, 3.0, 4.0, -999.0, 5.0, 6.0, -999.0, 7.0, 8.0, -999.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 1), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("invariant: test backend operation succeeds");
 
     // Forward pass
     let output = pool.forward(&input).expect("valid MaxPool3d input");
@@ -126,11 +131,12 @@ fn test_avg_pool3d_comprehensive() {
         &[
             1.0, 2.0, -999.0, 3.0, 4.0, -999.0, 5.0, 6.0, -999.0, 7.0, 8.0, -999.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 1), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("invariant: test backend operation succeeds");
 
     // Forward pass
     let output = pool.forward(&input).expect("valid AvgPool3d input");
@@ -157,7 +163,7 @@ fn test_avg_pool3d_comprehensive() {
 
 #[test]
 fn test_batchnorm3d_comprehensive() {
-    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
 
     // Construct a non-contiguous input tensor of shape [1, 2, 2, 2, 2]
     // Channel 0 has all 1.0s, Channel 1 has all 2.0s
@@ -169,11 +175,12 @@ fn test_batchnorm3d_comprehensive() {
             // channel 1
             2.0, 2.0, 999.0, 2.0, 2.0, 999.0, 2.0, 2.0, 999.0, 2.0, 2.0, 999.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sliced_input = raw_input.slice(&[(0, 1), (0, 2), (0, 2), (0, 2), (0, 2)]);
     assert!(!sliced_input.is_contiguous());
 
-    let input = Var::new(sliced_input, true);
+    let input = Var::new(sliced_input, true).expect("invariant: test backend operation succeeds");
 
     // Forward pass
     let output = bn.forward(&input).expect("valid BatchNorm3d input");

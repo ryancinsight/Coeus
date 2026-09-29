@@ -3,7 +3,10 @@ use coeus_sparse::{CooTensor, CsrTensor};
 use coeus_tensor::Tensor;
 
 /// Convert a dense tensor to Sparse Coordinate List (COO) format.
-pub fn dense_to_coo<T: Scalar, B: Backend>(dense: &Tensor<T, B>, backend: &B) -> CooTensor<T, B>
+pub fn dense_to_coo<T: Scalar, B: Backend>(
+    dense: &Tensor<T, B>,
+    backend: &B,
+) -> Result<CooTensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
@@ -12,7 +15,7 @@ where
     let dense_ref = if dense.is_contiguous() && dense.layout().offset() == 0 {
         dense
     } else {
-        temp_dense = dense.to_contiguous_on(backend);
+        temp_dense = dense.to_contiguous_on(backend)?;
         &temp_dense
     };
     let shape = dense_ref.shape();
@@ -43,8 +46,8 @@ where
 
     let nnz = values_vec.len();
     // alloc_on: every element is written by the loops below — no zero-init needed.
-    let mut indices = Tensor::<i64, B>::alloc_on([rank, nnz], backend);
-    let mut values = Tensor::<T, B>::alloc_on([nnz], backend);
+    let mut indices = Tensor::<i64, B>::alloc_on([rank, nnz], backend)?;
+    let mut values = Tensor::<T, B>::alloc_on([nnz], backend)?;
 
     let indices_slice = indices.as_mut_slice();
     for col in 0..nnz {
@@ -54,17 +57,20 @@ where
     }
     values.as_mut_slice().copy_from_slice(&values_vec);
 
-    CooTensor::new(dense.shape_cloned(), indices, values)
+    Ok(CooTensor::new(dense.shape_cloned(), indices, values))
 }
 
 /// Convert a Coordinate List (COO) tensor back to a dense tensor.
-pub fn coo_to_dense<T: Scalar, B: Backend>(coo: &CooTensor<T, B>, backend: &B) -> Tensor<T, B>
+pub fn coo_to_dense<T: Scalar, B: Backend>(
+    coo: &CooTensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
     let shape = coo.shape().clone();
-    let mut dense = Tensor::<T, B>::zeros_on(shape, backend);
+    let mut dense = Tensor::<T, B>::zeros_on(shape, backend)?;
 
     let nnz = coo.nnz();
     let rank = coo.shape().len();
@@ -72,14 +78,14 @@ where
     let indices = if coo.indices().is_contiguous() && coo.indices().layout().offset() == 0 {
         coo.indices()
     } else {
-        temp_idx = coo.indices().to_contiguous_on(backend);
+        temp_idx = coo.indices().to_contiguous_on(backend)?;
         &temp_idx
     };
     let temp_val;
     let values = if coo.values().is_contiguous() && coo.values().layout().offset() == 0 {
         coo.values()
     } else {
-        temp_val = coo.values().to_contiguous_on(backend);
+        temp_val = coo.values().to_contiguous_on(backend)?;
         &temp_val
     };
 
@@ -95,11 +101,14 @@ where
         dense.set(&logical_idx, dense.get(&logical_idx) + val);
     }
 
-    dense
+    Ok(dense)
 }
 
 /// Convert a 2D Coordinate List (COO) tensor to Compressed Sparse Row (CSR) format.
-pub fn coo_to_csr<T: Scalar, B: Backend>(coo: &CooTensor<T, B>, backend: &B) -> CsrTensor<T, B>
+pub fn coo_to_csr<T: Scalar, B: Backend>(
+    coo: &CooTensor<T, B>,
+    backend: &B,
+) -> Result<CsrTensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
@@ -112,14 +121,14 @@ where
     let indices = if coo.indices().is_contiguous() && coo.indices().layout().offset() == 0 {
         coo.indices()
     } else {
-        temp_idx = coo.indices().to_contiguous_on(backend);
+        temp_idx = coo.indices().to_contiguous_on(backend)?;
         &temp_idx
     };
     let temp_val;
     let values = if coo.values().is_contiguous() && coo.values().layout().offset() == 0 {
         coo.values()
     } else {
-        temp_val = coo.values().to_contiguous_on(backend);
+        temp_val = coo.values().to_contiguous_on(backend)?;
         &temp_val
     };
 
@@ -137,9 +146,9 @@ where
     triples.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
 
     // alloc_on: all nnz elements and all rows+1 offsets are written below — no zero-init needed.
-    let mut csr_values = Tensor::<T, B>::alloc_on([nnz], backend);
-    let mut csr_col_indices = Tensor::<i64, B>::alloc_on([nnz], backend);
-    let mut csr_row_offsets = Tensor::<i64, B>::alloc_on([rows + 1], backend);
+    let mut csr_values = Tensor::<T, B>::alloc_on([nnz], backend)?;
+    let mut csr_col_indices = Tensor::<i64, B>::alloc_on([nnz], backend)?;
+    let mut csr_row_offsets = Tensor::<i64, B>::alloc_on([rows + 1], backend)?;
 
     let val_mut = csr_values.as_mut_slice();
     let col_mut = csr_col_indices.as_mut_slice();
@@ -161,40 +170,46 @@ where
         row_mut[current_row] = nnz as i64;
     }
 
-    CsrTensor::new(
+    Ok(CsrTensor::new(
         coo.shape().clone(),
         csr_values,
         csr_col_indices,
         csr_row_offsets,
-    )
+    ))
 }
 
 /// Convert a 2D dense tensor to Compressed Sparse Row (CSR) format.
-pub fn dense_to_csr<T: Scalar, B: Backend>(dense: &Tensor<T, B>, backend: &B) -> CsrTensor<T, B>
+pub fn dense_to_csr<T: Scalar, B: Backend>(
+    dense: &Tensor<T, B>,
+    backend: &B,
+) -> Result<CsrTensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
     assert_eq!(dense.ndim(), 2, "Dense to CSR requires 2D tensor");
-    let coo = dense_to_coo(dense, backend);
+    let coo = dense_to_coo(dense, backend)?;
     coo_to_csr(&coo, backend)
 }
 
 /// Convert a Compressed Sparse Row (CSR) tensor back to a dense tensor.
-pub fn csr_to_dense<T: Scalar, B: Backend>(csr: &CsrTensor<T, B>, backend: &B) -> Tensor<T, B>
+pub fn csr_to_dense<T: Scalar, B: Backend>(
+    csr: &CsrTensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
     let rows = csr.shape()[0];
     let cols = csr.shape()[1];
-    let mut dense = Tensor::<T, B>::zeros_on([rows, cols], backend);
+    let mut dense = Tensor::<T, B>::zeros_on([rows, cols], backend)?;
 
     let temp_val;
     let val_cont = if csr.values().is_contiguous() && csr.values().layout().offset() == 0 {
         csr.values()
     } else {
-        temp_val = csr.values().to_contiguous_on(backend);
+        temp_val = csr.values().to_contiguous_on(backend)?;
         &temp_val
     };
     let temp_col;
@@ -202,7 +217,7 @@ where
     {
         csr.col_indices()
     } else {
-        temp_col = csr.col_indices().to_contiguous_on(backend);
+        temp_col = csr.col_indices().to_contiguous_on(backend)?;
         &temp_col
     };
     let temp_row;
@@ -210,7 +225,7 @@ where
     {
         csr.row_offsets()
     } else {
-        temp_row = csr.row_offsets().to_contiguous_on(backend);
+        temp_row = csr.row_offsets().to_contiguous_on(backend)?;
         &temp_row
     };
 
@@ -227,7 +242,7 @@ where
         }
     }
 
-    dense
+    Ok(dense)
 }
 
 #[cfg(test)]
@@ -244,22 +259,24 @@ mod tests {
         // [ 3.0  0.0  0.0 ]
         let dense_data = vec![1.0f32, 0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 0.0, 0.0];
         let dense =
-            Tensor::<f32, SequentialBackend>::from_slice_on(vec![3, 3], &dense_data, &backend);
+            Tensor::<f32, SequentialBackend>::from_slice_on(vec![3, 3], &dense_data, &backend)
+                .expect("invariant: test backend operation succeeds");
 
         // Convert to COO
-        let coo = dense_to_coo(&dense, &backend);
+        let coo = dense_to_coo(&dense, &backend).expect("invariant: test operation succeeds");
         assert_eq!(coo.nnz(), 3);
 
         // Convert COO back to dense
-        let dense_recon = coo_to_dense(&coo, &backend);
+        let dense_recon = coo_to_dense(&coo, &backend).expect("invariant: test operation succeeds");
         assert_eq!(dense_recon.as_slice(), dense.as_slice());
 
         // Convert COO to CSR
-        let csr = coo_to_csr(&coo, &backend);
+        let csr = coo_to_csr(&coo, &backend).expect("invariant: test operation succeeds");
         assert_eq!(csr.nnz(), 3);
 
         // Convert CSR back to dense
-        let dense_recon_csr = csr_to_dense(&csr, &backend);
+        let dense_recon_csr =
+            csr_to_dense(&csr, &backend).expect("invariant: test operation succeeds");
         assert_eq!(dense_recon_csr.as_slice(), dense.as_slice());
     }
 
@@ -276,7 +293,8 @@ mod tests {
             99.0f32, 99.0, 99.0, 1.0, 0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 0.0, 0.0, 99.0, 99.0, 99.0,
         ];
         let dense_all =
-            Tensor::<f32, SequentialBackend>::from_slice_on(vec![5, 3], &dense_data, &backend);
+            Tensor::<f32, SequentialBackend>::from_slice_on(vec![5, 3], &dense_data, &backend)
+                .expect("invariant: test backend operation succeeds");
 
         // Slice to [3, 3] starting at row 1 (offset 3)
         let dense = dense_all.slice(&[(1, 4), (0, 3)]);
@@ -284,19 +302,20 @@ mod tests {
         assert!(dense.is_contiguous());
 
         // Convert to COO (verifies dense_to_coo checks)
-        let coo = dense_to_coo(&dense, &backend);
+        let coo = dense_to_coo(&dense, &backend).expect("invariant: test operation succeeds");
         assert_eq!(coo.nnz(), 3);
 
         // Convert COO back to dense (verifies coo_to_dense checks)
-        let dense_recon = coo_to_dense(&coo, &backend);
+        let dense_recon = coo_to_dense(&coo, &backend).expect("invariant: test operation succeeds");
         assert_eq!(dense_recon.as_slice(), dense.as_slice());
 
         // Convert COO to CSR (verifies coo_to_csr checks)
-        let csr = coo_to_csr(&coo, &backend);
+        let csr = coo_to_csr(&coo, &backend).expect("invariant: test operation succeeds");
         assert_eq!(csr.nnz(), 3);
 
         // Convert CSR back to dense (verifies csr_to_dense checks)
-        let dense_recon_csr = csr_to_dense(&csr, &backend);
+        let dense_recon_csr =
+            csr_to_dense(&csr, &backend).expect("invariant: test operation succeeds");
         assert_eq!(dense_recon_csr.as_slice(), dense.as_slice());
     }
 }

@@ -12,7 +12,7 @@ pub fn spmv<T: Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     x: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
@@ -27,7 +27,7 @@ where
     );
 
     // alloc_on: every row r writes y[r] = sum via y_ptr.write — no zero-init needed.
-    let mut y = Tensor::<T, B>::alloc_on([rows], backend);
+    let mut y = Tensor::<T, B>::alloc_on([rows], backend)?;
 
     let val_slice = a.values().as_slice();
     let col_slice = a.col_indices().as_slice();
@@ -56,7 +56,7 @@ where
         y_ptr.write(r, sum);
     });
 
-    y
+    Ok(y)
 }
 
 /// Sparse-Dense Matrix multiplication (SpMM): C = A B
@@ -68,7 +68,7 @@ pub fn spmm<T: Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
@@ -84,7 +84,7 @@ where
     );
 
     // alloc_on: parallel_for over rows writes every c[r,j] for j in 0..n — no zero-init needed.
-    let mut c = Tensor::<T, B>::alloc_on([m, n], backend);
+    let mut c = Tensor::<T, B>::alloc_on([m, n], backend)?;
 
     let val_slice = a.values().as_slice();
     let col_slice = a.col_indices().as_slice();
@@ -126,7 +126,7 @@ where
         }
     });
 
-    c
+    Ok(c)
 }
 
 /// Sparse-Dense Matrix multiplication values backward pass.
@@ -139,14 +139,14 @@ pub fn spmm_backward_values<T: Scalar, B: Backend>(
     b: &Tensor<T, B>,
     grad_out: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
     let nnz = a_col_indices.numel();
     // alloc_on: every i in 0..nnz is written via grad_values_ptr.write(i, sum) — no zero-init needed.
-    let mut grad_values = Tensor::<T, B>::alloc_on([nnz], backend);
+    let mut grad_values = Tensor::<T, B>::alloc_on([nnz], backend)?;
     let m = a_shape[0];
     let n = b.shape()[1];
 
@@ -192,7 +192,7 @@ where
         }
     });
 
-    grad_values
+    Ok(grad_values)
 }
 
 /// Sparse-Dense Matrix multiplication dense matrix backward pass.
@@ -205,7 +205,7 @@ pub fn spmm_backward_dense<T: Scalar, B: Backend>(
     a_shape: &[usize],
     grad_out: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
@@ -214,7 +214,7 @@ where
     let k = a_shape[1];
     let n = grad_out.shape()[1];
     // alloc_on: parallel_for over j writes every grad_b[col,j] for col in 0..k — no zero-init needed.
-    let mut grad_b = Tensor::<T, B>::alloc_on([k, n], backend);
+    let mut grad_b = Tensor::<T, B>::alloc_on([k, n], backend)?;
 
     let val_slice = a_values.as_slice();
     let col_slice = a_col_indices.as_slice();
@@ -263,5 +263,5 @@ where
         }
     });
 
-    grad_b
+    Ok(grad_b)
 }

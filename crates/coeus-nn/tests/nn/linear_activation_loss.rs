@@ -61,12 +61,17 @@ fn expected_cross_entropy_gradients(
 fn test_linear_layer() {
     let mut layer = Linear::<f64>::new(3, 2, true)
         .expect("invariant: the fixture's layer dimensions are non-zero");
-    init::constant(&mut layer.weight, 1.0);
+    init::constant(&mut layer.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = layer.bias {
-        init::constant(b, 0.5);
+        init::constant(b, 0.5).expect("invariant: test operation succeeds");
     }
 
-    let input = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = layer.forward(&input).expect("valid Linear input");
 
     assert_eq!(output.tensor.shape(), &[1, 2]);
@@ -104,9 +109,11 @@ fn test_linear_layer() {
 fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
     let mut layer = Linear::<f64>::new(3, 2, true)
         .expect("invariant: the fixture's layer dimensions are non-zero");
-    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
+    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5])
+        .expect("invariant: test backend operation succeeds");
     if let Some(ref mut bias) = layer.bias {
-        bias.tensor = Tensor::from_slice(vec![2], &[0.25, -0.5]);
+        bias.tensor = Tensor::from_slice(vec![2], &[0.25, -0.5])
+            .expect("invariant: test backend operation succeeds");
     }
 
     let input = Var::new(
@@ -118,9 +125,11 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
                 -1.0, 0.0, 1.0, // -1.75, 0.5
                 2.0, -2.0, 0.5, // 1.75, -2.75
             ],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = layer.forward(&input).expect("valid Linear input");
 
     assert_eq!(output.tensor.shape(), &[2, 2, 2]);
@@ -163,11 +172,14 @@ fn linear_projects_last_axis_for_rank_three_and_preserves_gradients() {
 fn linear_projects_last_axis_for_rank_five() {
     let mut layer = Linear::<f64>::new(3, 2, false)
         .expect("invariant: the fixture's layer dimensions are non-zero");
-    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5]);
+    layer.weight.tensor = Tensor::from_slice(vec![2, 3], &[1.0, 0.0, -1.0, 0.5, 2.0, 1.5])
+        .expect("invariant: test backend operation succeeds");
     let input = Var::new(
-        Tensor::from_slice(vec![1, 1, 1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        Tensor::from_slice(vec![1, 1, 1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = layer.forward(&input).expect("valid Linear input");
 
@@ -184,19 +196,25 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
     // `layer.weight`/`layer.bias` unchanged after training.
     let mut layer = Linear::<f64>::new(2, 1, true)
         .expect("invariant: the fixture's layer dimensions are non-zero");
-    init::constant(&mut layer.weight, 1.0);
+    init::constant(&mut layer.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = layer.bias {
-        init::constant(b, 0.0);
+        init::constant(b, 0.0).expect("invariant: test operation succeeds");
     }
 
-    let x = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
+    let x = Var::new(
+        Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = layer.forward(&x).expect("valid Linear input"); // w . x + b = 1*3 + 1*4 + 0 = 7
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward"); // d(output)/d(weight) = x = [3, 4]; d(output)/d(bias) = 1
 
     let lr = 0.1;
-    let mut opt = SGD::new(layer.named_parameters(), lr, 0.0);
+    let mut opt =
+        SGD::new(layer.named_parameters(), lr, 0.0).expect("invariant: test operation succeeds");
     opt.step().expect("optimizer step");
     layer
         .load_named_parameters(&opt.params)
@@ -219,7 +237,12 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
 
     // The updated layer must actually be used on the next forward pass:
     // w' . x + b' = 0.7*3 + 0.6*4 - 0.1 = 2.1 + 2.4 - 0.1 = 4.4
-    let x2 = Var::new(Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0]), false);
+    let x2 = Var::new(
+        Tensor::from_slice(vec![1, 2], &[3.0f64, 4.0])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output2 = layer.forward(&x2).expect("valid Linear input");
     assert_slice_close(
         "forward_after_load_parameters",
@@ -232,12 +255,14 @@ fn test_load_parameters_applies_optimizer_step_to_the_module() {
 #[test]
 fn test_activations() {
     let input: Var<f64> = Var::new(
-        Tensor::from_slice(vec![4], &[-2.0f64, -0.5, 0.5, 2.0]),
+        Tensor::from_slice(vec![4], &[-2.0f64, -0.5, 0.5, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // ReLU
-    let out_relu = relu(&input);
+    let out_relu = relu(&input).expect("invariant: test operation succeeds");
     assert_eq!(out_relu.tensor.as_slice(), &[0.0, 0.0, 0.5, 2.0]);
     out_relu
         .backward()
@@ -245,28 +270,44 @@ fn test_activations() {
     assert_eq!(input.grad().unwrap().as_slice(), &[0.0, 0.0, 1.0, 1.0]);
 
     // Sigmoid
-    input.zero_grad();
-    let out_sig = sigmoid(&input);
+    input
+        .zero_grad()
+        .expect("invariant: test operation succeeds");
+    let out_sig = sigmoid(&input).expect("invariant: test operation succeeds");
     assert!((out_sig.tensor.as_slice()[2] - 0.622459f64).abs() < 1e-4);
 
     // Tanh
-    input.zero_grad();
-    let out_tanh = tanh(&input);
+    input
+        .zero_grad()
+        .expect("invariant: test operation succeeds");
+    let out_tanh = tanh(&input).expect("invariant: test operation succeeds");
     assert!((out_tanh.tensor.as_slice()[2] - 0.462117f64).abs() < 1e-4);
 
     // GeLU
-    input.zero_grad();
-    let out_gelu = gelu(&input);
+    input
+        .zero_grad()
+        .expect("invariant: test operation succeeds");
+    let out_gelu = gelu(&input).expect("invariant: test operation succeeds");
     assert!(out_gelu.tensor.as_slice()[0] < 0.1);
 }
 
 #[test]
 fn test_losses() {
-    let pred: Var<f64> = Var::new(Tensor::from_slice(vec![2], &[0.5f64, 1.5]), true);
-    let target = Var::new(Tensor::from_slice(vec![2], &[1.0f64, 1.0]), false);
+    let pred: Var<f64> = Var::new(
+        Tensor::from_slice(vec![2], &[0.5f64, 1.5])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let target = Var::new(
+        Tensor::from_slice(vec![2], &[1.0f64, 1.0])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // MSE
-    let loss_mse = mse_loss(&pred, &target);
+    let loss_mse = mse_loss(&pred, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss_mse.tensor.as_slice(), &[0.25]);
     loss_mse
         .backward()
@@ -280,7 +321,12 @@ fn test_losses() {
 
     // Cross entropy
     let logits_values = &[1.0f64, 2.0, 0.0, 0.0, 2.0, 1.0];
-    let logits: Var<f64> = Var::new(Tensor::from_slice(vec![2, 3], logits_values), true);
+    let logits: Var<f64> = Var::new(
+        Tensor::from_slice(vec![2, 3], logits_values)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let targets = vec![1, 2];
     let loss_ce = cross_entropy_loss(&logits, &targets)
         .expect("invariant: test inputs have valid cross-entropy shapes and targets");
@@ -302,7 +348,11 @@ fn test_losses() {
 
 #[test]
 fn test_initializers() {
-    let mut weight = Var::<f64>::new(Tensor::zeros(vec![1000]), true);
+    let mut weight = Var::<f64>::new(
+        Tensor::zeros(vec![1000]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     init::normal(&mut weight, 5.0, 2.0).expect("valid normal initializer fixture");
     let w_slice = weight.tensor.as_slice();

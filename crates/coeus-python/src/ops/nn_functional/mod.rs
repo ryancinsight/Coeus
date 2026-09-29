@@ -74,7 +74,7 @@ pub fn bilinear(
     let w = weight.inner.clone();
     let b = bias.map(|b| b.inner.clone());
     let inner = py.allow_threads(move || coeus_nn::bilinear::bilinear(&x1, &x2, &w, b.as_ref()));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -187,17 +187,23 @@ pub fn interpolate(
                 "interpolate: expected 3-D or 4-D input, got {ndim}-D"
             )));
         }
-    };
-    Ok(PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    })
+    }
+    .map_err(map_backend_error)?;
+    coeus_autograd::Var::new(t, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
 #[pyo3(signature = (input, pads, value = 0.0))]
-pub fn pad(input: &PyTensor, pads: Vec<(usize, usize)>, value: f64, py: Python<'_>) -> PyTensor {
+pub fn pad(
+    input: &PyTensor,
+    pads: Vec<(usize, usize)>,
+    value: f64,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::pad(&input.inner, &pads, value));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -210,7 +216,7 @@ pub fn diag(v: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::diag(&v.inner, k as isize));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -223,13 +229,13 @@ pub fn diagonal(m: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::diagonal(&m.inner, k as isize));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn matmul(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn matmul(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::matmul(&a.inner, &b.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -250,7 +256,7 @@ pub fn bmm(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::matmul(&a.inner, &b.inner));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -267,24 +273,24 @@ pub fn outer(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let rows = a_shape[0];
     let cols = b_shape[0];
     let inner = py.allow_threads(|| {
-        let a_col = coeus_autograd::reshape(&a.inner, vec![rows, 1]);
-        let b_row = coeus_autograd::reshape(&b.inner, vec![1, cols]);
+        let a_col = coeus_autograd::reshape(&a.inner, vec![rows, 1])?;
+        let b_row = coeus_autograd::reshape(&b.inner, vec![1, cols])?;
         coeus_autograd::matmul(&a_col, &b_row)
     });
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::softmax(&input.inner, dim as isize));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Softmin over `dim` (`torch.nn.functional.softmin`), i.e. `softmax(-input)`.
 #[pyfunction]
-pub fn softmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn softmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::softmin(&input.inner, dim as isize));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -311,45 +317,45 @@ pub fn einsum(
 }
 
 #[pyfunction]
-pub fn f_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn f_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::softmax(&input.inner, dim as isize));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn f_log_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn f_log_softmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::log_softmax(&input.inner, dim));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn f_relu(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn f_relu(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::relu(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn f_sigmoid(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn f_sigmoid(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::sigmoid(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn f_tanh(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn f_tanh(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::tanh(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn f_gelu(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn f_gelu(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::gelu(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn f_silu(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn f_silu(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::silu(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -362,7 +368,7 @@ pub fn f_mse_loss(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResu
         )));
     }
     let inner = py.allow_threads(|| coeus_nn::mse_loss(&input.inner, &target.inner));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -380,7 +386,7 @@ pub fn f_binary_cross_entropy(
     }
     let inner =
         py.allow_threads(|| coeus_nn::binary_cross_entropy(&input.inner, &target.inner, 1e-7));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]

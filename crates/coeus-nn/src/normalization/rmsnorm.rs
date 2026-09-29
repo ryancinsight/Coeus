@@ -26,10 +26,11 @@ pub fn rms_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Result<Var<T, B>, ModuleError<B::Error>> {
     let d = input.tensor.shape().last().copied().unwrap_or(1);
     let backend = B::default();
-    let w = weight
-        .cloned()
-        .unwrap_or_else(|| Var::new(Tensor::ones_on([d], &backend), false));
-    RMSNorm::from_parts(w, eps).forward(input)
+    let w = match weight {
+        Some(weight) => weight.clone(),
+        None => Var::new(Tensor::ones_on([d], &backend)?, false)?,
+    };
+    RMSNorm::from_parts(w, eps)?.forward(input)
 }
 
 /// Root Mean Square Normalization (RMSNorm) module.
@@ -47,18 +48,18 @@ pub struct RMSNorm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RMSNorm<T, B> {
     /// Create a new RMSNorm layer for a given feature dimension.
-    pub fn new(normalized_shape: usize, eps: f64) -> Self {
+    pub fn new(normalized_shape: usize, eps: f64) -> Result<Self, B::Error> {
         let backend = B::default();
-        let weight = Var::new(Tensor::ones_on([normalized_shape], &backend), true);
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        Self { weight, eps, eps_t }
+        let weight = Var::new(Tensor::ones_on([normalized_shape], &backend)?, true)?;
+        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend)?;
+        Ok(Self { weight, eps, eps_t })
     }
 
     /// Create an RMSNorm layer from existing parameters.
-    pub fn from_parts(weight: Var<T, B>, eps: f64) -> Self {
+    pub fn from_parts(weight: Var<T, B>, eps: f64) -> Result<Self, B::Error> {
         let backend = B::default();
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        Self { weight, eps, eps_t }
+        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend)?;
+        Ok(Self { weight, eps, eps_t })
     }
 }
 
@@ -90,7 +91,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
         let backend = B::default();
 
         // ── Mean square ──
-        let x_sq = coeus_ops::mul(&input.tensor, &input.tensor, &backend);
+        let x_sq = coeus_ops::mul(&input.tensor, &input.tensor, &backend)?;
         let mut rms = coeus_ops::mean_axis(&x_sq, 1, &backend)
             .map_err(|source| validation::backend(MODULE, source))?; // [N, 1]
 
@@ -101,11 +102,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
             .map_err(|source| validation::backend(MODULE, source))?;
 
         // ── Normalize ──
-        let x_hat = coeus_ops::div(&input.tensor, &rms, &backend); // [N, D]
+        let x_hat = coeus_ops::div(&input.tensor, &rms, &backend)?; // [N, D]
 
         // ── Scale ──
         let w_reshaped = self.weight.tensor.reshape([1, d]);
-        let out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
+        let out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend)?;
 
         Ok(coeus_autograd::rmsnorm(
             input,
@@ -113,6 +114,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T
             out_tensor,
             x_hat,
             rms,
-        ))
+        )?)
     }
 }

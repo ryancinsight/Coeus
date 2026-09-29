@@ -44,7 +44,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {
@@ -59,7 +60,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {
@@ -82,7 +84,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         values_layout: &Layout,
         indices: &mut Self::DeviceBuffer<i64>,
         indices_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {

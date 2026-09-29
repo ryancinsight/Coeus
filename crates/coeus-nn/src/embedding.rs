@@ -20,23 +20,30 @@ pub struct Embedding<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBa
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Embedding<T, B> {
     /// Create an Embedding layer with weights initialized to ones.
-    pub fn new(num_embeddings: usize, embedding_dim: usize) -> Self {
+    pub fn new(
+        num_embeddings: usize,
+        embedding_dim: usize,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         let backend = B::default();
-        let w_tensor = Tensor::ones_on([num_embeddings, embedding_dim], &backend);
-        let weight = Var::new(w_tensor, true);
-        Self {
+        let w_tensor = Tensor::ones_on([num_embeddings, embedding_dim], &backend)?;
+        let weight = Var::new(w_tensor, true)?;
+        Ok(Self {
             weight,
             num_embeddings,
             embedding_dim,
             padding_idx: None,
-        }
+        })
     }
 
     /// Create with explicit `padding_idx`.
     ///
     /// Row `padding_idx` in the weight matrix is zeroed on construction and
     /// its gradient is zeroed by the autograd embedding backward node.
-    pub fn with_padding_idx(num_embeddings: usize, embedding_dim: usize, padding_idx: usize) -> Self
+    pub fn with_padding_idx(
+        num_embeddings: usize,
+        embedding_dim: usize,
+        padding_idx: usize,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -52,14 +59,14 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Embedding<T, B> {
             *v = T::zero();
         }
         let w_tensor =
-            Tensor::from_slice_on(vec![num_embeddings, embedding_dim], &w_data, &backend);
-        let weight = Var::new(w_tensor, true);
-        Self {
+            Tensor::from_slice_on(vec![num_embeddings, embedding_dim], &w_data, &backend)?;
+        let weight = Var::new(w_tensor, true)?;
+        Ok(Self {
             weight,
             num_embeddings,
             embedding_dim,
             padding_idx: Some(padding_idx),
-        }
+        })
     }
 
     /// Forward pass using an explicit integer index tensor.
@@ -77,7 +84,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Embedding<T, B> {
             &self.weight,
             indices,
             self.padding_idx,
-        ))
+        )?)
     }
 }
 
@@ -92,7 +99,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Embeddin
             &self.weight,
             &input.tensor,
             self.padding_idx,
-        ))
+        )?)
     }
 }
 
@@ -102,7 +109,7 @@ fn validate_indices<I: Scalar, B: coeus_core::ComputeBackend + Default>(
     module: &'static str,
 ) -> Result<(), ModuleError<B::Error>> {
     let backend = B::default();
-    for (position, &index) in indices.host_cow_on(&backend).iter().enumerate() {
+    for (position, &index) in indices.host_cow_on(&backend)?.iter().enumerate() {
         let value = <I as Scalar>::to_f64(index);
         if !value.is_finite()
             || value < 0.0

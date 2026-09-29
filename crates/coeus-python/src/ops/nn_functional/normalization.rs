@@ -1,5 +1,9 @@
 use crate::nn::normalization::layernorm::parse_normalized_shape;
-use crate::{error::map_module_error, tensor::PyTensor};
+use crate::{
+    error::{map_backend_error, map_module_error},
+    init::map_initialization_error,
+    tensor::PyTensor,
+};
 use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -120,18 +124,29 @@ pub fn batch_norm_1d(
         use coeus_nn::normalization::BatchNorm1d;
         use coeus_nn::Module;
         let backend = coeus_core::MoiraiBackend::new();
-        let weight_var = w.unwrap_or_else(|| {
-            coeus_autograd::Var::new(Tensor::ones_on([num_features], &backend), false)
-        });
-        let bias_var = b.unwrap_or_else(|| {
-            coeus_autograd::Var::new(Tensor::zeros_on([num_features], &backend), false)
-        });
+        let weight_var = match w {
+            Some(weight) => weight,
+            None => {
+                let tensor =
+                    Tensor::ones_on([num_features], &backend).map_err(map_backend_error)?;
+                coeus_autograd::Var::new(tensor, false).map_err(map_backend_error)?
+            }
+        };
+        let bias_var = match b {
+            Some(bias) => bias,
+            None => {
+                let tensor =
+                    Tensor::zeros_on([num_features], &backend).map_err(map_backend_error)?;
+                coeus_autograd::Var::new(tensor, false).map_err(map_backend_error)?
+            }
+        };
         let mut bn =
-            BatchNorm1d::from_parts(num_features, weight_var, bias_var, eps, momentum, rm, rv);
+            BatchNorm1d::from_parts(num_features, weight_var, bias_var, eps, momentum, rm, rv)
+                .map_err(map_initialization_error)?;
         bn.set_training(training);
-        bn.forward(&x)
+        bn.forward(&x).map_err(map_module_error)
     });
-    inner.map(PyTensor::from_var).map_err(map_module_error)
+    inner.map(PyTensor::from_var)
 }
 
 /// Functional (stateless) RMS normalization.
@@ -219,7 +234,10 @@ pub fn group_norm(
     let x = input.inner.tensor.clone();
     let w = weight.map(|w| w.inner.tensor.clone());
     let b = bias.map(|b| b.inner.tensor.clone());
-    py.allow_threads(move || coeus_nn::group_norm(&x, num_groups, w.as_ref(), b.as_ref(), eps))
-        .map(|tensor| PyTensor::from_var(coeus_autograd::Var::new(tensor, false)))
-        .map_err(map_module_error)
+    let tensor = py
+        .allow_threads(move || coeus_nn::group_norm(&x, num_groups, w.as_ref(), b.as_ref(), eps))
+        .map_err(map_module_error)?;
+    coeus_autograd::Var::new(tensor, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }

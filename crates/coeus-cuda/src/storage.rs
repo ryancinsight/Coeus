@@ -6,7 +6,8 @@ use themis::{MemoryTier, PlacementHint};
 
 #[test]
 fn storage_allocates_device_tier() {
-    let storage = HephaestusStorage::<crate::CudaBackend, f32>::new(8);
+    let storage = HephaestusStorage::<crate::CudaBackend, f32>::new(8)
+        .expect("invariant: test device allocation succeeds");
     assert_eq!(storage.buffer().tier(), MemoryTier::Device);
 }
 

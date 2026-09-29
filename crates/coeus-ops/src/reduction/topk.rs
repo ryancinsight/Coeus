@@ -114,6 +114,10 @@ pub fn topk_impl<T: Scalar>(
 /// - If `k == 0` or `k > x.shape()[dim]`.
 /// - If `dim` is out of range.
 #[inline]
+#[expect(
+    clippy::type_complexity,
+    reason = "the established top-k contract returns value and index tensors together"
+)]
 pub fn topk<
     T: Scalar + leto_ops::Scalar,
     B: BackendOps<T> + BackendOps<i64> + CpuBackend + Default,
@@ -122,7 +126,7 @@ pub fn topk<
     k: usize,
     dim: usize,
     largest: bool,
-) -> (Tensor<T, B>, Tensor<i64, B>) {
+) -> Result<(Tensor<T, B>, Tensor<i64, B>), B::Error> {
     let ndim = x.ndim();
     let dim_size = x.shape()[dim];
     assert!(
@@ -132,14 +136,14 @@ pub fn topk<
     assert!(dim < ndim, "topk: dim {dim} out of range");
 
     let backend = B::default();
-    let x_cont = x.to_contiguous_on(&backend);
+    let x_cont = x.to_contiguous_on(&backend)?;
 
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = k;
 
     // alloc_on: backend.topk writes every val/idx position — no zero-init needed.
-    let mut val_tensor = Tensor::alloc_on(out_shape.clone(), &backend);
-    let mut idx_tensor = Tensor::alloc_on(out_shape, &backend);
+    let mut val_tensor = Tensor::alloc_on(out_shape.clone(), &backend)?;
+    let mut idx_tensor = Tensor::alloc_on(out_shape, &backend)?;
 
     {
         let (val_storage, val_layout) = val_tensor.storage_mut_and_layout();
@@ -154,10 +158,10 @@ pub fn topk<
             val_layout,
             idx_storage,
             idx_layout,
-        );
+        )?;
     }
 
-    (val_tensor, idx_tensor)
+    Ok((val_tensor, idx_tensor))
 }
 
 /// Argmax along `dim`: returns indices of maximum values, shape `x.shape()[dim] = 1`.
@@ -168,17 +172,17 @@ pub fn argmax<
 >(
     x: &Tensor<T, B>,
     dim: usize,
-) -> Tensor<i64, B> {
+) -> Result<Tensor<i64, B>, B::Error> {
     assert!(dim < x.ndim(), "argmax: dim {dim} out of range");
 
     let backend = B::default();
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = 1;
     // alloc_on: backend.argmax writes every position — no zero-init needed.
-    let mut out = Tensor::alloc_on(out_shape, &backend);
+    let mut out = Tensor::alloc_on(out_shape, &backend)?;
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.argmax(x.storage(), x.layout(), dim, out_storage, out_layout);
-    out
+    backend.argmax(x.storage(), x.layout(), dim, out_storage, out_layout)?;
+    Ok(out)
 }
 
 /// Argmin along `dim`: returns indices of minimum values, shape `x.shape()[dim] = 1`.
@@ -189,15 +193,15 @@ pub fn argmin<
 >(
     x: &Tensor<T, B>,
     dim: usize,
-) -> Tensor<i64, B> {
+) -> Result<Tensor<i64, B>, B::Error> {
     assert!(dim < x.ndim(), "argmin: dim {dim} out of range");
 
     let backend = B::default();
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = 1;
     // alloc_on: backend.argmin writes every position — no zero-init needed.
-    let mut out = Tensor::alloc_on(out_shape, &backend);
+    let mut out = Tensor::alloc_on(out_shape, &backend)?;
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.argmin(x.storage(), x.layout(), dim, out_storage, out_layout);
-    out
+    backend.argmin(x.storage(), x.layout(), dim, out_storage, out_layout)?;
+    Ok(out)
 }

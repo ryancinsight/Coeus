@@ -14,8 +14,9 @@ fn ffn_forward_shape() {
     let backend = B::default();
     let batch = 2;
     let seq = 5;
-    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-    let x_var = Var::new(x, false);
+    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, false).expect("invariant: test backend operation succeeds");
 
     let out = ffn.forward(&x_var).expect("valid FeedForward input");
     assert_eq!(out.tensor.shape(), &[batch, seq, d_model]);
@@ -51,8 +52,9 @@ fn encoder_layer_forward_shape() {
     let backend = B::default();
     let batch = 1;
     let seq = 4;
-    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-    let x_var = Var::new(x, false);
+    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, false).expect("invariant: test backend operation succeeds");
 
     let out = layer
         .forward(&x_var)
@@ -114,13 +116,14 @@ fn encoder_layer_gradient_through_all_params() {
     let backend = B::default();
     let batch = 1;
     let seq = 4;
-    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-    let x_var = Var::new(x, true);
+    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, true).expect("invariant: test backend operation succeeds");
 
     let out = layer
         .forward(&x_var)
         .expect("valid TransformerEncoderLayer input");
-    let loss = coeus_autograd::sum(&out);
+    let loss = coeus_autograd::sum(&out).expect("invariant: test operation succeeds");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -141,12 +144,14 @@ fn encoder_layer_forward_with_key_padding_mask_shape_and_grad() {
     let batch = 1;
     let seq = 4;
 
-    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-    let x_var = Var::new(x, true);
+    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, true).expect("invariant: test backend operation succeeds");
 
     // Keep first two tokens, mask the last two.
-    let mask = Tensor::<f32, B>::from_slice_on([batch, seq], &[1.0, 1.0, 0.0, 0.0], &backend);
-    let mask_var = Var::new(mask, false);
+    let mask = Tensor::<f32, B>::from_slice_on([batch, seq], &[1.0, 1.0, 0.0, 0.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mask_var = Var::new(mask, false).expect("invariant: test backend operation succeeds");
 
     let out = layer
         .forward_with_mask(&x_var, Some(&mask_var))
@@ -157,7 +162,7 @@ fn encoder_layer_forward_with_key_padding_mask_shape_and_grad() {
         "EncoderLayer(masked) output shape mismatch"
     );
 
-    let loss = coeus_autograd::sum(&out);
+    let loss = coeus_autograd::sum(&out).expect("invariant: test operation succeeds");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -185,11 +190,13 @@ fn encoder_layer_all_ones_mask_matches_unmasked_forward() {
     let data: Vec<f32> = (1..=(batch * seq * d_model))
         .map(|x| x as f32 * 0.01)
         .collect();
-    let x = Tensor::<f32, B>::from_slice_on([batch, seq, d_model], &data, &backend);
-    let x_var = Var::new(x, false);
+    let x = Tensor::<f32, B>::from_slice_on([batch, seq, d_model], &data, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, false).expect("invariant: test backend operation succeeds");
 
-    let mask = Tensor::<f32, B>::ones_on([batch, seq], &backend);
-    let mask_var = Var::new(mask, false);
+    let mask = Tensor::<f32, B>::ones_on([batch, seq], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mask_var = Var::new(mask, false).expect("invariant: test backend operation succeeds");
 
     let unmasked = layer
         .forward(&x_var)
@@ -224,7 +231,11 @@ fn encoder_layer_rejects_rank_before_normalization() {
     const H: usize = 2;
     let layer = TransformerEncoderLayer::<f32, B, H, NullMask>::new(8, 16, 0.0)
         .expect("valid encoder rank-validation fixture");
-    let input = Var::new(Tensor::<f32, B>::ones([2, 8]), false);
+    let input = Var::new(
+        Tensor::<f32, B>::ones([2, 8]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let error = layer
         .forward(&input)
         .err()

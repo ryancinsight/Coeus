@@ -72,7 +72,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
             self.dilation,
         )?;
 
-        let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
+        let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend)?;
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
         backend
@@ -98,7 +98,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
             self.stride,
             self.padding,
             self.dilation,
-        ))
+        )?)
     }
 }
 
@@ -177,7 +177,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool3d
             self.dilation,
         )?;
 
-        let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend);
+        let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend)?;
         let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
 
         backend
@@ -203,6 +203,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool3d
             self.stride,
             self.padding,
             self.dilation,
-        ))
+        )?)
     }
 }

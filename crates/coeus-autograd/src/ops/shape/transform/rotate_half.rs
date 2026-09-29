@@ -60,16 +60,13 @@ where
     let tensor = coeus_ops::rotate_half(&input.tensor, &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(input);
     if !requires_grad {
-        return Ok(Var::new(tensor, false));
+        return Var::new(tensor, false);
     }
 
-    Ok(Var::from_tracked_op(
-        tensor,
-        requires_grad,
-        &backend,
-        |output_grad| RotateHalfNode {
+    Var::from_tracked_op(tensor, requires_grad, &backend, |output_grad| {
+        RotateHalfNode {
             output_grad,
             inputs: vec![input.clone()],
-        },
-    ))
+        }
+    })
 }

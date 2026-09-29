@@ -15,7 +15,7 @@ pub trait BinaryAutogradOp<
     const OP_NAME: &'static str;
 
     /// Execute forward pass.
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B>;
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error>;
 
     /// Compute input gradients backward.
     fn backward(
@@ -100,9 +100,9 @@ pub fn binary_op<
 >(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = Op::forward(&a.tensor, &b.tensor, &backend);
+    let out_tensor = Op::forward(&a.tensor, &b.tensor, &backend)?;
     let requires_grad =
         crate::grad_mode::should_track_var(a) || crate::grad_mode::should_track_var(b);
     Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
@@ -127,10 +127,18 @@ pub trait ReductionAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>:
     const OP_NAME: &'static str;
 
     /// Execute forward pass.
-    fn forward(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Tensor<T, B>;
+    fn forward(
+        a: &Tensor<T, B>,
+        param: Option<usize>,
+        backend: &B,
+    ) -> Result<Tensor<T, B>, B::Error>;
 
     /// Return optional scaling tensor for backward propagation.
-    fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>>;
+    fn scaler(
+        a: &Tensor<T, B>,
+        param: Option<usize>,
+        backend: &B,
+    ) -> Result<Option<Tensor<T, B>>, B::Error>;
 }
 
 /// Autograd node for reduction operations (sum, mean, norm, etc.).
@@ -178,7 +186,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: ReductionAutogradOp<T
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let grad_to_broadcast = if let Some(ref scaler) = self.scaler_tensor {
-                coeus_ops::mul(grad_out, scaler, &backend)
+                coeus_ops::mul(grad_out, scaler, &backend)?
             } else {
                 grad_out.clone()
             };
@@ -199,16 +207,17 @@ pub fn reduction_op<
 >(
     a: &Var<T, B>,
     param: Option<usize>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = Op::forward(&a.tensor, param, &backend);
+    let out_tensor = Op::forward(&a.tensor, param, &backend)?;
+    let scaler_tensor = Op::scaler(&a.tensor, param, &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(a);
     Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
         let node: ReductionNode<T, B, Op> = ReductionNode {
             output_grad,
             inputs: vec![a.clone()],
             a_shape: a.tensor.shape_cloned(),
-            scaler_tensor: Op::scaler(&a.tensor, param, &backend),
+            scaler_tensor,
             _phantom: std::marker::PhantomData,
         };
         node

@@ -25,7 +25,7 @@ pub fn elementwise_binary<T: Scalar, B: ElementwiseOps<T>>(
         })
     })?;
 
-    let mut out: Tensor<T, B> = Tensor::alloc_on(out_shape.clone(), backend);
+    let mut out: Tensor<T, B> = Tensor::alloc_on(out_shape.clone(), backend)?;
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.elementwise_binary(

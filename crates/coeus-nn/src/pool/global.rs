@@ -46,7 +46,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
                 actual: vec![0],
             });
         }
-        Ok(coeus_autograd::mean_axis(input, 2))
+        Ok(coeus_autograd::mean_axis(input, 2)?)
     }
 }
 
@@ -88,8 +88,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
                 actual: spatial.to_vec(),
             });
         }
-        let after_h = coeus_autograd::mean_axis(input, 2);
-        Ok(coeus_autograd::mean_axis(&after_h, 3))
+        let after_h = coeus_autograd::mean_axis(input, 2)?;
+        Ok(coeus_autograd::mean_axis(&after_h, 3)?)
     }
 }
 
@@ -131,9 +131,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvg
                 actual: spatial.to_vec(),
             });
         }
-        let after_d = coeus_autograd::mean_axis(input, 2);
-        let after_h = coeus_autograd::mean_axis(&after_d, 3);
-        Ok(coeus_autograd::mean_axis(&after_h, 4))
+        let after_d = coeus_autograd::mean_axis(input, 2)?;
+        let after_h = coeus_autograd::mean_axis(&after_d, 3)?;
+        Ok(coeus_autograd::mean_axis(&after_h, 4)?)
     }
 }
 
@@ -175,8 +175,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMax
                 actual: spatial.to_vec(),
             });
         }
-        let after_h = coeus_autograd::max_axis(input, 2);
-        Ok(coeus_autograd::max_axis(&after_h, 3))
+        let after_h = coeus_autograd::max_axis(input, 2)?;
+        Ok(coeus_autograd::max_axis(&after_h, 3)?)
     }
 }
 
@@ -216,8 +216,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMax
                 actual: spatial.to_vec(),
             });
         }
-        let after_d = coeus_autograd::max_axis(input, 2);
-        let after_h = coeus_autograd::max_axis(&after_d, 3);
-        Ok(coeus_autograd::max_axis(&after_h, 4))
+        let after_d = coeus_autograd::max_axis(input, 2)?;
+        let after_h = coeus_autograd::max_axis(&after_d, 3)?;
+        Ok(coeus_autograd::max_axis(&after_h, 4)?)
     }
 }

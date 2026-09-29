@@ -33,8 +33,10 @@ where
     let four = two + two;
     let input_values = O::input(one);
     let rhs_values = [two, one, one, two];
-    let input = Tensor::from_slice_on([2, 2], &input_values, backend);
-    let rhs = Tensor::from_slice_on([2, 2], &rhs_values, backend);
+    let input = Tensor::from_slice_on([2, 2], &input_values, backend)
+        .expect("invariant: test backend operation succeeds");
+    let rhs = Tensor::from_slice_on([2, 2], &rhs_values, backend)
+        .expect("invariant: test backend operation succeeds");
     let expected = operation.expected(one);
     let columns = O::COLUMNS;
 
@@ -47,7 +49,8 @@ where
         let original_values: Vec<_> = (0..shape[0] * shape[1])
             .map(|index| [four, three, two, one][index % 4])
             .collect();
-        let original = Tensor::from_slice_on(shape, &original_values, backend);
+        let original = Tensor::from_slice_on(shape, &original_values, backend)
+            .expect("invariant: test backend operation succeeds");
         let mut destination = if offset_view {
             original.slice(&[(1, 3), (1, columns + 1)])
         } else {
@@ -69,18 +72,24 @@ where
             .dispatch(backend, &input, input.layout(), &rhs, output, output_layout)
             .expect("valid output operation");
         assert_eq!(
-            original.to_vec_on(backend),
+            original
+                .to_vec_on(backend)
+                .expect("invariant: test backend storage operation succeeds"),
             original_values,
             "{operation:?} changed its destination clone ({offset_view}, {})",
             core::any::type_name::<T>()
         );
         assert_eq!(
-            destination.to_vec_on(backend),
+            destination
+                .to_vec_on(backend)
+                .expect("invariant: test backend storage operation succeeds"),
             expected,
             "{operation:?} computed incorrect logical output"
         );
         let mut actual_storage = vec![T::zero(); expected_storage.len()];
-        backend.copy_to_host(destination.storage(), &mut actual_storage);
+        backend
+            .copy_to_host(destination.storage(), &mut actual_storage)
+            .expect("invariant: test backend storage operation succeeds");
         assert_eq!(
             actual_storage, expected_storage,
             "{operation:?} changed elements outside its output view"
@@ -95,13 +104,15 @@ where
     O: OutputWrite<T, B>,
 {
     let two = one + one;
-    let input = Tensor::from_slice_on([2, 2], &[one, two, two, one], backend);
+    let input = Tensor::from_slice_on([2, 2], &[one, two, two, one], backend)
+        .expect("invariant: test backend operation succeeds");
     let invalid_input_layout = Layout::new([2, 3].into());
     let columns = O::COLUMNS;
     let original_values: Vec<_> = (0..2 * columns)
         .map(|index| [two, one][index % 2])
         .collect();
-    let original = Tensor::from_slice_on([2, columns], &original_values, backend);
+    let original = Tensor::from_slice_on([2, columns], &original_values, backend)
+        .expect("invariant: test backend operation succeeds");
     let mut destination = original.clone();
     let (output, output_layout) = destination.storage_and_layout_mut();
     operation
@@ -115,12 +126,16 @@ where
         )
         .expect_err("an input layout extending beyond its allocation must fail");
     assert_eq!(
-        original.to_vec_on(backend),
+        original
+            .to_vec_on(backend)
+            .expect("invariant: test backend storage operation succeeds"),
         original_values,
         "{operation:?} changed shared values on rejection"
     );
     assert_eq!(
-        destination.to_vec_on(backend),
+        destination
+            .to_vec_on(backend)
+            .expect("invariant: test backend storage operation succeeds"),
         original_values,
         "{operation:?} wrote output before rejecting an invalid input"
     );

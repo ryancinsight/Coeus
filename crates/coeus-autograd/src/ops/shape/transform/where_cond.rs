@@ -49,14 +49,14 @@ where
         // grad true  = grad_out * any_mask
         // grad false = grad_out * (1 - any_mask)
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let d_true = coeus_ops::mul(grad_out, &self.any_mask, &backend);
+            let d_true = coeus_ops::mul(grad_out, &self.any_mask, &backend)?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &d_true, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(2) {
-            let one = Tensor::full_on(self.any_mask.shape(), T::from_f64(1.0), &backend);
-            let inv = coeus_ops::sub(&one, &self.any_mask, &backend);
-            let d_false = coeus_ops::mul(grad_out, &inv, &backend);
+            let one = Tensor::full_on(self.any_mask.shape(), T::from_f64(1.0), &backend)?;
+            let inv = coeus_ops::sub(&one, &self.any_mask, &backend)?;
+            let d_false = coeus_ops::mul(grad_out, &inv, &backend)?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &d_false, &backend)?;
         }
@@ -71,13 +71,12 @@ where
 ///
 /// # Panics
 /// Panics if `cond`, `on_true`, and `on_false` do not have the same shape.
-#[must_use]
 #[inline]
 pub fn where_cond<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     cond: &Var<T, B>,
     on_true: &Var<T, B>,
     on_false: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -86,19 +85,16 @@ where
 
     // Compute mask once; reuse in backward.
     let mask_pos =
-        coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::ReluGrad)
-            .expect("elementwise_unary");
-    let cond_neg = coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::Neg)
-        .expect("elementwise_unary");
-    let mask_neg = coeus_ops::elementwise_unary(&cond_neg, &backend, coeus_ops::UnaryOp::ReluGrad)
-        .expect("elementwise_unary");
-    let any_mask = coeus_ops::add(&mask_pos, &mask_neg, &backend);
+        coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::ReluGrad)?;
+    let cond_neg = coeus_ops::elementwise_unary(&cond.tensor, &backend, coeus_ops::UnaryOp::Neg)?;
+    let mask_neg = coeus_ops::elementwise_unary(&cond_neg, &backend, coeus_ops::UnaryOp::ReluGrad)?;
+    let any_mask = coeus_ops::add(&mask_pos, &mask_neg, &backend)?;
 
-    let one = Tensor::full_on(any_mask.shape(), T::from_f64(1.0), &backend);
-    let inv_mask = coeus_ops::sub(&one, &any_mask, &backend);
-    let true_part = coeus_ops::mul(&on_true.tensor, &any_mask, &backend);
-    let false_part = coeus_ops::mul(&on_false.tensor, &inv_mask, &backend);
-    let out_tensor = coeus_ops::add(&true_part, &false_part, &backend);
+    let one = Tensor::full_on(any_mask.shape(), T::from_f64(1.0), &backend)?;
+    let inv_mask = coeus_ops::sub(&one, &any_mask, &backend)?;
+    let true_part = coeus_ops::mul(&on_true.tensor, &any_mask, &backend)?;
+    let false_part = coeus_ops::mul(&on_false.tensor, &inv_mask, &backend)?;
+    let out_tensor = coeus_ops::add(&true_part, &false_part, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(cond)
         || crate::grad_mode::should_track_var(on_true)
@@ -107,7 +103,7 @@ where
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -121,9 +117,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

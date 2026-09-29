@@ -44,12 +44,17 @@ impl PySGD {
     #[new]
     #[pyo3(signature = (params, lr, momentum = 0.0))]
     /// Create an SGD optimizer over `params` with learning rate `lr` and optional `momentum`.
-    pub fn new(py: Python<'_>, params: Vec<NamedPyParameter>, lr: f64, momentum: f64) -> Self {
+    pub fn new(
+        py: Python<'_>,
+        params: Vec<NamedPyParameter>,
+        lr: f64,
+        momentum: f64,
+    ) -> PyResult<Self> {
         let (params, named) = split_parameters(py, params);
-        Self {
+        Ok(Self {
             params,
-            inner: coeus_optim::SGD::new(named, lr, momentum),
-        }
+            inner: coeus_optim::SGD::new(named, lr, momentum).map_err(map_backend_error)?,
+        })
     }
 
     /// Perform a single optimization step.
@@ -61,9 +66,9 @@ impl PySGD {
     }
 
     /// Zero all parameter gradients.
-    pub fn zero_grad(&mut self) {
+    pub fn zero_grad(&mut self) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        self.inner.zero_grad();
+        self.inner.zero_grad().map_err(map_backend_error)
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
@@ -94,12 +99,13 @@ impl PyAdam {
         beta1: f64,
         beta2: f64,
         eps: f64,
-    ) -> Self {
+    ) -> PyResult<Self> {
         let (params, named) = split_parameters(py, params);
-        Self {
+        Ok(Self {
             params,
-            inner: coeus_optim::Adam::new(named, lr, beta1, beta2, eps),
-        }
+            inner: coeus_optim::Adam::new(named, lr, beta1, beta2, eps)
+                .map_err(map_backend_error)?,
+        })
     }
 
     /// Perform a single optimization step.
@@ -111,9 +117,9 @@ impl PyAdam {
     }
 
     /// Zero all parameter gradients.
-    pub fn zero_grad(&mut self) {
+    pub fn zero_grad(&mut self) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        self.inner.zero_grad();
+        self.inner.zero_grad().map_err(map_backend_error)
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
@@ -143,12 +149,12 @@ impl PyRMSProp {
         lr: f64,
         alpha: f64,
         eps: f64,
-    ) -> Self {
+    ) -> PyResult<Self> {
         let (params, named) = split_parameters(py, params);
-        Self {
+        Ok(Self {
             params,
-            inner: coeus_optim::RMSProp::new(named, lr, alpha, eps),
-        }
+            inner: coeus_optim::RMSProp::new(named, lr, alpha, eps).map_err(map_backend_error)?,
+        })
     }
 
     /// Perform a single optimization step.
@@ -160,9 +166,9 @@ impl PyRMSProp {
     }
 
     /// Zero all parameter gradients.
-    pub fn zero_grad(&mut self) {
+    pub fn zero_grad(&mut self) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        self.inner.zero_grad();
+        self.inner.zero_grad().map_err(map_backend_error)
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
@@ -186,12 +192,12 @@ impl PyAdaGrad {
     #[new]
     #[pyo3(signature = (params, lr = 1e-2, eps = 1e-10))]
     /// Create an AdaGrad optimizer over `params`.
-    pub fn new(py: Python<'_>, params: Vec<NamedPyParameter>, lr: f64, eps: f64) -> Self {
+    pub fn new(py: Python<'_>, params: Vec<NamedPyParameter>, lr: f64, eps: f64) -> PyResult<Self> {
         let (params, named) = split_parameters(py, params);
-        Self {
+        Ok(Self {
             params,
-            inner: coeus_optim::AdaGrad::new(named, lr, eps),
-        }
+            inner: coeus_optim::AdaGrad::new(named, lr, eps).map_err(map_backend_error)?,
+        })
     }
 
     /// Perform a single optimization step.
@@ -203,9 +209,9 @@ impl PyAdaGrad {
     }
 
     /// Zero all parameter gradients.
-    pub fn zero_grad(&mut self) {
+    pub fn zero_grad(&mut self) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        self.inner.zero_grad();
+        self.inner.zero_grad().map_err(map_backend_error)
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
@@ -237,12 +243,13 @@ impl PyAdamW {
         beta2: f64,
         eps: f64,
         weight_decay: f64,
-    ) -> Self {
+    ) -> PyResult<Self> {
         let (params, named) = split_parameters(py, params);
-        Self {
+        Ok(Self {
             params,
-            inner: coeus_optim::AdamW::new(named, lr, beta1, beta2, eps, weight_decay),
-        }
+            inner: coeus_optim::AdamW::new(named, lr, beta1, beta2, eps, weight_decay)
+                .map_err(map_backend_error)?,
+        })
     }
 
     /// Perform a single optimization step.
@@ -254,9 +261,9 @@ impl PyAdamW {
     }
 
     /// Zero all parameter gradients.
-    pub fn zero_grad(&mut self) {
+    pub fn zero_grad(&mut self) -> PyResult<()> {
         use coeus_optim::traits::Optimizer;
-        self.inner.zero_grad();
+        self.inner.zero_grad().map_err(map_backend_error)
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.

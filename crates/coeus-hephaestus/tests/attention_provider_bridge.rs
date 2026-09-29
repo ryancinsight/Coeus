@@ -251,7 +251,7 @@ impl AttentionProvider<f32> for TestProvider {
 }
 
 fn storage(len: usize) -> HephaestusStorage<TestProvider, f32> {
-    HephaestusStorage::new(len)
+    HephaestusStorage::new(len).expect("invariant: test device allocation succeeds")
 }
 
 #[test]

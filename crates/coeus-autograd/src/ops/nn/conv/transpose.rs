@@ -84,12 +84,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
             return Ok(());
         }
 
-        let mut grad_input =
-            needs_input.then(|| Tensor::zeros_on(self.input.shape_cloned(), &backend));
-        let mut grad_weight =
-            needs_weight.then(|| Tensor::zeros_on(self.weight.shape_cloned(), &backend));
-        let mut grad_bias =
-            needs_bias.then(|| Tensor::zeros_on([self.weight.shape()[1]], &backend));
+        let mut grad_input = if needs_input {
+            Some(Tensor::zeros_on(self.input.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_weight = if needs_weight {
+            Some(Tensor::zeros_on(self.weight.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_bias = if needs_bias {
+            Some(Tensor::zeros_on([self.weight.shape()[1]], &backend)?)
+        } else {
+            None
+        };
 
         let reference_layout = grad_output.layout();
         let (input_storage, input_layout) = optional_gradient(&mut grad_input, reference_layout);
@@ -225,7 +234,7 @@ fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: us
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -233,12 +242,14 @@ fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: us
             .as_ref()
             .is_some_and(crate::grad_mode::should_track_var);
 
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             output.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
     let creator = grad.as_ref().map(|output_grad| {
         let mut inputs = Vec::with_capacity(2 + usize::from(bias.is_some()));
@@ -258,11 +269,11 @@ fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: us
         }) as Arc<dyn BackwardNode<T, B>>
     });
 
-    Var {
+    Ok(Var {
         tensor: output,
         grad,
         creator,
-    }
+    })
 }
 
 /// Track a one-dimensional transposed convolution.
@@ -279,7 +290,7 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     conv_transpose::<T, B, 1>(
         input,
         weight,
@@ -306,7 +317,7 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     conv_transpose::<T, B, 2>(
         input,
         weight,
@@ -333,7 +344,7 @@ pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     conv_transpose::<T, B, 3>(
         input,
         weight,

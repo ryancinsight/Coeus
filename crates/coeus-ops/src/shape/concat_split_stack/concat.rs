@@ -17,14 +17,14 @@ use coeus_tensor::Tensor;
 pub fn cat<T: Scalar, B: ComputeBackend + Default>(
     tensors: &[&Tensor<T, B>],
     dim: usize,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     assert!(!tensors.is_empty(), "cat: input list is empty");
     // Fast path: single input.
     if tensors.len() == 1 {
-        return tensors[0].clone();
+        return Ok((*tensors[0]).clone());
     }
 
     let backend = B::default();

@@ -145,9 +145,9 @@ impl PyFeedForward {
     }
 
     /// Zero gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.linear1.bind(py).borrow().zero_grad(py);
-        self.linear2.bind(py).borrow().zero_grad(py);
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.linear1.bind(py).borrow().zero_grad(py)?;
+        self.linear2.bind(py).borrow().zero_grad(py)
     }
 }
 

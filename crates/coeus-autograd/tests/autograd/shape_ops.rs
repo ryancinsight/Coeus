@@ -15,10 +15,12 @@ fn assert_close(actual: &[f32], expected: &[f32], label: &str) {
 #[test]
 fn test_pad_autograd() {
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0f32, 3.0f32, 4.0f32], &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0f32, 3.0f32, 4.0f32], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = coeus_autograd::pad(&x, &[(1, 1), (1, 1)], 0.0f32);
+    let y = coeus_autograd::pad(&x, &[(1, 1), (1, 1)], 0.0f32)
+        .expect("invariant: test operation succeeds");
     assert_eq!(y.tensor.shape(), &[4, 4]);
 
     let y_slice = y.tensor.as_slice();
@@ -27,7 +29,8 @@ fn test_pad_autograd() {
     assert_eq!(y_slice[9], 3.0);
     assert_eq!(y_slice[10], 4.0);
 
-    let grad_out = Tensor::ones_on(vec![4, 4], &backend);
+    let grad_out =
+        Tensor::ones_on(vec![4, 4], &backend).expect("invariant: test backend operation succeeds");
     y.backward_with_seed(grad_out)
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -41,17 +44,19 @@ fn test_squeeze_unsqueeze_autograd() {
     let backend = MoiraiBackend::new();
 
     // Test Unsqueeze: [2, 3] -> [2, 1, 3]
-    let x_val = Tensor::from_slice_on(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = coeus_autograd::unsqueeze(&x, 1);
+    let y = coeus_autograd::unsqueeze(&x, 1).expect("invariant: test operation succeeds");
     assert_eq!(y.tensor.shape(), &[2, 1, 3]);
 
     let grad_out = Tensor::from_slice_on(
         vec![2, 1, 3],
         &[10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0],
         &backend,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(grad_out)
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -60,17 +65,19 @@ fn test_squeeze_unsqueeze_autograd() {
     assert_eq!(gx.as_slice(), &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
 
     // Test Squeeze (specific axis): [2, 1, 3] -> [2, 3]
-    let x2_val = Tensor::from_slice_on(vec![2, 1, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &backend);
-    let x2 = Var::new(x2_val, true);
+    let x2_val = Tensor::from_slice_on(vec![2, 1, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x2 = Var::new(x2_val, true).expect("invariant: test backend operation succeeds");
 
-    let y2 = coeus_autograd::squeeze(&x2, Some(1));
+    let y2 = coeus_autograd::squeeze(&x2, Some(1)).expect("invariant: test operation succeeds");
     assert_eq!(y2.tensor.shape(), &[2, 3]);
 
     let grad_out2 = Tensor::from_slice_on(
         vec![2, 3],
         &[10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0],
         &backend,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     y2.backward_with_seed(grad_out2)
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -83,17 +90,19 @@ fn test_squeeze_unsqueeze_autograd() {
         vec![1, 2, 1, 3],
         &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0],
         &backend,
-    );
-    let x3 = Var::new(x3_val, true);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x3 = Var::new(x3_val, true).expect("invariant: test backend operation succeeds");
 
-    let y3 = coeus_autograd::squeeze(&x3, None);
+    let y3 = coeus_autograd::squeeze(&x3, None).expect("invariant: test operation succeeds");
     assert_eq!(y3.tensor.shape(), &[2, 3]);
 
     let grad_out3 = Tensor::from_slice_on(
         vec![2, 3],
         &[10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0],
         &backend,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     y3.backward_with_seed(grad_out3)
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -107,11 +116,15 @@ fn structural_gradients_preserve_untouched_parent_regions() {
     let backend = MoiraiBackend::new();
 
     let sliced_input = Var::new(
-        Tensor::from_slice_on([4], &[1.0_f32, 2.0, 3.0, 4.0], &backend),
+        Tensor::from_slice_on([4], &[1.0_f32, 2.0, 3.0, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let sliced = coeus_autograd::slice(&sliced_input, &[(1, 3)]);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let sliced = coeus_autograd::slice(&sliced_input, &[(1, 3)])
+        .expect("invariant: test operation succeeds");
     coeus_autograd::sum(&sliced)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("slice backward");
     assert_eq!(
@@ -123,11 +136,15 @@ fn structural_gradients_preserve_untouched_parent_regions() {
     );
 
     let split_input = Var::new(
-        Tensor::from_slice_on([4], &[1.0_f32, 2.0, 3.0, 4.0], &backend),
+        Tensor::from_slice_on([4], &[1.0_f32, 2.0, 3.0, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let chunks = coeus_autograd::split(&split_input, 2, 0);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let chunks =
+        coeus_autograd::split(&split_input, 2, 0).expect("invariant: test operation succeeds");
     coeus_autograd::sum(&chunks[1])
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("split backward");
     assert_eq!(
@@ -135,15 +152,25 @@ fn structural_gradients_preserve_untouched_parent_regions() {
         &[0.0, 0.0, 1.0, 1.0]
     );
 
-    let left = Var::new(Tensor::from_slice_on([2], &[1.0_f32, 2.0], &backend), true);
-    let right = Var::new(Tensor::from_slice_on([2], &[3.0_f32, 4.0], &backend), true);
-    let concatenated = coeus_autograd::cat(&[&left, &right], 0);
+    let left = Var::new(
+        Tensor::from_slice_on([2], &[1.0_f32, 2.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let right = Var::new(
+        Tensor::from_slice_on([2], &[3.0_f32, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let concatenated =
+        coeus_autograd::cat(&[&left, &right], 0).expect("invariant: test operation succeeds");
     concatenated
-        .backward_with_seed(Tensor::from_slice_on(
-            [4],
-            &[10.0_f32, 20.0, 30.0, 40.0],
-            &backend,
-        ))
+        .backward_with_seed(
+            Tensor::from_slice_on([4], &[10.0_f32, 20.0, 30.0, 40.0], &backend)
+                .expect("invariant: test backend operation succeeds"),
+        )
         .expect("cat backward");
     assert_eq!(
         left.grad().expect("left gradient").as_slice(),
@@ -160,12 +187,21 @@ fn structural_gradients_preserve_untouched_parent_regions() {
 fn test_contiguous_backward_is_identity() {
     let backend = MoiraiBackend::new();
     let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let x = Var::new(Tensor::from_slice_on(vec![2, 3], &data, &backend), true);
+    let x = Var::new(
+        Tensor::from_slice_on(vec![2, 3], &data, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     // Permute to create a non-contiguous view, then force contiguous.
-    let y = coeus_autograd::contiguous(&coeus_autograd::permute(&x, &[1, 0]));
+    let y = coeus_autograd::contiguous(
+        &coeus_autograd::permute(&x, &[1, 0]).expect("invariant: test operation succeeds"),
+    )
+    .expect("invariant: test operation succeeds");
     assert_eq!(y.tensor.shape(), &[3, 2]);
     // sum(contiguous(permute(x))).backward() — grad should be all-ones (same as sum backward).
     coeus_autograd::sum(&y)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
@@ -183,17 +219,23 @@ fn test_contiguous_backward_is_identity() {
 fn test_einsum3_matmul_chain_backward() {
     let backend = MoiraiBackend::new();
     let a = Var::new(
-        Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend),
+        Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b = Var::new(
-        Tensor::from_slice_on(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0], &backend),
+        Tensor::from_slice_on(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let c = Var::new(
-        Tensor::from_slice_on(vec![2, 2], &[9.0f32, 10.0, 11.0, 12.0], &backend),
+        Tensor::from_slice_on(vec![2, 2], &[9.0f32, 10.0, 11.0, 12.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let y =
         coeus_autograd::einsum3("ij,jk,kl->il", &a, &b, &c).expect("valid einsum3 test subscript");
@@ -201,6 +243,7 @@ fn test_einsum3_matmul_chain_backward() {
     assert_eq!(y.tensor.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
 
     coeus_autograd::sum(&y)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
 

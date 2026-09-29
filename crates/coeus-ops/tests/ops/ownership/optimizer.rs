@@ -5,8 +5,12 @@ pub(crate) fn upload<T: Scalar, B: ComputeBackend>(
     backend: &B,
     values: &[T],
 ) -> B::DeviceBuffer<T> {
-    let mut buffer = backend.allocate(values.len());
-    backend.copy_to_device(values, &mut buffer);
+    let mut buffer = backend
+        .allocate(values.len())
+        .expect("invariant: test backend storage operation succeeds");
+    backend
+        .copy_to_device(values, &mut buffer)
+        .expect("invariant: test backend storage operation succeeds");
     buffer
 }
 
@@ -16,7 +20,9 @@ pub(crate) fn assert_values<T: Scalar, B: ComputeBackend>(
     expected: &[T],
 ) {
     let mut actual = vec![T::zero(); expected.len()];
-    backend.copy_to_host(buffer, &mut actual);
+    backend
+        .copy_to_host(buffer, &mut actual)
+        .expect("invariant: test backend storage operation succeeds");
     assert_eq!(
         actual,
         expected,

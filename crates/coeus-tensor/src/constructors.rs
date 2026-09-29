@@ -2,7 +2,18 @@
 // Factory functions for creating tensors.
 
 use crate::tensor::Tensor;
-use coeus_core::{ComputeBackend, CpuAddressableStorageMut, Float, Scalar, Shape};
+use coeus_core::{BackendError, ComputeBackend, CpuAddressableStorageMut, Float, Scalar, Shape};
+
+fn generation_error<B: ComputeBackend>(
+    operation: &'static str,
+    error: impl std::fmt::Display,
+) -> B::Error {
+    BackendError::Storage {
+        operation,
+        reason: error.to_string(),
+    }
+    .into()
+}
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
 where
@@ -10,7 +21,7 @@ where
 {
     /// Create a new tensor with shape filled using a function `f(index)`.
     #[inline]
-    pub fn from_fn<S: Into<Shape>, F>(shape: S, f: F) -> Self
+    pub fn from_fn<S: Into<Shape>, F>(shape: S, f: F) -> Result<Self, B::Error>
     where
         F: Fn(&[usize]) -> T,
     {
@@ -19,19 +30,19 @@ where
 
     /// Identity matrix of size n×n.
     #[inline]
-    pub fn eye(n: usize) -> Self {
+    pub fn eye(n: usize) -> Result<Self, B::Error> {
         Self::eye_on(n, &B::default())
     }
 
     /// Arange: values from [0, n) with step 1.
     #[inline]
-    pub fn arange(n: usize) -> Self {
+    pub fn arange(n: usize) -> Result<Self, B::Error> {
         Self::arange_on(n, &B::default())
     }
 
     /// Linspace: n evenly spaced values from start to end (inclusive).
     #[inline]
-    pub fn linspace(start: T, end: T, n: usize) -> Self {
+    pub fn linspace(start: T, end: T, n: usize) -> Result<Self, B::Error> {
         Self::linspace_on(start, end, n, &B::default())
     }
 }
@@ -42,19 +53,19 @@ where
 {
     /// Create a new tensor with shape filled using a function `f(index)` on the given backend.
     #[inline]
-    pub fn from_fn_on<S: Into<Shape>, F>(shape: S, backend: &B, f: F) -> Self
+    pub fn from_fn_on<S: Into<Shape>, F>(shape: S, backend: &B, f: F) -> Result<Self, B::Error>
     where
         F: Fn(&[usize]) -> T,
     {
         let shape = shape.into();
         let values = coeus_leto::from_shape_fn_values(&shape, f)
-            .expect("coeus-leto shape function generation failed");
+            .map_err(|error| generation_error::<B>("Tensor::from_fn_on", error))?;
         Self::from_slice_on(shape, &values, backend)
     }
 
     /// Identity matrix of size n×n on the given backend.
     #[inline]
-    pub fn eye_on(n: usize, backend: &B) -> Self {
+    pub fn eye_on(n: usize, backend: &B) -> Result<Self, B::Error> {
         let values = coeus_leto::from_shape_fn_values(&[n, n], |index| {
             if index[0] == index[1] {
                 T::one()
@@ -62,15 +73,15 @@ where
                 T::zero()
             }
         })
-        .expect("coeus-leto identity generation failed");
+        .map_err(|error| generation_error::<B>("Tensor::eye_on", error))?;
         Self::from_slice_on([n, n], &values, backend)
     }
 
     /// Arange: values from [0, n) with step 1 on the given backend.
     #[inline]
-    pub fn arange_on(n: usize, backend: &B) -> Self {
+    pub fn arange_on(n: usize, backend: &B) -> Result<Self, B::Error> {
         let values = coeus_leto::from_shape_fn_values(&[n], |index| T::from_usize(index[0]))
-            .expect("coeus-leto arange generation failed");
+            .map_err(|error| generation_error::<B>("Tensor::arange_on", error))?;
         Self::from_slice_on([n], &values, backend)
     }
 
@@ -79,7 +90,7 @@ where
     /// Computes natively in `T` (no `f64` widen-compute-narrow detour); valid
     /// for any [`Scalar`], including integer types (exact-division steps).
     #[inline]
-    pub fn linspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
+    pub fn linspace_on(start: T, end: T, n: usize, backend: &B) -> Result<Self, B::Error> {
         let step = if n > 1 {
             (end - start) / T::from_usize(n - 1)
         } else {
@@ -87,7 +98,7 @@ where
         };
         let values =
             coeus_leto::from_shape_fn_values(&[n], |index| start + step * T::from_usize(index[0]))
-                .expect("coeus-leto linspace generation failed");
+                .map_err(|error| generation_error::<B>("Tensor::linspace_on", error))?;
         Self::from_slice_on([n], &values, backend)
     }
 }
@@ -98,13 +109,13 @@ where
 {
     /// Logspace: `n` values from `base^start` to `base^end` (inclusive).
     #[inline]
-    pub fn logspace(start: T, end: T, n: usize, base: T) -> Self {
+    pub fn logspace(start: T, end: T, n: usize, base: T) -> Result<Self, B::Error> {
         Self::logspace_on(start, end, n, base, &B::default())
     }
 
     /// Geometric progression: `n` values from `start` to `end` (inclusive).
     #[inline]
-    pub fn geomspace(start: T, end: T, n: usize) -> Self {
+    pub fn geomspace(start: T, end: T, n: usize) -> Result<Self, B::Error> {
         Self::geomspace_on(start, end, n, &B::default())
     }
 
@@ -113,7 +124,7 @@ where
     ///
     /// Computes natively in `T` (no `f64` widen-compute-narrow detour).
     #[inline]
-    pub fn logspace_on(start: T, end: T, n: usize, base: T, backend: &B) -> Self {
+    pub fn logspace_on(start: T, end: T, n: usize, base: T, backend: &B) -> Result<Self, B::Error> {
         let n_minus_1 = T::from_usize(if n > 1 { n - 1 } else { 1 });
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
             let exp = if n > 1 {
@@ -123,7 +134,7 @@ where
             };
             base.powf(exp)
         })
-        .expect("coeus-leto logspace generation failed");
+        .map_err(|error| generation_error::<B>("Tensor::logspace_on", error))?;
         Self::from_slice_on([n], &values, backend)
     }
 
@@ -133,7 +144,7 @@ where
     /// Requires non-zero endpoints with the same sign. Computes natively in
     /// `T` (no `f64` widen-compute-narrow detour).
     #[inline]
-    pub fn geomspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
+    pub fn geomspace_on(start: T, end: T, n: usize, backend: &B) -> Result<Self, B::Error> {
         let zero = T::zero();
         assert!(
             start != zero && end != zero,
@@ -159,7 +170,7 @@ where
                 start
             }
         })
-        .expect("coeus-leto geomspace generation failed");
+        .map_err(|error| generation_error::<B>("Tensor::geomspace_on", error))?;
         Self::from_slice_on([n], &values, backend)
     }
 }

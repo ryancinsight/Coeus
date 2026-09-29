@@ -44,12 +44,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // d/dlog_probs = -mask * grad_out / n, all on-provider.
-            let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
+            let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
             let d_log = coeus_ops::mul(
-                &coeus_ops::neg(&self.target_mask, &backend),
+                &coeus_ops::neg(&self.target_mask, &backend)?,
                 &scale,
                 &backend,
-            );
+            )?;
             coeus_ops::add_assign(g.write(), &d_log, &backend)?;
         }
         Ok(())
@@ -64,7 +64,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
 pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -77,22 +77,21 @@ where
 
     // One-hot target mask on-provider; selected = mask * log_probs.
     let target_f: Vec<T> = targets.iter().map(|&i| T::from_usize(i)).collect();
-    let target_tensor = Tensor::from_slice_on([n], &target_f, &backend);
-    let target_mask = coeus_ops::one_hot(&target_tensor, c, &backend);
-    let selected = coeus_ops::mul(&log_probs.tensor, &target_mask, &backend);
+    let target_tensor = Tensor::from_slice_on([n], &target_f, &backend)?;
+    let target_mask = coeus_ops::one_hot(&target_tensor, c, &backend)?;
+    let selected = coeus_ops::mul(&log_probs.tensor, &target_mask, &backend)?;
     // loss = -mean_i selected[i, target[i]] = -sum over batch / n.
-    let row_sum = coeus_ops::sum_axis(&selected, 1, &backend)
-        .expect("invariant: validated [N, C] NLL axis-one reduction");
-    let neg_sum = coeus_ops::neg(&row_sum, &backend);
-    let loss = coeus_ops::mean_axis(&neg_sum.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty NLL reduction has axis zero");
+    let row_sum = coeus_ops::sum_axis(&selected, 1, &backend)?;
+    let neg_sum = coeus_ops::neg(&row_sum, &backend)?;
+    let loss = coeus_ops::mean_axis(&neg_sum.reshape([n]), 0, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(log_probs);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
+    let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
     let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = NllLossNode {
             output_grad,
@@ -100,15 +99,15 @@ where
             target_mask,
             n,
             c,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale,
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -121,11 +120,13 @@ mod tests {
         // log_probs = [[-1, -2], [-3, -4]], targets = [0, 1]:
         //   loss = mean(-(-1), -(-4)) = mean(1, 4) = 2.5.
         let log_probs = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [0usize, 1];
-        let loss = nll_loss(&log_probs, &targets);
+        let loss = nll_loss(&log_probs, &targets).expect("invariant: test operation succeeds");
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - 2.5).abs() < 1e-12);
     }
@@ -134,11 +135,13 @@ mod tests {
     fn nll_backward_matches_analytic_gradient() {
         // d/dlog_probs = -one_hot(targets) / n.
         let log_probs = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [0usize, 1];
-        let loss = nll_loss(&log_probs, &targets);
+        let loss = nll_loss(&log_probs, &targets).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let grad = log_probs.grad().expect("log_probs must receive a gradient");
         let expected = [[-0.5, 0.0], [0.0, -0.5]];
@@ -155,10 +158,12 @@ mod tests {
     #[should_panic(expected = "targets")]
     fn nll_rejects_target_length_mismatch() {
         let log_probs = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, -2.0, -3.0, -4.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [0usize];
-        let _ = nll_loss(&log_probs, &targets);
+        let _ = nll_loss(&log_probs, &targets).expect("invariant: test operation succeeds");
     }
 }

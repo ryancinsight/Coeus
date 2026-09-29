@@ -1,5 +1,5 @@
 use coeus_core::BackendError;
-use coeus_dist::TcpMeshError;
+use coeus_dist::{CollectiveError, TcpMeshError};
 use coeus_nn::ModuleError;
 use pyo3::exceptions::{PyConnectionError, PyMemoryError, PyRuntimeError, PyValueError};
 use pyo3::PyErr;
@@ -59,6 +59,26 @@ pub(crate) fn map_tcp_mesh_error(error: TcpMeshError) -> PyErr {
         source = cause.source();
     }
     PyConnectionError::new_err(message)
+}
+
+pub(crate) fn map_tcp_collective_error(
+    error: CollectiveError<TcpMeshError, BackendError>,
+) -> PyErr {
+    match error {
+        CollectiveError::Communicator(error) => map_tcp_mesh_error(error),
+        CollectiveError::Backend(error) => map_backend_error(error),
+        other => PyRuntimeError::new_err(other.to_string()),
+    }
+}
+
+pub(crate) fn map_local_collective_error(
+    error: CollectiveError<std::convert::Infallible, BackendError>,
+) -> PyErr {
+    match error {
+        CollectiveError::Communicator(never) => match never {},
+        CollectiveError::Backend(error) => map_backend_error(error),
+        other => PyRuntimeError::new_err(other.to_string()),
+    }
 }
 
 #[cfg(test)]

@@ -49,8 +49,12 @@ fn on_device(
     backend: &SequentialBackend,
     values: &[f64],
 ) -> <SequentialBackend as ComputeBackend>::DeviceBuffer<f64> {
-    let mut buffer = backend.allocate::<f64>(values.len());
-    backend.copy_to_device(values, &mut buffer);
+    let mut buffer = backend
+        .allocate::<f64>(values.len())
+        .expect("invariant: test backend storage operation succeeds");
+    backend
+        .copy_to_device(values, &mut buffer)
+        .expect("invariant: test backend storage operation succeeds");
     buffer
 }
 
@@ -70,7 +74,9 @@ fn the_staggered_pair_matches_the_provider_bitwise() {
     for axis in [Axis::X, Axis::Y, Axis::Z] {
         for divergence in [false, true] {
             let input = on_device(&backend, &host);
-            let mut output = backend.allocate_zeroed::<f64>(host.len());
+            let mut output = backend
+                .allocate_zeroed::<f64>(host.len())
+                .expect("invariant: test backend storage operation succeeds");
             if divergence {
                 backend
                     .staggered_divergence(&pair, axis, &input, &layout(), &mut output, &layout())
@@ -120,13 +126,17 @@ fn the_pair_stays_a_negative_adjoint_through_the_seam() {
 
     for axis in [Axis::X, Axis::Y, Axis::Z] {
         let p_device = on_device(&backend, &p);
-        let mut grad = backend.allocate_zeroed::<f64>(p.len());
+        let mut grad = backend
+            .allocate_zeroed::<f64>(p.len())
+            .expect("invariant: test backend storage operation succeeds");
         backend
             .staggered_gradient(&pair, axis, &p_device, &layout(), &mut grad, &layout())
             .unwrap();
 
         let u_device = on_device(&backend, &u);
-        let mut div = backend.allocate_zeroed::<f64>(u.len());
+        let mut div = backend
+            .allocate_zeroed::<f64>(u.len())
+            .expect("invariant: test backend storage operation succeeds");
         backend
             .staggered_divergence(&pair, axis, &u_device, &layout(), &mut div, &layout())
             .unwrap();
@@ -163,7 +173,9 @@ fn the_fixed_schemes_reach_every_axis() {
     ] {
         for axis in [Axis::X, Axis::Y, Axis::Z] {
             let input = on_device(&backend, &flat);
-            let mut output = backend.allocate_zeroed::<f64>(flat.len());
+            let mut output = backend
+                .allocate_zeroed::<f64>(flat.len())
+                .expect("invariant: test backend storage operation succeeds");
             backend
                 .finite_difference(
                     scheme,
@@ -190,7 +202,9 @@ fn a_layout_the_stencils_cannot_serve_is_refused() {
     let host = field();
     let pair = backend.prepare_staggered_pair(2, [1.0, 1.0, 1.0]).unwrap();
     let input = on_device(&backend, &host);
-    let mut output = backend.allocate_zeroed::<f64>(host.len());
+    let mut output = backend
+        .allocate_zeroed::<f64>(host.len())
+        .expect("invariant: test backend storage operation succeeds");
 
     let rank2 = Layout::new(vec![SHAPE[0], SHAPE[1] * SHAPE[2]].into());
     assert!(backend

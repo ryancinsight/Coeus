@@ -67,9 +67,9 @@ where
             let dim = self.dim;
             let n = shape[dim];
 
-            let go_cont = grad_out.to_contiguous();
-            let out_cont = self.output.to_contiguous();
-            let in_cont = self.input_saved.to_contiguous();
+            let go_cont = grad_out.to_contiguous()?;
+            let out_cont = self.output.to_contiguous()?;
+            let in_cont = self.input_saved.to_contiguous()?;
 
             let go_s = go_cont.as_slice();
             let out_s = out_cont.as_slice();
@@ -144,7 +144,7 @@ where
                 }
             }
 
-            let gi_increment = Tensor::from_slice(shape.to_vec(), &gi_data);
+            let gi_increment = Tensor::from_slice_on(shape.to_vec(), &gi_data, &backend)?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &gi_increment, &backend)?;
         }
@@ -153,25 +153,24 @@ where
 }
 
 /// Tracked cumulative product along `dim`.
-#[must_use]
 #[inline]
 pub fn cumprod<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::cumprod(&input.tensor, dim, &backend);
+    let out_tensor = coeus_ops::cumprod(&input.tensor, dim, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -187,9 +186,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

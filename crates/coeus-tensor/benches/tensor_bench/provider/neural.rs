@@ -14,13 +14,17 @@ pub(crate) fn bench_softmax(c: &mut Criterion) {
         .map(|index| (index as f32 * 0.001).sin())
         .collect();
     let sequential_input = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([ROWS, COLUMNS], &data),
+        Tensor::<f32, SequentialBackend>::from_slice([ROWS, COLUMNS], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let moirai_input = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice([ROWS, COLUMNS], &data),
+        Tensor::<f32, MoiraiBackend>::from_slice([ROWS, COLUMNS], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Softmax (256x1024, axis=1)");
     group.bench_function("Coeus Sequential", |bencher| {
@@ -49,17 +53,23 @@ pub(crate) fn bench_attention(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_query =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &query);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &query)
+            .expect("invariant: test backend operation succeeds");
     let sequential_key =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &key);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &key)
+            .expect("invariant: test backend operation succeeds");
     let sequential_value =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &value);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &value)
+            .expect("invariant: test backend operation succeeds");
     let moirai_query =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &query);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &query)
+            .expect("invariant: test backend operation succeeds");
     let moirai_key =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &key);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &key)
+            .expect("invariant: test backend operation succeeds");
     let moirai_value =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &value);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH_HEADS, SEQUENCE, FEATURES], &value)
+            .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Scaled dot-product attention (8x64x32)");
     group.bench_function("Coeus Sequential", |bencher| {
@@ -105,15 +115,21 @@ pub(crate) fn bench_layernorm(c: &mut Criterion) {
         .map(|index| (index as f32 * 0.001) % 3.0 - 1.5)
         .collect();
     let sequential_input = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQUENCE, FEATURES], &data),
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQUENCE, FEATURES], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let moirai_input = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, SEQUENCE, FEATURES], &data),
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, SEQUENCE, FEATURES], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let sequential_layer = LayerNorm::<f32, SequentialBackend>::new(FEATURES, 1e-5);
-    let moirai_layer = LayerNorm::<f32, MoiraiBackend>::new(FEATURES, 1e-5);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let sequential_layer = LayerNorm::<f32, SequentialBackend>::new(FEATURES, 1e-5)
+        .expect("invariant: layer normalization benchmark initializes");
+    let moirai_layer = LayerNorm::<f32, MoiraiBackend>::new(FEATURES, 1e-5)
+        .expect("invariant: layer normalization benchmark initializes");
 
     let mut group = c.benchmark_group("LayerNorm (4x64x128)");
     group.bench_function("Coeus Sequential", |bencher| {

@@ -83,9 +83,12 @@ fn rejects_unpaired_mask_metadata_without_writes() {
 #[test]
 fn rejects_invalid_rank_before_allocation() {
     let backend = SequentialBackend::new();
-    let query = Tensor::from_slice_on([2, 2], &[1.0; 4], &backend);
-    let key = Tensor::from_slice_on([1, 2, 2], &[1.0; 4], &backend);
-    let value = Tensor::from_slice_on([1, 2, 2], &[1.0; 4], &backend);
+    let query = Tensor::from_slice_on([2, 2], &[1.0; 4], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let key = Tensor::from_slice_on([1, 2, 2], &[1.0; 4], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let value = Tensor::from_slice_on([1, 2, 2], &[1.0; 4], &backend)
+        .expect("invariant: test backend operation succeeds");
 
     let result = scaled_dot_product_attention(&query, &key, &value, None, false, 1.0, &backend);
     let Err(error) = result else {
@@ -101,10 +104,14 @@ fn rejects_invalid_rank_before_allocation() {
 #[test]
 fn rejects_rank_three_keep_mask() {
     let backend = SequentialBackend::new();
-    let query = Tensor::from_slice_on([1, 1, 1], &[1.0], &backend);
-    let key = Tensor::from_slice_on([1, 2, 1], &[1.0, 1.0], &backend);
-    let value = Tensor::from_slice_on([1, 2, 1], &[2.0, 4.0], &backend);
-    let mask = Tensor::from_slice_on([1, 1, 2], &[1.0, 0.0], &backend);
+    let query = Tensor::from_slice_on([1, 1, 1], &[1.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let key = Tensor::from_slice_on([1, 2, 1], &[1.0, 1.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let value = Tensor::from_slice_on([1, 2, 1], &[2.0, 4.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mask = Tensor::from_slice_on([1, 1, 2], &[1.0, 0.0], &backend)
+        .expect("invariant: test backend operation succeeds");
 
     let result =
         scaled_dot_product_attention(&query, &key, &value, Some(&mask), false, 1.0, &backend);

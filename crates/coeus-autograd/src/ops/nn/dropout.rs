@@ -71,7 +71,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let prod = coeus_ops::mul(grad_out, &self.mask, &backend);
+            let prod = coeus_ops::mul(grad_out, &self.mask, &backend)?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &prod, &backend)?;
         }
@@ -86,36 +86,35 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     p: f64,
     is_training: bool,
     seed: u64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     if !is_training || p == 0.0 {
-        return input.clone();
+        return Ok(input.clone());
     }
 
     let scale = 1.0 / (1.0 - p);
     let rng = std::cell::RefCell::new(Xorshift64::new(seed));
     let shape = input.tensor.shape_cloned();
 
-    let cpu_backend = coeus_core::MoiraiBackend::new();
-    let mask_cpu =
-        Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
+    let target_backend = B::default();
+    let mask_values: Vec<T> = (0..input.tensor.numel())
+        .map(|_| {
             let r = rng.borrow_mut().next_f64();
             if r < p {
                 T::zero()
             } else {
                 T::from_f64(scale)
             }
-        });
-
-    let target_backend = B::default();
-    let mask = mask_cpu.to_backend_on(&cpu_backend, &target_backend);
-    let out_tensor = coeus_ops::mul(&input.tensor, &mask, &target_backend);
+        })
+        .collect();
+    let mask = Tensor::<T, B>::from_slice_on(shape.clone(), &mask_values, &target_backend)?;
+    let out_tensor = coeus_ops::mul(&input.tensor, &mask, &target_backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             shape.clone(),
             &target_backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -133,9 +132,9 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

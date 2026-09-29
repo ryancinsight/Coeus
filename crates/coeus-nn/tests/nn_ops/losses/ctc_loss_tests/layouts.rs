@@ -17,8 +17,12 @@ fn sequences() -> CtcBatch<'static> {
 }
 
 fn upload<T: Scalar, B: ComputeBackend>(backend: &B, values: &[T]) -> B::DeviceBuffer<T> {
-    let mut buffer = backend.allocate(values.len());
-    backend.copy_to_device(values, &mut buffer);
+    let mut buffer = backend
+        .allocate(values.len())
+        .expect("test fixture allocation succeeds");
+    backend
+        .copy_to_device(values, &mut buffer)
+        .expect("test fixture upload succeeds");
     buffer
 }
 
@@ -28,7 +32,9 @@ fn exact_storage<T: Scalar, B: ComputeBackend>(
     expected: &[T],
 ) {
     let mut actual = vec![T::zero(); expected.len()];
-    backend.copy_to_host(buffer, &mut actual);
+    backend
+        .copy_to_host(buffer, &mut actual)
+        .expect("test fixture download succeeds");
     assert_eq!(actual, expected);
 }
 

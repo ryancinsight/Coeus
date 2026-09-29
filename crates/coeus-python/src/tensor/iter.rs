@@ -3,6 +3,7 @@
 use pyo3::prelude::*;
 
 use super::PyTensor;
+use crate::error::map_backend_error;
 
 /// Python iterator over the first dimension of a `PyTensor`.
 #[pyclass(name = "TensorIterator")]
@@ -21,9 +22,9 @@ impl PyTensorIterator {
         slf
     }
 
-    fn __next__(&mut self, py: Python<'_>) -> Option<PyTensor> {
+    fn __next__(&mut self, py: Python<'_>) -> PyResult<Option<PyTensor>> {
         if self.current >= self.length {
-            return None;
+            return Ok(None);
         }
         let idx = self.current;
         self.current += 1;
@@ -37,9 +38,12 @@ impl PyTensorIterator {
             .map(|(d, &s)| if d == 0 { (idx, idx + 1) } else { (0, s) })
             .collect();
         let inner = py.allow_threads(|| {
-            let sliced = coeus_autograd::slice(&self.tensor.inner, &ranges);
+            let sliced = coeus_autograd::slice(&self.tensor.inner, &ranges)?;
             coeus_autograd::squeeze(&sliced, Some(0))
         });
-        Some(PyTensor::from_var(inner))
+        inner
+            .map(PyTensor::from_var)
+            .map(Some)
+            .map_err(map_backend_error)
     }
 }

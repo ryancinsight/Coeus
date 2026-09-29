@@ -17,7 +17,11 @@ use eunomia::{Bf16, F16};
 use oracle::{close, count, enumerate, BinaryPrecision};
 
 fn variable<T: Float, B: BackendOps<T> + Default>(values: &[T], shape: [usize; 3]) -> Var<T, B> {
-    Var::new(Tensor::from_slice(shape, values), true)
+    Var::new(
+        Tensor::from_slice(shape, values).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn probability_logs<T: Float>(values: &[f64]) -> Vec<T> {
@@ -28,8 +32,10 @@ fn probability_logs<T: Float>(values: &[f64]) -> Vec<T> {
 }
 
 fn seeded_backward<T: Float, B: BackendOps<T> + Default>(loss: &Var<T, B>, seed: T) {
-    loss.backward_with_seed(Tensor::from_slice([1], &[seed]))
-        .expect("invariant: a finite CTC fixture has a defined derivative");
+    loss.backward_with_seed(
+        Tensor::from_slice([1], &[seed]).expect("invariant: test backend operation succeeds"),
+    )
+    .expect("invariant: a finite CTC fixture has a defined derivative");
 }
 
 fn alignment_case<T, B>(
@@ -81,7 +87,12 @@ fn alignment_case<T, B>(
             close(actual, reference, operations);
         }
     }
-    let untracked = Var::new(Tensor::<T, B>::from_slice(shape, &logs), false);
+    let untracked = Var::new(
+        Tensor::<T, B>::from_slice(shape, &logs)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let wrapper = nn_ctc_loss(&untracked, targets, input_lengths, target_lengths, blank)
         .expect("invariant: NN wrapper accepts the same valid CTC fixture");
     assert_eq!(wrapper.tensor.as_slice(), loss.tensor.as_slice());
@@ -119,7 +130,10 @@ where
     // without normalization; posterior [0,1,0] and dyadic seed are exact.
     let input = variable::<T, B>(&[T::zero(); 3], [1, 1, 3]);
     let initial = <T as Scalar>::from_f64(0.75);
-    input.set_grad(Tensor::from_slice([1, 1, 3], &[initial; 3]));
+    input.set_grad(
+        Tensor::from_slice([1, 1, 3], &[initial; 3])
+            .expect("invariant: test backend operation succeeds"),
+    );
     let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
         .expect("invariant: a one-frame target has one alignment");
     assert_eq!(loss.tensor.as_slice(), &[T::zero()]);
@@ -182,7 +196,7 @@ where
         }
     }
     let input = variable::<T, B>(&logits, shape);
-    let log_probs = log_softmax(&input, 2);
+    let log_probs = log_softmax(&input, 2).expect("invariant: test operation succeeds");
     let loss = ctc_loss(&log_probs, &[1], &[2], &[1], 0)
         .expect("invariant: finite logits define a positive target likelihood");
     let operations = 12 * shape[0] + 2 * expected.path_count + 4 * shape[2] + 8;

@@ -19,14 +19,17 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_input =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, CHANNELS, SIDE, SIDE], &input)
+            .expect("invariant: test backend operation succeeds");
     let moirai_input =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, CHANNELS, SIDE, SIDE], &input)
+            .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("MaxPool2d (1x8x32x32, kernel=2, stride=2)");
     group.bench_function("Coeus Sequential", |bencher| {
         let mut output =
-            Tensor::<f32, SequentialBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
+            Tensor::<f32, SequentialBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE])
+                .expect("invariant: test backend operation succeeds");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             sequential_backend
@@ -46,7 +49,8 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
-            Tensor::<f32, MoiraiBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
+            Tensor::<f32, MoiraiBackend>::zeros([BATCH, CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE])
+                .expect("invariant: test backend operation succeeds");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             moirai_backend

@@ -35,7 +35,8 @@ pub(super) fn argmax<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -47,7 +48,7 @@ pub(super) fn argmax<T, B>(
         c_layout,
         backend.as_mut_slice_i64(c),
     )
-    .expect("coeus-leto argmax failed");
+    .map_err(|error| map_leto_error("argmax", error))
 }
 
 #[inline]
@@ -58,7 +59,8 @@ pub(super) fn argmin<T, B>(
     axis: usize,
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -70,7 +72,7 @@ pub(super) fn argmin<T, B>(
         c_layout,
         backend.as_mut_slice_i64(c),
     )
-    .expect("coeus-leto argmin failed");
+    .map_err(|error| map_leto_error("argmin", error))
 }
 
 #[inline]
@@ -85,7 +87,8 @@ pub(super) fn topk<T, B>(
     _values_layout: &Layout,
     indices: &mut B::DeviceBuffer<i64>,
     _indices_layout: &Layout,
-) where
+) -> Result<(), BackendError>
+where
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
@@ -99,6 +102,7 @@ pub(super) fn topk<T, B>(
         values.as_mut_slice(),
         backend.as_mut_slice_i64(indices),
     );
+    Ok(())
 }
 
 #[inline]

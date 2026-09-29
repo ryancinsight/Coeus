@@ -21,8 +21,8 @@ pub fn prepare_targets<B: ComputeBackend>(
             })
         })
         .collect::<Result<Box<[_]>, _>>()?;
-    let mut storage = backend.allocate(encoded.len());
-    backend.copy_to_device(&encoded, &mut storage);
+    let mut storage = backend.allocate(encoded.len())?;
+    backend.copy_to_device(&encoded, &mut storage)?;
     Ok(storage)
 }
 

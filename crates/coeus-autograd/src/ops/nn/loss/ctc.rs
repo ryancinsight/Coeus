@@ -76,7 +76,9 @@ where
 /// use coeus_tensor::Tensor;
 ///
 /// let input = Var::<f32, SequentialBackend>::new(
-///     Tensor::from_slice([1, 1, 2], &[-std::f32::consts::LN_2; 2]), true);
+///     Tensor::from_slice([1, 1, 2], &[-std::f32::consts::LN_2; 2])?,
+///     true,
+/// )?;
 /// let loss = ctc_loss(&input, &[], &[1], &[0], 0)?;
 /// assert_eq!(loss.tensor.as_slice(), &[std::f32::consts::LN_2]);
 /// loss.backward()?;
@@ -96,7 +98,7 @@ where
     B: BackendOps<T> + CtcOps<T> + Default,
 {
     let backend = B::default();
-    let mut output = Tensor::zeros_on([1], &backend);
+    let mut output = Tensor::zeros_on([1], &backend)?;
     let (storage, layout) = output.storage_mut_and_layout();
     let state = backend.ctc_forward(
         log_probs.tensor.storage(),
@@ -111,7 +113,11 @@ where
         layout,
     )?;
     let requires_grad = crate::grad_mode::should_track_var(log_probs);
-    let grad = requires_grad.then(|| Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))));
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|output_grad| {
         // The existing graph erases heterogeneous operation nodes at its graph boundary.
         Arc::new(CtcLossNode {

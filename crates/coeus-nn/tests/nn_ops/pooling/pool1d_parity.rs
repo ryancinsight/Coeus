@@ -12,9 +12,11 @@ use coeus_tensor::Tensor;
 
 fn seq_var(shape: impl Into<coeus_core::Shape>, data: &[f32]) -> Var<f32, SequentialBackend> {
     Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(shape, data),
+        Tensor::<f32, SequentialBackend>::from_slice(shape, data)
+            .expect("invariant: test backend operation succeeds"),
         false,
     )
+    .expect("invariant: test backend operation succeeds")
 }
 
 #[test]
@@ -111,7 +113,12 @@ fn provider_var<B: BackendOps<f64> + Default>(
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::from_slice_on(shape.to_vec(), data, backend), false)
+    Var::new(
+        Tensor::from_slice_on(shape.to_vec(), data, backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_pool1d_provider_contract<B: BackendOps<f64> + Default>(backend: &B)
@@ -160,7 +167,12 @@ fn moirai_pool1d_matches_analytical_contract() {
 
 #[test]
 fn pool1d_rejects_zero_window_configuration_and_wrong_rank() {
-    let input = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 1, 4]), false);
+    let input = Var::new(
+        Tensor::<f32, SequentialBackend>::ones([1, 1, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     for error in [
         MaxPool1d::<f32, SequentialBackend>::new(0)
             .forward(&input)
@@ -182,7 +194,12 @@ fn pool1d_rejects_zero_window_configuration_and_wrong_rank() {
         }
     }
 
-    let wrong_rank = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 4]), false);
+    let wrong_rank = Var::new(
+        Tensor::<f32, SequentialBackend>::ones([1, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let error = MaxPool1d::<f32, SequentialBackend>::new(2)
         .forward(&wrong_rank)
         .err()

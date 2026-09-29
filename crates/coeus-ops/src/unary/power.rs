@@ -13,11 +13,9 @@ pub fn pow_scalar<T: Float, B: ElementwiseOps<T> + ScalarPowerOps<T>>(
     input: &Tensor<T, B>,
     exponent: T,
     backend: &B,
-) -> Tensor<T, B> {
-    let mut output = Tensor::alloc_on(input.shape_cloned(), backend);
+) -> Result<Tensor<T, B>, B::Error> {
+    let mut output = Tensor::alloc_on(input.shape_cloned(), backend)?;
     let (storage, layout) = output.storage_mut_and_layout();
-    backend
-        .elementwise_pow_scalar(input.storage(), input.layout(), exponent, storage, layout)
-        .expect("scalar power provider dispatch");
-    output
+    backend.elementwise_pow_scalar(input.storage(), input.layout(), exponent, storage, layout)?;
+    Ok(output)
 }

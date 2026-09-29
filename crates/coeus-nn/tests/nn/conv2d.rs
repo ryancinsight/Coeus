@@ -4,8 +4,12 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_conv2d_forward_shape() {
-    let conv = Conv2d::<f64>::new(3, 8, 3, true);
-    let input = Var::new(Tensor::zeros(vec![2, 3, 32, 32]), true);
+    let conv = Conv2d::<f64>::new(3, 8, 3, true).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::zeros(vec![2, 3, 32, 32]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = conv.forward(&input).expect("valid Conv2d input");
 
     assert_eq!(output.tensor.shape(), &[2, 8, 30, 30]);
@@ -16,7 +20,7 @@ fn test_conv2d_forward_shape() {
 
 #[test]
 fn test_conv2d_forward_no_bias() {
-    let conv = Conv2d::<f64>::new(1, 1, 3, false);
+    let conv = Conv2d::<f64>::new(1, 1, 3, false).expect("invariant: test operation succeeds");
     let params = conv.parameters();
     assert_eq!(params.len(), 1);
     assert!(conv.bias.is_none());
@@ -24,19 +28,21 @@ fn test_conv2d_forward_no_bias() {
 
 #[test]
 fn test_conv2d_forward_computation() {
-    let mut conv = Conv2d::<f64>::new(1, 1, 2, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv2d::<f64>::new(1, 1, 2, true).expect("invariant: test operation succeeds");
+    init::constant(&mut conv.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.0);
+        init::constant(b, 0.0).expect("invariant: test operation succeeds");
     }
 
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 1, 3, 3],
             &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = conv.forward(&input).expect("valid Conv2d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 2, 2]);
@@ -50,19 +56,21 @@ fn test_conv2d_forward_computation() {
 
 #[test]
 fn test_conv2d_backward_gradients_match_reference() {
-    let mut conv = Conv2d::<f64>::new(1, 1, 2, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv2d::<f64>::new(1, 1, 2, true).expect("invariant: test operation succeeds");
+    init::constant(&mut conv.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.5);
+        init::constant(b, 0.5).expect("invariant: test operation succeeds");
     }
 
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 1, 3, 3],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = conv.forward(&input).expect("valid Conv2d input");
     output
@@ -113,52 +121,69 @@ fn conv2d_backward_matches_finite_differences() {
             .collect()
     };
 
-    let input = Tensor::<f64>::from_slice(vec![1, IN_CHANNELS, 5, 5], &ramp(50, -0.4, 0.37));
+    let input = Tensor::<f64>::from_slice(vec![1, IN_CHANNELS, 5, 5], &ramp(50, -0.4, 0.37))
+        .expect("invariant: test backend operation succeeds");
     let weight = Tensor::<f64>::from_slice(
         vec![OUT_CHANNELS, IN_CHANNELS, KERNEL, KERNEL],
         &ramp(OUT_CHANNELS * IN_CHANNELS * KERNEL * KERNEL, 0.21, -0.29),
-    );
-    let bias = Tensor::<f64>::from_slice(vec![OUT_CHANNELS], &ramp(OUT_CHANNELS, 0.13, 0.41));
+    )
+    .expect("invariant: test backend operation succeeds");
+    let bias = Tensor::<f64>::from_slice(vec![OUT_CHANNELS], &ramp(OUT_CHANNELS, 0.13, 0.41))
+        .expect("invariant: test backend operation succeeds");
     let weighting = Var::new(
-        Tensor::<f64>::from_slice(vec![1, OUT_CHANNELS, 3, 3], &ramp(27, 0.31, 0.23)),
+        Tensor::<f64>::from_slice(vec![1, OUT_CHANNELS, 3, 3], &ramp(27, 0.31, 0.23))
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     gradcheck(&[input, weight, bias], |v| {
         let mut conv =
-            Conv2d::<f64>::with_params(IN_CHANNELS, OUT_CHANNELS, KERNEL, STRIDE, PADDING, 1, true);
+            Conv2d::<f64>::with_params(IN_CHANNELS, OUT_CHANNELS, KERNEL, STRIDE, PADDING, 1, true)
+                .expect("invariant: test operation succeeds");
         // Cloning a Var shares its gradient buffer, so the layer accumulates
         // into the same tracked parameters the check compares against.
         conv.weight = v[1].clone();
         conv.bias = Some(v[2].clone());
         let output = conv.forward(&v[0]).expect("valid Conv2d input");
-        sum(&mul(&output, &weighting))
+        sum(&mul(&output, &weighting).expect("invariant: test operation succeeds"))
+            .expect("invariant: test operation succeeds")
     })
     .expect("conv2d backward must match central differences");
 }
 
 #[test]
 fn test_conv2d_with_padding() {
-    let mut conv = Conv2d::<f64>::with_params(1, 1, 3, 1, 1, 1, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv2d::<f64>::with_params(1, 1, 3, 1, 1, 1, true)
+        .expect("invariant: test operation succeeds");
+    init::constant(&mut conv.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.0);
+        init::constant(b, 0.0).expect("invariant: test operation succeeds");
     }
 
-    let input = Var::new(Tensor::zeros(vec![1, 1, 4, 4]), true);
+    let input = Var::new(
+        Tensor::zeros(vec![1, 1, 4, 4]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = conv.forward(&input).expect("valid Conv2d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 4, 4]);
 }
 
 #[test]
 fn test_conv2d_with_stride() {
-    let mut conv = Conv2d::<f64>::with_params(1, 1, 3, 2, 0, 1, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv2d::<f64>::with_params(1, 1, 3, 2, 0, 1, true)
+        .expect("invariant: test operation succeeds");
+    init::constant(&mut conv.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.0);
+        init::constant(b, 0.0).expect("invariant: test operation succeeds");
     }
 
-    let input = Var::new(Tensor::zeros(vec![1, 1, 7, 7]), true);
+    let input = Var::new(
+        Tensor::zeros(vec![1, 1, 7, 7]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = conv.forward(&input).expect("valid Conv2d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 3, 3]);
 }

@@ -49,7 +49,7 @@ where
         let backend = B::default();
         // Split the stacked output-gradient back into `n` slices along `dim`,
         // each of size 1; then squeeze `dim` to recover the original rank.
-        let chunks = coeus_ops::split(grad_out, 1, self.dim);
+        let chunks = coeus_ops::split(grad_out, 1, self.dim)?;
         for (chunk, acc) in chunks.into_iter().zip(input_grads.iter()) {
             let Some(ref g) = *acc else {
                 continue;
@@ -71,12 +71,11 @@ where
 ///
 /// # Panics
 /// Panics if `inputs` is empty or if shapes do not match.
-#[must_use]
 #[inline]
 pub fn stack<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     inputs: &[&Var<T, B>],
     dim: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -84,14 +83,14 @@ where
     assert!(!inputs.is_empty(), "stack: inputs must be non-empty");
     let backend = B::default();
     let tensors: Vec<&Tensor<T, B>> = inputs.iter().map(|v| &v.tensor).collect();
-    let out_tensor = coeus_ops::stack(&tensors, dim);
+    let out_tensor = coeus_ops::stack(&tensors, dim)?;
 
     let requires_grad = inputs.iter().any(|v| crate::grad_mode::should_track_var(v));
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -105,9 +104,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

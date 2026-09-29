@@ -11,16 +11,23 @@ use coeus_core::{MoiraiBackend, Scalar};
 /// use coeus_optim::{Optimizer, SGD};
 /// use coeus_tensor::Tensor;
 ///
-/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![1], &[1.0f32]), true);
-/// x.set_grad(Tensor::from_slice(vec![1], &[-2.0f32]));
+/// let x: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![1], &[1.0f32]).expect("example tensor allocation succeeds"),
+///     true,
+/// )
+/// .expect("example variable allocation succeeds");
+/// x.set_grad(
+///     Tensor::from_slice(vec![1], &[-2.0f32]).expect("example gradient allocation succeeds"),
+/// );
 ///
-/// let mut opt: SGD<f32> = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
+/// let mut opt: SGD<f32> = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32)
+///     .expect("example optimizer allocation succeeds");
 /// // `step`, `zero_grad`, and `set_lr` come from the `Optimizer` trait.
 /// opt.step().unwrap();
 /// // x' = x - lr * grad = 1.0 - 0.1 * (-2.0) = 1.2
 /// assert!((opt.params[0].tensor.as_slice()[0] - 1.2).abs() < 1e-5);
 ///
-/// opt.zero_grad();
+/// opt.zero_grad().expect("example gradient reset succeeds");
 /// assert_eq!(opt.params[0].grad().unwrap().as_slice(), &[0.0f32]);
 ///
 /// opt.set_lr(0.5f32);
@@ -39,7 +46,7 @@ pub trait Optimizer<
     fn step(&mut self) -> Result<(), B::Error>;
 
     /// Zero all parameter gradients.
-    fn zero_grad(&mut self);
+    fn zero_grad(&mut self) -> Result<(), B::Error>;
 
     /// Update the learning rate for all parameter groups.
     fn set_lr(&mut self, lr: T);

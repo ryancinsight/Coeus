@@ -64,9 +64,9 @@ where
                 grad_out.to_contiguous_on(&backend)
             } else {
                 let k = self.index_tensor.numel();
-                let zeros = Tensor::zeros_on([k], &backend);
+                let zeros = Tensor::zeros_on([k], &backend)?;
                 coeus_ops::index_put(grad_out, &self.index_tensor, &zeros, false, &backend)
-            };
+            }?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_x, &backend)?;
         }
@@ -74,7 +74,7 @@ where
         // ∂/∂v: each value lands at its `idx` position, so its gradient is the
         // output gradient gathered there.
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let grad_v = coeus_ops::index_select(grad_out, 0, &self.index_tensor, &backend);
+            let grad_v = coeus_ops::index_select(grad_out, 0, &self.index_tensor, &backend)?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_v, &backend)?;
         }
@@ -88,13 +88,12 @@ where
 ///
 /// Gradient flows to both `x` (identity, minus the overwritten positions when
 /// not accumulating) and `values` (gathered at `indices`).
-#[must_use]
 pub fn index_put<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     indices: &Var<T, B>,
     values: &Var<T, B>,
     accumulate: bool,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -106,7 +105,7 @@ where
         &values.tensor,
         accumulate,
         &backend,
-    );
+    )?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(values);
@@ -114,7 +113,7 @@ where
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -129,9 +128,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

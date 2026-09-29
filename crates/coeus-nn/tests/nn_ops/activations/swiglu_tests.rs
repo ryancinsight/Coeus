@@ -41,21 +41,27 @@ fn swiglu_forward_matches_analytic() {
     let (d_input, d_output) = (3usize, 2usize);
     let data = vec![1.0_f64, 2.0, 3.0, 0.0, 1.0, 0.0]; // [2 × 3], row sums 6, 1
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, d_input], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, d_input], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut swiglu = SwiGlu::<f64, MoiraiBackend>::new(d_input, d_output, false)
         .expect("invariant: the fixture's layer dimensions are non-zero");
     let ones = vec![1.0_f64; d_output * d_input];
     swiglu.linear_inner.weight = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([d_output, d_input], &ones),
+        Tensor::<f64, MoiraiBackend>::from_slice([d_output, d_input], &ones)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     swiglu.linear_outer.weight = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([d_output, d_input], &ones),
+        Tensor::<f64, MoiraiBackend>::from_slice([d_output, d_input], &ones)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = swiglu.forward(&input).expect("valid SwiGLU input");
 
     // Tolerance: the only transcendental is silu's sigmoid (~1 ulp); the result
@@ -84,9 +90,11 @@ fn swiglu_backward_populates_parameter_grads() {
         .expect("invariant: the fixture's layer dimensions are non-zero");
     let data = vec![0.5_f64, -1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = swiglu.forward(&input).expect("valid SwiGLU input");
     output

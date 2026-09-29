@@ -27,6 +27,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_exact(got: &[f32], expected: &[f32], context: &str) {

@@ -7,16 +7,22 @@ pub(crate) fn bench_sinusoidal_encoding_forward(c: &mut Criterion) {
     const SEQUENCE: usize = 64;
     const MODEL: usize = 256;
 
-    let encoding_sequential = SinusoidalEncoding::<f32, SequentialBackend>::new(SEQUENCE, MODEL);
-    let encoding_moirai = SinusoidalEncoding::<f32, MoiraiBackend>::new(SEQUENCE, MODEL);
+    let encoding_sequential = SinusoidalEncoding::<f32, SequentialBackend>::new(SEQUENCE, MODEL)
+        .expect("invariant: test operation succeeds");
+    let encoding_moirai = SinusoidalEncoding::<f32, MoiraiBackend>::new(SEQUENCE, MODEL)
+        .expect("invariant: test operation succeeds");
     let input_sequential = Var::new(
-        Tensor::<f32, SequentialBackend>::zeros([BATCH, SEQUENCE, MODEL]),
+        Tensor::<f32, SequentialBackend>::zeros([BATCH, SEQUENCE, MODEL])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let input_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::zeros([BATCH, SEQUENCE, MODEL]),
+        Tensor::<f32, MoiraiBackend>::zeros([BATCH, SEQUENCE, MODEL])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — sinusoidal encoding forward (8x64x256)");
     group.bench_function("Coeus Sequential", |b| {
@@ -47,17 +53,23 @@ pub(crate) fn bench_rotary_embedding_forward(c: &mut Criterion) {
     const HEAD_DIMENSION: usize = 32;
 
     let encoding_sequential =
-        RotaryEmbedding::<f32, SequentialBackend>::new(SEQUENCE, HEAD_DIMENSION, 10_000.0);
+        RotaryEmbedding::<f32, SequentialBackend>::new(SEQUENCE, HEAD_DIMENSION, 10_000.0)
+            .expect("valid rotary embedding dimensions");
     let encoding_moirai =
-        RotaryEmbedding::<f32, MoiraiBackend>::new(SEQUENCE, HEAD_DIMENSION, 10_000.0);
+        RotaryEmbedding::<f32, MoiraiBackend>::new(SEQUENCE, HEAD_DIMENSION, 10_000.0)
+            .expect("valid rotary embedding dimensions");
     let input_sequential = Var::new(
-        Tensor::<f32, SequentialBackend>::ones([BATCH, SEQUENCE, HEADS, HEAD_DIMENSION]),
+        Tensor::<f32, SequentialBackend>::ones([BATCH, SEQUENCE, HEADS, HEAD_DIMENSION])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let input_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::ones([BATCH, SEQUENCE, HEADS, HEAD_DIMENSION]),
+        Tensor::<f32, MoiraiBackend>::ones([BATCH, SEQUENCE, HEADS, HEAD_DIMENSION])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — rotary embedding forward (8x64x8x32)");
     group.bench_function("Coeus Sequential", |b| {

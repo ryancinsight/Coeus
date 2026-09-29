@@ -16,13 +16,17 @@ fn rotate_half_dispatches_with_rocm_parity() {
     }
     let rocm = Backend::new();
     let layout = Layout::new([2, 4].into());
-    let mut input = rocm.allocate::<f32>(8);
-    rocm.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &mut input);
+    let mut input = rocm
+        .allocate::<f32>(8)
+        .expect("invariant: test backend operation succeeds");
+    rocm.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &mut input)
+        .expect("invariant: test backend operation succeeds");
     let output = rocm
         .rotate_half_storage(&input, &layout)
         .expect("ROCm rotate-half dispatch");
     let mut actual = vec![0.0; 8];
-    rocm.copy_to_host(&output, &mut actual);
+    rocm.copy_to_host(&output, &mut actual)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(actual, [-3.0, -4.0, 1.0, 2.0, -7.0, -8.0, 5.0, 6.0]);
 }
 
@@ -36,10 +40,18 @@ fn partial_update_preserves_rocm_parent_and_shared_source() {
     let parent_layout = Layout::new([2, 3].into());
     let destination_layout = parent_layout.slice(&[(0, 2), (1, 3)]);
     let rhs_layout = Layout::new([2, 2].into());
-    let mut destination = backend.allocate::<f32>(6);
-    let mut rhs = backend.allocate::<f32>(4);
-    backend.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &mut destination);
-    backend.copy_to_device(&[10.0, 20.0, 30.0, 40.0], &mut rhs);
+    let mut destination = backend
+        .allocate::<f32>(6)
+        .expect("invariant: test backend operation succeeds");
+    let mut rhs = backend
+        .allocate::<f32>(4)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &mut destination)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[10.0, 20.0, 30.0, 40.0], &mut rhs)
+        .expect("invariant: test backend operation succeeds");
     let shared = destination.clone();
 
     backend
@@ -53,14 +65,18 @@ fn partial_update_preserves_rocm_parent_and_shared_source() {
         .expect("ROCm partial update");
 
     let mut actual = [0.0; 6];
-    backend.copy_to_host(&destination, &mut actual);
+    backend
+        .copy_to_host(&destination, &mut actual)
+        .expect("invariant: test backend operation succeeds");
     assert_close(
         &actual,
         &[1.0, 12.0, 23.0, 4.0, 35.0, 46.0],
         "partial update",
     );
     let mut shared_values = [0.0; 6];
-    backend.copy_to_host(&shared, &mut shared_values);
+    backend
+        .copy_to_host(&shared, &mut shared_values)
+        .expect("invariant: test backend operation succeeds");
     assert_close(
         &shared_values,
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
@@ -107,10 +123,18 @@ where
     coeus_rocm::RocmProvider: coeus_hephaestus::ElementwiseProvider<T>,
 {
     let layout = Layout::new([lhs.len()].into());
-    let mut device_lhs = backend.allocate::<T>(lhs.len());
-    let mut device_rhs = backend.allocate::<T>(rhs.len());
-    backend.copy_to_device(lhs, &mut device_lhs);
-    backend.copy_to_device(rhs, &mut device_rhs);
+    let mut device_lhs = backend
+        .allocate::<T>(lhs.len())
+        .expect("invariant: test backend operation succeeds");
+    let mut device_rhs = backend
+        .allocate::<T>(rhs.len())
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(lhs, &mut device_lhs)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(rhs, &mut device_rhs)
+        .expect("invariant: test backend operation succeeds");
 
     for operation in [
         BinaryOp::Eq,
@@ -131,7 +155,9 @@ where
             &mut expected,
         )
         .expect("Leto integer comparison oracle failed");
-        let mut actual = backend.allocate::<T>(lhs.len());
+        let mut actual = backend
+            .allocate::<T>(lhs.len())
+            .expect("invariant: test backend operation succeeds");
         backend
             .elementwise_binary(
                 operation,
@@ -144,7 +170,9 @@ where
             )
             .expect("ROCm integer comparison dispatch failed");
         let mut actual_values = vec![T::zero(); lhs.len()];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("invariant: test backend operation succeeds");
         assert_eq!(
             actual_values, expected,
             "ROCm integer {operation:?} mismatch"
@@ -165,10 +193,18 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
     let output_layout = Layout::new([2, 3].into());
     let lhs = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let rhs = [2.0_f32, 4.0, 6.0];
-    let mut device_lhs = backend.allocate::<f32>(lhs.len());
-    let mut device_rhs = backend.allocate::<f32>(rhs.len());
-    backend.copy_to_device(&lhs, &mut device_lhs);
-    backend.copy_to_device(&rhs, &mut device_rhs);
+    let mut device_lhs = backend
+        .allocate::<f32>(lhs.len())
+        .expect("invariant: test backend operation succeeds");
+    let mut device_rhs = backend
+        .allocate::<f32>(rhs.len())
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&lhs, &mut device_lhs)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&rhs, &mut device_rhs)
+        .expect("invariant: test backend operation succeeds");
 
     for operation in [
         BinaryOp::Add,
@@ -193,7 +229,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto binary elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(lhs.len());
+        let mut actual = backend
+            .allocate::<f32>(lhs.len())
+            .expect("invariant: test backend operation succeeds");
         backend
             .elementwise_binary(
                 operation,
@@ -206,7 +244,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("ROCm binary elementwise dispatch failed");
         let mut actual_values = [0.0_f32; 6];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("invariant: test backend operation succeeds");
         assert_close(&actual_values, &expected, "binary");
     }
 
@@ -231,10 +271,18 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         ),
     ] {
         let layout = Layout::new(shape.into());
-        let mut device_lhs = backend.allocate::<f32>(lhs.len());
-        let mut device_rhs = backend.allocate::<f32>(rhs.len());
-        backend.copy_to_device(&lhs, &mut device_lhs);
-        backend.copy_to_device(&rhs, &mut device_rhs);
+        let mut device_lhs = backend
+            .allocate::<f32>(lhs.len())
+            .expect("invariant: test backend operation succeeds");
+        let mut device_rhs = backend
+            .allocate::<f32>(rhs.len())
+            .expect("invariant: test backend operation succeeds");
+        backend
+            .copy_to_device(&lhs, &mut device_lhs)
+            .expect("invariant: test backend operation succeeds");
+        backend
+            .copy_to_device(&rhs, &mut device_rhs)
+            .expect("invariant: test backend operation succeeds");
         let mut expected = vec![0.0_f32; lhs.len()];
         coeus_leto::elementwise_binary_into(
             BinaryOp::Add,
@@ -246,7 +294,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto ranked elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(lhs.len());
+        let mut actual = backend
+            .allocate::<f32>(lhs.len())
+            .expect("invariant: test backend operation succeeds");
         backend
             .elementwise_binary(
                 BinaryOp::Add,
@@ -259,13 +309,19 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("ROCm ranked elementwise dispatch failed");
         let mut actual_values = vec![0.0_f32; lhs.len()];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("invariant: test backend operation succeeds");
         assert_close(&actual_values, &expected, "ranked binary");
     }
 
     let unary_input = [0.25_f32, 0.5, 1.0, 2.0, 3.0, 4.0];
-    let mut device_unary_input = backend.allocate::<f32>(unary_input.len());
-    backend.copy_to_device(&unary_input, &mut device_unary_input);
+    let mut device_unary_input = backend
+        .allocate::<f32>(unary_input.len())
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&unary_input, &mut device_unary_input)
+        .expect("invariant: test backend operation succeeds");
     for operation in [
         CpuUnaryOp::Sin,
         CpuUnaryOp::Cos,
@@ -285,7 +341,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto unary elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(unary_input.len());
+        let mut actual = backend
+            .allocate::<f32>(unary_input.len())
+            .expect("invariant: test backend operation succeeds");
         backend
             .elementwise_unary(
                 operation,
@@ -296,7 +354,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("ROCm unary elementwise dispatch failed");
         let mut actual_values = [0.0_f32; 6];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("invariant: test backend operation succeeds");
         assert_close(&actual_values, &expected, "unary");
     }
 
@@ -304,8 +364,12 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         ($operation:expr, $input:expr, $label:expr) => {{
             let math_input: &[f32] = $input;
             let math_layout = Layout::new([math_input.len()].into());
-            let mut device_math_input = backend.allocate::<f32>(math_input.len());
-            backend.copy_to_device(math_input, &mut device_math_input);
+            let mut device_math_input = backend
+                .allocate::<f32>(math_input.len())
+                .expect("invariant: test backend operation succeeds");
+            backend
+                .copy_to_device(math_input, &mut device_math_input)
+                .expect("invariant: test backend operation succeeds");
             let mut expected = vec![0.0_f32; math_input.len()];
             coeus_leto::elementwise_unary_into(
                 $operation,
@@ -315,7 +379,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
                 &mut expected,
             )
             .expect("Leto unary math elementwise oracle failed");
-            let mut actual = backend.allocate::<f32>(math_input.len());
+            let mut actual = backend
+                .allocate::<f32>(math_input.len())
+                .expect("invariant: test backend operation succeeds");
             backend
                 .elementwise_unary(
                     $operation,
@@ -326,7 +392,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
                 )
                 .expect("ROCm unary math elementwise dispatch failed");
             let mut actual_values = vec![0.0_f32; math_input.len()];
-            backend.copy_to_host(&actual, &mut actual_values);
+            backend
+                .copy_to_host(&actual, &mut actual_values)
+                .expect("invariant: test backend operation succeeds");
             assert_close(&actual_values, &expected, $label);
         }};
     }
@@ -377,8 +445,12 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
 
     let activation_input = [-3.0_f32, -1.0, 0.0, 0.25, 1.0, 3.0];
     let activation_layout = Layout::new([6].into());
-    let mut device_activation_input = backend.allocate::<f32>(activation_input.len());
-    backend.copy_to_device(&activation_input, &mut device_activation_input);
+    let mut device_activation_input = backend
+        .allocate::<f32>(activation_input.len())
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&activation_input, &mut device_activation_input)
+        .expect("invariant: test backend operation succeeds");
     let hardtanh = u64::from((-1.0_f32).to_bits()) | (u64::from(1.0_f32.to_bits()) << 32);
     let threshold = u64::from(0.25_f32.to_bits()) | (u64::from((-0.5_f32).to_bits()) << 32);
     for operation in [
@@ -414,7 +486,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             &mut expected,
         )
         .expect("Leto activation elementwise oracle failed");
-        let mut actual = backend.allocate::<f32>(activation_input.len());
+        let mut actual = backend
+            .allocate::<f32>(activation_input.len())
+            .expect("invariant: test backend operation succeeds");
         backend
             .elementwise_unary(
                 operation,
@@ -425,7 +499,9 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             )
             .expect("ROCm activation elementwise dispatch failed");
         let mut actual_values = [0.0_f32; 6];
-        backend.copy_to_host(&actual, &mut actual_values);
+        backend
+            .copy_to_host(&actual, &mut actual_values)
+            .expect("invariant: test backend operation succeeds");
         assert_close(&actual_values, &expected, "activation");
     }
 }

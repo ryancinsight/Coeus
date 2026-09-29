@@ -25,7 +25,7 @@ pub fn prod_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend)?;
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
     backend.reduce(
@@ -52,7 +52,8 @@ pub fn prod_axis<T: Scalar, B: BackendOps<T> + Default>(
 /// use coeus_tensor::Tensor;
 ///
 /// let backend = SequentialBackend::new();
-/// let input = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
+/// let input = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0])
+///     .expect("example tensor allocation succeeds");
 /// let result = prod_tensor(&input, &backend).expect("valid product inputs");
 /// assert_eq!(result.as_slice(), &[24.0]);
 /// ```
@@ -78,9 +79,12 @@ pub fn prod_tensor<T: Scalar, B: BackendOps<T> + Default>(
 /// The reduction stays on the selected backend; only the one-element result
 /// crosses the backend boundary.
 #[inline]
-pub fn prod<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
-    let reduced = prod_tensor(a, backend).expect("prod: provider reduction failed");
+pub fn prod<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    backend: &B,
+) -> Result<T, B::Error> {
+    let reduced = prod_tensor(a, backend)?;
     let mut scalar = [T::zero()];
-    backend.copy_to_host(reduced.storage(), &mut scalar);
-    scalar[0]
+    backend.copy_to_host(reduced.storage(), &mut scalar)?;
+    Ok(scalar[0])
 }

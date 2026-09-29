@@ -36,8 +36,11 @@ fn pair<const N: usize>(
     wgpu: &WgpuBackend,
     data: &[f32; N],
 ) -> (Tensor<f32, SequentialBackend>, Tensor<f32, WgpuBackend>) {
-    let cpu = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), data);
-    let gpu = cpu.to_backend_on(seq, wgpu);
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), data)
+        .expect("invariant: test backend operation succeeds");
+    let gpu = cpu
+        .to_backend_on(seq, wgpu)
+        .expect("invariant: test backend operation succeeds");
     (cpu, gpu)
 }
 
@@ -64,12 +67,17 @@ fn test_wgpu_sgd_step() {
     }
     assert_close(
         "sgd_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "sgd_velocity",
-        vel_g.to_backend_on(&wgpu, &seq).as_slice(),
+        vel_g
+            .to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         vel_c.as_slice(),
     );
 }
@@ -80,12 +88,21 @@ fn test_wgpu_sgd_ranks_zero_through_eight() {
     let wgpu = WgpuBackend::new();
     for rank in 0..=8 {
         let shape = vec![1; rank];
-        let mut p_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[2.0]);
-        let g_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[1.0]);
-        let mut v_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[0.0]);
-        let mut p_g = p_c.to_backend_on(&seq, &wgpu);
-        let g_g = g_c.to_backend_on(&seq, &wgpu);
-        let mut v_g = v_c.to_backend_on(&seq, &wgpu);
+        let mut p_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[2.0])
+            .expect("invariant: test backend operation succeeds");
+        let g_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[1.0])
+            .expect("invariant: test backend operation succeeds");
+        let mut v_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[0.0])
+            .expect("invariant: test backend operation succeeds");
+        let mut p_g = p_c
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let g_g = g_c
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let mut v_g = v_c
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
         let pl = p_c.layout().clone();
         let gl = g_c.layout().clone();
         let vl = v_c.layout().clone();
@@ -115,12 +132,16 @@ fn test_wgpu_sgd_ranks_zero_through_eight() {
 
         assert_close(
             &format!("rank-{rank} parameter"),
-            p_g.to_backend_on(&wgpu, &seq).as_slice(),
+            p_g.to_backend_on(&wgpu, &seq)
+                .expect("invariant: test backend operation succeeds")
+                .as_slice(),
             p_c.as_slice(),
         );
         assert_close(
             &format!("rank-{rank} velocity"),
-            v_g.to_backend_on(&wgpu, &seq).as_slice(),
+            v_g.to_backend_on(&wgpu, &seq)
+                .expect("invariant: test backend operation succeeds")
+                .as_slice(),
             v_c.as_slice(),
         );
     }
@@ -180,17 +201,23 @@ fn test_wgpu_adam_step() {
     }
     assert_close(
         "adam_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "adam_m",
-        m_g.to_backend_on(&wgpu, &seq).as_slice(),
+        m_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         m_c.as_slice(),
     );
     assert_close(
         "adam_v",
-        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         v_c.as_slice(),
     );
 }
@@ -218,12 +245,16 @@ fn test_wgpu_rmsprop_step() {
     }
     assert_close(
         "rmsprop_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "rmsprop_v",
-        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         v_c.as_slice(),
     );
 }
@@ -251,12 +282,16 @@ fn test_wgpu_adagrad_step() {
     }
     assert_close(
         "adagrad_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "adagrad_history",
-        h_g.to_backend_on(&wgpu, &seq).as_slice(),
+        h_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         h_c.as_slice(),
     );
 }
@@ -317,17 +352,23 @@ fn test_wgpu_adamw_step() {
     }
     assert_close(
         "adamw_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "adamw_m",
-        m_g.to_backend_on(&wgpu, &seq).as_slice(),
+        m_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         m_c.as_slice(),
     );
     assert_close(
         "adamw_v",
-        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         v_c.as_slice(),
     );
 }

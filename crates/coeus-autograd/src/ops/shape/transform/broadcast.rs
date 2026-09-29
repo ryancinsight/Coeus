@@ -59,12 +59,11 @@ where
 /// # Panics
 /// Panics if `target_shape.len() != input.ndim()` or if any dimension is
 /// incompatible for broadcasting.
-#[must_use]
 #[inline]
 pub fn broadcast_to<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target_shape: impl Into<Vec<usize>>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -99,14 +98,14 @@ where
         })
         .collect();
 
-    let out_tensor = coeus_ops::broadcast_to(&input.tensor, &target_shape, &backend);
+    let out_tensor = coeus_ops::broadcast_to(&input.tensor, &target_shape, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -120,9 +119,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

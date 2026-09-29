@@ -43,7 +43,7 @@ where
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             let grad_input =
-                coeus_ops::masked_fill(grad_out, &self.mask_tensor, T::zero(), &backend);
+                coeus_ops::masked_fill(grad_out, &self.mask_tensor, T::zero(), &backend)?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &grad_input, &backend)?;
         }
@@ -57,26 +57,25 @@ where
 ///
 /// # Panics
 /// Panics if `input.shape() != mask.shape()`.
-#[must_use]
 #[inline]
 pub fn masked_fill<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     mask: &Var<T, B>,
     value: T,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::masked_fill(&input.tensor, &mask.tensor, value, &backend);
+    let out_tensor = coeus_ops::masked_fill(&input.tensor, &mask.tensor, value, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -90,9 +89,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

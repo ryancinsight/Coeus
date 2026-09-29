@@ -255,7 +255,7 @@ where
         reason: "expression has no tensor input from which to derive its shape".to_string(),
     })?;
     let out_layout = Layout::new(out_shape.clone());
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend)?;
 
     let out_numel = out.numel();
     let contiguous_fast_path = expr.is_contiguous_and_same_shape(out_layout.shape());
@@ -306,7 +306,7 @@ where
     let mut out_shape = expr_shape.clone();
     out_shape[axis] = 1;
     let out_layout = Layout::new(out_shape.clone());
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend)?;
 
     let out_numel = out.numel();
     let axis_len = expr_shape[axis];
@@ -320,7 +320,7 @@ where
                 unreachable!("invariant: undefined empty reductions were rejected")
             }
         };
-        backend.fill(out.storage_mut(), identity);
+        backend.fill(out.storage_mut(), identity)?;
         return Ok(out);
     }
 

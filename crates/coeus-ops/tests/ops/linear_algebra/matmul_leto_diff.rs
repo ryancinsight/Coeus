@@ -45,12 +45,19 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let mut a_buffer = ComputeBackend::allocate::<T>(backend, a.len());
-    let mut b_buffer = ComputeBackend::allocate::<T>(backend, b.len());
-    let mut c_buffer = ComputeBackend::allocate::<T>(backend, c_layout.numel());
+    let mut a_buffer = ComputeBackend::allocate::<T>(backend, a.len())
+        .expect("invariant: test backend storage operation succeeds");
+    let mut b_buffer = ComputeBackend::allocate::<T>(backend, b.len())
+        .expect("invariant: test backend storage operation succeeds");
+    let mut c_buffer = ComputeBackend::allocate::<T>(backend, c_layout.numel())
+        .expect("invariant: test backend storage operation succeeds");
 
-    backend.copy_to_device(a, &mut a_buffer);
-    backend.copy_to_device(b, &mut b_buffer);
+    backend
+        .copy_to_device(a, &mut a_buffer)
+        .expect("invariant: test backend storage operation succeeds");
+    backend
+        .copy_to_device(b, &mut b_buffer)
+        .expect("invariant: test backend storage operation succeeds");
     backend
         .matmul(
             &a_buffer,
@@ -63,7 +70,9 @@ where
         .expect("valid matmul test layouts");
 
     let mut out = vec![T::zero(); c_layout.numel()];
-    backend.copy_to_host(&c_buffer, &mut out);
+    backend
+        .copy_to_host(&c_buffer, &mut out)
+        .expect("invariant: test backend storage operation succeeds");
     out
 }
 

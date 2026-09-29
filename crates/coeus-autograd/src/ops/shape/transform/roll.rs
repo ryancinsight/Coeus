@@ -44,7 +44,7 @@ where
         if let Some(Some(ref g)) = input_grads.first() {
             // Backward of roll(x, shifts, dims) is roll(grad, -shifts, dims).
             let neg_shifts: Vec<isize> = self.shifts.iter().map(|&s| -s).collect();
-            let unrolled = coeus_ops::roll(grad_out, &neg_shifts, &self.dims, &backend);
+            let unrolled = coeus_ops::roll(grad_out, &neg_shifts, &self.dims, &backend)?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &unrolled, &backend)?;
         }
@@ -55,26 +55,25 @@ where
 /// Tracked circular shift along `dims` by `shifts`.
 ///
 /// Backward: roll by negated shifts (unroll).
-#[must_use]
 #[inline]
 pub fn roll<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     shifts: &[isize],
     dims: &[usize],
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::roll(&input.tensor, shifts, dims, &backend);
+    let out_tensor = coeus_ops::roll(&input.tensor, shifts, dims, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -89,9 +88,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

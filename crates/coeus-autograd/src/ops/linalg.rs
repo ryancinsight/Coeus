@@ -15,7 +15,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
     const OP_NAME: &'static str = "matmul";
 
     #[inline(always)]
-    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(a: &Tensor<T, B>, b: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         // The batched matmul kernels derive their layouts from shape alone and
         // do not honor view strides (see `swap_last_two`), so a non-contiguous
         // input (e.g. a `transpose`/`permute` view fed straight into `matmul`,
@@ -25,14 +25,14 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
         let a = if a.is_contiguous() {
             a
         } else {
-            a_owned = a.to_contiguous_on(backend);
+            a_owned = a.to_contiguous_on(backend)?;
             &a_owned
         };
         let b_owned;
         let b = if b.is_contiguous() {
             b
         } else {
-            b_owned = b.to_contiguous_on(backend);
+            b_owned = b.to_contiguous_on(backend)?;
             &b_owned
         };
         coeus_ops::matmul(a, b, backend)
@@ -61,13 +61,13 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
             );
             // ∂/∂A: grad_C @ B^T — [batch,m,n] × [batch,n,k] → [batch,m,k]
             if let Some(Some(ref g)) = input_grads.first() {
-                let b_t = swap_last_two(b, backend);
+                let b_t = swap_last_two(b, backend)?;
                 let gl = g.write();
                 coeus_ops::matmul_accumulate(grad_out, &b_t, gl, backend)?;
             }
             // ∂/∂B: A^T @ grad_C — [batch,k,m] × [batch,m,n] → [batch,k,n]
             if let Some(Some(ref g)) = input_grads.get(1) {
-                let a_t = swap_last_two(a, backend);
+                let a_t = swap_last_two(a, backend)?;
                 let gl = g.write();
                 coeus_ops::matmul_accumulate(&a_t, grad_out, gl, backend)?;
             }
@@ -114,7 +114,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> fo
 fn swap_last_two<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     t: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let nd = t.ndim();
     let mut dims: Vec<usize> = (0..nd).collect();
     dims.swap(nd - 2, nd - 1);
@@ -128,8 +128,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
     const OP_NAME: &'static str = "transpose_2d";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, _backend: &B) -> Tensor<T, B> {
-        x.t()
+    fn forward(x: &Tensor<T, B>, _backend: &B) -> Result<Tensor<T, B>, B::Error> {
+        Ok(x.t())
     }
 
     #[inline(always)]
@@ -138,8 +138,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
         _x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         _backend: &B,
-    ) -> Tensor<T, B> {
-        grad_out.t()
+    ) -> Result<Tensor<T, B>, B::Error> {
+        Ok(grad_out.t())
     }
 }
 
@@ -156,31 +156,37 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let a = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([1, 2], &[1.0, 2.0]), true);
-/// let b = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2, 1], &[3.0, 4.0]), true);
-/// let c = coeus_autograd::matmul(&a, &b);
+/// let a = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([1, 2], &[1.0, 2.0]).expect("invariant: example shape matches data"),
+///     true,
+/// ).expect("invariant: example gradient buffer allocation succeeds");
+/// let b = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([2, 1], &[3.0, 4.0]).expect("invariant: example shape matches data"),
+///     true,
+/// ).expect("invariant: example gradient buffer allocation succeeds");
+/// let c = coeus_autograd::matmul(&a, &b).expect("invariant: example matrix shapes are compatible");
 /// assert!((c.tensor.as_slice()[0] - 11.0).abs() < 1e-5); // 1*3 + 2*4
 /// c.backward().expect("invariant: valid autograd fixture completes backward"); // scalar output, seed = 1
-/// let ga = a.grad().unwrap();
+/// let ga = a.grad().expect("invariant: backward populates the tracked leaf gradient");
 /// assert!((ga.as_slice()[0] - 3.0).abs() < 1e-5); // dA = B^T
 /// assert!((ga.as_slice()[1] - 4.0).abs() < 1e-5);
-/// let gb = b.grad().unwrap();
+/// let gb = b.grad().expect("invariant: backward populates the tracked leaf gradient");
 /// assert!((gb.as_slice()[0] - 1.0).abs() < 1e-5); // dB = A^T
 /// assert!((gb.as_slice()[1] - 2.0).abs() < 1e-5);
 /// ```
-#[must_use]
 #[inline]
 pub fn matmul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     binary_op::<T, B, MatmulOp>(a, b)
 }
 
 /// Tracked 2-D Transpose.
-#[must_use]
 #[inline]
-pub fn transpose_2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn transpose_2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, Transpose2dOp>(a)
 }
 
@@ -259,7 +265,7 @@ where
                 &self.b_tensor,
                 grad_out,
                 &backend,
-            );
+            )?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_a_vals, &backend)?;
         }
@@ -272,7 +278,7 @@ where
                 &self.a_shape,
                 grad_out,
                 &backend,
-            );
+            )?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_b, &backend)?;
         }
@@ -317,12 +323,12 @@ where
                 &self.b_tensor,
                 grad_out,
                 &backend,
-            );
+            )?;
 
             let nnz = self.sorted_to_orig.numel();
             let sorted_to_orig = self.sorted_to_orig.as_slice();
             let grad_sorted_slice = grad_sorted.as_slice();
-            let mut grad_coo = Tensor::<T, B>::zeros_on([nnz], &backend);
+            let mut grad_coo = Tensor::<T, B>::zeros_on([nnz], &backend)?;
             let grad_coo_slice = grad_coo.as_mut_slice();
             for i in 0..nnz {
                 let orig = sorted_to_orig[i] as usize;
@@ -340,7 +346,7 @@ where
                 &self.a_shape,
                 grad_out,
                 &backend,
-            );
+            )?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &grad_b, &backend)?;
         }
@@ -358,7 +364,7 @@ fn coo_to_csr_parts_with_permutation<T: Scalar, B: coeus_ops::BackendOps<T> + co
     a_indices: &Tensor<i64, B>,
     a_shape: &Shape,
     backend: &B,
-) -> CsrPartsWithPermutation<T, B>
+) -> Result<CsrPartsWithPermutation<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
@@ -404,10 +410,10 @@ where
     }
     triples.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
 
-    let mut csr_values = Tensor::<T, B>::zeros_on([nnz], backend);
-    let mut csr_col_indices = Tensor::<i64, B>::zeros_on([nnz], backend);
-    let mut csr_row_offsets = Tensor::<i64, B>::zeros_on([rows + 1], backend);
-    let mut sorted_to_orig = Tensor::<i64, B>::zeros_on([nnz], backend);
+    let mut csr_values = Tensor::<T, B>::zeros_on([nnz], backend)?;
+    let mut csr_col_indices = Tensor::<i64, B>::zeros_on([nnz], backend)?;
+    let mut csr_row_offsets = Tensor::<i64, B>::zeros_on([rows + 1], backend)?;
+    let mut sorted_to_orig = Tensor::<i64, B>::zeros_on([nnz], backend)?;
 
     let val_mut = csr_values.as_mut_slice();
     let col_mut = csr_col_indices.as_mut_slice();
@@ -430,7 +436,7 @@ where
         row_mut[current_row] = nnz as i64;
     }
 
-    (csr_values, csr_col_indices, csr_row_offsets, sorted_to_orig)
+    Ok((csr_values, csr_col_indices, csr_row_offsets, sorted_to_orig))
 }
 
 /// Multiplies a CSR sparse matrix by a dense tracked matrix.
@@ -444,7 +450,7 @@ pub fn sparse_matmul<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backen
     a_row_offsets: &Tensor<i64, B>,
     a_shape: Shape,
     b: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
@@ -456,7 +462,7 @@ where
         a_col_indices.clone(),
         a_row_offsets.clone(),
     );
-    let out_tensor = coeus_ops::spmm(&csr, &b.tensor, &backend);
+    let out_tensor = coeus_ops::spmm(&csr, &b.tensor, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(a_values) || crate::grad_mode::should_track_var(b);
@@ -482,21 +488,21 @@ pub fn sparse_matmul_coo<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Ba
     a_indices: &Tensor<i64, B>,
     a_shape: Shape,
     b: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     let backend = B::default();
     let (csr_values, csr_col_indices, csr_row_offsets, sorted_to_orig) =
-        coo_to_csr_parts_with_permutation(&a_values.tensor, a_indices, &a_shape, &backend);
+        coo_to_csr_parts_with_permutation(&a_values.tensor, a_indices, &a_shape, &backend)?;
     let csr = CsrTensor::new(
         a_shape.clone(),
         csr_values.clone(),
         csr_col_indices.clone(),
         csr_row_offsets.clone(),
     );
-    let out_tensor = coeus_ops::spmm(&csr, &b.tensor, &backend);
+    let out_tensor = coeus_ops::spmm(&csr, &b.tensor, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(a_values) || crate::grad_mode::should_track_var(b);

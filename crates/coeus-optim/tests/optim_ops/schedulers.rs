@@ -3,8 +3,9 @@ use super::{Parameter, SequentialBackend, Tensor, Var, SGD};
 #[test]
 fn test_lr_schedulers() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
     {
         use coeus_optim::scheduler::{CosineAnneal, SchedulerStrategy};
@@ -30,7 +31,8 @@ fn test_lr_schedulers() {
 
     {
         use coeus_optim::scheduler::{LrScheduler, StepDecay};
-        let optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 1e-3f32, 0.0f32);
+        let optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 1e-3f32, 0.0f32)
+            .expect("invariant: optimizer state allocation succeeds");
         let strategy = StepDecay {
             step_size: 2,
             gamma: 0.5,
@@ -97,10 +99,13 @@ fn test_linear_warmup_drives_optimizer_lr() {
     // as steps advance, confirming the strategy reaches the optimizer.
     use coeus_optim::scheduler::{LinearWarmup, LrScheduler};
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let opt = SGD::new(vec![Parameter::new(x, "x")], 0.0, 0.0);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let opt = SGD::new(vec![Parameter::new(x, "x")], 0.0, 0.0)
+        .expect("invariant: optimizer state allocation succeeds");
     let mut sched = LrScheduler::new(opt, LinearWarmup { warmup_steps: 2 }, 0.2);
 
     assert!((sched.current_lr() - 0.0).abs() < 1e-7); // step 0
@@ -115,11 +120,16 @@ fn failed_optimizer_step_does_not_advance_scheduler() {
     use coeus_optim::scheduler::{LrScheduler, StepDecay};
 
     let parameter = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    parameter.set_grad(
+        Tensor::from_slice(vec![1], &[1.0]).expect("invariant: test backend operation succeeds"),
     );
-    parameter.set_grad(Tensor::from_slice(vec![1], &[1.0]));
-    let optimizer = SGD::new(vec![Parameter::new(parameter, "weight")], -0.1, 0.0);
+    let optimizer = SGD::new(vec![Parameter::new(parameter, "weight")], -0.1, 0.0)
+        .expect("invariant: optimizer state allocation succeeds");
     let mut scheduler = LrScheduler::new(
         optimizer,
         StepDecay {

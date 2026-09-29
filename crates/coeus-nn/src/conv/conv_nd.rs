@@ -81,7 +81,12 @@ impl ConvParams {
 
 impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Conv<T, B, D> {
     /// Construct with default stride=1, padding=0, dilation=1.
-    pub fn new(in_channels: usize, out_channels: usize, kernel_size: usize, bias: bool) -> Self {
+    pub fn new(
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        bias: bool,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         Self::with_params(in_channels, out_channels, kernel_size, 1, 0, 1, bias)
     }
 
@@ -94,7 +99,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Conv<T, B, D>
         padding: usize,
         dilation: usize,
         bias: bool,
-    ) -> Self {
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         let params = ConvParams::new(
             in_channels,
             out_channels,
@@ -105,16 +110,16 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Conv<T, B, D>
         );
         let backend = B::default();
         let w_shape = D::weight_shape(params.out_channels, params.in_channels, params.kernel_size);
-        let weight = Var::new(Tensor::ones_on(w_shape, &backend), true);
+        let weight = Var::new(Tensor::ones_on(w_shape, &backend)?, true)?;
         let bias_var = if bias {
             Some(Var::new(
-                Tensor::zeros_on([params.out_channels], &backend),
+                Tensor::zeros_on([params.out_channels], &backend)?,
                 true,
-            ))
+            )?)
         } else {
             None
         };
-        Self::from_vars(weight, bias_var, params)
+        Ok(Self::from_vars(weight, bias_var, params))
     }
 
     /// Construct directly from existing weight and bias variables.
@@ -184,7 +189,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Module<T, B> f
             });
         }
         let out_shape = D::output_shape(shape[0], self.out_channels, &out_sp);
-        let mut out_tensor = Tensor::zeros_on(out_shape, &backend);
+        let mut out_tensor = Tensor::zeros_on(out_shape, &backend)?;
         {
             let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
             D::backend_conv(ConvDispatch {
@@ -213,6 +218,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Module<T, B> f
             self.stride,
             self.padding,
             self.dilation,
-        ))
+        )?)
     }
 }

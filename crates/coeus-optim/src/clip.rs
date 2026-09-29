@@ -21,9 +21,16 @@ use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
 /// use coeus_optim::clip_grad_norm;
 /// use coeus_tensor::Tensor;
 ///
-/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[1.0f32, 1.0]), true);
+/// let x: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![2], &[1.0f32, 1.0]).expect("example tensor allocation succeeds"),
+///     true,
+/// )
+/// .expect("example variable allocation succeeds");
 /// // Gradient [3.0, 4.0] has L2 norm 5.0; clipping to 2.5 scales by 0.5.
-/// x.set_grad(Tensor::from_slice(vec![2], &[3.0f32, 4.0]));
+/// x.set_grad(
+///     Tensor::from_slice(vec![2], &[3.0f32, 4.0])
+///         .expect("example gradient allocation succeeds"),
+/// );
 ///
 /// let pre_norm = clip_grad_norm(&[x.clone()], 2.5f32);
 /// assert!((pre_norm - 5.0).abs() < 1e-5);

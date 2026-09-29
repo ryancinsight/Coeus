@@ -55,16 +55,22 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let layout = Layout::new(Shape::from(vec![input.len()]));
-    let mut input_buffer = ComputeBackend::allocate::<T>(backend, input.len());
-    let mut output_buffer = ComputeBackend::allocate::<T>(backend, input.len());
+    let mut input_buffer = ComputeBackend::allocate::<T>(backend, input.len())
+        .expect("invariant: test backend storage operation succeeds");
+    let mut output_buffer = ComputeBackend::allocate::<T>(backend, input.len())
+        .expect("invariant: test backend storage operation succeeds");
 
-    backend.copy_to_device(input, &mut input_buffer);
+    backend
+        .copy_to_device(input, &mut input_buffer)
+        .expect("invariant: test backend storage operation succeeds");
     backend
         .elementwise_unary(op, &input_buffer, &layout, &mut output_buffer, &layout)
         .expect("valid unary test layouts");
 
     let mut output = vec![T::zero(); input.len()];
-    backend.copy_to_host(&output_buffer, &mut output);
+    backend
+        .copy_to_host(&output_buffer, &mut output)
+        .expect("invariant: test backend storage operation succeeds");
     output
 }
 

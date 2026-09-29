@@ -52,6 +52,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Dropout {
             self.p,
             self.is_training,
             self.seed,
-        ))
+        )?)
     }
 }

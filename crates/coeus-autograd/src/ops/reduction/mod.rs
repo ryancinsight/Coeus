@@ -44,11 +44,11 @@ pub use variance::{
 pub fn log_sum_exp<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &crate::Var<T, B>,
     axis: usize,
-) -> crate::Var<T, B> {
-    let x_max = max_axis(x, axis);
-    let x_shifted = crate::ops::arithmetic::sub(x, &x_max);
-    let exp_sh = crate::ops::activation::exp(&x_shifted);
-    let sum_exp = crate::ops::arithmetic::sum_axis(&exp_sh, axis);
-    let log_sum = crate::ops::activation::log(&sum_exp);
+) -> Result<crate::Var<T, B>, B::Error> {
+    let x_max = max_axis(x, axis)?;
+    let x_shifted = crate::ops::arithmetic::sub(x, &x_max)?;
+    let exp_sh = crate::ops::activation::exp(&x_shifted)?;
+    let sum_exp = crate::ops::arithmetic::sum_axis(&exp_sh, axis)?;
+    let log_sum = crate::ops::activation::log(&sum_exp)?;
     crate::ops::arithmetic::add(&log_sum, &x_max)
 }

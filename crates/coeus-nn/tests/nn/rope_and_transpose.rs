@@ -5,8 +5,13 @@ use coeus_tensor::Tensor;
 fn test_rope_forward_shape() {
     use coeus_nn::positional::RotaryEmbedding;
 
-    let rope = RotaryEmbedding::<f64, coeus_core::MoiraiBackend>::new(16, 4, 10000.0);
-    let input = Var::new(Tensor::zeros(vec![2, 4, 3, 4]), true);
+    let rope = RotaryEmbedding::<f64, coeus_core::MoiraiBackend>::new(16, 4, 10000.0)
+        .expect("valid rotary embedding dimensions");
+    let input = Var::new(
+        Tensor::zeros(vec![2, 4, 3, 4]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = rope.forward(&input).expect("valid RotaryEmbedding input");
     assert_eq!(output.tensor.shape(), &[2, 4, 3, 4]);
 }
@@ -15,11 +20,14 @@ fn test_rope_forward_shape() {
 fn test_rope_backward() {
     use coeus_nn::positional::RotaryEmbedding;
 
-    let rope = RotaryEmbedding::<f64, coeus_core::MoiraiBackend>::new(16, 4, 10000.0);
+    let rope = RotaryEmbedding::<f64, coeus_core::MoiraiBackend>::new(16, 4, 10000.0)
+        .expect("valid rotary embedding dimensions");
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 1, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        Tensor::from_slice(vec![1, 2, 1, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = rope.forward(&input).expect("valid RotaryEmbedding input");
     output
         .backward()
@@ -33,7 +41,8 @@ fn test_rope_backward() {
 fn test_rope_numerical_correctness() {
     use coeus_nn::positional::RotaryEmbedding;
 
-    let rope = RotaryEmbedding::<f64, coeus_core::MoiraiBackend>::new(4, 2, 1.0);
+    let rope = RotaryEmbedding::<f64, coeus_core::MoiraiBackend>::new(4, 2, 1.0)
+        .expect("valid rotary embedding dimensions");
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 2, 1, 2],
@@ -41,9 +50,11 @@ fn test_rope_numerical_correctness() {
                 1.0, 2.0, // pos 0
                 3.0, 4.0, // pos 1
             ],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = rope.forward(&input).expect("valid RotaryEmbedding input");
     let out_slice = output.tensor.as_slice();
@@ -76,13 +87,16 @@ fn test_general_transpose_autograd() {
         Tensor::from_slice(
             vec![2, 3, 4],
             &(0..24).map(|i| i as f64).collect::<Vec<f64>>(),
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let transposed = coeus_autograd::transpose(&input, 0, 2);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let transposed =
+        coeus_autograd::transpose(&input, 0, 2).expect("invariant: test operation succeeds");
     assert_eq!(transposed.tensor.shape(), &[4, 3, 2]);
 
-    let sum = coeus_autograd::sum(&transposed);
+    let sum = coeus_autograd::sum(&transposed).expect("invariant: test operation succeeds");
     sum.backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert!(input.grad().is_some());

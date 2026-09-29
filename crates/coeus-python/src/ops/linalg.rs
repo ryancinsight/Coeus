@@ -7,7 +7,7 @@
 // ValueError so the Python caller can interpret a stale `MoiraiBackend` vs
 // `SequentialBackend` pair cleanly at the binding boundary.
 
-use crate::tensor::PyTensor;
+use crate::{error::map_backend_error, tensor::PyTensor};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
@@ -39,10 +39,10 @@ pub fn dot(input: &PyTensor, tensor: &PyTensor, py: Python<'_>) -> PyResult<PyTe
     // Tracked composition sum(a ⊙ b) so gradients flow (d/da = b, d/db = a),
     // matching torch.dot's autograd contract; returns a [1] tensor.
     let inner = py.allow_threads(|| {
-        let prod = coeus_autograd::mul(&input.inner, &tensor.inner);
+        let prod = coeus_autograd::mul(&input.inner, &tensor.inner)?;
         coeus_autograd::sum(&prod)
     });
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Per-channel 3-vector cross product along `dim`.
@@ -80,14 +80,15 @@ pub fn cross(input: &PyTensor, other: &PyTensor, dim: usize, py: Python<'_>) -> 
             a.shape()[dim]
         )));
     }
-    let out: Tensor<f64, MoiraiBackend> =
-        py.allow_threads(|| coeus_ops::cross::<f64, MoiraiBackend>(a, b, dim));
+    let out: Tensor<f64, MoiraiBackend> = py
+        .allow_threads(|| coeus_ops::cross::<f64, MoiraiBackend>(a, b, dim))
+        .map_err(map_backend_error)?;
     // Wrap the auto-diff-friendly non-tracked result so subsequent ops
     // (e.g. `cross_output.sum()`) can compose through the autograd graph
     // when the caller intervenes. matches `coeus_python::ops::cumprod`.
-    Ok(PyTensor {
-        inner: coeus_autograd::Var::new(out, false),
-    })
+    coeus_autograd::Var::new(out, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 /// Frobenius (matrix L2) norm of a 2-D tensor or per-batch of an N-D tensor.
@@ -129,22 +130,19 @@ pub fn matrix_norm(input: &PyTensor, ord: &str, py: Python<'_>) -> PyResult<Py<P
     }
 
     if ndim == 2 {
-        let v: f64 = py.allow_threads(|| {
-            coeus_ops::frobenius_norm::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
-                .expect("frobenius_norm")
-        });
+        let v: f64 = py
+            .allow_threads(|| {
+                coeus_ops::frobenius_norm::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
+            })
+            .map_err(map_backend_error)?;
         Ok(v.into_pyobject(py)?.into_any().unbind())
     } else {
-        let out: Tensor<f64, MoiraiBackend> = py.allow_threads(|| {
-            coeus_ops::frobenius_norm_batched::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
-                .expect("frobenius_norm_batched")
-        });
-        Ok(Py::new(
-            py,
-            PyTensor {
-                inner: coeus_autograd::Var::new(out, false),
-            },
-        )?
-        .into_any())
+        let out: Tensor<f64, MoiraiBackend> = py
+            .allow_threads(|| {
+                coeus_ops::frobenius_norm_batched::<f64, MoiraiBackend>(a, &MoiraiBackend::new())
+            })
+            .map_err(map_backend_error)?;
+        let inner = coeus_autograd::Var::new(out, false).map_err(map_backend_error)?;
+        Ok(Py::new(py, PyTensor::from_var(inner))?.into_any())
     }
 }

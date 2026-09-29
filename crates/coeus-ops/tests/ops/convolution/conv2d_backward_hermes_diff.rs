@@ -80,15 +80,31 @@ where
     let input_layout = layout(&case.input_shape);
     let weight_layout = layout(&case.weight_shape);
 
-    let mut grad_out = backend.allocate::<f32>(case.grad_out.len());
-    let mut input = backend.allocate::<f32>(case.input.len());
-    let mut weight = backend.allocate::<f32>(case.weight.len());
-    let mut grad_weight = backend.allocate::<f32>(case.initial_grad_weight.len());
+    let mut grad_out = backend
+        .allocate::<f32>(case.grad_out.len())
+        .expect("invariant: test backend storage operation succeeds");
+    let mut input = backend
+        .allocate::<f32>(case.input.len())
+        .expect("invariant: test backend storage operation succeeds");
+    let mut weight = backend
+        .allocate::<f32>(case.weight.len())
+        .expect("invariant: test backend storage operation succeeds");
+    let mut grad_weight = backend
+        .allocate::<f32>(case.initial_grad_weight.len())
+        .expect("invariant: test backend storage operation succeeds");
 
-    backend.copy_to_device(case.grad_out, &mut grad_out);
-    backend.copy_to_device(case.input, &mut input);
-    backend.copy_to_device(case.weight, &mut weight);
-    backend.copy_to_device(case.initial_grad_weight, &mut grad_weight);
+    backend
+        .copy_to_device(case.grad_out, &mut grad_out)
+        .expect("invariant: test backend storage operation succeeds");
+    backend
+        .copy_to_device(case.input, &mut input)
+        .expect("invariant: test backend storage operation succeeds");
+    backend
+        .copy_to_device(case.weight, &mut weight)
+        .expect("invariant: test backend storage operation succeeds");
+    backend
+        .copy_to_device(case.initial_grad_weight, &mut grad_weight)
+        .expect("invariant: test backend storage operation succeeds");
 
     backend
         .conv2d_backward(
@@ -110,7 +126,9 @@ where
         .expect("convolution backward provider dispatch");
 
     let mut out = vec![0.0; case.initial_grad_weight.len()];
-    backend.copy_to_host(&grad_weight, &mut out);
+    backend
+        .copy_to_host(&grad_weight, &mut out)
+        .expect("invariant: test backend storage operation succeeds");
     out
 }
 

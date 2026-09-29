@@ -27,7 +27,7 @@ pub fn unfold1d<T: Scalar, B: BackendOps<T> + Default>(
     let windows = window_count(OPERATION, length, kernel_size, stride, padding, dilation)?;
     let channels = product(OPERATION, &[c, kernel_size])?;
     let _ = product(OPERATION, &[n, channels, windows])?;
-    let mut output = Tensor::alloc_on([n, channels, windows], backend);
+    let mut output = Tensor::alloc_on([n, channels, windows], backend)?;
     let (output_storage, output_layout) = output.storage_mut_and_layout();
     backend.unfold1d(
         input.storage(),
@@ -84,7 +84,7 @@ pub fn fold1d<T: Scalar, B: BackendOps<T> + Default>(
     }
     let channels = combined_channels / kernel_size;
     let _ = product(OPERATION, &[n, channels, output_size])?;
-    let mut output = Tensor::zeros_on([n, channels, output_size], backend);
+    let mut output = Tensor::zeros_on([n, channels, output_size], backend)?;
     let (output_storage, output_layout) = output.storage_mut_and_layout();
     backend.fold1d(
         input.storage(),
@@ -129,7 +129,7 @@ pub fn unfold2d<T: Scalar, B: BackendOps<T> + Default>(
     let channels = product(OPERATION, &[c, kernel_h, kernel_w])?;
     let locations = product(OPERATION, &[output_h, output_w])?;
     let _ = product(OPERATION, &[n, channels, locations])?;
-    let mut output = Tensor::alloc_on([n, channels, locations], backend);
+    let mut output = Tensor::alloc_on([n, channels, locations], backend)?;
     let (output_storage, output_layout) = output.storage_mut_and_layout();
     backend.unfold2d(
         input.storage(),
@@ -199,7 +199,7 @@ pub fn fold2d<T: Scalar, B: BackendOps<T> + Default>(
     }
     let channels = combined_channels / kernel_area;
     let _ = product(OPERATION, &[n, channels, output_h, output_w])?;
-    let mut output = Tensor::zeros_on([n, channels, output_h, output_w], backend);
+    let mut output = Tensor::zeros_on([n, channels, output_h, output_w], backend)?;
     let (output_storage, output_layout) = output.storage_mut_and_layout();
     backend.fold2d(
         input.storage(),
@@ -229,7 +229,8 @@ mod tests {
     #[test]
     fn rejects_zero_stride_before_allocation() {
         let backend = SequentialBackend::new();
-        let input = Tensor::from_slice_on([1, 1, 3], &[1.0_f32, 2.0, 3.0], &backend);
+        let input = Tensor::from_slice_on([1, 1, 3], &[1.0_f32, 2.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds");
         assert!(matches!(
             unfold1d(&input, 2, 0, 0, 1, &backend),
             Err(BackendError::Storage {

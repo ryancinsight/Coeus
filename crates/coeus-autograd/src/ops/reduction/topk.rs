@@ -63,9 +63,9 @@ where
             return Ok(());
         };
 
-        let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend);
+        let zeros = Tensor::zeros_on(self.input_shape.clone(), &backend)?;
         let grad_in =
-            coeus_ops::scatter_add(&zeros, self.dim, &self.topk_indices, grad_out, &backend);
+            coeus_ops::scatter_add(&zeros, self.dim, &self.topk_indices, grad_out, &backend)?;
 
         let gl = g.write();
         coeus_ops::add_assign(gl, &grad_in, &backend)?;
@@ -85,13 +85,16 @@ where
 ///
 /// # Panics
 /// Panics if `k == 0`, `k > input.tensor.shape()[dim]`, or `dim >= input.tensor.ndim()`.
-#[must_use]
+#[expect(
+    clippy::type_complexity,
+    reason = "the established top-k contract returns tracked values and indices together"
+)]
 pub fn topk<T: Scalar + leto_ops::Scalar, B>(
     input: &Var<T, B>,
     k: usize,
     dim: usize,
     largest: bool,
-) -> (Var<T, B>, Var<T, B>)
+) -> Result<(Var<T, B>, Var<T, B>), B::Error>
 where
     B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<T>:
@@ -100,15 +103,15 @@ where
         coeus_core::CpuAddressableStorage<i64> + coeus_core::CpuAddressableStorageMut<i64>,
 {
     let backend = B::default();
-    let (top_vals, idx_i64) = coeus_ops::topk(&input.tensor, k, dim, largest);
+    let (top_vals, idx_i64) = coeus_ops::topk(&input.tensor, k, dim, largest)?;
 
     let idx_data: Vec<T> = idx_i64
-        .to_contiguous_on(&backend)
+        .to_contiguous_on(&backend)?
         .as_slice()
         .iter()
         .map(|&x| T::from_f64(x as f64))
         .collect();
-    let top_indices = Tensor::from_slice_on(idx_i64.shape().to_vec(), &idx_data, &backend);
+    let top_indices = Tensor::from_slice_on(idx_i64.shape().to_vec(), &idx_data, &backend)?;
 
     let input_shape = input.tensor.shape_cloned().to_vec();
     let requires_grad = crate::grad_mode::should_track_var(input);
@@ -116,7 +119,7 @@ where
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             top_vals.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -138,8 +141,8 @@ where
         grad,
         creator,
     };
-    let idx_var = Var::new(top_indices, false);
-    (vals_var, idx_var)
+    let idx_var = Var::new(top_indices, false)?;
+    Ok((vals_var, idx_var))
 }
 
 #[cfg(test)]
@@ -155,8 +158,12 @@ mod tests {
     #[test]
     fn topk_forward_and_backward_1d() {
         let data = vec![3.0f64, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0];
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([7], &data), true);
-        let (vals, _) = topk(&x, 3, 0, true);
+        let x = Var::<f64, MoiraiBackend>::new(
+            Tensor::from_slice([7], &data).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let (vals, _) = topk(&x, 3, 0, true).expect("invariant: test operation succeeds");
         let vs = vals.tensor.as_slice().to_vec();
         assert_eq!(vs.len(), 3);
         let mut sorted = vs.clone();
@@ -179,8 +186,12 @@ mod tests {
     #[test]
     fn topk_backward_smallest() {
         let data = vec![3.0f64, 1.0, 4.0, 1.0, 5.0];
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([5], &data), true);
-        let (vals, _) = topk(&x, 2, 0, false);
+        let x = Var::<f64, MoiraiBackend>::new(
+            Tensor::from_slice([5], &data).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let (vals, _) = topk(&x, 2, 0, false).expect("invariant: test operation succeeds");
         vals.backward()
             .expect("invariant: valid autograd fixture completes backward");
         let dx = x.grad().unwrap();

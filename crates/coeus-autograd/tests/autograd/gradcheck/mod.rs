@@ -186,11 +186,12 @@ impl Sampler {
             .map(<T as coeus_core::Scalar>::from_f64)
             .collect();
         Tensor::from_slice_on(shape.to_vec(), &values, &MoiraiBackend::new())
+            .expect("invariant: test backend operation succeeds")
     }
 
     /// A non-differentiated [`Var`] of `shape`, for constants a closure captures.
     pub fn constant<T: GradcheckScalar>(&self, shape: &[usize]) -> Var<T, MoiraiBackend> {
-        Var::new(self.tensor(shape), false)
+        Var::new(self.tensor(shape), false).expect("invariant: test backend operation succeeds")
     }
 }
 
@@ -218,5 +219,6 @@ pub fn weighted<T: GradcheckScalar>(
     output: &Var<T, MoiraiBackend>,
     w: &Var<T, MoiraiBackend>,
 ) -> Var<T, MoiraiBackend> {
-    sum(&mul(output, w))
+    sum(&mul(output, w).expect("invariant: test operation succeeds"))
+        .expect("invariant: test operation succeeds")
 }

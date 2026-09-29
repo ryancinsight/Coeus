@@ -27,9 +27,11 @@ use coeus_tensor::Tensor;
 /// use coeus_ops::matmul;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([3, 2], &[7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
-/// let c = matmul(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+///     .expect("example tensor allocation succeeds");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([3, 2], &[7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+///     .expect("example tensor allocation succeeds");
+/// let c = matmul(&a, &b, &backend).expect("example matrix multiplication succeeds");
 /// assert_eq!(c.shape(), &[2, 2]);
 /// let expected = [58.0, 64.0, 139.0, 154.0];
 /// for (got, want) in c.as_slice().iter().zip(expected.iter()) {
@@ -41,7 +43,7 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let a_ndim = a.ndim();
     let b_ndim = b.ndim();
 
@@ -59,19 +61,17 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
 
     // Fast path for strictly 2-D inputs — zero overhead.
     if a_ndim == 2 && b_ndim == 2 {
-        let mut out = Tensor::alloc_on([m, n], backend);
+        let mut out = Tensor::alloc_on([m, n], backend)?;
         let (out_storage, out_layout) = out.storage_mut_and_layout();
-        backend
-            .matmul(
-                a.storage(),
-                a.layout(),
-                b.storage(),
-                b.layout(),
-                out_storage,
-                out_layout,
-            )
-            .expect("matmul");
-        return out;
+        backend.matmul(
+            a.storage(),
+            a.layout(),
+            b.storage(),
+            b.layout(),
+            out_storage,
+            out_layout,
+        )?;
+        return Ok(out);
     }
 
     // ── Batch dimension resolution ──
@@ -112,7 +112,7 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     // to the backend kernel.
     let mut out_shape = batch_shape;
     out_shape.extend([m, n]);
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    let mut out = Tensor::alloc_on(out_shape, backend)?;
 
     let a_storage = a.storage();
     let b_storage = b.storage();
@@ -126,18 +126,16 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
         out_layout.offset(),
     );
 
-    backend
-        .batched_matmul(
-            a_storage,
-            &a_layout,
-            b_storage,
-            &b_layout,
-            out_storage,
-            &c_layout,
-        )
-        .expect("matmul");
+    backend.batched_matmul(
+        a_storage,
+        &a_layout,
+        b_storage,
+        &b_layout,
+        out_storage,
+        &c_layout,
+    )?;
 
-    out
+    Ok(out)
 }
 
 fn batch_layout(
@@ -165,9 +163,12 @@ fn batch_layout(
 /// use coeus_ops::matmul_accumulate;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[5.0, 6.0, 7.0, 8.0]);
-/// let mut out = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[10.0, 20.0, 30.0, 40.0]);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0])
+///     .expect("example tensor allocation succeeds");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[5.0, 6.0, 7.0, 8.0])
+///     .expect("example tensor allocation succeeds");
+/// let mut out = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[10.0, 20.0, 30.0, 40.0])
+///     .expect("example tensor allocation succeeds");
 /// matmul_accumulate(&a, &b, &mut out, &backend).expect("valid matmul doctest inputs");
 /// // out = [[10+19, 20+22], [30+43, 40+50]] = [[29, 42], [73, 90]]
 /// let expected = [29.0, 42.0, 73.0, 90.0];

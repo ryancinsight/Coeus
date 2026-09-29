@@ -43,7 +43,7 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         b_layout: &Layout,
     ) -> Result<(), Self::Error> {
         let output_layout = Layout::new(a_layout.shape_cloned());
-        let mut output = self.allocate(output_layout.numel());
+        let mut output = self.allocate(output_layout.numel())?;
         self.elementwise_binary(op, a, a_layout, b, b_layout, &mut output, &output_layout)?;
         *a = output;
         *a_layout = output_layout;
@@ -103,7 +103,7 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         input_layout: &mut Layout,
     ) -> Result<(), Self::Error> {
         let output_layout = Layout::new(input_layout.shape_cloned());
-        let mut output = self.allocate(output_layout.numel());
+        let mut output = self.allocate(output_layout.numel())?;
         self.elementwise_unary(op, input, input_layout, &mut output, &output_layout)?;
         *input = output;
         *input_layout = output_layout;

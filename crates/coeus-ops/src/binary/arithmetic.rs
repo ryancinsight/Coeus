@@ -15,9 +15,11 @@ use coeus_tensor::Tensor;
 /// use coeus_ops::add;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
-/// let c = add(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0])
+///     .expect("example tensor allocation succeeds");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0])
+///     .expect("example tensor allocation succeeds");
+/// let c = add(&a, &b, &backend).expect("example addition succeeds");
 /// assert_eq!(c.as_slice(), &[4.0, 6.0]);
 /// ```
 #[inline]
@@ -25,8 +27,8 @@ pub fn add<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Add).expect("add: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Add)
 }
 
 /// Element-wise subtraction.
@@ -39,9 +41,11 @@ pub fn add<T: Scalar, B: ElementwiseOps<T>>(
 /// use coeus_ops::sub;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let c = sub(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0])
+///     .expect("example tensor allocation succeeds");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0])
+///     .expect("example tensor allocation succeeds");
+/// let c = sub(&a, &b, &backend).expect("example subtraction succeeds");
 /// assert_eq!(c.as_slice(), &[4.0, 4.0, 4.0, 4.0]);
 /// ```
 #[inline]
@@ -49,8 +53,8 @@ pub fn sub<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Sub).expect("sub: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Sub)
 }
 
 /// Element-wise multiplication.
@@ -63,9 +67,11 @@ pub fn sub<T: Scalar, B: ElementwiseOps<T>>(
 /// use coeus_ops::mul;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0]);
-/// let c = mul(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0])
+///     .expect("example tensor allocation succeeds");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[5.0, 6.0, 7.0, 8.0])
+///     .expect("example tensor allocation succeeds");
+/// let c = mul(&a, &b, &backend).expect("example multiplication succeeds");
 /// assert_eq!(c.as_slice(), &[5.0, 12.0, 21.0, 32.0]);
 /// ```
 #[inline]
@@ -73,8 +79,8 @@ pub fn mul<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Mul).expect("mul: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Mul)
 }
 
 /// Element-wise division.
@@ -87,9 +93,11 @@ pub fn mul<T: Scalar, B: ElementwiseOps<T>>(
 /// use coeus_ops::div;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[6.0, 8.0, 10.0, 12.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[2.0, 4.0, 5.0, 6.0]);
-/// let c = div(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([4], &[6.0, 8.0, 10.0, 12.0])
+///     .expect("example tensor allocation succeeds");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([4], &[2.0, 4.0, 5.0, 6.0])
+///     .expect("example tensor allocation succeeds");
+/// let c = div(&a, &b, &backend).expect("example division succeeds");
 /// let s = c.as_slice();
 /// assert!((s[0] - 3.0).abs() < 1e-5);
 /// assert!((s[1] - 2.0).abs() < 1e-5);
@@ -101,8 +109,8 @@ pub fn div<T: Scalar, B: ElementwiseOps<T>>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
-    elementwise_binary(a, b, backend, BinaryOp::Div).expect("div: incompatible shapes")
+) -> Result<Tensor<T, B>, B::Error> {
+    elementwise_binary(a, b, backend, BinaryOp::Div)
 }
 
 macro_rules! binary_assign_op {
@@ -159,15 +167,19 @@ mod tests {
     #[test]
     fn incompatible_broadcast_panics() {
         let backend = SequentialBackend::new();
-        let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0]);
-        let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0]);
+        let lhs = Tensor::from_slice([2], &[1.0_f32, 2.0])
+            .expect("invariant: test backend operation succeeds");
+        let rhs = Tensor::from_slice([3], &[3.0_f32, 4.0, 5.0])
+            .expect("invariant: test backend operation succeeds");
 
         // `is_err` alone accepts any panic, including one from the fixture
         // rather than the shape check. The payload has to name the operation
         // that rejected, and the fallible form under it has to reject before
         // producing a tensor at all.
         // `Tensor` is not `Debug`, so the Ok arm cannot be unwrapped away.
-        let Err(panic) = std::panic::catch_unwind(|| add(&lhs, &rhs, &backend)) else {
+        let Err(panic) = std::panic::catch_unwind(|| {
+            add(&lhs, &rhs, &backend).expect("invariant: test operation succeeds")
+        }) else {
             panic!("incompatible shapes must panic");
         };
         let reason = panic
@@ -188,8 +200,10 @@ mod tests {
     #[test]
     fn cpu_assign_broadcasts_without_replacing_storage() {
         let backend = SequentialBackend::new();
-        let mut lhs = Tensor::from_slice([2, 2], &[1.0_f32, 2.0, 3.0, 4.0]);
-        let rhs = Tensor::from_slice([1, 2], &[10.0_f32, 20.0]);
+        let mut lhs = Tensor::from_slice([2, 2], &[1.0_f32, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let rhs = Tensor::from_slice([1, 2], &[10.0_f32, 20.0])
+            .expect("invariant: test backend operation succeeds");
         let allocation = lhs.as_slice().as_ptr();
 
         add_assign(&mut lhs, &rhs, &backend).expect("valid row broadcast");

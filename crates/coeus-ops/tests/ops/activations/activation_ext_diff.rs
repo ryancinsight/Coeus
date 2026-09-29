@@ -20,6 +20,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_close(got: &[f32], expected: &[f32], eps: f32, context: &str) {
@@ -162,7 +163,7 @@ where
         backend,
     );
 
-    let (val, idx) = coeus_ops::topk(&x, 2, 1, true);
+    let (val, idx) = coeus_ops::topk(&x, 2, 1, true).expect("invariant: test operation succeeds");
     assert_eq!(val.shape(), &[2, 2]);
     assert_eq!(idx.shape(), &[2, 2]);
     assert_close(
@@ -176,7 +177,8 @@ where
     // topk(k=2, dim=1, largest=false): bottom-2 values sorted ascending.
     //   Row 0: values=[1.0, 2.0], indices=[1, 4]
     //   Row 1: values=[2.0, 3.0], indices=[1, 4]
-    let (val2, idx2) = coeus_ops::topk(&x, 2, 1, false);
+    let (val2, idx2) =
+        coeus_ops::topk(&x, 2, 1, false).expect("invariant: test operation succeeds");
     assert_eq!(val2.shape(), &[2, 2]);
     assert_close(
         val2.as_slice(),
@@ -187,7 +189,7 @@ where
     assert_eq_i64(idx2.as_slice(), &[1, 4, 1, 4], "topk smallest indices");
 
     // k=1 edge: top-1 per row.
-    let (val1, idx1) = coeus_ops::topk(&x, 1, 1, true);
+    let (val1, idx1) = coeus_ops::topk(&x, 1, 1, true).expect("invariant: test operation succeeds");
     assert_eq!(val1.shape(), &[2, 1]);
     assert_close(val1.as_slice(), &[5.0f32, 9.0], 0.0, "topk k=1 values");
     assert_eq_i64(idx1.as_slice(), &[3, 0], "topk k=1 indices");

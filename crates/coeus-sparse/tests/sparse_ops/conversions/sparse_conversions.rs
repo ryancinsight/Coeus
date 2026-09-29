@@ -19,15 +19,16 @@ fn dense_3x4() -> Tensor<f32, Seq> {
         0.0,    0.0, 4.0, 5.0,
     ];
     Tensor::<f32, Seq>::from_slice([3, 4], &data)
+        .expect("invariant: test backend operation succeeds")
 }
 
 #[test]
 fn dense_coo_roundtrip_is_identity() {
     let s = SequentialBackend::new();
     let dense = dense_3x4();
-    let coo = dense_to_coo(&dense, &s);
+    let coo = dense_to_coo(&dense, &s).expect("invariant: test operation succeeds");
     assert_eq!(coo.nnz(), 5, "expected 5 structural non-zeros");
-    let back = coo_to_dense(&coo, &s);
+    let back = coo_to_dense(&coo, &s).expect("invariant: test operation succeeds");
     assert_eq!(back.shape(), dense.shape());
     assert_eq!(back.as_slice(), dense.as_slice());
 }
@@ -36,14 +37,14 @@ fn dense_coo_roundtrip_is_identity() {
 fn dense_csr_roundtrip_is_identity() {
     let s = SequentialBackend::new();
     let dense = dense_3x4();
-    let csr = dense_to_csr(&dense, &s);
+    let csr = dense_to_csr(&dense, &s).expect("invariant: test operation succeeds");
     assert_eq!(csr.nnz(), 5);
     // row_offsets must be monotonic and span [0, nnz] over rows + 1.
     let ro = csr.row_offsets().as_slice();
     assert_eq!(ro.len(), 4); // rows + 1
     assert_eq!(ro[0], 0);
     assert_eq!(ro[3], 5);
-    let back = csr_to_dense(&csr, &s);
+    let back = csr_to_dense(&csr, &s).expect("invariant: test operation succeeds");
     assert_eq!(back.as_slice(), dense.as_slice());
 }
 
@@ -51,9 +52,9 @@ fn dense_csr_roundtrip_is_identity() {
 fn dense_coo_csr_dense_full_chain_is_identity() {
     let s = SequentialBackend::new();
     let dense = dense_3x4();
-    let coo = dense_to_coo(&dense, &s);
-    let csr = coo_to_csr(&coo, &s);
-    let back = csr_to_dense(&csr, &s);
+    let coo = dense_to_coo(&dense, &s).expect("invariant: test operation succeeds");
+    let csr = coo_to_csr(&coo, &s).expect("invariant: test operation succeeds");
+    let back = csr_to_dense(&csr, &s).expect("invariant: test operation succeeds");
     assert_eq!(back.as_slice(), dense.as_slice());
 }
 
@@ -62,8 +63,12 @@ fn dense_to_csr_matches_coo_to_csr_route() {
     // Both routes to CSR must produce structurally identical tensors.
     let s = SequentialBackend::new();
     let dense = dense_3x4();
-    let direct = dense_to_csr(&dense, &s);
-    let via_coo = coo_to_csr(&dense_to_coo(&dense, &s), &s);
+    let direct = dense_to_csr(&dense, &s).expect("invariant: test operation succeeds");
+    let via_coo = coo_to_csr(
+        &dense_to_coo(&dense, &s).expect("invariant: test operation succeeds"),
+        &s,
+    )
+    .expect("invariant: test operation succeeds");
 
     assert_eq!(direct.values().as_slice(), via_coo.values().as_slice());
     assert_eq!(

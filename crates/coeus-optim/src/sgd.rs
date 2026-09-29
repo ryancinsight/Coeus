@@ -13,10 +13,18 @@ use coeus_tensor::Tensor;
 /// use coeus_optim::{Optimizer, SGD};
 /// use coeus_tensor::Tensor;
 ///
-/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
-/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+/// let x: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![2], &[2.0f32, 3.0]).expect("example tensor allocation succeeds"),
+///     true,
+/// )
+/// .expect("example variable allocation succeeds");
+/// x.set_grad(
+///     Tensor::from_slice(vec![2], &[1.0f32, -2.0])
+///         .expect("example gradient allocation succeeds"),
+/// );
 ///
-/// let mut opt = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
+/// let mut opt = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32)
+///     .expect("example optimizer allocation succeeds");
 /// opt.step().unwrap();
 /// // p' = p - lr * grad: [2.0, 3.0] - 0.1 * [1.0, -2.0] = [1.9, 3.2]
 /// let updated = opt.params[0].var.tensor.as_slice();
@@ -36,18 +44,18 @@ pub struct SGD<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> 
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SGD<T, B> {
     /// Create SGD optimizer.
-    pub fn new(params: Vec<Parameter<T, B>>, lr: T, momentum: T) -> Self {
+    pub fn new(params: Vec<Parameter<T, B>>, lr: T, momentum: T) -> Result<Self, B::Error> {
         let backend = B::default();
         let velocity = params
             .iter()
             .map(|p| Tensor::zeros_on(p.var.tensor.shape(), &backend))
-            .collect();
-        Self {
+            .collect::<Result<_, _>>()?;
+        Ok(Self {
             params,
             lr,
             momentum,
             velocity,
-        }
+        })
     }
 }
 
@@ -96,10 +104,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
         Ok(())
     }
 
-    fn zero_grad(&mut self) {
+    fn zero_grad(&mut self) -> Result<(), B::Error> {
         for p in &self.params {
-            p.var.zero_grad();
+            p.var.zero_grad()?;
         }
+        Ok(())
     }
 
     fn set_lr(&mut self, lr: T) {

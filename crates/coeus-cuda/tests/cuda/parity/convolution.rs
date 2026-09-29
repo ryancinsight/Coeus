@@ -14,12 +14,16 @@ fn test_cuda_parity_conv1d_forward() {
         .collect();
     let bias: Vec<f32> = (0..out_c).map(|x| x as f32 * 0.2 - 0.3).collect();
 
-    let in_t = Tensor::from_slice(vec![batch, in_c, len], &input);
-    let w_t = Tensor::from_slice(vec![out_c, in_c, ksize], &weight);
-    let b_t = Tensor::from_slice(vec![out_c], &bias);
+    let in_t = Tensor::from_slice(vec![batch, in_c, len], &input)
+        .expect("invariant: test backend operation succeeds");
+    let w_t = Tensor::from_slice(vec![out_c, in_c, ksize], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let b_t =
+        Tensor::from_slice(vec![out_c], &bias).expect("invariant: test backend operation succeeds");
     let out_len = len - ksize + 1;
 
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, out_len]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, out_len])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.conv1d(
         in_t.storage(),
@@ -38,7 +42,8 @@ fn test_cuda_parity_conv1d_forward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![batch, out_c, out_len], &c);
+    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![batch, out_c, out_len], &c)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     c.conv1d(
         in_g.storage(),
@@ -76,13 +81,17 @@ fn test_cuda_parity_conv2d_forward() {
         .collect();
     let bias: Vec<f32> = (0..out_c).map(|x| x as f32 * 0.2 - 0.1).collect();
 
-    let in_t = Tensor::from_slice(vec![batch, in_c, h, ww], &input);
-    let wt = Tensor::from_slice(vec![out_c, in_c, kh, kw], &weight);
-    let bt = Tensor::from_slice(vec![out_c], &bias);
+    let in_t = Tensor::from_slice(vec![batch, in_c, h, ww], &input)
+        .expect("invariant: test backend operation succeeds");
+    let wt = Tensor::from_slice(vec![out_c, in_c, kh, kw], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let bt =
+        Tensor::from_slice(vec![out_c], &bias).expect("invariant: test backend operation succeeds");
     let oh = h - kh + 1;
     let ow = ww - kw + 1;
 
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, oh, ow]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, oh, ow])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.conv2d(
         in_t.storage(),
@@ -101,7 +110,8 @@ fn test_cuda_parity_conv2d_forward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let wg = to_gpu(&wt, &s, &c);
     let bg = to_gpu(&bt, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![batch, out_c, oh, ow], &c);
+    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![batch, out_c, oh, ow], &c)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     c.conv2d(
         in_g.storage(),
@@ -144,14 +154,20 @@ fn test_cuda_parity_conv2d_backward() {
         .map(|x| x as f32 * 0.03 - 0.4)
         .collect();
 
-    let in_t = Tensor::from_slice(vec![n, in_c, h, w], &input);
-    let w_t = Tensor::from_slice(vec![out_c, in_c, kh, kw], &weight);
-    let go_t = Tensor::from_slice(vec![n, out_c, oh, ow], &grad_out);
+    let in_t = Tensor::from_slice(vec![n, in_c, h, w], &input)
+        .expect("invariant: test backend operation succeeds");
+    let w_t = Tensor::from_slice(vec![out_c, in_c, kh, kw], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let go_t = Tensor::from_slice(vec![n, out_c, oh, ow], &grad_out)
+        .expect("invariant: test backend operation succeeds");
 
     // CPU reference gradients.
-    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![n, in_c, h, w]);
-    let mut gw_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c, in_c, kh, kw]);
-    let mut gb_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c]);
+    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![n, in_c, h, w])
+        .expect("invariant: test backend operation succeeds");
+    let mut gw_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c, in_c, kh, kw])
+        .expect("invariant: test backend operation succeeds");
+    let mut gb_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c])
+        .expect("invariant: test backend operation succeeds");
     let gi_l = gi_c.layout().clone();
     let gw_l = gw_c.layout().clone();
     s.conv2d_backward(
@@ -176,9 +192,12 @@ fn test_cuda_parity_conv2d_backward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let go_g = to_gpu(&go_t, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, in_c, h, w], &c);
-    let mut gw_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c, in_c, kh, kw], &c);
-    let mut gb_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c], &c);
+    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, in_c, h, w], &c)
+        .expect("invariant: test backend operation succeeds");
+    let mut gw_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c, in_c, kh, kw], &c)
+        .expect("invariant: test backend operation succeeds");
+    let mut gb_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c], &c)
+        .expect("invariant: test backend operation succeeds");
     c.conv2d_backward(
         go_g.storage(),
         go_g.layout(),
@@ -235,11 +254,15 @@ fn test_cuda_parity_conv3d_forward() {
         .collect();
     let bias: Vec<f32> = (0..out_c).map(|x| x as f32 * 0.2 - 0.3).collect();
 
-    let in_t = Tensor::from_slice(vec![n, in_c, d, h, w], &input);
-    let w_t = Tensor::from_slice(vec![out_c, in_c, kd, kh, kw], &weight);
-    let b_t = Tensor::from_slice(vec![out_c], &bias);
+    let in_t = Tensor::from_slice(vec![n, in_c, d, h, w], &input)
+        .expect("invariant: test backend operation succeeds");
+    let w_t = Tensor::from_slice(vec![out_c, in_c, kd, kh, kw], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let b_t =
+        Tensor::from_slice(vec![out_c], &bias).expect("invariant: test backend operation succeeds");
 
-    let mut out_s = Tensor::<f32, SequentialBackend>::zeros(vec![n, out_c, od, oh, ow]);
+    let mut out_s = Tensor::<f32, SequentialBackend>::zeros(vec![n, out_c, od, oh, ow])
+        .expect("invariant: test backend operation succeeds");
     let out_l = out_s.layout().clone();
     s.conv3d(
         in_t.storage(),
@@ -258,7 +281,8 @@ fn test_cuda_parity_conv3d_forward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, out_c, od, oh, ow], &c);
+    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, out_c, od, oh, ow], &c)
+        .expect("invariant: test backend operation succeeds");
     c.conv3d(
         in_g.storage(),
         in_g.layout(),
@@ -301,13 +325,19 @@ fn test_cuda_parity_conv3d_backward() {
         .map(|x| x as f32 * 0.03 - 0.4)
         .collect();
 
-    let in_t = Tensor::from_slice(vec![n, in_c, d, h, w], &input);
-    let w_t = Tensor::from_slice(vec![out_c, in_c, kd, kh, kw], &weight);
-    let go_t = Tensor::from_slice(vec![n, out_c, od, oh, ow], &grad_out);
+    let in_t = Tensor::from_slice(vec![n, in_c, d, h, w], &input)
+        .expect("invariant: test backend operation succeeds");
+    let w_t = Tensor::from_slice(vec![out_c, in_c, kd, kh, kw], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let go_t = Tensor::from_slice(vec![n, out_c, od, oh, ow], &grad_out)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![n, in_c, d, h, w]);
-    let mut gw_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c, in_c, kd, kh, kw]);
-    let mut gb_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c]);
+    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![n, in_c, d, h, w])
+        .expect("invariant: test backend operation succeeds");
+    let mut gw_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c, in_c, kd, kh, kw])
+        .expect("invariant: test backend operation succeeds");
+    let mut gb_c = Tensor::<f32, SequentialBackend>::zeros(vec![out_c])
+        .expect("invariant: test backend operation succeeds");
     let gi_l = gi_c.layout().clone();
     let gw_l = gw_c.layout().clone();
     s.conv3d_backward(
@@ -331,9 +361,12 @@ fn test_cuda_parity_conv3d_backward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let go_g = to_gpu(&go_t, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, in_c, d, h, w], &c);
-    let mut gw_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c, in_c, kd, kh, kw], &c);
-    let mut gb_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c], &c);
+    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, in_c, d, h, w], &c)
+        .expect("invariant: test backend operation succeeds");
+    let mut gw_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c, in_c, kd, kh, kw], &c)
+        .expect("invariant: test backend operation succeeds");
+    let mut gb_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c], &c)
+        .expect("invariant: test backend operation succeeds");
     c.conv3d_backward(
         go_g.storage(),
         go_g.layout(),

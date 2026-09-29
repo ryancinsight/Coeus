@@ -15,10 +15,17 @@ pub(crate) fn bench_mha_forward(c: &mut Criterion) {
     let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true)
         .expect("valid parallel attention benchmark fixture");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]), false);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — MHA self-attn forward (8x64x256, 8 heads)");
     group.bench_function("Coeus Sequential", |b| {
@@ -63,21 +70,29 @@ pub(crate) fn bench_mha_cross_attention_forward(c: &mut Criterion) {
     let mha_moirai = MultiHeadAttention::<f32, MoiraiBackend, H, NullMask>::new(D, true)
         .expect("valid parallel cross-attention benchmark fixture");
     let query_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let memory_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let query_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, QUERY_SEQ, D], &query_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let memory_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![B, MEMORY_SEQ, D], &memory_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group(
         "Coeus — MHA cross-attn forward (query 8x32x256, memory 8x64x256, 8 heads)",
@@ -119,10 +134,17 @@ pub(crate) fn bench_transformer_encoder_forward(c: &mut Criterion) {
     let enc_moirai = TransformerEncoderLayer::<f32, MoiraiBackend, H, NullMask>::new(D, D_FF, 0.0)
         .expect("valid parallel encoder benchmark fixture");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D]),
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let x_moirai = Var::new(Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D]), false);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group =
         c.benchmark_group("Coeus — Transformer encoder layer forward (8x64x256, d_ff=1024)");
@@ -162,17 +184,21 @@ pub(crate) fn bench_sdp_attention_forward(c: &mut Criterion) {
 
     let backend_seq = SequentialBackend;
     let q_seq =
-        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data);
+        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data)
+            .expect("invariant: test backend operation succeeds");
     let k_seq = q_seq.clone();
     let v_seq =
-        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data);
+        coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data)
+            .expect("invariant: test backend operation succeeds");
 
     let backend_moirai = MoiraiBackend;
     let q_moirai =
-        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data);
+        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &q_data)
+            .expect("invariant: test backend operation succeeds");
     let k_moirai = q_moirai.clone();
     let v_moirai =
-        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data);
+        coeus_tensor::Tensor::<f32, MoiraiBackend>::from_slice(vec![SA_B, SA_S, SA_D], &v_data)
+            .expect("invariant: test backend operation succeeds");
 
     let scale = 1.0f32 / (SA_D as f32).sqrt();
 

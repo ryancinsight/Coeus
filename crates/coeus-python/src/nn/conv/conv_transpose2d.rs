@@ -101,7 +101,7 @@ impl PyConvTranspose2d {
                 );
                 let n = x_var.tensor.shape()[0];
                 let c_out = w_var.tensor.shape()[1];
-                let mut out_tensor = coeus_tensor::Tensor::zeros_on([n, c_out, h_out, w_out], &bk);
+                let mut out_tensor = coeus_tensor::Tensor::zeros_on([n, c_out, h_out, w_out], &bk)?;
                 let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
                 use coeus_ops::ConvOps;
                 bk.conv_transpose2d(
@@ -117,9 +117,7 @@ impl PyConvTranspose2d {
                     out_storage,
                     out_layout,
                 )?;
-                Ok(coeus_autograd::conv_transpose2d(
-                    &x_var, &w_var, &b_var, out_tensor, s, p, op, d,
-                ))
+                coeus_autograd::conv_transpose2d(&x_var, &w_var, &b_var, out_tensor, s, p, op, d)
             })
             .map_err(map_backend_error)?;
         Ok(PyTensor::from_var(inner))

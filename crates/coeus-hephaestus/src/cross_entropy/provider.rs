@@ -159,7 +159,8 @@ pub fn prepare_candidate<P>(
 where
     P: CrossEntropyProvider,
 {
-    let device = P::device();
+    let device = P::try_device()
+        .map_err(|source| crate::HephaestusBackendError::device(operation, source))?;
     let candidate = device
         .alloc_uninitialized_with_hint(storage.len(), PlacementHint::Tier(storage.buffer().tier()))
         .map_err(|source| crate::HephaestusBackendError::device(operation, source))?;

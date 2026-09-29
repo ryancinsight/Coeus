@@ -107,8 +107,8 @@ pub fn scaled_dot_product_attention<T: AttentionScalar, B: AttentionOps<T> + Def
     }
 
     // alloc_on: sdp_attention writes every output/attn_weights position — no zero-init needed.
-    let mut output = Tensor::alloc_on([batch, seq_q, d_v], backend);
-    let mut attn_weights = Tensor::alloc_on([batch, seq_q, seq_k], backend);
+    let mut output = Tensor::alloc_on([batch, seq_q, d_v], backend)?;
+    let mut attn_weights = Tensor::alloc_on([batch, seq_q, seq_k], backend)?;
 
     let (out_storage, out_layout) = output.storage_mut_and_layout();
     let (aw_storage, aw_layout) = attn_weights.storage_mut_and_layout();

@@ -166,20 +166,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         let backend = B::default();
 
         let mut grad_input = if input_grads.first().and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend))
+            Some(Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend)?)
         } else {
             None
         };
 
         let mut grad_weight = if input_grads.get(1).and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on(self.w_clone.shape_cloned(), &backend))
+            Some(Tensor::zeros_on(self.w_clone.shape_cloned(), &backend)?)
         } else {
             None
         };
 
         let mut grad_bias =
             if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
-                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
+                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend)?)
             } else {
                 None
             };
@@ -237,7 +237,7 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -250,7 +250,7 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -283,9 +283,9 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

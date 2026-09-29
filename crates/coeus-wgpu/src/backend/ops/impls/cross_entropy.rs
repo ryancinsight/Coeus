@@ -23,7 +23,9 @@ impl CrossEntropyBackend for WgpuBackend {
         preserve_contents: bool,
         operation: &'static str,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
-        let device = &crate::backend::get_wgpu_context().hephaestus_device;
+        let device = &crate::backend::try_get_wgpu_context()
+            .map_err(|source| WgpuBackendError::dispatch(operation, source))?
+            .hephaestus_device;
         let candidate = device
             .alloc_uninitialized_with_hint(
                 storage.buffer().len(),

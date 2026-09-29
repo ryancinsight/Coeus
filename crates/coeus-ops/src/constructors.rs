@@ -23,7 +23,7 @@ pub fn linspace<T: Float, B: BackendOps<T> + Default>(
     end: T,
     n: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -46,7 +46,7 @@ pub fn logspace<T: Float, B: BackendOps<T> + Default>(
     n: usize,
     base: T,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -67,7 +67,7 @@ pub fn geomspace<T: Float, B: BackendOps<T> + Default>(
     end: T,
     n: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn linspace_endpoints_inclusive() {
         let b = SequentialBackend::new();
-        let t = linspace(0.0f32, 1.0, 5, &b);
+        let t = linspace(0.0f32, 1.0, 5, &b).expect("invariant: test operation succeeds");
         let s = t.as_slice();
         assert!((s[0] - 0.0).abs() < 1e-6);
         assert!((s[4] - 1.0).abs() < 1e-6);
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn logspace_base10() {
         let b = SequentialBackend::new();
-        let t = logspace(0.0f32, 2.0, 3, 10.0, &b);
+        let t = logspace(0.0f32, 2.0, 3, 10.0, &b).expect("invariant: test operation succeeds");
         let s = t.as_slice();
         assert!((s[0] - 1.0).abs() < 1e-4);
         assert!((s[1] - 10.0).abs() < 1e-4);
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn geomspace_doubling() {
         let b = SequentialBackend::new();
-        let t = geomspace(1.0f32, 16.0, 5, &b);
+        let t = geomspace(1.0f32, 16.0, 5, &b).expect("invariant: test operation succeeds");
         let s = t.as_slice();
         for (i, &v) in s.iter().enumerate() {
             let expected = 2.0f32.powi(i as i32);
@@ -118,7 +118,7 @@ mod tests {
     fn linspace_n1_returns_start() {
         let b = SequentialBackend::new();
         // Use 3.5 (exactly representable in f32) to avoid PI-approximation lint.
-        let t = linspace(3.5f32, 99.0, 1, &b);
+        let t = linspace(3.5f32, 99.0, 1, &b).expect("invariant: test operation succeeds");
         assert!((t.as_slice()[0] - 3.5_f32).abs() < 1e-5);
     }
 }

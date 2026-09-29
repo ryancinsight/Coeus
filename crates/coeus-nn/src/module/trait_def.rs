@@ -110,10 +110,11 @@ pub trait Module<T: Scalar, B: ComputeBackend + Default = MoiraiBackend> {
 
     /// Zero all parameter gradients.
     #[inline]
-    fn zero_grad(&self) {
+    fn zero_grad(&self) -> Result<(), B::Error> {
         for p in self.parameters() {
-            p.zero_grad();
+            p.zero_grad()?;
         }
+        Ok(())
     }
 
     /// Set the training mode of the module and its sub-modules.

@@ -19,9 +19,11 @@ fn test_bmm_backward_accumulates_exact_gradients() {
                 1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 0.0, 2.0, 0.0, 2.0,
             ],
             &backend,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b = Var::new(
         Tensor::from_slice_on(
             vec![2, 3, 2],
@@ -29,11 +31,13 @@ fn test_bmm_backward_accumulates_exact_gradients() {
                 1.0f64, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 0.0, 3.0,
             ],
             &backend,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let c = matmul(&a, &b);
+    let c = matmul(&a, &b).expect("invariant: test operation succeeds");
     assert_eq!(c.tensor.shape(), &[2, 2, 2]);
     // C0 = [[4,5],[10,11]]; C1 = [[1,2],[4,8]].
     let cs = c.tensor.as_slice();
@@ -72,9 +76,11 @@ fn rank_four_batched_matmul_preserves_axes_and_exact_gradients() {
                 1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 0.0, 2.0, 0.0, 2.0,
             ],
             &backend,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b = Var::new(
         Tensor::from_slice_on(
             [1, 2, 3, 2],
@@ -82,11 +88,13 @@ fn rank_four_batched_matmul_preserves_axes_and_exact_gradients() {
                 1.0f64, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 0.0, 3.0,
             ],
             &backend,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let output = matmul(&a, &b);
+    let output = matmul(&a, &b).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2]);
     assert_eq!(
         output.tensor.as_slice(),
@@ -122,18 +130,49 @@ fn matmul_view_input_matches_contiguous_forward_and_grad() {
     let kd: Vec<f32> = (0..n).map(|i| 0.5 - (i as f32) * 0.07).collect();
 
     // View path: transpose fed straight into matmul.
-    let q1 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
-    let k1 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
-    let out_view = matmul(&q1, &transpose(&k1, 2, 3));
+    let q1 = Var::new(
+        Tensor::from_slice_on(shape, &qd, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let k1 = Var::new(
+        Tensor::from_slice_on(shape, &kd, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out_view = matmul(
+        &q1,
+        &transpose(&k1, 2, 3).expect("invariant: test operation succeeds"),
+    )
+    .expect("invariant: test operation succeeds");
     sum(&out_view)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
 
     // Reference path: materialize the transpose contiguous first.
-    let q2 = Var::new(Tensor::from_slice_on(shape, &qd, &backend), true);
-    let k2 = Var::new(Tensor::from_slice_on(shape, &kd, &backend), true);
-    let out_ref = matmul(&q2, &contiguous(&transpose(&k2, 2, 3)));
+    let q2 = Var::new(
+        Tensor::from_slice_on(shape, &qd, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let k2 = Var::new(
+        Tensor::from_slice_on(shape, &kd, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out_ref = matmul(
+        &q2,
+        &contiguous(&transpose(&k2, 2, 3).expect("invariant: test operation succeeds"))
+            .expect("invariant: test operation succeeds"),
+    )
+    .expect("invariant: test operation succeeds");
     sum(&out_ref)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
 

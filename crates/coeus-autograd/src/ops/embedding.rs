@@ -55,7 +55,7 @@ where
                 self.num_embeddings,
                 self.padding_idx,
                 &backend,
-            );
+            )?;
             let gl = gw.write();
             coeus_ops::add_assign(gl, &gw_update, &backend)?;
         }
@@ -67,7 +67,7 @@ where
 pub fn embedding<T: Scalar, I: Scalar + 'static, B: coeus_ops::BackendOps<T> + Default>(
     weight: &Var<T, B>,
     indices: &Tensor<I, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     embedding_with_padding_idx(weight, indices, None)
 }
 
@@ -81,16 +81,16 @@ pub fn embedding_with_padding_idx<
     weight: &Var<T, B>,
     indices: &Tensor<I, B>,
     padding_idx: Option<usize>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = coeus_ops::embedding(&weight.tensor, indices, &backend);
+    let out_tensor = coeus_ops::embedding(&weight.tensor, indices, &backend)?;
     let requires_grad = crate::grad_mode::should_track_var(weight);
 
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -113,9 +113,9 @@ pub fn embedding_with_padding_idx<
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
