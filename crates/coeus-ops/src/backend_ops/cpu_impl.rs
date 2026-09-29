@@ -1,3 +1,9 @@
+//! CPU realizations of the backend kernel traits.
+#![expect(
+    clippy::too_many_arguments,
+    reason = "CPU kernels mirror the per-axis geometry of the trait contracts they implement"
+)]
+
 use coeus_core::{Backend, BackendError};
 
 mod convolution;
