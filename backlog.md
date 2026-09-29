@@ -37,6 +37,41 @@ verification, tightening, feature}.
 - Needs: [CPU ownership correction](#coeus-cpu-storage-ownership) (done); driver for [unary](#coeus-fallible-unary-execution) and [index-reduction](#coeus-fallible-index-reduction) consumers.
 - Next step: reserve an ADR; constructor search found 2,781 textual candidates in 406 files at last audit — scope the cutover before implementation.
 
+The migration is decomposed into these dependency ordered leaves:
+
+<a id="coeus-fallible-storage-core"></a>
+## COEUS-FALLIBLE-STORAGE-CORE — Make backend storage operations fallible
+
+- Status: todo; priority: correctness; [major] [arch].
+- Outcome: `ComputeBackend` allocation, fill, and transfer methods return typed errors and every provider implements the contract.
+- Scope: `crates/coeus-core/src/backend`, `crates/coeus-core/src/storage`, and provider backend implementations.
+- Acceptance: malformed sizes and provider failures return typed errors; valid CPU/provider operations retain values; no CPU fallback or partial output.
+- Needs: [CPU ownership correction](#coeus-cpu-storage-ownership) (done).
+- Next step: change the existing trait methods in place and run the provider compile closure.
+- Links: [ADR 0078](docs/adr/0078-fallible-tensor-storage.md), parent [COEUS-FALLIBLE-TENSOR-STORAGE](#coeus-fallible-tensor-storage).
+
+<a id="coeus-fallible-storage-tensor"></a>
+## COEUS-FALLIBLE-STORAGE-TENSOR — Make tensor constructors fallible
+
+- Status: todo; priority: correctness; [major].
+- Outcome: tensor allocation, zero-fill, constant-fill, and host-copy constructors return the backend error.
+- Scope: `crates/coeus-tensor/src/tensor.rs` and direct tensor constructor tests.
+- Acceptance: shape validation precedes allocation; failed allocation/fill/copy returns the exact error; successful construction preserves values and COW semantics.
+- Needs: [COEUS-FALLIBLE-STORAGE-CORE](#coeus-fallible-storage-core).
+- Next step: widen the existing constructor names and let the checker enumerate direct callers.
+- Links: [ADR 0078](docs/adr/0078-fallible-tensor-storage.md), parent [COEUS-FALLIBLE-TENSOR-STORAGE](#coeus-fallible-tensor-storage).
+
+<a id="coeus-fallible-storage-callers"></a>
+## COEUS-FALLIBLE-STORAGE-CALLERS — Propagate tensor construction failures
+
+- Status: todo; priority: correctness; [major].
+- Outcome: all operation, autograd, NN, optimizer, distributed, and Python callers propagate tensor storage errors.
+- Scope: consumer crates named by the compile closure from the tensor constructor leaf.
+- Acceptance: no migrated constructor result is discarded; valid value semantics remain unchanged; provider failure fixtures reach typed public boundaries.
+- Needs: [COEUS-FALLIBLE-STORAGE-TENSOR](#coeus-fallible-storage-tensor).
+- Next step: run the compile probe and file any crate-level leaves before editing shared callers.
+- Links: [ADR 0078](docs/adr/0078-fallible-tensor-storage.md), parent [COEUS-FALLIBLE-TENSOR-STORAGE](#coeus-fallible-tensor-storage).
+
 <a id="coeus-device-output-ownership"></a>
 ## COEUS-DEVICE-OUTPUT-OWNERSHIP — Collect the device/hardware verification half
 
