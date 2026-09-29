@@ -56,30 +56,43 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CpuStorage::new(len)
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        CpuStorage::try_allocate_uninitialized(len)
     }
 
     #[inline]
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        let mut storage = CpuStorage::new(len);
-        self.fill_zero(&mut storage);
-        storage
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        CpuStorage::try_filled(len, T::zero())
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, value: T) {
+    fn fill<T: Scalar>(
+        &self,
+        dst: &mut Self::DeviceBuffer<T>,
+        value: T,
+    ) -> Result<(), Self::Error> {
         dst.as_mut_slice().fill(value);
+        Ok(())
     }
 
     #[inline]
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
         dst.as_mut_slice().copy_from_slice(src);
+        Ok(())
     }
 
     #[inline]
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         dst.copy_from_slice(src.as_slice());
+        Ok(())
     }
 }
 

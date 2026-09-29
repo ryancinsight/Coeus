@@ -67,57 +67,67 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         coeus_hephaestus::HephaestusBackend::<CudaBackend>::new().allocate(len)
     }
 
     #[inline]
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        coeus_hephaestus::HephaestusStorage::<CudaBackend, _>::new(len)
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        coeus_hephaestus::HephaestusStorage::<CudaBackend, _>::try_new(len)
+            .map_err(|source| CudaBackendError::dispatch("allocate_zeroed", source))
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
         let size = dst.len();
         if size == 0 {
-            return;
+            return Ok(());
         }
 
         if val.has_zero_bit_pattern() {
-            self.fill_zero(dst);
-            return;
+            return self.fill_zero(dst);
         }
 
         let data = vec![val; size];
-        self.copy_to_device(&data, dst);
+        self.copy_to_device(&data, dst)
     }
 
     #[inline]
-    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
         dst.make_unique();
         let device = get_cuda_device();
         let mut stream = device
             .stream()
-            .expect("CUDA zero fill stream creation failed");
+            .map_err(|source| CudaBackendError::dispatch("fill_zero", source))?;
         stream
             .fill_zero(dst.buffer())
-            .expect("CUDA zero fill encoding failed");
-        stream.submit().expect("CUDA zero fill submission failed");
+            .map_err(|source| CudaBackendError::dispatch("fill_zero", source))?;
+        stream
+            .submit()
+            .map_err(|source| CudaBackendError::dispatch("fill_zero", source))
     }
 
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
         dst.make_unique();
         let device = get_cuda_device();
         device
             .write_buffer(dst.buffer(), src)
-            .expect("copy_to_device: write_buffer failed");
+            .map_err(|source| CudaBackendError::dispatch("copy_to_device", source))
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         let device = get_cuda_device();
         device
             .download(src.buffer(), dst)
-            .expect("copy_to_host: download failed");
+            .map_err(|source| CudaBackendError::dispatch("copy_to_host", source))
     }
 }
 

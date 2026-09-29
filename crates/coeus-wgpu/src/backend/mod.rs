@@ -164,52 +164,62 @@ impl ComputeBackend for WgpuBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         coeus_hephaestus::HephaestusBackend::<WgpuBackend>::new().allocate(len)
     }
 
     #[inline]
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(len)
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::try_new(len)
+            .map_err(|source| WgpuBackendError::dispatch("allocate_zeroed", source))
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
         if val.has_zero_bit_pattern() {
-            self.fill_zero(dst);
-            return;
+            return self.fill_zero(dst);
         }
         let size = dst.len();
         let data = vec![val; size];
-        self.copy_to_device(&data, dst);
+        self.copy_to_device(&data, dst)
     }
 
     #[inline]
-    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
         dst.make_unique();
         let device = &get_wgpu_context().hephaestus_device;
         let mut stream = device
             .stream()
-            .expect("WGPU zero fill stream creation failed");
+            .map_err(|source| WgpuBackendError::dispatch("fill_zero", source))?;
         stream
             .fill_zero(dst.buffer())
-            .expect("WGPU zero fill encoding failed");
-        stream.submit().expect("WGPU zero fill submission failed");
+            .map_err(|source| WgpuBackendError::dispatch("fill_zero", source))?;
+        stream
+            .submit()
+            .map_err(|source| WgpuBackendError::dispatch("fill_zero", source))
     }
 
     #[inline]
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
         dst.make_unique();
         let ctx = get_wgpu_context();
         ctx.hephaestus_device
             .write_buffer(dst.buffer(), src)
-            .expect("Failed to copy host tensor into WgpuBuffer");
+            .map_err(|source| WgpuBackendError::dispatch("copy_to_device", source))
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         let ctx = get_wgpu_context();
         ctx.hephaestus_device
             .download(src.buffer(), dst)
-            .expect("Failed to copy WgpuBuffer into host tensor");
+            .map_err(|source| WgpuBackendError::dispatch("copy_to_host", source))
     }
 }

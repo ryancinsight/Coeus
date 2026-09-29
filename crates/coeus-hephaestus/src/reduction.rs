@@ -259,30 +259,40 @@ where
         1
     }
 
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        HephaestusStorage::uninitialized(len)
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        HephaestusStorage::try_uninitialized(len)
+            .map_err(|source| HephaestusBackendError::device("allocate", source))
     }
 
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        HephaestusStorage::new(len)
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        HephaestusStorage::try_new(len)
+            .map_err(|source| HephaestusBackendError::device("allocate_zeroed", source))
     }
 
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
         let values = vec![val; dst.buffer().len()];
-        self.copy_to_device(&values, dst);
+        self.copy_to_device(&values, dst)
     }
 
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
         dst.make_unique();
         P::device()
             .write_buffer(dst.buffer(), src)
-            .expect("Hephaestus host-to-device copy failed");
+            .map_err(|source| HephaestusBackendError::device("copy_to_device", source))
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         P::device()
             .download(src.buffer(), dst)
-            .expect("Hephaestus device-to-host copy failed");
+            .map_err(|source| HephaestusBackendError::device("copy_to_host", source))
     }
 }
 

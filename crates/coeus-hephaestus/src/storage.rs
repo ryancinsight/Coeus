@@ -1,6 +1,6 @@
 use crate::reduction::HephaestusProvider;
 use coeus_core::{Scalar, Storage, StorageMut};
-use hephaestus_core::{ComputeDevice, DeviceBuffer};
+use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use std::{marker::PhantomData, sync::Arc};
 use themis::{MemoryTier, PlacementHint};
 
@@ -51,17 +51,27 @@ where
     /// Allocate zeroed storage in the provider's device tier.
     #[must_use]
     pub fn new(len: usize) -> Self {
-        let buffer = P::device()
-            .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("Hephaestus provider allocation failed");
+        let buffer = Self::try_new(len).expect("invariant: provider allocation succeeds");
         Self::from_buffer(buffer)
     }
 
+    /// Allocate zeroed storage while preserving provider failures.
+    pub fn try_new(len: usize) -> Result<Self, HephaestusError> {
+        let buffer =
+            P::device().alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
+        Ok(Self::from_buffer(buffer))
+    }
+
     pub(crate) fn uninitialized(len: usize) -> Self {
-        let buffer = P::device()
-            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("Hephaestus provider allocation failed");
+        let buffer = Self::try_uninitialized(len).expect("invariant: provider allocation succeeds");
         Self::from_buffer(buffer)
+    }
+
+    /// Allocate uninitialized storage while preserving provider failures.
+    pub(crate) fn try_uninitialized(len: usize) -> Result<Self, HephaestusError> {
+        let buffer = P::device()
+            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
+        Ok(Self::from_buffer(buffer))
     }
 
     /// Identify the allocation without exposing its reference-counted owner.

@@ -46,23 +46,23 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
     fn num_threads(&self) -> usize;
 
     /// Allocate storage on the device (uninitialized).
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T>;
+    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error>;
 
     /// Allocate zero-initialized storage on the device.
     ///
     /// Backends with native zeroed allocation should override this method so
     /// construction does not require a separate fill pass.
     #[inline]
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        let mut dst = self.allocate(len);
-        self.fill_zero(&mut dst);
-        dst
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        let mut dst = self.allocate(len)?;
+        self.fill_zero(&mut dst)?;
+        Ok(dst)
     }
 
     /// Fill device buffer with a value.
     ///
     /// Other storage clones retain their values when this buffer is shared.
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T);
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error>;
 
     /// Fill a device buffer with the additive identity.
     ///
@@ -70,17 +70,25 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
     /// memset operation, avoiding destination-sized host staging.
     /// Other storage clones retain their values when this buffer is shared.
     #[inline]
-    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
-        self.fill(dst, T::zero());
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
+        self.fill(dst, T::zero())
     }
 
     /// Copy data from host (CPU) memory to this device buffer.
     ///
     /// Other storage clones retain their values when this buffer is shared.
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>);
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error>;
 
     /// Copy data from this device buffer to host (CPU) memory.
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]);
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error>;
 }
 
 /// Trait for backend execution engines.

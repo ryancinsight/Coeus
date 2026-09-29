@@ -136,6 +136,28 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
         }
     }
 
+    /// Allocate an uninitialized buffer while preserving allocation failures.
+    pub fn try_allocate_uninitialized(len: usize) -> Result<Self, crate::BackendError> {
+        let byte_size =
+            len.checked_mul(std::mem::size_of::<T>())
+                .ok_or(crate::BackendError::Overflow {
+                    operation: "cpu allocation",
+                    reason: "element-count byte-size overflow",
+                })?;
+        let align = std::mem::align_of::<T>();
+        let block = RawBlock::new(byte_size, align).ok_or_else(|| {
+            crate::BackendError::ProviderFailure {
+                operation: "cpu allocation",
+                reason: "Mnemosyne allocation returned null".to_owned(),
+            }
+        })?;
+        Ok(Self {
+            block: Arc::new(block),
+            len,
+            _marker: PhantomData,
+        })
+    }
+
     /// Allocate a new zero-initialized buffer for `len` elements of type `T`.
     ///
     /// # Panics
@@ -171,6 +193,19 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
             unsafe { destination.add(index).write(value) };
         }
         storage
+    }
+
+    /// Allocate and initialize a buffer while preserving allocation failures.
+    pub fn try_filled(len: usize, value: T) -> Result<Self, crate::BackendError> {
+        let storage = Self::try_allocate_uninitialized(len)?;
+        let destination = storage.block.as_mut_ptr().cast::<T>();
+        for index in 0..len {
+            // SAFETY: `destination` is aligned and allocated for `len`
+            // elements. Each index is written exactly once before `storage`
+            // is returned through its safe readable API.
+            unsafe { destination.add(index).write(value) };
+        }
+        Ok(storage)
     }
 
     /// Create from existing slice (copies data).
