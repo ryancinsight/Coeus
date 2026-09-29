@@ -19,9 +19,9 @@ impl Xorshift64 {
         }
     }
 
-    /// Draw next u64 value.
+    /// Draw the next raw 64-bit generator word.
     #[inline]
-    pub fn next_u64(&mut self) -> u64 {
+    pub fn next_word(&mut self) -> u64 {
         let mut x = self.state;
         x ^= x << 13;
         x ^= x >> 7;
@@ -30,10 +30,15 @@ impl Xorshift64 {
         x
     }
 
-    /// Draw a float in [0.0, 1.0).
+    /// Draw a value uniformly from the half-open unit interval `[0.0, 1.0)`.
+    ///
+    /// Uses the high 53 bits, the exact mantissa width of `f64`, so the result
+    /// is exactly representable and can never round up to `1.0`. Dividing the
+    /// full word by `u64::MAX as f64` (which rounds to `2^64`) can.
     #[inline]
-    pub fn next_f64(&mut self) -> f64 {
-        (self.next_u64() as f64) / (u64::MAX as f64)
+    pub fn next_unit(&mut self) -> f64 {
+        const SCALE: f64 = 1.0 / (1_u64 << 53) as f64;
+        (self.next_word() >> 11) as f64 * SCALE
     }
 }
 
@@ -98,7 +103,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let cpu_backend = coeus_core::MoiraiBackend::new();
     let mask_cpu =
         Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
-            let r = rng.borrow_mut().next_f64();
+            let r = rng.borrow_mut().next_unit();
             if r < p {
                 T::zero()
             } else {

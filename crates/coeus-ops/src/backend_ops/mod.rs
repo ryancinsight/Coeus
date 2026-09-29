@@ -1,5 +1,12 @@
 // ── Backend-parameterized execution operations ──
 // Unifies CPU and GPU dispatch via monomorphized associated traits.
+//
+// The kernel trait methods (unfold/fold, pooling, optimizer, attention,
+// finite-difference) take the full geometric argument list — kernel, stride,
+// padding, dilation per spatial axis — and are implemented by every backend.
+// Grouping them into parameter structs is a cross-crate API change; until then
+// the whole subtree shares one suppression, replacing the four redundant
+// per-module copies that previously restated it.
 #![allow(clippy::too_many_arguments)]
 
 mod cpu_impl;

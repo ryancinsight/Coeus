@@ -1,8 +1,9 @@
 // ── GRUCell ──
 
 use crate::linear::Linear;
-use crate::module::{prefixed_parameters, Module, ModuleError};
+use crate::module::{prefixed_parameters, Module, ModuleError, ModuleResult};
 use crate::rnn::validation;
+use crate::rnn::VarPair;
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend};
 use coeus_tensor::Tensor;
@@ -199,7 +200,7 @@ where
     pub fn forward_seq(
         &self,
         x: &Var<T, B>,
-    ) -> Result<(Var<T, B>, Var<T, B>), ModuleError<B::Error>> {
+    ) -> ModuleResult<VarPair<T, B>, B> {
         let (batch, seq_len) =
             validation::sequence_input(x.tensor.shape(), self.input_size, "Gru")?;
         let backend = B::default();
