@@ -61,12 +61,14 @@ impl ComputeBackend for SequentialBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        CpuStorage::try_allocate_uninitialized(len)
+        CpuStorage::allocate_uninitialized(len)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        CpuStorage::try_filled(len, T::zero())
+        let mut storage = CpuStorage::allocate_uninitialized(len)?;
+        self.fill(&mut storage, T::zero())?;
+        Ok(storage)
     }
 
     #[inline]

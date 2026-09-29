@@ -48,28 +48,20 @@ where
         }
     }
 
-    /// Allocate zeroed storage in the provider's device tier.
-    #[must_use]
-    pub fn new(len: usize) -> Self {
-        let buffer = Self::try_new(len).expect("invariant: provider allocation succeeds");
-        Self::from_buffer(buffer)
-    }
-
     /// Allocate zeroed storage while preserving provider failures.
-    pub fn try_new(len: usize) -> Result<Self, HephaestusError> {
-        let buffer =
-            P::device().alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
+    ///
+    /// # Errors
+    ///
+    /// Returns the provider's device-acquisition or allocation failure.
+    pub fn new(len: usize) -> Result<Self, HephaestusError> {
+        let buffer = P::try_device()?
+            .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
         Ok(Self::from_buffer(buffer))
     }
 
-    pub(crate) fn uninitialized(len: usize) -> Self {
-        let buffer = Self::try_uninitialized(len).expect("invariant: provider allocation succeeds");
-        Self::from_buffer(buffer)
-    }
-
     /// Allocate uninitialized storage while preserving provider failures.
-    pub(crate) fn try_uninitialized(len: usize) -> Result<Self, HephaestusError> {
-        let buffer = P::device()
+    pub(crate) fn uninitialized(len: usize) -> Result<Self, HephaestusError> {
+        let buffer = P::try_device()?
             .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
         Ok(Self::from_buffer(buffer))
     }

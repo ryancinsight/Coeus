@@ -20,11 +20,12 @@ use crate::dtype::Scalar;
 /// use coeus_core::{ComputeBackend, SequentialBackend};
 ///
 /// let backend = SequentialBackend::new();
-/// let mut buf = backend.allocate::<f32>(3);
-/// backend.fill(&mut buf, 42.0);
+/// let mut buf = backend.allocate::<f32>(3)?;
+/// backend.fill(&mut buf, 42.0)?;
 /// let mut host = [0.0_f32; 3];
-/// backend.copy_to_host(&buf, &mut host);
+/// backend.copy_to_host(&buf, &mut host)?;
 /// assert_eq!(host, [42.0; 3]);
+/// # Ok::<(), coeus_core::BackendError>(())
 /// ```
 pub trait ComputeBackend: Send + Sync + Clone + 'static {
     /// Typed failure returned by fallible backend operation traits.

@@ -1,6 +1,6 @@
 use coeus_core::{
     Backend, BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut,
-    CpuStorage, Scalar,
+    CpuStorage, Scalar, SequentialBackend,
 };
 
 /// Scalar types supported by the CUDA backend and Hephaestus fusion.
@@ -57,12 +57,12 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        CpuStorage::try_allocate_uninitialized(len)
+        SequentialBackend::new().allocate(len)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        CpuStorage::try_filled(len, T::zero())
+        SequentialBackend::new().allocate_zeroed(len)
     }
 
     #[inline]

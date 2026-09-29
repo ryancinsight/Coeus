@@ -68,12 +68,14 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusBackend::<CudaBackend>::new().allocate(len)
+        coeus_hephaestus::HephaestusBackend::<CudaBackend>::new()
+            .allocate(len)
+            .map_err(Into::into)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusStorage::<CudaBackend, _>::try_new(len)
+        coeus_hephaestus::HephaestusStorage::<CudaBackend, _>::new(len)
             .map_err(|source| CudaBackendError::dispatch("allocate_zeroed", source))
     }
 
@@ -94,8 +96,9 @@ impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
+        let device = try_get_cuda_device()
+            .map_err(|source| CudaBackendError::dispatch("fill_zero", source))?;
         dst.make_unique();
-        let device = get_cuda_device();
         let mut stream = device
             .stream()
             .map_err(|source| CudaBackendError::dispatch("fill_zero", source))?;
@@ -112,8 +115,9 @@ impl ComputeBackend for CudaBackend {
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
+        let device = try_get_cuda_device()
+            .map_err(|source| CudaBackendError::dispatch("copy_to_device", source))?;
         dst.make_unique();
-        let device = get_cuda_device();
         device
             .write_buffer(dst.buffer(), src)
             .map_err(|source| CudaBackendError::dispatch("copy_to_device", source))
@@ -124,7 +128,8 @@ impl ComputeBackend for CudaBackend {
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
-        let device = get_cuda_device();
+        let device = try_get_cuda_device()
+            .map_err(|source| CudaBackendError::dispatch("copy_to_host", source))?;
         device
             .download(src.buffer(), dst)
             .map_err(|source| CudaBackendError::dispatch("copy_to_host", source))

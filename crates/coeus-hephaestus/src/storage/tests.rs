@@ -39,6 +39,9 @@ impl<T: eunomia::Pod> DeviceBuffer<T> for TestBuffer<T> {
 struct TestProvider;
 
 #[derive(Debug, Clone, Copy, Default)]
+struct UnavailableProvider;
+
+#[derive(Debug, Clone, Copy, Default)]
 struct TestDevice;
 
 fn byte_len<T: eunomia::Pod>(len: usize) -> hephaestus_core::Result<usize> {
@@ -236,25 +239,149 @@ unsafe impl HephaestusProvider for TestProvider {
     }
 }
 
+// SAFETY: This provider exposes the same thread-safe test buffer type as
+// `TestProvider`; its fallible acquisition path rejects every request before
+// returning a device.
+unsafe impl HephaestusProvider for UnavailableProvider {
+    type Device = TestDevice;
+
+    const NAME: &'static str = "unavailable-test";
+
+    fn device() -> &'static Self::Device {
+        static DEVICE: TestDevice = TestDevice;
+        &DEVICE
+    }
+
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        Err(HephaestusError::DeviceUnavailable {
+            message: "injected unavailable test device".to_owned(),
+        })
+    }
+}
+
+fn assert_device_unavailable(error: crate::HephaestusBackendError, expected_operation: &str) {
+    match error {
+        crate::HephaestusBackendError::Device { operation, source } => {
+            assert_eq!(operation, expected_operation);
+            assert!(matches!(
+                source,
+                HephaestusError::DeviceUnavailable { message }
+                    if message == "injected unavailable test device"
+            ));
+        }
+        other => panic!("expected typed device acquisition failure, got {other}"),
+    }
+}
+
+fn expect_backend_failure<T>(
+    result: Result<T, crate::HephaestusBackendError>,
+    expectation: &str,
+) -> crate::HephaestusBackendError {
+    match result {
+        Err(error) => error,
+        Ok(_) => panic!("{expectation}"),
+    }
+}
+
 #[test]
 fn backend_routes_allocation_by_initialization_contract() {
     use coeus_core::ComputeBackend;
 
     let backend = crate::reduction::HephaestusBackend::<TestProvider>::new();
-    let scratch = backend.allocate::<u32>(4);
+    let scratch = backend
+        .allocate::<u32>(4)
+        .expect("invariant: test backend allocation succeeds");
     assert_eq!(
         scratch.buffer.initialization,
         TestInitialization::Uninitialized
     );
     let mut poison = [0; 4];
-    backend.copy_to_host(&scratch, &mut poison);
+    backend
+        .copy_to_host(&scratch, &mut poison)
+        .expect("invariant: test backend transfer succeeds");
     assert_eq!(poison, [0xa5a5_a5a5; 4]);
 
-    let zeroed = backend.allocate_zeroed::<u32>(4);
+    let zeroed = backend
+        .allocate_zeroed::<u32>(4)
+        .expect("invariant: test backend allocation succeeds");
     assert_eq!(zeroed.buffer.initialization, TestInitialization::Zeroed);
     let mut values = [u32::MAX; 4];
-    backend.copy_to_host(&zeroed, &mut values);
+    backend
+        .copy_to_host(&zeroed, &mut values)
+        .expect("invariant: test backend transfer succeeds");
     assert_eq!(values, [0; 4]);
+}
+
+#[test]
+fn backend_storage_operations_report_device_acquisition_failure() {
+    use coeus_core::ComputeBackend;
+
+    let Err(error) = HephaestusStorage::<UnavailableProvider, u32>::new(4) else {
+        panic!("fallible storage construction must preserve provider acquisition failure");
+    };
+    assert!(matches!(
+        error,
+        HephaestusError::DeviceUnavailable { message }
+            if message == "injected unavailable test device"
+    ));
+
+    let backend = crate::reduction::HephaestusBackend::<UnavailableProvider>::new();
+    assert_device_unavailable(
+        expect_backend_failure(
+            backend.allocate::<u32>(4),
+            "unavailable provider must reject allocation",
+        ),
+        "allocate",
+    );
+    assert_device_unavailable(
+        expect_backend_failure(
+            backend.allocate_zeroed::<u32>(4),
+            "unavailable provider must reject zeroed allocation",
+        ),
+        "allocate_zeroed",
+    );
+
+    let buffer = TestProvider::device()
+        .alloc_zeroed_with_hint(4, PlacementHint::Tier(MemoryTier::Device))
+        .expect("invariant: test buffer allocation succeeds");
+    let mut storage = HephaestusStorage::<UnavailableProvider, u32>::from_buffer(buffer);
+
+    assert_device_unavailable(
+        expect_backend_failure(
+            backend.fill_zero(&mut storage),
+            "unavailable provider must reject zero fill",
+        ),
+        "copy_to_device",
+    );
+    assert_device_unavailable(
+        expect_backend_failure(
+            backend.fill(&mut storage, 7),
+            "unavailable provider must reject fill",
+        ),
+        "copy_to_device",
+    );
+    assert_device_unavailable(
+        expect_backend_failure(
+            backend.copy_to_device(&[1, 2, 3, 4], &mut storage),
+            "unavailable provider must reject upload",
+        ),
+        "copy_to_device",
+    );
+    let mut retained = [u32::MAX; 4];
+    TestProvider::device()
+        .download(storage.buffer(), &mut retained)
+        .expect("invariant: test device can inspect rejected writes");
+    assert_eq!(retained, [0; 4]);
+
+    let mut host = [u32::MAX; 4];
+    assert_device_unavailable(
+        expect_backend_failure(
+            backend.copy_to_host(&storage, &mut host),
+            "unavailable provider must reject download",
+        ),
+        "copy_to_host",
+    );
+    assert_eq!(host, [u32::MAX; 4]);
 }
 
 #[test]
@@ -263,7 +390,8 @@ fn make_unique_copies_device_data_without_host_download() {
     DEVICE_COPIES.store(0, Ordering::Relaxed);
 
     let device = TestProvider::device();
-    let mut storage = HephaestusStorage::<TestProvider, u32>::new(4);
+    let mut storage = HephaestusStorage::<TestProvider, u32>::new(4)
+        .expect("invariant: test provider allocation succeeds");
     device
         .write_buffer(storage.buffer.as_ref(), &[1, 2, 3, 4])
         .expect("write test storage");

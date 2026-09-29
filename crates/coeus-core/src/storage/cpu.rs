@@ -121,23 +121,8 @@ unsafe impl<T: Send> Send for CpuStorage<T> {}
 unsafe impl<T: Sync> Sync for CpuStorage<T> {}
 
 impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
-    #[inline]
-    fn allocate_uninitialized(len: usize) -> Self {
-        let byte_size = len
-            .checked_mul(std::mem::size_of::<T>())
-            .expect("CpuStorage allocation size overflow");
-        let align = std::mem::align_of::<T>();
-        let block =
-            RawBlock::new(byte_size, align).expect("Mnemosyne allocation failed in CpuStorage");
-        Self {
-            block: Arc::new(block),
-            len,
-            _marker: PhantomData,
-        }
-    }
-
     /// Allocate an uninitialized buffer while preserving allocation failures.
-    pub fn try_allocate_uninitialized(len: usize) -> Result<Self, crate::BackendError> {
+    pub(crate) fn allocate_uninitialized(len: usize) -> Result<Self, crate::BackendError> {
         let byte_size =
             len.checked_mul(std::mem::size_of::<T>())
                 .ok_or(crate::BackendError::Overflow {
@@ -184,7 +169,8 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// constructing a typed slice over uninitialized memory.
     #[inline]
     pub fn filled(len: usize, value: T) -> Self {
-        let storage = Self::allocate_uninitialized(len);
+        let storage = Self::allocate_uninitialized(len)
+            .expect("invariant: infallible CpuStorage constructor allocation succeeds");
         let destination = storage.block.as_mut_ptr().cast::<T>();
         for index in 0..len {
             // SAFETY: `destination` is aligned and allocated for `len`
@@ -193,19 +179,6 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
             unsafe { destination.add(index).write(value) };
         }
         storage
-    }
-
-    /// Allocate and initialize a buffer while preserving allocation failures.
-    pub fn try_filled(len: usize, value: T) -> Result<Self, crate::BackendError> {
-        let storage = Self::try_allocate_uninitialized(len)?;
-        let destination = storage.block.as_mut_ptr().cast::<T>();
-        for index in 0..len {
-            // SAFETY: `destination` is aligned and allocated for `len`
-            // elements. Each index is written exactly once before `storage`
-            // is returned through its safe readable API.
-            unsafe { destination.add(index).write(value) };
-        }
-        Ok(storage)
     }
 
     /// Create from existing slice (copies data).
@@ -221,7 +194,8 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// ```
     #[inline]
     pub fn from_slice(data: &[T]) -> Self {
-        let storage = Self::allocate_uninitialized(data.len());
+        let storage = Self::allocate_uninitialized(data.len())
+            .expect("invariant: infallible CpuStorage constructor allocation succeeds");
         // SAFETY: the destination is aligned and allocated for `data.len()`
         // elements, the source is a valid non-overlapping slice, and `T:
         // Copy` needs no per-element drop handling. The whole destination is
@@ -306,5 +280,26 @@ impl<T: crate::Scalar> CpuAddressableStorageMut<T> for CpuStorage<T> {
     #[inline]
     fn as_mut_slice(&mut self) -> &mut [T] {
         self.raw_slice_mut_cow()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CpuStorage;
+    use crate::BackendError;
+
+    #[test]
+    fn allocation_size_overflow_is_reported() {
+        let Err(error) = CpuStorage::<u16>::allocate_uninitialized(usize::MAX) else {
+            panic!("an overflowing allocation size must fail");
+        };
+
+        assert!(matches!(
+            error,
+            BackendError::Overflow {
+                operation: "cpu allocation",
+                reason: "element-count byte-size overflow",
+            }
+        ));
     }
 }

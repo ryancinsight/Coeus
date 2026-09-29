@@ -260,12 +260,12 @@ where
     }
 
     fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        HephaestusStorage::try_uninitialized(len)
+        HephaestusStorage::uninitialized(len)
             .map_err(|source| HephaestusBackendError::device("allocate", source))
     }
 
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        HephaestusStorage::try_new(len)
+        HephaestusStorage::new(len)
             .map_err(|source| HephaestusBackendError::device("allocate_zeroed", source))
     }
 
@@ -279,8 +279,10 @@ where
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
+        let device = P::try_device()
+            .map_err(|source| HephaestusBackendError::device("copy_to_device", source))?;
         dst.make_unique();
-        P::device()
+        device
             .write_buffer(dst.buffer(), src)
             .map_err(|source| HephaestusBackendError::device("copy_to_device", source))
     }
@@ -290,7 +292,8 @@ where
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
-        P::device()
+        P::try_device()
+            .map_err(|source| HephaestusBackendError::device("copy_to_host", source))?
             .download(src.buffer(), dst)
             .map_err(|source| HephaestusBackendError::device("copy_to_host", source))
     }

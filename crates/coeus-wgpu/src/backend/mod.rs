@@ -165,12 +165,14 @@ impl ComputeBackend for WgpuBackend {
 
     #[inline]
     fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusBackend::<WgpuBackend>::new().allocate(len)
+        coeus_hephaestus::HephaestusBackend::<WgpuBackend>::new()
+            .allocate(len)
+            .map_err(Into::into)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::try_new(len)
+        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(len)
             .map_err(|source| WgpuBackendError::dispatch("allocate_zeroed", source))
     }
 
@@ -186,8 +188,10 @@ impl ComputeBackend for WgpuBackend {
 
     #[inline]
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
+        let device = &try_get_wgpu_context()
+            .map_err(|source| WgpuBackendError::dispatch("fill_zero", source))?
+            .hephaestus_device;
         dst.make_unique();
-        let device = &get_wgpu_context().hephaestus_device;
         let mut stream = device
             .stream()
             .map_err(|source| WgpuBackendError::dispatch("fill_zero", source))?;
@@ -205,9 +209,11 @@ impl ComputeBackend for WgpuBackend {
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
+        let context = try_get_wgpu_context()
+            .map_err(|source| WgpuBackendError::dispatch("copy_to_device", source))?;
         dst.make_unique();
-        let ctx = get_wgpu_context();
-        ctx.hephaestus_device
+        context
+            .hephaestus_device
             .write_buffer(dst.buffer(), src)
             .map_err(|source| WgpuBackendError::dispatch("copy_to_device", source))
     }
@@ -217,8 +223,9 @@ impl ComputeBackend for WgpuBackend {
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
-        let ctx = get_wgpu_context();
-        ctx.hephaestus_device
+        try_get_wgpu_context()
+            .map_err(|source| WgpuBackendError::dispatch("copy_to_host", source))?
+            .hephaestus_device
             .download(src.buffer(), dst)
             .map_err(|source| WgpuBackendError::dispatch("copy_to_host", source))
     }
