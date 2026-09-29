@@ -98,7 +98,7 @@ impl ComputeBackend for CudaBackend {
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
         let device = try_get_cuda_device()
             .map_err(|source| CudaBackendError::dispatch("fill_zero", source))?;
-        dst.make_unique();
+        dst.make_unique()?;
         let mut stream = device
             .stream()
             .map_err(|source| CudaBackendError::dispatch("fill_zero", source))?;
@@ -117,7 +117,7 @@ impl ComputeBackend for CudaBackend {
     ) -> Result<(), Self::Error> {
         let device = try_get_cuda_device()
             .map_err(|source| CudaBackendError::dispatch("copy_to_device", source))?;
-        dst.make_unique();
+        dst.make_unique()?;
         device
             .write_buffer(dst.buffer(), src)
             .map_err(|source| CudaBackendError::dispatch("copy_to_device", source))

@@ -281,7 +281,7 @@ where
     ) -> Result<(), Self::Error> {
         let device = P::try_device()
             .map_err(|source| HephaestusBackendError::device("copy_to_device", source))?;
-        dst.make_unique();
+        dst.make_unique()?;
         device
             .write_buffer(dst.buffer(), src)
             .map_err(|source| HephaestusBackendError::device("copy_to_device", source))
@@ -316,7 +316,7 @@ where
         let input_layout = ranked::<2>("reduce", a_layout)?;
         let output_layout = ranked::<2>("reduce", c_layout)?;
         let provider_axis = ranked_axis::<2>("reduce", a_layout, axis)?;
-        c.make_unique();
+        c.make_unique()?;
         P::reduce(
             P::device(),
             op,
@@ -427,7 +427,7 @@ where
         let output_layout = ranked::<2>(request.operation, request.output_layout)?;
         let provider_axis =
             ranked_axis::<2>(request.operation, request.input_layout, request.axis)?;
-        request.output.make_unique();
+        request.output.make_unique()?;
         P::scan(
             P::device(),
             RankedOperand {

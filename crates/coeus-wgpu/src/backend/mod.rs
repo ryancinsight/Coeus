@@ -191,7 +191,7 @@ impl ComputeBackend for WgpuBackend {
         let device = &try_get_wgpu_context()
             .map_err(|source| WgpuBackendError::dispatch("fill_zero", source))?
             .hephaestus_device;
-        dst.make_unique();
+        dst.make_unique()?;
         let mut stream = device
             .stream()
             .map_err(|source| WgpuBackendError::dispatch("fill_zero", source))?;
@@ -211,7 +211,7 @@ impl ComputeBackend for WgpuBackend {
     ) -> Result<(), Self::Error> {
         let context = try_get_wgpu_context()
             .map_err(|source| WgpuBackendError::dispatch("copy_to_device", source))?;
-        dst.make_unique();
+        dst.make_unique()?;
         context
             .hephaestus_device
             .write_buffer(dst.buffer(), src)

@@ -39,7 +39,7 @@ fn copy_on_write_preserves_values_in_both_device_buffers() {
     let mut writable = HephaestusStorage::<crate::CudaBackend, _>::from_buffer(source);
     let retained = writable.clone();
 
-    writable.make_unique();
+    writable.make_unique()?;
 
     assert_ne!(writable.allocation_id(), retained.allocation_id());
     let mut writable_values = vec![0.0f32; input.len()];

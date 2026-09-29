@@ -32,7 +32,7 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
     type Error: std::error::Error + From<BackendError> + Send + Sync + 'static;
 
     /// Memory handle type representing device-allocated storage.
-    type DeviceBuffer<T: Scalar>: StorageMut<T>;
+    type DeviceBuffer<T: Scalar>: StorageMut<T, Error = Self::Error>;
 
     /// Descriptor / configuration params needed for launching/compiling pipelines on this backend.
     type KernelDescriptor;

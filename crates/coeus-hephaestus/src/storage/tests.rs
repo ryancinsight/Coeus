@@ -398,7 +398,7 @@ fn make_unique_copies_device_data_without_host_download() {
     let shared = storage.clone();
     let downloads_before = DOWNLOADS.load(Ordering::Relaxed);
 
-    StorageMut::make_unique(&mut storage);
+    StorageMut::make_unique(&mut storage).expect("COW detachment succeeds");
 
     assert_eq!(DOWNLOADS.load(Ordering::Relaxed), downloads_before);
     assert_eq!(DEVICE_COPIES.load(Ordering::Relaxed), 1);

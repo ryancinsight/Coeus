@@ -155,7 +155,7 @@ where
         let lhs_layout = ranked::<N>("elementwise_binary", lhs_layout)?;
         let rhs_layout = ranked::<N>("elementwise_binary", rhs_layout)?;
         let output_layout = ranked::<N>("elementwise_binary", output_layout)?;
-        output.make_unique();
+        output.make_unique()?;
         P::binary(
             P::device(),
             operation,
@@ -269,7 +269,7 @@ where
     {
         let input_layout = ranked::<N>("elementwise_unary", input_layout)?;
         let output_layout = ranked::<N>("elementwise_unary", output_layout)?;
-        output.make_unique();
+        output.make_unique()?;
         P::unary(
             P::device(),
             operation,
@@ -386,7 +386,7 @@ where
     {
         let input_layout = ranked::<N>("elementwise scalar power", input_layout)?;
         let output_layout = ranked::<N>("elementwise scalar power", output_layout)?;
-        output.make_unique();
+        output.make_unique()?;
         P::scalar_power(
             P::device(),
             RankedOperand {

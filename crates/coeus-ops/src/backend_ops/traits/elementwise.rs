@@ -67,7 +67,7 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
     ) -> Result<(), Self::Error> {
         let source = destination.clone();
         let mut candidate = source.clone();
-        candidate.make_unique();
+        candidate.make_unique()?;
         self.elementwise_binary(
             op,
             &source,

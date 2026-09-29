@@ -145,8 +145,9 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
 
     /// Allocate a new zero-initialized buffer for `len` elements of type `T`.
     ///
-    /// # Panics
-    /// If Mnemosyne allocation fails.
+    /// # Errors
+    /// Returns the allocator error when the requested byte size overflows or
+    /// the provider cannot allocate the storage.
     ///
     /// # Examples
     ///
@@ -154,11 +155,12 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// use coeus_core::CpuStorage;
     /// use coeus_core::storage::{CpuAddressableStorage, Storage};
     ///
-    /// let s = CpuStorage::<f64>::new(8);
+    /// let s = CpuStorage::<f64>::new(8)?;
     /// assert_eq!(s.len(), 8);
+    /// # Ok::<(), coeus_core::BackendError>(())
     /// ```
     #[inline]
-    pub fn new(len: usize) -> Self
+    pub fn new(len: usize) -> Result<Self, crate::BackendError>
     where
         T: crate::Scalar,
     {
@@ -168,9 +170,8 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// Allocate and initialize every element with `value` without first
     /// constructing a typed slice over uninitialized memory.
     #[inline]
-    pub fn filled(len: usize, value: T) -> Self {
-        let storage = Self::allocate_uninitialized(len)
-            .expect("invariant: infallible CpuStorage constructor allocation succeeds");
+    pub fn filled(len: usize, value: T) -> Result<Self, crate::BackendError> {
+        let storage = Self::allocate_uninitialized(len)?;
         let destination = storage.block.as_mut_ptr().cast::<T>();
         for index in 0..len {
             // SAFETY: `destination` is aligned and allocated for `len`
@@ -178,10 +179,13 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
             // is returned through its safe readable API.
             unsafe { destination.add(index).write(value) };
         }
-        storage
+        Ok(storage)
     }
 
     /// Create from existing slice (copies data).
+    ///
+    /// # Errors
+    /// Returns the allocator error when the provider cannot allocate storage.
     ///
     /// # Examples
     ///
@@ -189,13 +193,13 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     /// use coeus_core::CpuStorage;
     /// use coeus_core::storage::CpuAddressableStorage;
     ///
-    /// let s = CpuStorage::from_slice(&[1.0_f32, 2.0, 3.0]);
+    /// let s = CpuStorage::from_slice(&[1.0_f32, 2.0, 3.0])?;
     /// assert_eq!(s.as_slice(), &[1.0, 2.0, 3.0]);
+    /// # Ok::<(), coeus_core::BackendError>(())
     /// ```
     #[inline]
-    pub fn from_slice(data: &[T]) -> Self {
-        let storage = Self::allocate_uninitialized(data.len())
-            .expect("invariant: infallible CpuStorage constructor allocation succeeds");
+    pub fn from_slice(data: &[T]) -> Result<Self, crate::BackendError> {
+        let storage = Self::allocate_uninitialized(data.len())?;
         // SAFETY: the destination is aligned and allocated for `data.len()`
         // elements, the source is a valid non-overlapping slice, and `T:
         // Copy` needs no per-element drop handling. The whole destination is
@@ -207,7 +211,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
                 data.len(),
             );
         }
-        storage
+        Ok(storage)
     }
 
     /// Returns true when this storage has exclusive ownership of its allocation.
@@ -237,7 +241,8 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     pub fn raw_slice_mut_cow(&mut self) -> &mut [T] {
         if Arc::strong_count(&self.block) > 1 {
             let old_slice = self.raw_slice();
-            let new_storage = Self::from_slice(old_slice);
+            let new_storage = Self::from_slice(old_slice)
+                .expect("invariant: CPU copy-on-write allocation succeeds");
             *self = new_storage;
         }
         // SAFETY: The strong count check and potential copy-on-write reallocation guarantee that we hold the unique reference to the memory block, making mutable slicing safe.
@@ -258,14 +263,17 @@ impl<T: crate::Scalar> Storage<T> for CpuStorage<T> {
 }
 
 impl<T: crate::Scalar> StorageMut<T> for CpuStorage<T> {
+    type Error = crate::BackendError;
+
     #[inline]
     fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
         Some(self.raw_slice_mut_cow())
     }
 
     #[inline]
-    fn make_unique(&mut self) {
+    fn make_unique(&mut self) -> Result<(), Self::Error> {
         self.raw_slice_mut_cow();
+        Ok(())
     }
 }
 

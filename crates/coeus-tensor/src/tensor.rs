@@ -175,16 +175,18 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
 
     /// Mutable reference to storage.
     #[inline]
-    pub fn storage_mut(&mut self) -> &mut B::DeviceBuffer<T> {
-        self.storage.make_unique();
-        &mut self.storage
+    pub fn storage_mut(&mut self) -> Result<&mut B::DeviceBuffer<T>, B::Error> {
+        self.storage.make_unique()?;
+        Ok(&mut self.storage)
     }
 
     /// Mutable reference to storage and reference to layout.
     #[inline]
-    pub fn storage_mut_and_layout(&mut self) -> (&mut B::DeviceBuffer<T>, &Layout) {
-        self.storage.make_unique();
-        (&mut self.storage, &self.layout)
+    pub fn storage_mut_and_layout(
+        &mut self,
+    ) -> Result<(&mut B::DeviceBuffer<T>, &Layout), B::Error> {
+        self.storage.make_unique()?;
+        Ok((&mut self.storage, &self.layout))
     }
 
     /// Mutable references to storage and layout without eagerly making the

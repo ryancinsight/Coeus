@@ -33,11 +33,14 @@ pub trait Storage<T>: private::Sealed + Clone + Send + Sync + 'static {
 
 /// Mutable storage access.
 pub trait StorageMut<T>: Storage<T> {
+    /// Error returned when copy-on-write cannot allocate or copy the storage.
+    type Error: std::error::Error + Send + Sync + 'static;
+
     /// Mutably borrow data as a host CPU slice if addressable.
     fn try_as_mut_slice(&mut self) -> Option<&mut [T]>;
 
     /// Make the storage allocation unique, triggering Copy-On-Write if shared.
-    fn make_unique(&mut self);
+    fn make_unique(&mut self) -> Result<(), Self::Error>;
 }
 
 /// Sub-trait for storages that are readable in CPU host memory.
