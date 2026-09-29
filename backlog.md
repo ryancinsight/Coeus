@@ -276,15 +276,6 @@ The migration is decomposed into these dependency ordered leaves:
 - Acceptance: no bare `.expect()` on backend-Result in listed files; failure surfaces as a typed error to the caller; existing behavior tests still pass.
 - Next step: start with `coeus-ops/src/unary/math.rs` (highest count), thread the `Result` through its callers.
 
-<a id="coeus-einsum-panic"></a>
-## COEUS-EINSUM-PANIC — einsum rejects invalid subscripts via typed error
-
-- Status: todo; priority: correctness; [patch]; owner: unclaimed.
-- Outcome: caller-supplied einsum subscript strings that are malformed or mismatched no longer panic.
-- Scope: `coeus-autograd/src/ops/shape/util/einsum.rs:87,207`.
-- Acceptance: a negative test with a malformed subscript returns a typed error, never panics.
-- Next step: replace the panicking parse/validation with a typed error path.
-
 <a id="coeus-gradcheck-generic-scalar"></a>
 ## COEUS-GRADCHECK-GENERIC-SCALAR — Generic finite-difference gradcheck over f32/f64
 
