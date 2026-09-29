@@ -5,6 +5,31 @@ use crate::{
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+// Keep each const-generic encoder array in its own frame. Inlining every
+// dispatch arm makes the Windows test-thread stack reserve all variants.
+#[inline(never)]
+fn build_layers<const H: usize, const N: usize>(
+    py: Python<'_>,
+    d_model: usize,
+    d_ff: usize,
+    dropout_p: f64,
+) -> PyResult<Vec<Py<PyTransformerEncoderLayer>>> {
+    use coeus_autograd::NullMask;
+    use coeus_nn::transformer::encoder::TransformerEncoder;
+
+    let encoder = TransformerEncoder::<f64, coeus_core::MoiraiBackend, H, N, NullMask>::new(
+        d_model, d_ff, dropout_p,
+    )
+    .map_err(map_initialization_error)?;
+    encoder
+        .layers
+        .into_iter()
+        .map(|layer| {
+            PyTransformerEncoderLayer::from_rust_layer::<H>(py, layer, d_model, d_ff, dropout_p)
+        })
+        .collect()
+}
+
 /// Stack of `TransformerEncoderLayer`s forming the encoder half of a
 /// transformer (encoder–decoder architecture).
 ///
@@ -55,19 +80,7 @@ impl PyTransformerEncoder {
         macro_rules! build {
             ($(($h:literal, $n:literal)),*) => {
                 match (num_heads, num_layers) {
-                    $(($h, $n) => {
-                        use coeus_nn::transformer::encoder::TransformerEncoder;
-                        use coeus_autograd::NullMask;
-                        let enc = TransformerEncoder::<
-                            f64, coeus_core::MoiraiBackend, $h, $n, NullMask,
-                        >::new(d_model, d_ff, dropout_p)
-                            .map_err(map_initialization_error)?;
-                        enc.layers.into_iter()
-                            .map(|layer| PyTransformerEncoderLayer::from_rust_layer::<$h>(
-                                py, layer, d_model, d_ff, dropout_p,
-                            ))
-                            .collect::<PyResult<Vec<_>>>()?
-                    },)*
+                    $(($h, $n) => build_layers::<$h, $n>(py, d_model, d_ff, dropout_p)?,)*
                     _ => return Err(PyValueError::new_err(format!(
                         "TransformerEncoder: unsupported (num_heads={num_heads}, \
                          num_layers={num_layers}); supported heads: 1,2,4,8,16,32 \
