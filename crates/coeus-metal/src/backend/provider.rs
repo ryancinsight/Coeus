@@ -49,49 +49,62 @@ impl ConvolutionProvider<f32> for MetalProvider {
     type Operations = MetalConvolutionOps;
 }
 
-impl MatmulProvider<f32> for MetalProvider {
+// SAFETY: `MetalDenseProductOps` fully initializes each product output before
+// returning success.
+unsafe impl MatmulProvider<f32> for MetalProvider {
     type Operations = MetalDenseProductOps;
 }
 
-impl AttentionProvider<f32> for MetalProvider {
+// SAFETY: `MetalAttentionOps` initializes both forward outputs and only
+// accumulates backward gradients into initialized destinations.
+unsafe impl AttentionProvider<f32> for MetalProvider {
     type Operations = MetalAttentionOps;
 }
 
-impl ElementwiseProvider<f32> for MetalProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<f32> for MetalProvider {
     type Operations = MetalElementwiseOps;
     type UnaryOperations = ActivationUnaryOperations;
 }
 
-impl ElementwiseProvider<u32> for MetalProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<u32> for MetalProvider {
     type Operations = MetalElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ElementwiseProvider<i32> for MetalProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<i32> for MetalProvider {
     type Operations = MetalElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ScalarPowerProvider<f32> for MetalProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ScalarPowerProvider<f32> for MetalProvider {
     type Operations = MetalElementwiseOps;
 }
 
-impl ReductionProvider<f32> for MetalProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ReductionProvider<f32> for MetalProvider {
     type AxisOperations = MetalAxisReductionOps;
     type ScanOperations = MetalScanOps;
 }
 
-impl ReductionProvider<u32> for MetalProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ReductionProvider<u32> for MetalProvider {
     type AxisOperations = MetalAxisReductionOps;
     type ScanOperations = MetalScanOps;
 }
 
-impl ReductionProvider<i32> for MetalProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ReductionProvider<i32> for MetalProvider {
     type AxisOperations = MetalAxisReductionOps;
     type ScanOperations = MetalScanOps;
 }
 
-impl CrossEntropyProvider for MetalProvider {
+// SAFETY: `MetalCrossEntropyOps` initializes both forward outputs and only
+// accumulates backward gradients into initialized destinations.
+unsafe impl CrossEntropyProvider for MetalProvider {
     type Operations = MetalCrossEntropyOps;
 }
 
@@ -111,7 +124,9 @@ impl StatefulUpdateProvider for MetalProvider {
     type Operations = hephaestus_metal::MetalStatefulUpdateOps;
 }
 
-impl<T> PoolingProvider<T> for MetalProvider
+// SAFETY: `MetalPoolingOps` initializes forward outputs and only accumulates
+// backward gradients into initialized destinations.
+unsafe impl<T> PoolingProvider<T> for MetalProvider
 where
     T: Scalar + leto_ops::Scalar,
     MetalPoolingOps: PoolingOps<MetalDevice, T>,
@@ -119,7 +134,9 @@ where
     type Operations = MetalPoolingOps;
 }
 
-impl<T> UnfoldFoldProvider<T> for MetalProvider
+// SAFETY: `MetalSlidingWindowOps` initializes unfold outputs and clears fold
+// outputs before accumulating, as required by the Hephaestus contract.
+unsafe impl<T> UnfoldFoldProvider<T> for MetalProvider
 where
     T: Scalar + leto_ops::Scalar,
     MetalSlidingWindowOps: SlidingWindowOps<MetalDevice, T>,

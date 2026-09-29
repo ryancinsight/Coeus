@@ -1,4 +1,4 @@
-use super::{normal, uniform, RandomInitProvider};
+use super::{RandomInitProvider, normal, uniform};
 use crate::{HephaestusBackend, HephaestusBackendError, HephaestusStorage};
 use coeus_core::{Layout, Scalar};
 
@@ -15,8 +15,16 @@ where
         seed: u64,
     ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         uniform::<P, T>(layout, low, high, seed)
-            .map(HephaestusStorage::from_buffer)
-            .map_err(|source| HephaestusBackendError::device("uniform initialization", source))
+            .map(|buffer| {
+                // SAFETY: uniform initialization writes every element.
+                unsafe { HephaestusStorage::from_buffer(buffer) }
+            })
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device(
+                    "uniform initialization",
+                    source,
+                ))
+            })
     }
 
     fn normal_random(
@@ -27,7 +35,15 @@ where
         seed: u64,
     ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         normal::<P, T>(layout, mean, std_dev, seed)
-            .map(HephaestusStorage::from_buffer)
-            .map_err(|source| HephaestusBackendError::device("normal initialization", source))
+            .map(|buffer| {
+                // SAFETY: normal initialization writes every element.
+                unsafe { HephaestusStorage::from_buffer(buffer) }
+            })
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device(
+                    "normal initialization",
+                    source,
+                ))
+            })
     }
 }

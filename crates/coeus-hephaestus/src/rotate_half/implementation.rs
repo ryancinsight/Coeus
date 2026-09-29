@@ -1,4 +1,4 @@
-use super::{rotate_half, RotateHalfProvider};
+use super::{RotateHalfProvider, rotate_half};
 use crate::{HephaestusBackend, HephaestusBackendError, HephaestusStorage};
 use coeus_core::{Layout, Scalar};
 
@@ -7,11 +7,11 @@ where
     P: RotateHalfProvider<T>,
     T: Scalar,
     hephaestus_core::IdentityOp: hephaestus_core::UnaryExpr<
-        <P::Operations as hephaestus_core::ElementwiseOps<P::Device, T>>::Dialect,
-    >,
+            <P::Operations as hephaestus_core::ElementwiseOps<P::Device, T>>::Dialect,
+        >,
     hephaestus_core::NegOp: hephaestus_core::UnaryExpr<
-        <P::Operations as hephaestus_core::ElementwiseOps<P::Device, T>>::Dialect,
-    >,
+            <P::Operations as hephaestus_core::ElementwiseOps<P::Device, T>>::Dialect,
+        >,
 {
     fn rotate_half_storage(
         &self,
@@ -19,7 +19,10 @@ where
         layout: &Layout,
     ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         rotate_half::<P, T>(input.buffer(), layout)
-            .map(HephaestusStorage::from_buffer)
-            .map_err(|source| HephaestusBackendError::device("rotate_half", source))
+            .map(|buffer| {
+                // SAFETY: rotate_half writes every element before returning.
+                unsafe { HephaestusStorage::from_buffer(buffer) }
+            })
+            .map_err(|source| P::Error::from(HephaestusBackendError::device("rotate_half", source)))
     }
 }

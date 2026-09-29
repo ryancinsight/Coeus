@@ -3,7 +3,15 @@ use coeus_core::{ComputeBackend, Scalar};
 use hephaestus_core::{ComputeDevice, HephaestusError, PoolingOps};
 
 /// Provider-owned pooling operation marker.
-pub trait PoolingProvider<T>: HephaestusProvider
+///
+/// # Safety
+///
+/// Successful forward operations selected by `Operations` must initialize
+/// every logical output element without reading prior contents. Backward
+/// operations accumulate and may read their gradient destinations, which
+/// must be initialized before dispatch. A dispatch error may leave an output
+/// partially written.
+pub unsafe trait PoolingProvider<T>: HephaestusProvider
 where
     T: Scalar + leto_ops::Scalar,
 {
@@ -55,10 +63,10 @@ where
     }
 
     fn pooling_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        crate::error::invalid_configuration_error(operation, reason)
+        P::Error::from(crate::error::invalid_configuration_error(operation, reason))
     }
 
     fn pooling_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        HephaestusBackendError::device(operation, source)
+        P::Error::from(HephaestusBackendError::device(operation, source))
     }
 }

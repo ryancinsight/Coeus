@@ -42,12 +42,12 @@ where
         rhs_layout: &Layout,
         output: &mut HephaestusStorage<P, T>,
         output_layout: &Layout,
-    ) -> Result<(), HephaestusBackendError>
+    ) -> Result<(), P::Error>
     where
         P: ElementwiseProvider<T>,
         T: Scalar + leto_ops::Scalar,
     {
-        reject_broadcast_output("elementwise_binary", output_layout)?;
+        reject_broadcast_output("elementwise_binary", output_layout).map_err(P::Error::from)?;
         let rank = lhs_layout
             .ndim()
             .max(rhs_layout.ndim())
@@ -125,12 +125,11 @@ where
                 output,
                 output_layout,
             ),
-            rank => Err(BackendError::UnsupportedRank {
+            rank => Err(P::Error::from(BackendError::UnsupportedRank {
                 operation: "elementwise_binary",
                 rank,
                 max_rank: 8,
-            }
-            .into()),
+            })),
         }
     }
 
@@ -147,14 +146,15 @@ where
         rhs_layout: &Layout,
         output: &mut HephaestusStorage<P, T>,
         output_layout: &Layout,
-    ) -> Result<(), HephaestusBackendError>
+    ) -> Result<(), P::Error>
     where
         P: ElementwiseProvider<T>,
         T: Scalar + leto_ops::Scalar,
     {
-        let lhs_layout = ranked::<N>("elementwise_binary", lhs_layout)?;
-        let rhs_layout = ranked::<N>("elementwise_binary", rhs_layout)?;
-        let output_layout = ranked::<N>("elementwise_binary", output_layout)?;
+        let lhs_layout = ranked::<N>("elementwise_binary", lhs_layout).map_err(P::Error::from)?;
+        let rhs_layout = ranked::<N>("elementwise_binary", rhs_layout).map_err(P::Error::from)?;
+        let output_layout =
+            ranked::<N>("elementwise_binary", output_layout).map_err(P::Error::from)?;
         output.make_unique()?;
         P::binary(
             P::device(),
@@ -172,7 +172,9 @@ where
                 layout: &output_layout,
             },
         )
-        .map_err(|source| HephaestusBackendError::device("elementwise_binary", source))
+        .map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("elementwise_binary", source))
+        })
     }
 
     fn dispatch_unary<T>(
@@ -182,12 +184,12 @@ where
         input_layout: &Layout,
         output: &mut HephaestusStorage<P, T>,
         output_layout: &Layout,
-    ) -> Result<(), HephaestusBackendError>
+    ) -> Result<(), P::Error>
     where
         P: ElementwiseProvider<T>,
         T: Scalar + leto_ops::Scalar,
     {
-        reject_broadcast_output("elementwise_unary", output_layout)?;
+        reject_broadcast_output("elementwise_unary", output_layout).map_err(P::Error::from)?;
         let rank = input_layout.ndim().max(output_layout.ndim());
         match rank {
             1 => self.dispatch_unary_rank::<T, 1>(
@@ -246,12 +248,11 @@ where
                 output,
                 output_layout,
             ),
-            rank => Err(BackendError::UnsupportedRank {
+            rank => Err(P::Error::from(BackendError::UnsupportedRank {
                 operation: "elementwise_unary",
                 rank,
                 max_rank: 8,
-            }
-            .into()),
+            })),
         }
     }
 
@@ -262,13 +263,15 @@ where
         input_layout: &Layout,
         output: &mut HephaestusStorage<P, T>,
         output_layout: &Layout,
-    ) -> Result<(), HephaestusBackendError>
+    ) -> Result<(), P::Error>
     where
         P: ElementwiseProvider<T>,
         T: Scalar + leto_ops::Scalar,
     {
-        let input_layout = ranked::<N>("elementwise_unary", input_layout)?;
-        let output_layout = ranked::<N>("elementwise_unary", output_layout)?;
+        let input_layout =
+            ranked::<N>("elementwise_unary", input_layout).map_err(P::Error::from)?;
+        let output_layout =
+            ranked::<N>("elementwise_unary", output_layout).map_err(P::Error::from)?;
         output.make_unique()?;
         P::unary(
             P::device(),
@@ -282,11 +285,14 @@ where
                 layout: &output_layout,
             },
         )
-        .map_err(|source| HephaestusBackendError::device("elementwise_unary", source))
+        .map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("elementwise_unary", source))
+        })
     }
 }
 
-impl<P, T> ScalarPowerOps<T> for HephaestusBackend<P>
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<P, T> ScalarPowerOps<T> for HephaestusBackend<P>
 where
     P: ScalarPowerProvider<T>,
     T: Float + leto_ops::Scalar,
@@ -358,12 +364,11 @@ where
                 output,
                 output_layout,
             ),
-            rank => Err(BackendError::UnsupportedRank {
+            rank => Err(P::Error::from(BackendError::UnsupportedRank {
                 operation: "elementwise scalar power",
                 rank,
                 max_rank: 8,
-            }
-            .into()),
+            })),
         }
     }
 }
@@ -379,13 +384,15 @@ where
         exponent: T,
         output: &mut HephaestusStorage<P, T>,
         output_layout: &Layout,
-    ) -> Result<(), HephaestusBackendError>
+    ) -> Result<(), P::Error>
     where
         P: ScalarPowerProvider<T>,
         T: Float + leto_ops::Scalar,
     {
-        let input_layout = ranked::<N>("elementwise scalar power", input_layout)?;
-        let output_layout = ranked::<N>("elementwise scalar power", output_layout)?;
+        let input_layout =
+            ranked::<N>("elementwise scalar power", input_layout).map_err(P::Error::from)?;
+        let output_layout =
+            ranked::<N>("elementwise scalar power", output_layout).map_err(P::Error::from)?;
         output.make_unique()?;
         P::scalar_power(
             P::device(),
@@ -399,11 +406,17 @@ where
                 layout: &output_layout,
             },
         )
-        .map_err(|source| HephaestusBackendError::device("elementwise scalar power", source))
+        .map_err(|source| {
+            P::Error::from(HephaestusBackendError::device(
+                "elementwise scalar power",
+                source,
+            ))
+        })
     }
 }
 
-impl<P, T> ElementwiseOps<T> for HephaestusBackend<P>
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<P, T> ElementwiseOps<T> for HephaestusBackend<P>
 where
     P: ElementwiseProvider<T>,
     T: Scalar + leto_ops::Scalar,
