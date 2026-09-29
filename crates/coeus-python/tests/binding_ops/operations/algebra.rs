@@ -44,6 +44,20 @@ c = pycoeus.Tensor([9.0, 10.0, 11.0, 12.0], [2, 2])
 chain = pycoeus.einsum("ij,jk,kl->il", [a, b, c])
 assert chain.shape == [2, 2], f"einsum3 chain shape wrong: {chain.shape}"
 assert chain.data == [1226.0, 1348.0, 2945.0, 3238.0], f"einsum3 chain wrong: {chain.data}"
+
+def expect_einsum_error(subscript, operands, fragment):
+    try:
+        pycoeus.einsum(subscript, operands)
+        raise AssertionError(f"{subscript!r} should fail")
+    except ValueError as error:
+        assert fragment in str(error), f"unexpected einsum error: {error}"
+
+expect_einsum_error("ij,jk->ik->x", [a, b], "malformed subscript")
+expect_einsum_error("ij,jk->ik", [a], "specifies 2 operand(s), but 1 were provided")
+expect_einsum_error("ij,jk->ik", [x, b], "operand 0 to have rank 2, got 1")
+mismatched = pycoeus.Tensor([1.0] * 8, [4, 2])
+expect_einsum_error("ij,jk->ik", [a, mismatched], "cannot contract shapes")
+expect_einsum_error("ij,ji->", [a, b], "backend operation failed")
 "#,
     );
 }
