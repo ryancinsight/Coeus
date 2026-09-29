@@ -1,5 +1,10 @@
 use std::error::Error;
 
+/// Result of a neural-network module operation whose backend failure is
+/// [`ComputeBackend::Error`](coeus_core::ComputeBackend::Error).
+pub type ModuleResult<T, B> =
+    Result<T, ModuleError<<B as coeus_core::ComputeBackend>::Error>>;
+
 /// Contract failures returned by neural-network module execution.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

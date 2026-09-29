@@ -6,11 +6,14 @@
 //! computation.
 
 use super::validation;
-use crate::module::{Module, ModuleError};
+use crate::module::{Module, ModuleError, ModuleResult};
 use coeus_autograd::Var;
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend};
 use coeus_tensor::Tensor;
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
+
+/// Borrowed handle to the group-normalization cache slot.
+type GroupNormCacheRef<'a, T, B> = RefMut<'a, Option<GroupNormCache<T, B>>>;
 
 #[derive(Clone)]
 struct GroupNormCache<T: Float, B: coeus_ops::BackendOps<T> + Default> {
@@ -74,7 +77,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
     fn get_cache(
         &self,
         group_size: usize,
-    ) -> Result<std::cell::RefMut<'_, Option<GroupNormCache<T, B>>>, ModuleError<B::Error>> {
+    ) -> ModuleResult<GroupNormCacheRef<'_, T, B>, B> {
         let mut cache = self
             .cache
             .try_borrow_mut()

@@ -1,5 +1,4 @@
 // ── Transformer module root ──
-#![allow(clippy::module_inception)]
 
 /// Transformer decoder stack (N layers).
 pub mod decoder;
@@ -13,7 +12,7 @@ pub mod encoder_layer;
 pub mod ffn;
 mod normalization;
 /// Full Seq2Seq Transformer model (encoder + decoder).
-pub mod transformer;
+pub mod model;
 mod validation;
 
 pub use decoder::TransformerDecoder;
@@ -25,4 +24,4 @@ pub use encoder_layer::{
     transformer_encoder_layer, TransformerEncoderLayer, TransformerEncoderLayerParams,
 };
 pub use ffn::{feed_forward, FeedForward};
-pub use transformer::Transformer;
+pub use model::Transformer;

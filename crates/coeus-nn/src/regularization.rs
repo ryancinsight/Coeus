@@ -36,7 +36,7 @@ impl AlphaDropout {
 
     /// Create a new AlphaDropout layer.
     pub fn new(p: f64) -> Self {
-        assert!(p >= 0.0 && p < 1.0, "p must be in [0, 1)");
+        assert!((0.0..1.0).contains(&p), "p must be in [0, 1)");
         Self {
             p,
             is_training: true,
@@ -74,7 +74,7 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     if feature_wise {
         for _batch in 0..shape[0] {
             for _channel in 0..channels {
-                let kept = rng.next_f64() >= p;
+                let kept = rng.next_unit() >= p;
                 keep.extend(std::iter::repeat_n(
                     if kept { T::one() } else { T::zero() },
                     spatial,
@@ -83,7 +83,7 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         }
     } else {
         keep.extend((0..numel).map(|_| {
-            if rng.next_f64() >= p {
+            if rng.next_unit() >= p {
                 T::one()
             } else {
                 T::zero()
@@ -163,7 +163,7 @@ pub struct FeatureAlphaDropout {
 impl FeatureAlphaDropout {
     /// Create a new FeatureAlphaDropout layer.
     pub fn new(p: f64) -> Self {
-        assert!(p >= 0.0 && p < 1.0, "p must be in [0, 1)");
+        assert!((0.0..1.0).contains(&p), "p must be in [0, 1)");
         Self {
             p,
             is_training: true,
@@ -249,8 +249,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GaussianN
         let std = self.std;
         let mut i = 0;
         while i < numel {
-            let u1 = rng.next_f64().max(1e-10);
-            let u2 = rng.next_f64();
+            let u1 = rng.next_unit().max(1e-10);
+            let u2 = rng.next_unit();
             let r = (-2.0 * u1.ln()).sqrt() * std;
             noise[i] = T::from_f64(r * (2.0 * std::f64::consts::PI * u2).cos());
             if i + 1 < numel {

@@ -1,6 +1,5 @@
 //! Reduction CPU kernel delegations: reduce, argmax/argmin, topk, cumulative
 //! sum/product scans.
-#![allow(clippy::too_many_arguments)]
 
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
@@ -29,7 +28,7 @@ where
 
 #[inline]
 pub(super) fn argmax<T, B>(
-    backend: &B,
+    _backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
     axis: usize,
@@ -39,20 +38,15 @@ pub(super) fn argmax<T, B>(
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
-    coeus_leto::argmax_into(
-        a_layout,
-        a.as_slice(),
-        axis,
-        c_layout,
-        backend.as_mut_slice_i64(c),
-    )
-    .expect("coeus-leto argmax failed");
+    coeus_leto::argmax_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+        .expect("coeus-leto argmax failed");
 }
 
 #[inline]
 pub(super) fn argmin<T, B>(
-    backend: &B,
+    _backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
     axis: usize,
@@ -62,20 +56,15 @@ pub(super) fn argmin<T, B>(
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
-    coeus_leto::argmin_into(
-        a_layout,
-        a.as_slice(),
-        axis,
-        c_layout,
-        backend.as_mut_slice_i64(c),
-    )
-    .expect("coeus-leto argmin failed");
+    coeus_leto::argmin_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+        .expect("coeus-leto argmin failed");
 }
 
 #[inline]
 pub(super) fn topk<T, B>(
-    backend: &B,
+    _backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
     k: usize,
@@ -89,6 +78,7 @@ pub(super) fn topk<T, B>(
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
     crate::reduction::topk::topk_impl(
         a.as_slice(),
@@ -97,7 +87,7 @@ pub(super) fn topk<T, B>(
         axis,
         largest,
         values.as_mut_slice(),
-        backend.as_mut_slice_i64(indices),
+        indices.as_mut_slice(),
     );
 }
 
