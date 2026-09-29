@@ -291,6 +291,7 @@ dec.zero_grad()
 fn test_transformer_encoder_bindings() {
     run_script(
         r#"
+import math
 import pycoeus
 
 # Encoder layer construction validates dropout_p and preserves [batch, seq, d_model].
@@ -339,6 +340,22 @@ for h, n in ((1, 1), (2, 2), (4, 1)):
     out = enc.forward(src)
     assert out.shape == [1, 3, 4], f"encoder h={h} n={n} shape={out.shape}"
     assert any(abs(v) > 1e-6 for v in out.data), f"encoder h={h} n={n} all-zero output"
+
+# The largest supported specialization constructs and executes within the
+# native test-thread stack while preserving its full layer count.
+largest = pycoeus.TransformerEncoder(
+    d_model=32, d_ff=1, num_heads=32, num_layers=12, dropout_p=0.0
+)
+largest_src = pycoeus.Tensor([0.01 * (i + 1) for i in range(32)], [1, 1, 32])
+largest_out = largest.forward(largest_src)
+largest_manual = largest_src
+for layer in largest.layers:
+    largest_manual = layer.forward(largest_manual)
+assert largest.num_layers == 12
+assert largest_out.shape == [1, 1, 32]
+assert all(math.isfinite(v) for v in largest_out.data)
+assert largest_out.data == largest_manual.data
+assert any(a != b for a, b in zip(largest_out.data, largest_src.data))
 
 try:
     bad = pycoeus.TransformerEncoder(d_model=4, d_ff=8, num_heads=2, num_layers=3, dropout_p=0.0)
