@@ -62,7 +62,7 @@ hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", vers
 hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0", default-features = false }
 hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
 hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.19.0" }
-themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.10.1" }
+themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.11.0" }
 
 # ── Error ──
 thiserror = "2"
