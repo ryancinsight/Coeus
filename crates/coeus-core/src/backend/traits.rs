@@ -104,9 +104,12 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
 /// ```
 /// # Safety
 ///
-/// Implementations must not return from [`Backend::parallel_for`] until every
-/// invocation of the supplied closure has completed. CPU kernels may use this
-/// synchronization guarantee to keep scoped borrows alive across dispatch.
+/// If [`Backend::parallel_for`] returns normally, implementations must invoke
+/// the supplied closure exactly once for each index in `[start, end)` and for
+/// no other index. They must not return until every invocation has completed.
+/// CPU kernels rely on these guarantees for disjoint writes into output
+/// storage and use the synchronization guarantee to keep scoped borrows alive
+/// across dispatch.
 pub unsafe trait Backend: ComputeBackend + Default {
     /// Execute `f(i)` for `i` in `[start, end)` — possibly in parallel.
     ///
@@ -116,4 +119,43 @@ pub unsafe trait Backend: ComputeBackend + Default {
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)
     where
         F: Fn(usize) + Send + Sync + 'static;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Backend;
+    use crate::{MoiraiBackend, SequentialBackend};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    fn assert_backend_visits_each_index_once<B: Backend>(backend: B, len: usize) {
+        let start = 3;
+        let end = start + len;
+        let visits = Arc::new((0..end).map(|_| AtomicUsize::new(0)).collect::<Vec<_>>());
+        let worker_visits = Arc::clone(&visits);
+        backend.parallel_for(start, end, move |index| {
+            worker_visits[index].fetch_add(1, Ordering::Relaxed);
+        });
+
+        assert!(visits[..start]
+            .iter()
+            .all(|count| count.load(Ordering::Relaxed) == 0));
+        for index in start..end {
+            assert_eq!(
+                visits[index].load(Ordering::Relaxed),
+                1,
+                "parallel_for must visit index {index} exactly once"
+            );
+        }
+    }
+
+    #[test]
+    fn sequential_backend_visits_each_parallel_index_once() {
+        assert_backend_visits_each_index_once(SequentialBackend::new(), 13);
+    }
+
+    #[test]
+    fn moirai_backend_visits_each_parallel_index_once() {
+        assert_backend_visits_each_index_once(MoiraiBackend::new(), 4_097);
+    }
 }
