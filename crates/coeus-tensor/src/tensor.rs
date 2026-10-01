@@ -4,9 +4,28 @@
 use std::marker::PhantomData;
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar,
-    Shape, Storage, StorageMut, Strides,
+    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout,
+    MoiraiBackend, Scalar, Shape, Storage, StorageMut, Strides,
 };
+use thiserror::Error;
+
+#[path = "tensor_storage.rs"]
+mod tensor_storage;
+
+/// Failure while transferring a tensor between different backends.
+#[derive(Debug, Error)]
+pub enum TensorTransferError<SourceError, DestinationError>
+where
+    SourceError: std::error::Error + 'static,
+    DestinationError: std::error::Error + 'static,
+{
+    /// The source backend could not copy its storage to the host.
+    #[error("source backend transfer failed")]
+    Source(#[source] SourceError),
+    /// The destination backend could not allocate or populate storage.
+    #[error("destination backend transfer failed")]
+    Destination(#[source] DestinationError),
+}
 
 /// Generic N-dimensional tensor.
 ///
@@ -25,7 +44,8 @@ use coeus_core::{
 /// ```
 /// use coeus_tensor::Tensor;
 ///
-/// let t: Tensor<f32> = Tensor::from_slice([2, 3], &[1., 2., 3., 4., 5., 6.]);
+/// let t: Tensor<f32> = Tensor::from_slice([2, 3], &[1., 2., 3., 4., 5., 6.])
+///     .expect("example tensor allocation succeeds");
 /// assert_eq!(t.shape(), &[2, 3]);
 /// assert_eq!(t.numel(), 6);
 /// assert_eq!(t.as_slice(), &[1., 2., 3., 4., 5., 6.]);
@@ -36,7 +56,8 @@ use coeus_core::{
 /// ```
 /// use coeus_tensor::Tensor;
 ///
-/// let t: Tensor<f32> = Tensor::from_slice([2, 3], &[1., 2., 3., 4., 5., 6.]);
+/// let t: Tensor<f32> = Tensor::from_slice([2, 3], &[1., 2., 3., 4., 5., 6.])
+///     .expect("example tensor allocation succeeds");
 /// let row = t.slice(&[(0, 1), (0, 3)]); // first row
 /// assert_eq!(row.shape(), &[1, 3]);
 /// assert_eq!(row.as_slice(), &[1., 2., 3.]);
@@ -61,6 +82,19 @@ impl<T: Scalar, B: ComputeBackend> Clone for Tensor<T, B> {
 // ── Basic accessors ──
 
 impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
+    #[inline]
+    fn checked_numel(shape: &Shape, operation: &'static str) -> Result<usize, B::Error> {
+        shape.iter().try_fold(1usize, |product, &dimension| {
+            product.checked_mul(dimension).ok_or_else(|| {
+                BackendError::Overflow {
+                    operation,
+                    reason: "shape element count exceeds usize",
+                }
+                .into()
+            })
+        })
+    }
+
     /// Number of dimensions.
     ///
     /// # Examples
@@ -69,7 +103,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// use coeus_tensor::Tensor;
     /// use coeus_core::SequentialBackend;
     ///
-    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24]);
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24])
+    ///     .expect("example tensor allocation succeeds");
     /// assert_eq!(t.ndim(), 3);
     /// ```
     #[inline]
@@ -85,7 +120,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// use coeus_tensor::Tensor;
     /// use coeus_core::SequentialBackend;
     ///
-    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24]);
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24])
+    ///     .expect("example tensor allocation succeeds");
     /// assert_eq!(t.numel(), 24);
     /// ```
     #[inline]
@@ -101,7 +137,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// use coeus_tensor::Tensor;
     /// use coeus_core::SequentialBackend;
     ///
-    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[0.0; 6]);
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[0.0; 6])
+    ///     .expect("example tensor allocation succeeds");
     /// assert_eq!(t.shape(), &[2, 3]);
     /// ```
     #[inline]
@@ -140,17 +177,27 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     }
 
     /// Mutable reference to storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend storage error if copy-on-write detachment fails.
     #[inline]
-    pub fn storage_mut(&mut self) -> &mut B::DeviceBuffer<T> {
-        self.storage.make_unique();
-        &mut self.storage
+    pub fn storage_mut(&mut self) -> Result<&mut B::DeviceBuffer<T>, B::Error> {
+        self.storage.make_unique()?;
+        Ok(&mut self.storage)
     }
 
     /// Mutable reference to storage and reference to layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend storage error if copy-on-write detachment fails.
     #[inline]
-    pub fn storage_mut_and_layout(&mut self) -> (&mut B::DeviceBuffer<T>, &Layout) {
-        self.storage.make_unique();
-        (&mut self.storage, &self.layout)
+    pub fn storage_mut_and_layout(
+        &mut self,
+    ) -> Result<(&mut B::DeviceBuffer<T>, &Layout), B::Error> {
+        self.storage.make_unique()?;
+        Ok((&mut self.storage, &self.layout))
     }
 
     /// Mutable references to storage and layout without eagerly making the
@@ -176,32 +223,42 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// The backend performs the device-to-host transfer when its storage is
     /// not directly CPU-addressable. Views are compacted according to their
     /// layout, so offsets and strides do not leak into the returned buffer.
-    #[must_use]
-    pub fn to_vec_on(&self, backend: &B) -> Vec<T> {
+    pub fn to_vec_on(&self, backend: &B) -> Result<Vec<T>, B::Error> {
         if let Some(host_slice) = self.storage.try_as_slice() {
-            return coeus_leto::contiguous_values(&self.layout, host_slice)
-                .expect("tensor host materialization requires a valid layout");
+            return coeus_leto::contiguous_values(&self.layout, host_slice).map_err(|error| {
+                BackendError::Storage {
+                    operation: "tensor host materialization",
+                    reason: error.to_string(),
+                }
+                .into()
+            });
         }
 
         let mut physical = vec![T::zero(); Storage::len(&self.storage)];
-        backend.copy_to_host(&self.storage, &mut physical);
-        coeus_leto::contiguous_values(&self.layout, &physical)
-            .expect("tensor host materialization requires a valid layout")
+        backend.copy_to_host(&self.storage, &mut physical)?;
+        coeus_leto::contiguous_values(&self.layout, &physical).map_err(|error| {
+            BackendError::Storage {
+                operation: "tensor host materialization",
+                reason: error.to_string(),
+            }
+            .into()
+        })
     }
 
     /// Expose logical row-major host values, borrowing when storage permits.
     ///
     /// Contiguous CPU-addressable tensors borrow their storage. Offset,
     /// strided, and device-backed tensors materialize through the backend.
-    #[must_use]
-    pub fn host_cow_on<'a>(&'a self, backend: &B) -> std::borrow::Cow<'a, [T]> {
+    pub fn host_cow_on<'a>(&'a self, backend: &B) -> Result<std::borrow::Cow<'a, [T]>, B::Error> {
         if self.is_contiguous() {
             if let Some(host_slice) = self.storage.try_as_slice() {
                 let start = self.layout.offset();
-                return std::borrow::Cow::Borrowed(&host_slice[start..start + self.numel()]);
+                return Ok(std::borrow::Cow::Borrowed(
+                    &host_slice[start..start + self.numel()],
+                ));
             }
         }
-        std::borrow::Cow::Owned(self.to_vec_on(backend))
+        Ok(std::borrow::Cow::Owned(self.to_vec_on(backend)?))
     }
 }
 
@@ -242,263 +299,122 @@ where
     ///
     /// Triggers COW if storage is shared.
     ///
+    /// # Errors
+    /// Returns the backend storage error if copy-on-write allocation or copying fails.
+    ///
     /// # Panics
     /// If the tensor is not contiguous.
     #[inline]
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
+    pub fn as_mut_slice(&mut self) -> Result<&mut [T], B::Error> {
         assert!(
             self.is_contiguous(),
             "as_mut_slice requires contiguous tensor"
         );
         let start = self.layout.offset();
         let len = self.numel();
-        &mut self.storage.as_mut_slice()[start..start + len]
+        let storage = self.storage.as_mut_slice()?;
+        Ok(&mut storage[start..start + len])
     }
 
     /// Set element at logical index (triggers COW if shared).
+    ///
+    /// # Errors
+    /// Returns the backend storage error if copy-on-write allocation or copying fails.
     #[inline]
-    pub fn set(&mut self, index: &[usize], val: T) {
+    pub fn set(&mut self, index: &[usize], val: T) -> Result<(), B::Error> {
         let off = self.layout.physical_index(index);
-        self.storage.as_mut_slice()[off] = val;
+        self.storage.as_mut_slice()?[off] = val;
+        Ok(())
     }
 }
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
     /// Expose logical row-major host values on `B::default()`.
-    #[must_use]
     #[inline]
-    pub fn host_cow(&self) -> std::borrow::Cow<'_, [T]> {
+    pub fn host_cow(&self) -> Result<std::borrow::Cow<'_, [T]>, B::Error> {
         self.host_cow_on(&B::default())
     }
 
     /// Materialize logical tensor values in row-major order on the host.
-    #[must_use]
     #[inline]
-    pub fn to_vec(&self) -> Vec<T> {
+    pub fn to_vec(&self) -> Result<Vec<T>, B::Error> {
         self.to_vec_on(&B::default())
     }
 
     /// Make this tensor contiguous in-place on the given backend.
     #[inline]
-    pub fn make_contiguous_on(&mut self, backend: &B) {
+    pub fn make_contiguous_on(&mut self, backend: &B) -> Result<(), B::Error> {
         if self.is_contiguous() {
-            return;
+            return Ok(());
         }
-        *self = self.to_contiguous_on(backend);
+        *self = self.to_contiguous_on(backend)?;
+        Ok(())
     }
 
     /// Full (non-view) copy of the tensor, compact and contiguous on the given backend.
     #[inline]
-    pub fn to_contiguous_on(&self, backend: &B) -> Self {
+    pub fn to_contiguous_on(&self, backend: &B) -> Result<Self, B::Error> {
         if self.is_contiguous() && self.layout.offset() == 0 {
-            return self.clone();
+            return Ok(self.clone());
         }
-        // Direct compaction for CPU-addressable storage to avoid recursion and host-to-device transfers
-        if let Some(src_slice) = self.storage.try_as_slice() {
-            let values = coeus_leto::contiguous_values(&self.layout, src_slice)
-                .expect("coeus-leto contiguous materialization failed");
-            return Self::from_slice_on(self.shape_cloned(), &values, backend);
-        }
-        let host_backend = MoiraiBackend::new();
-        let host_tensor = self.to_backend_on(backend, &host_backend);
-        let host_contiguous = host_tensor.to_contiguous();
-        host_contiguous.to_backend_on(&host_backend, backend)
+        let values = self.to_vec_on(backend)?;
+        Self::from_slice_on(self.shape_cloned(), &values, backend)
     }
 
     /// Make this tensor contiguous in-place.
     #[inline]
-    pub fn make_contiguous(&mut self) {
-        self.make_contiguous_on(&B::default());
+    pub fn make_contiguous(&mut self) -> Result<(), B::Error> {
+        self.make_contiguous_on(&B::default())
     }
 
     /// Full (non-view) copy of the tensor, compact and contiguous.
     #[inline]
-    pub fn to_contiguous(&self) -> Self {
+    pub fn to_contiguous(&self) -> Result<Self, B::Error> {
         self.to_contiguous_on(&B::default())
-    }
-}
-
-// ── Generic constructors & device transfers ──
-
-impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
-    #[inline(always)]
-    fn from_storage_and_shape(storage: B::DeviceBuffer<T>, shape: Shape) -> Self {
-        Self {
-            storage,
-            layout: Layout::new(shape),
-            _backend: PhantomData,
-        }
-    }
-
-    /// Allocate a tensor with the given shape without initializing the elements.
-    ///
-    /// # Safety
-    /// The returned tensor's contents are unspecified. Callers **must** write
-    /// every element before reading. This is used internally by kernel dispatch
-    /// functions that unconditionally overwrite the output (e.g., `elementwise_unary`,
-    /// `elementwise_binary`) to avoid a redundant zero-fill pass.
-    #[inline]
-    pub fn alloc_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {
-        let shape = shape.into();
-        let numel: usize = shape.iter().product();
-        Self::from_storage_and_shape(backend.allocate(numel), shape)
-    }
-
-    /// Create a new tensor filled with zeros on the given backend.
-    #[inline]
-    pub fn zeros_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {
-        let shape = shape.into();
-        let numel: usize = shape.iter().product();
-        Self::from_storage_and_shape(backend.allocate_zeroed(numel), shape)
-    }
-
-    /// Create a new tensor filled with ones on the given backend.
-    #[inline]
-    pub fn ones_on<S: Into<Shape>>(shape: S, backend: &B) -> Self {
-        let shape = shape.into();
-        let numel: usize = shape.iter().product();
-        let mut storage = backend.allocate(numel);
-        backend.fill(&mut storage, T::one());
-        Self::from_storage_and_shape(storage, shape)
-    }
-
-    /// Create a new tensor filled with a constant value on the given backend.
-    #[inline]
-    pub fn full_on<S: Into<Shape>>(shape: S, value: T, backend: &B) -> Self {
-        let shape = shape.into();
-        let numel: usize = shape.iter().product();
-        let mut storage = backend.allocate(numel);
-        backend.fill(&mut storage, value);
-        Self::from_storage_and_shape(storage, shape)
-    }
-
-    /// Create from a slice of data and a shape on the given backend.
-    ///
-    /// # Panics
-    /// If `data.len() != shape.numel()`.
-    #[inline]
-    pub fn from_slice_on<S: Into<Shape>>(shape: S, data: &[T], backend: &B) -> Self {
-        let shape = shape.into();
-        let numel: usize = shape.iter().product();
-        assert_eq!(numel, data.len(), "data size mismatch for shape");
-        let mut storage = backend.allocate(numel);
-        backend.copy_to_device(data, &mut storage);
-        Self::from_storage_and_shape(storage, shape)
-    }
-
-    /// Construct a tensor from its raw storage and layout parts.
-    #[inline]
-    pub fn from_raw_parts(storage: B::DeviceBuffer<T>, layout: Layout) -> Self {
-        Self {
-            storage,
-            layout,
-            _backend: PhantomData,
-        }
-    }
-
-    /// Copy tensor memory to a new backend using explicit backend references.
-    ///
-    /// # Performance
-    /// - Zero-copy slice cast (bytemuck) if source is host addressable.
-    /// - Intermediate host-buffer allocation scaled to `numel()` rather than the full physical buffer layout.
-    pub fn to_backend_on<NewB: ComputeBackend>(
-        &self,
-        src_backend: &B,
-        dst_backend: &NewB,
-    ) -> Tensor<T, NewB> {
-        if std::any::TypeId::of::<B>() == std::any::TypeId::of::<NewB>() {
-            let cloned_storage = self.storage.clone();
-            // SAFETY: Since B and NewB are the same type, B::DeviceBuffer<T> and NewB::DeviceBuffer<T> are the same type.
-            // We transmute the cloned device buffer to the destination device buffer type.
-            let dst_storage = unsafe {
-                assert_eq!(
-                    std::mem::size_of::<B::DeviceBuffer<T>>(),
-                    std::mem::size_of::<NewB::DeviceBuffer<T>>()
-                );
-                let dst: NewB::DeviceBuffer<T> = std::mem::transmute_copy(&cloned_storage);
-                std::mem::forget(cloned_storage);
-                dst
-            };
-            return Tensor {
-                storage: dst_storage,
-                layout: self.layout.clone(),
-                _backend: PhantomData,
-            };
-        }
-
-        let numel = self.numel();
-        let mut dst_storage = dst_backend.allocate(numel);
-
-        if let Some(host_slice) = self.storage.try_as_slice() {
-            let start = self.layout.offset();
-            if self.is_contiguous() {
-                dst_backend.copy_to_device(&host_slice[start..start + numel], &mut dst_storage);
-            } else {
-                let host_data = coeus_leto::contiguous_values(&self.layout, host_slice)
-                    .expect("coeus-leto backend transfer materialization failed");
-                dst_backend.copy_to_device(&host_data, &mut dst_storage);
-            }
-        } else {
-            let storage_len = Storage::len(&self.storage);
-            let mut full_host_storage = vec![T::zero(); storage_len];
-            src_backend.copy_to_host(&self.storage, &mut full_host_storage);
-
-            if self.is_contiguous() {
-                let start = self.layout.offset();
-                dst_backend
-                    .copy_to_device(&full_host_storage[start..start + numel], &mut dst_storage);
-            } else {
-                let host_data = coeus_leto::contiguous_values(&self.layout, &full_host_storage)
-                    .expect("coeus-leto backend transfer materialization failed");
-                dst_backend.copy_to_device(&host_data, &mut dst_storage);
-            }
-        }
-
-        Tensor {
-            storage: dst_storage,
-            layout: Layout::new(self.shape_cloned()),
-            _backend: PhantomData,
-        }
     }
 }
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
     /// Create a new tensor filled with zeros.
     #[inline]
-    pub fn zeros<S: Into<Shape>>(shape: S) -> Self {
+    pub fn zeros<S: Into<Shape>>(shape: S) -> Result<Self, B::Error> {
         Self::zeros_on(shape, &B::default())
     }
 
     /// Create a new tensor filled with ones.
     #[inline]
-    pub fn ones<S: Into<Shape>>(shape: S) -> Self {
+    pub fn ones<S: Into<Shape>>(shape: S) -> Result<Self, B::Error> {
         Self::ones_on(shape, &B::default())
     }
 
     /// Create a new tensor filled with a constant value.
     #[inline]
-    pub fn full<S: Into<Shape>>(shape: S, value: T) -> Self {
+    pub fn full<S: Into<Shape>>(shape: S, value: T) -> Result<Self, B::Error> {
         Self::full_on(shape, value, &B::default())
     }
 
     /// Create from a slice of data and a shape.
     ///
-    /// # Panics
-    /// If `data.len() != shape.numel()`.
+    /// # Errors
+    /// Returns a storage error when the shape does not match `data` or the
+    /// backend cannot allocate or copy the values.
     #[inline]
-    pub fn from_slice<S: Into<Shape>>(shape: S, data: &[T]) -> Self {
+    pub fn from_slice<S: Into<Shape>>(shape: S, data: &[T]) -> Result<Self, B::Error> {
         Self::from_slice_on(shape, data, &B::default())
     }
 
     /// Create a 1-D tensor from a vector.
     #[inline]
-    pub fn from_vec(data: Vec<T>) -> Self {
+    pub fn from_vec(data: Vec<T>) -> Result<Self, B::Error> {
         let n = data.len();
         Self::from_slice([n], &data)
     }
 
     /// Copy tensor memory to a new backend.
-    pub fn to_backend<NewB: ComputeBackend + Default>(&self, backend: &NewB) -> Tensor<T, NewB> {
+    pub fn to_backend<NewB: ComputeBackend + Default>(
+        &self,
+        backend: &NewB,
+    ) -> Result<Tensor<T, NewB>, TensorTransferError<B::Error, NewB::Error>> {
         self.to_backend_on(&B::default(), backend)
     }
 }

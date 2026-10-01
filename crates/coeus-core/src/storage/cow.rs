@@ -68,14 +68,16 @@ impl<S: Storage<T>, T> Storage<T> for CowStorage<S> {
 }
 
 impl<S: StorageMut<T>, T> StorageMut<T> for CowStorage<S> {
+    type Error = S::Error;
+
     #[inline]
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error> {
         self.inner.try_as_mut_slice()
     }
 
     #[inline]
-    fn make_unique(&mut self) {
-        self.inner.make_unique();
+    fn make_unique(&mut self) -> Result<(), Self::Error> {
+        self.inner.make_unique()
     }
 }
 
@@ -88,7 +90,7 @@ impl<S: CpuAddressableStorage<T>, T> CpuAddressableStorage<T> for CowStorage<S> 
 
 impl<S: CpuAddressableStorageMut<T>, T> CpuAddressableStorageMut<T> for CowStorage<S> {
     #[inline]
-    fn as_mut_slice(&mut self) -> &mut [T] {
+    fn as_mut_slice(&mut self) -> Result<&mut [T], Self::Error> {
         self.inner.as_mut_slice()
     }
 }

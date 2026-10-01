@@ -7,7 +7,16 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 /// Backends choose their provider through the implementation: CPU backends
 /// call Leto over borrowed storage, while accelerator backends call
 /// Hephaestus over device-resident buffers.
-pub trait CrossEntropyOps<T: Scalar>: ComputeBackend {
+///
+/// # Safety
+///
+/// On `Ok(())`, `cross_entropy_forward` must write the complete loss and
+/// probabilities outputs described by their layouts without reading their
+/// previous contents. The backward method accumulates into its destination
+/// and requires initialized storage. An error may leave destinations
+/// partially written; callers must discard uninitialized destinations on
+/// error.
+pub unsafe trait CrossEntropyOps<T: Scalar>: ComputeBackend {
     /// Provider-native target representation retained for backward.
     type Targets: Send + Sync + 'static;
 

@@ -8,6 +8,7 @@ use hephaestus_wgpu::{WgpuAttentionOps, WgpuDevice};
 // process-global device owns queue synchronization for every submitted kernel.
 unsafe impl HephaestusProvider for WgpuBackend {
     type Device = WgpuDevice;
+    type Error = WgpuBackendError;
 
     const NAME: &'static str = "wgpu";
 
@@ -20,7 +21,10 @@ unsafe impl HephaestusProvider for WgpuBackend {
     }
 }
 
-impl AttentionProvider<f32> for WgpuBackend {
+// SAFETY: `WgpuAttentionOps` initializes both forward outputs before a
+// successful return and accumulates backward gradients into initialized
+// destinations, as required by the Hephaestus attention contract.
+unsafe impl AttentionProvider<f32> for WgpuBackend {
     type Operations = WgpuAttentionOps;
 }
 
@@ -38,7 +42,8 @@ impl AttentionBackend<f32> for WgpuBackend {
     }
 }
 
-impl coeus_ops::AttentionOps<f32> for WgpuBackend {
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl coeus_ops::AttentionOps<f32> for WgpuBackend {
     fn sdp_attention(
         &self,
         query: &Self::DeviceBuffer<f32>,

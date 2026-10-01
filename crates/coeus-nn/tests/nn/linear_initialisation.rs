@@ -24,9 +24,11 @@ fn batch(backend: &MoiraiBackend) -> Var<f32, MoiraiBackend> {
             vec![2, IN],
             &[0.5, -1.0, 2.0, 1.5, 0.25, -0.75],
             backend,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         false,
     )
+    .expect("invariant: test backend operation succeeds")
 }
 
 /// The units must not all hold the same weights.
@@ -79,8 +81,12 @@ fn units_take_distinct_gradients_under_a_weight_dependent_loss() {
     let layer = Linear::<f32, MoiraiBackend>::new(IN, OUT, true).expect("in_features is non-zero");
 
     let output = layer.forward(&batch(&backend)).expect("valid batch");
-    let squared = coeus_autograd::mul(&output, &output);
-    coeus_autograd::sum(&squared).backward().expect("backward");
+    let squared =
+        coeus_autograd::mul(&output, &output).expect("invariant: test operation succeeds");
+    coeus_autograd::sum(&squared)
+        .expect("invariant: test operation succeeds")
+        .backward()
+        .expect("backward");
 
     let grad = layer
         .weight

@@ -37,26 +37,27 @@ use coeus_tensor::Tensor;
 /// and reduction on the selected provider; only the one-element result
 /// crosses `B::copy_to_host`, not both full operands.
 #[inline]
-#[must_use]
-pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> T {
+pub fn dot<T: Scalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+) -> Result<T, B::Error> {
     let n = a.numel();
     assert_eq!(n, b.numel(), "dot: numel mismatch: a={n}, b={}", b.numel());
     if n == 0 {
-        return T::zero();
+        return Ok(T::zero());
     }
     let backend = B::default();
-    let flatten = |x: &Tensor<T, B>| -> Tensor<T, B> {
+    let flatten = |x: &Tensor<T, B>| -> Result<Tensor<T, B>, B::Error> {
         if x.is_contiguous() && x.layout().offset() == 0 {
-            x.reshape([n])
+            Ok(x.reshape([n]))
         } else {
-            x.to_contiguous_on(&backend).reshape([n])
+            Ok(x.to_contiguous_on(&backend)?.reshape([n]))
         }
     };
-    let a_flat = flatten(a);
-    let b_flat = flatten(b);
-    let product = crate::binary::mul(&a_flat, &b_flat, &backend);
+    let a_flat = flatten(a)?;
+    let b_flat = flatten(b)?;
+    let product = crate::binary::mul(&a_flat, &b_flat, &backend)?;
     super::sum(&product, &backend)
-        .expect("invariant: sum over a freshly reshaped rank-1 tensor at axis 0 cannot fail")
 }
 
 /// Per-channel 3-vector cross product along `dim`.
@@ -76,12 +77,11 @@ pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T
 /// for a contiguous tensor with `dim` the last axis; every other backend
 /// (and `WgpuBackend` outside that layout) uses the shared host-fold.
 #[inline]
-#[must_use]
 pub fn cross<T: Scalar, B: CrossOps<T> + Default>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
     dim: usize,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let shape = a.shape();
     assert_eq!(
         shape,
@@ -106,14 +106,15 @@ pub fn cross<T: Scalar, B: CrossOps<T> + Default>(
     out_shape[dim] = 3;
 
     let backend = B::default();
-    let a_c = a.to_contiguous_on(&backend);
-    let b_c = b.to_contiguous_on(&backend);
+    let a_c = a.to_contiguous_on(&backend)?;
+    let b_c = b.to_contiguous_on(&backend)?;
 
-    let storage = backend
-        .cross_storage(a_c.storage(), a_c.layout(), b_c.storage(), dim)
-        .expect("invariant: shape/axis already asserted above");
+    let storage = backend.cross_storage(a_c.storage(), a_c.layout(), b_c.storage(), dim)?;
 
-    Tensor::from_raw_parts(storage, coeus_core::Layout::new(out_shape.into()))
+    Ok(Tensor::from_raw_parts(
+        storage,
+        coeus_core::Layout::new(out_shape.into()),
+    ))
 }
 
 #[cfg(test)]
@@ -126,14 +127,17 @@ mod tests {
 
     fn t_1d(data: &[f32]) -> CoTensor<f32, B> {
         CoTensor::<f32, B>::from_slice(vec![data.len()], data)
+            .expect("invariant: test backend operation succeeds")
     }
 
     fn t_2d(rows: usize, cols: usize, data: &[f32]) -> CoTensor<f32, B> {
         CoTensor::<f32, B>::from_slice(vec![rows, cols], data)
+            .expect("invariant: test backend operation succeeds")
     }
 
     fn t_3d(d0: usize, d1: usize, d2: usize, data: &[f32]) -> CoTensor<f32, B> {
         CoTensor::<f32, B>::from_slice(vec![d0, d1, d2], data)
+            .expect("invariant: test backend operation succeeds")
     }
 
     // ── dot ────────────────────────────────────────────────────────────────
@@ -143,7 +147,7 @@ mod tests {
         let a = t_1d(&[1.0_f32, 2.0, 3.0]);
         let b = t_1d(&[4.0_f32, 5.0, 6.0]);
         // 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
-        let got = dot::<f32, B>(&a, &b);
+        let got = dot::<f32, B>(&a, &b).expect("invariant: test operation succeeds");
         assert_eq!(got, 32.0_f32);
     }
 
@@ -154,7 +158,7 @@ mod tests {
         let a = t_2d(2, 3, &[1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let b = t_2d(2, 3, &[7.0_f32, 8.0, 9.0, 10.0, 11.0, 12.0]);
         // Σ aᵢ bᵢ over flattened view: 7 + 16 + 27 + 40 + 55 + 72 = 217
-        let got = dot::<f32, B>(&a, &b);
+        let got = dot::<f32, B>(&a, &b).expect("invariant: test operation succeeds");
         assert_eq!(got, 217.0_f32);
     }
 
@@ -162,15 +166,17 @@ mod tests {
     fn dot_orthogonal_vectors_is_zero() {
         let a = t_1d(&[1.0_f32, 0.0, 0.0]);
         let b = t_1d(&[0.0_f32, 1.0, 0.0]);
-        let got = dot::<f32, B>(&a, &b);
+        let got = dot::<f32, B>(&a, &b).expect("invariant: test operation succeeds");
         assert_eq!(got, 0.0_f32);
     }
 
     #[test]
     fn dot_empty_returns_zero() {
-        let a: CoTensor<f32, B> = CoTensor::from_slice(vec![0], &[]);
-        let b: CoTensor<f32, B> = CoTensor::from_slice(vec![0], &[]);
-        let got = dot::<f32, B>(&a, &b);
+        let a: CoTensor<f32, B> =
+            CoTensor::from_slice(vec![0], &[]).expect("invariant: test backend operation succeeds");
+        let b: CoTensor<f32, B> =
+            CoTensor::from_slice(vec![0], &[]).expect("invariant: test backend operation succeeds");
+        let got = dot::<f32, B>(&a, &b).expect("invariant: test operation succeeds");
         assert_eq!(got, 0.0_f32);
     }
 
@@ -179,7 +185,7 @@ mod tests {
     fn dot_numel_mismatch_panics() {
         let a = t_1d(&[1.0_f32, 2.0]);
         let b = t_1d(&[1.0_f32, 2.0, 3.0]);
-        let _ = dot::<f32, B>(&a, &b);
+        let _ = dot::<f32, B>(&a, &b).expect("invariant: test operation succeeds");
     }
 
     // ── cross ──────────────────────────────────────────────────────────────
@@ -189,7 +195,7 @@ mod tests {
         // cross(e_x, e_y) = e_z  ⇒ [1,0,0] × [0,1,0] = [0,0,1]
         let a = t_1d(&[1.0_f32, 0.0, 0.0]);
         let b = t_1d(&[0.0_f32, 1.0, 0.0]);
-        let out = cross::<f32, B>(&a, &b, 0);
+        let out = cross::<f32, B>(&a, &b, 0).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[0.0_f32, 0.0, 1.0]);
     }
 
@@ -198,7 +204,7 @@ mod tests {
         // cross(e_y, e_x) = -e_z  ⇒ [0,1,0] × [1,0,0] = [0,0,-1]
         let a = t_1d(&[0.0_f32, 1.0, 0.0]);
         let b = t_1d(&[1.0_f32, 0.0, 0.0]);
-        let out = cross::<f32, B>(&a, &b, 0);
+        let out = cross::<f32, B>(&a, &b, 0).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[0.0_f32, 0.0, -1.0]);
     }
 
@@ -206,8 +212,8 @@ mod tests {
     fn cross_anticommutative_flips_sign() {
         let a = t_1d(&[2.0_f32, 3.0, 4.0]);
         let b = t_1d(&[5.0_f32, 6.0, 7.0]);
-        let ab = cross::<f32, B>(&a, &b, 0);
-        let ba = cross::<f32, B>(&b, &a, 0);
+        let ab = cross::<f32, B>(&a, &b, 0).expect("invariant: test operation succeeds");
+        let ba = cross::<f32, B>(&b, &a, 0).expect("invariant: test operation succeeds");
         let ab_s = ab.as_slice();
         let ba_s = ba.as_slice();
         for i in 0..3 {
@@ -222,7 +228,7 @@ mod tests {
         //   row 1: [0,1,0] × [0,0,1] = [1,0,0]
         let a = t_2d(2, 3, &[1.0_f32, 0.0, 0.0, 0.0, 1.0, 0.0]);
         let b = t_2d(2, 3, &[0.0_f32, 1.0, 0.0, 0.0, 0.0, 1.0]);
-        let out = cross::<f32, B>(&a, &b, 1);
+        let out = cross::<f32, B>(&a, &b, 1).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 3]);
         assert_eq!(out.as_slice(), &[0.0_f32, 0.0, 1.0, 1.0, 0.0, 0.0]);
     }
@@ -239,7 +245,7 @@ mod tests {
         // storage[0*3+j], storage[1*3+j], storage[2*3+j].
         let a = t_2d(3, 3, &[1.0_f32, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 4.0]);
         let b = t_2d(3, 3, &[0.0_f32, 0.0, 5.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0]);
-        let out = cross::<f32, B>(&a, &b, 0);
+        let out = cross::<f32, B>(&a, &b, 0).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[3, 3]);
         assert_eq!(
             out.as_slice(),
@@ -257,7 +263,7 @@ mod tests {
         let b_data = vec![0.0_f32, 3.0, 0.0, 5.0, 0.0, 0.0];
         let a = t_3d(2, 3, 1, &a_data);
         let b = t_3d(2, 3, 1, &b_data);
-        let out = cross::<f32, B>(&a, &b, 1);
+        let out = cross::<f32, B>(&a, &b, 1).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 3, 1]);
         assert_eq!(out.as_slice(), &[0.0_f32, 0.0, 6.0, 0.0, 20.0, 0.0]);
     }
@@ -265,7 +271,7 @@ mod tests {
     #[test]
     fn cross_parallel_vectors_is_zero() {
         let a = t_1d(&[2.0_f32, 3.0, 4.0]);
-        let out = cross::<f32, B>(&a, &a, 0);
+        let out = cross::<f32, B>(&a, &a, 0).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[0.0_f32, 0.0, 0.0]);
     }
 
@@ -274,7 +280,7 @@ mod tests {
     fn cross_wrong_axis_size_panics() {
         let a = t_1d(&[1.0_f32, 2.0, 3.0, 4.0]);
         let b = t_1d(&[5.0_f32, 6.0, 7.0, 8.0]);
-        let _ = cross::<f32, B>(&a, &b, 0);
+        let _ = cross::<f32, B>(&a, &b, 0).expect("invariant: test operation succeeds");
     }
 
     #[test]
@@ -282,6 +288,6 @@ mod tests {
     fn cross_axis_out_of_bounds_panics() {
         let a = t_1d(&[1.0_f32, 2.0, 3.0]);
         let b = t_1d(&[4.0_f32, 5.0, 6.0]);
-        let _ = cross::<f32, B>(&a, &b, 5);
+        let _ = cross::<f32, B>(&a, &b, 5).expect("invariant: test operation succeeds");
     }
 }

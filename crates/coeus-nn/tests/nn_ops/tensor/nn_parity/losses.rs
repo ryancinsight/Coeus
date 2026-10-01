@@ -9,10 +9,12 @@ fn test_softmax_parity() {
 
     // Coeus setup
     let x_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let out_coeus = coeus_nn::softmax(&x_coeus, 1);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out_coeus = coeus_nn::softmax(&x_coeus, 1).expect("valid softmax dimension");
 
     // Verify forward
     let expected_softmax_out = vec![
@@ -26,7 +28,7 @@ fn test_softmax_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_softmax_out, 1e-4);
 
     // Backward
-    let loss_coeus = coeus_autograd::sum(&out_coeus);
+    let loss_coeus = coeus_autograd::sum(&out_coeus).expect("invariant: test operation succeeds");
     loss_coeus
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -51,9 +53,11 @@ fn test_cross_entropy_loss_parity() {
 
     // Coeus setup
     let logits_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &logits_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &logits_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let loss_coeus = coeus_nn::cross_entropy_loss(&logits_coeus, &targets_data)
         .expect("invariant: parity inputs have valid cross-entropy shapes and targets");
 
@@ -90,18 +94,22 @@ fn test_cross_entropy_loss_parity() {
 #[test]
 fn cross_entropy_rejects_invalid_contracts_before_autograd_registration() {
     let rank_one = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0]),
+        CoeusTensor::<f32, SequentialBackend>::from_slice([3], &[1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     assert!(matches!(
         coeus_nn::cross_entropy_loss(&rank_one, &[0]),
         Err(BackendError::UnsupportedRank { rank: 1, .. })
     ));
 
     let logits = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        CoeusTensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     assert!(matches!(
         coeus_nn::cross_entropy_loss(&logits, &[0]),
         Err(BackendError::ShapeMismatch { .. })
@@ -117,9 +125,11 @@ fn cross_entropy_rejects_invalid_contracts_before_autograd_registration() {
     ));
 
     let empty_classes = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice([2, 0], &[]),
+        CoeusTensor::<f32, SequentialBackend>::from_slice([2, 0], &[])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     assert!(matches!(
         coeus_nn::cross_entropy_loss(&empty_classes, &[0, 0]),
         Err(BackendError::EmptyDimension {
@@ -129,9 +139,11 @@ fn cross_entropy_rejects_invalid_contracts_before_autograd_registration() {
     ));
 
     let empty_batch = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice([0, 3], &[]),
+        CoeusTensor::<f32, SequentialBackend>::from_slice([0, 3], &[])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     assert!(matches!(
         coeus_nn::cross_entropy_loss(&empty_batch, &[]),
         Err(BackendError::EmptyDimension {

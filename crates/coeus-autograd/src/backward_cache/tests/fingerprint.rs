@@ -9,7 +9,9 @@ fn node(
 ) -> Arc<dyn BackwardNode<f32, MoiraiBackend>> {
     Arc::new(TestNode {
         name,
-        output_grad: Arc::new(GradBuffer::new(Tensor::zeros([1]))),
+        output_grad: Arc::new(GradBuffer::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+        )),
         inputs,
     })
 }
@@ -17,7 +19,7 @@ fn node(
 /// A variable produced by `creator`, so an edge to it is a creator edge.
 fn output_of(creator: &Arc<dyn BackwardNode<f32, MoiraiBackend>>) -> Var<f32, MoiraiBackend> {
     Var::with_creator(
-        Tensor::zeros([1]),
+        Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
         Some(Arc::clone(creator.output_grad())),
         Arc::clone(creator),
     )
@@ -30,13 +32,34 @@ fn a_repeated_creator_edge_and_a_leaf_edge_fingerprint_apart() {
     // leaf. The second edge to an already-visited child ends its traversal
     // immediately, and a leaf recurses into nothing, so without an edge tag
     // neither contributes anything and the two hash alike.
-    let shared = node("child", vec![Var::new(Tensor::zeros([1]), true)]);
+    let shared = node(
+        "child",
+        vec![Var::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds")],
+    );
     let repeated = node("root", vec![output_of(&shared), output_of(&shared)]);
 
-    let other = node("child", vec![Var::new(Tensor::zeros([1]), true)]);
+    let other = node(
+        "child",
+        vec![Var::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds")],
+    );
     let mixed = node(
         "root",
-        vec![output_of(&other), Var::new(Tensor::zeros([1]), true)],
+        vec![
+            output_of(&other),
+            Var::new(
+                Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds"),
+        ],
     );
 
     let (repeated_hash, repeated_info) = compute_graph_structure_fingerprint(&repeated);
@@ -54,11 +77,32 @@ fn two_creator_edges_to_one_node_differ_from_edges_to_two() {
     // Same op names, same shapes, same node count on the second graph's own
     // terms -- the distinction is that one child is shared and the other pair
     // is not, which the creator ordinal is what records.
-    let shared = node("child", vec![Var::new(Tensor::zeros([1]), true)]);
+    let shared = node(
+        "child",
+        vec![Var::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds")],
+    );
     let one_child = node("root", vec![output_of(&shared), output_of(&shared)]);
 
-    let first = node("child", vec![Var::new(Tensor::zeros([1]), true)]);
-    let second = node("child", vec![Var::new(Tensor::zeros([1]), true)]);
+    let first = node(
+        "child",
+        vec![Var::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds")],
+    );
+    let second = node(
+        "child",
+        vec![Var::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds")],
+    );
     let two_children = node("root", vec![output_of(&first), output_of(&second)]);
 
     let (one_hash, one_info) = compute_graph_structure_fingerprint(&one_child);
@@ -77,7 +121,11 @@ fn the_same_graph_fingerprints_identically_twice() {
         "root",
         vec![output_of(&node(
             "child",
-            vec![Var::new(Tensor::zeros([1]), true)],
+            vec![Var::new(
+                Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds")],
         ))],
     );
 

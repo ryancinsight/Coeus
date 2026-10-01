@@ -4,7 +4,15 @@ use hephaestus_core::{ComputeDevice, CrossEntropyOps, DeviceBuffer, HephaestusEr
 use themis::PlacementHint;
 
 /// Hephaestus provider owning mean cross-entropy kernels.
-pub trait CrossEntropyProvider: HephaestusProvider {
+///
+/// # Safety
+///
+/// Successful forward operations selected by `Operations` must initialize
+/// every logical probability and loss output without reading prior contents.
+/// Backward operations accumulate into the logit-gradient buffer, which must
+/// be initialized before dispatch. A dispatch error may leave an output
+/// partially written.
+pub unsafe trait CrossEntropyProvider: HephaestusProvider {
     /// Monomorphized operation marker selected by this provider.
     type Operations: CrossEntropyOps<Self::Device, f32> + Default;
 }
@@ -141,7 +149,7 @@ where
         operation: &'static str,
         source: HephaestusError,
     ) -> Self::Error {
-        crate::HephaestusBackendError::device(operation, source)
+        P::Error::from(crate::HephaestusBackendError::device(operation, source))
     }
 }
 
@@ -155,18 +163,36 @@ pub fn prepare_candidate<P>(
     storage: &HephaestusStorage<P, f32>,
     preserve_contents: bool,
     operation: &'static str,
-) -> Result<HephaestusStorage<P, f32>, crate::HephaestusBackendError>
+) -> Result<HephaestusStorage<P, f32>, P::Error>
 where
     P: CrossEntropyProvider,
 {
-    let device = P::device();
-    let candidate = device
-        .alloc_uninitialized_with_hint(storage.len(), PlacementHint::Tier(storage.buffer().tier()))
-        .map_err(|source| crate::HephaestusBackendError::device(operation, source))?;
-    if preserve_contents {
+    let device = P::try_device().map_err(|source| {
+        P::Error::from(crate::HephaestusBackendError::device(operation, source))
+    })?;
+    let candidate = if preserve_contents {
+        let candidate = device
+            .alloc_uninitialized_with_hint(
+                storage.len(),
+                PlacementHint::Tier(storage.buffer().tier()),
+            )
+            .map_err(|source| {
+                P::Error::from(crate::HephaestusBackendError::device(operation, source))
+            })?;
         device
             .copy_buffer(storage.buffer(), &candidate)
-            .map_err(|source| crate::HephaestusBackendError::device(operation, source))?;
-    }
-    Ok(HephaestusStorage::from_buffer(candidate))
+            .map_err(|source| {
+                P::Error::from(crate::HephaestusBackendError::device(operation, source))
+            })?;
+        candidate
+    } else {
+        device
+            .alloc_zeroed_with_hint(storage.len(), PlacementHint::Tier(storage.buffer().tier()))
+            .map_err(|source| {
+                P::Error::from(crate::HephaestusBackendError::device(operation, source))
+            })?
+    };
+    // SAFETY: the candidate either copies the fully initialized source or was
+    // allocated with the provider's zero-initializing operation.
+    Ok(unsafe { HephaestusStorage::from_buffer(candidate) })
 }

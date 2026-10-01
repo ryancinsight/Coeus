@@ -12,7 +12,13 @@ use hephaestus_core::{
 };
 
 /// Provider implementation of the common ranked elementwise operation set.
-pub trait ElementwiseProvider<T>: HephaestusProvider
+///
+/// # Safety
+///
+/// When `binary` or `unary` returns `Ok(())`, it must initialize every logical
+/// output element and must not read its prior contents. An error may leave a
+/// partially written output; callers must discard it.
+pub unsafe trait ElementwiseProvider<T>: HephaestusProvider
 where
     T: Scalar + leto_ops::Scalar,
 {
@@ -51,7 +57,13 @@ where
 }
 
 /// Provider implementation of scalar exponentiation over strided views.
-pub trait ScalarPowerProvider<T>: HephaestusProvider
+///
+/// # Safety
+///
+/// When `scalar_power` returns `Ok(())`, it must initialize every logical
+/// output element and must not read its prior contents. An error may leave a
+/// partially written output; callers must discard it.
+pub unsafe trait ScalarPowerProvider<T>: HephaestusProvider
 where
     T: Float + leto_ops::Scalar,
 {

@@ -189,9 +189,9 @@ where
             SgdParameters::new(lr, momentum).map_err(|error| map_leto_error("SGD step", error))?;
         stateful_update::<T, Sgd>(
             one_state(
-                write(param_layout, param.as_mut_slice()),
+                write(param_layout, param.as_mut_slice()?),
                 read(grad_layout, grad.as_slice()),
-                write(velocity_layout, velocity.as_mut_slice()),
+                write(velocity_layout, velocity.as_mut_slice()?),
             ),
             parameters,
         )
@@ -218,10 +218,10 @@ where
             .map_err(|error| map_leto_error("Adam step", error))?;
         stateful_update::<T, Adam>(
             two_states(
-                write(param_layout, param.as_mut_slice()),
+                write(param_layout, param.as_mut_slice()?),
                 read(grad_layout, grad.as_slice()),
-                write(m_layout, m.as_mut_slice()),
-                write(v_layout, v.as_mut_slice()),
+                write(m_layout, m.as_mut_slice()?),
+                write(v_layout, v.as_mut_slice()?),
             ),
             parameters,
         )
@@ -244,9 +244,9 @@ where
             .map_err(|error| map_leto_error("RMSProp step", error))?;
         stateful_update::<T, RmsProp>(
             one_state(
-                write(param_layout, param.as_mut_slice()),
+                write(param_layout, param.as_mut_slice()?),
                 read(grad_layout, grad.as_slice()),
-                write(v_layout, v.as_mut_slice()),
+                write(v_layout, v.as_mut_slice()?),
             ),
             parameters,
         )
@@ -281,10 +281,10 @@ where
         .map_err(|error| map_leto_error("AdamW step", error))?;
         stateful_update::<T, AdamW>(
             two_states(
-                write(param_layout, param.as_mut_slice()),
+                write(param_layout, param.as_mut_slice()?),
                 read(grad_layout, grad.as_slice()),
-                write(m_layout, m.as_mut_slice()),
-                write(v_layout, v.as_mut_slice()),
+                write(m_layout, m.as_mut_slice()?),
+                write(v_layout, v.as_mut_slice()?),
             ),
             parameters,
         )
@@ -306,9 +306,9 @@ where
             .map_err(|error| map_leto_error("AdaGrad step", error))?;
         stateful_update::<T, AdaGrad>(
             one_state(
-                write(param_layout, param.as_mut_slice()),
+                write(param_layout, param.as_mut_slice()?),
                 read(grad_layout, grad.as_slice()),
-                write(history_layout, history.as_mut_slice()),
+                write(history_layout, history.as_mut_slice()?),
             ),
             parameters,
         )
@@ -323,7 +323,7 @@ mod tests {
     use super::*;
 
     fn storage(values: &[f32]) -> CpuStorage<f32> {
-        CpuStorage::from_slice(values)
+        CpuStorage::from_slice(values).expect("CPU storage allocation succeeds")
     }
 
     fn layout() -> Layout {

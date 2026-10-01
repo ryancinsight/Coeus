@@ -99,26 +99,33 @@ When `config.generation()` changes, old entries are automatically ignored (keys 
 
 ### Basic Usage
 
-No code changes required! The cache is automatically integrated into the backward pass:
+The cache is automatically integrated into the backward pass:
 
 ```rust
 use coeus_autograd::{Var, add, mul, sum};
 use coeus_core::MoiraiBackend;
+use coeus_tensor::Tensor;
 
-let x = Var::<f32, MoiraiBackend>::new(/* ... */, true);
+fn main() -> Result<(), coeus_core::BackendError> {
+    let x = Var::<f32, MoiraiBackend>::new(
+        Tensor::from_slice([2], &[1.0, 2.0])?,
+        true,
+    )?;
 
-// Iteration 1: Cache miss, graph is cached
-for i in 0..100 {
-    let y = add(&x, &x);
-    let z = mul(&y, &x);
-    let loss = sum(&z);
-    loss.backward().ok();
-    x.zero_grad();
-    
-    if i == 0 {
-        // First iteration pays topological sort cost
-        // Subsequent iterations benefit from cache
+    // Iteration 1: Cache miss, graph is cached
+    for iteration in 0..100 {
+        let y = add(&x, &x)?;
+        let z = mul(&y, &x)?;
+        let loss = sum(&z)?;
+        loss.backward()?;
+        x.zero_grad()?;
+
+        if iteration == 0 {
+            // First iteration pays topological sort cost
+            // Subsequent iterations benefit from cache
+        }
     }
+    Ok(())
 }
 ```
 

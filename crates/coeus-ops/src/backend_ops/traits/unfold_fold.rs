@@ -25,9 +25,18 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 ///
 /// 1D variants follow the same contract on `[N, C, L]` inputs.
 ///
+/// # Safety
+///
+/// On `Ok(())`, `unfold1d` and `unfold2d` must write every logical output
+/// element described by their output layouts without reading prior output
+/// contents. `fold1d` and `fold2d` accumulate into their destinations and
+/// require initialized output storage. An error may leave destinations
+/// partially written; callers must discard uninitialized destinations on
+/// error.
+///
 /// [`BackendOps`]: super::super::BackendOps
 /// [`trait_def`]: super::super::trait_def
-pub trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
+pub unsafe trait UnfoldFoldOps<T: Scalar>: ComputeBackend {
     /// Unfold 1D: extract sliding windows from `[N, C, L]` into `[N, C*kernel, L_out]`.
     ///
     /// # Errors

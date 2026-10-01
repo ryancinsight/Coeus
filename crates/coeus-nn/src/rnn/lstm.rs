@@ -97,22 +97,22 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> L
         let hs = self.hidden_size;
         let input = self.w_ih.forward(x)?;
         let hidden = self.w_hh.forward(h)?;
-        let gates = coeus_autograd::add(&input, &hidden);
+        let gates = coeus_autograd::add(&input, &hidden)?;
 
-        let slice = |start: usize, end: usize| -> Var<T, B> {
+        let slice = |start: usize, end: usize| -> Result<Var<T, B>, B::Error> {
             coeus_autograd::slice(&gates, &[(0, batch), (start, end)])
         };
 
-        let i_g = coeus_autograd::sigmoid(&slice(0, hs));
-        let f_g = coeus_autograd::sigmoid(&slice(hs, 2 * hs));
-        let g_g = coeus_autograd::tanh(&slice(2 * hs, 3 * hs));
-        let o_g = coeus_autograd::sigmoid(&slice(3 * hs, 4 * hs));
+        let i_g = coeus_autograd::sigmoid(&slice(0, hs)?)?;
+        let f_g = coeus_autograd::sigmoid(&slice(hs, 2 * hs)?)?;
+        let g_g = coeus_autograd::tanh(&slice(2 * hs, 3 * hs)?)?;
+        let o_g = coeus_autograd::sigmoid(&slice(3 * hs, 4 * hs)?)?;
 
         let c_new = coeus_autograd::add(
-            &coeus_autograd::mul(&f_g, c),
-            &coeus_autograd::mul(&i_g, &g_g),
-        );
-        let h_new = coeus_autograd::mul(&o_g, &coeus_autograd::tanh(&c_new));
+            &coeus_autograd::mul(&f_g, c)?,
+            &coeus_autograd::mul(&i_g, &g_g)?,
+        )?;
+        let h_new = coeus_autograd::mul(&o_g, &coeus_autograd::tanh(&c_new)?)?;
         Ok((h_new, c_new))
     }
 }
@@ -135,8 +135,14 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
     fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let batch = validation::cell_input(x.tensor.shape(), self.input_size, "LSTMCell")?;
         let backend = B::default();
-        let h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
-        let c = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+        let h = Var::new(
+            Tensor::zeros_on([batch, self.hidden_size], &backend)?,
+            false,
+        )?;
+        let c = Var::new(
+            Tensor::zeros_on([batch, self.hidden_size], &backend)?,
+            false,
+        )?;
         Ok(self.step_validated(x, &h, &c, batch)?.0)
     }
 }
@@ -207,24 +213,30 @@ where
             validation::sequence_input(x.tensor.shape(), self.input_size, "Lstm")?;
         let backend = B::default();
 
-        let mut h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
-        let mut c = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+        let mut h = Var::new(
+            Tensor::zeros_on([batch, self.hidden_size], &backend)?,
+            false,
+        )?;
+        let mut c = Var::new(
+            Tensor::zeros_on([batch, self.hidden_size], &backend)?,
+            false,
+        )?;
 
         let mut outputs: Vec<Var<T, B>> = Vec::with_capacity(seq_len);
         for t in 0..seq_len {
-            let x_t_3d = coeus_autograd::slice(x, &[(0, batch), (t, t + 1), (0, self.input_size)]);
-            let x_t = coeus_autograd::reshape(&x_t_3d, vec![batch, self.input_size]);
+            let x_t_3d = coeus_autograd::slice(x, &[(0, batch), (t, t + 1), (0, self.input_size)])?;
+            let x_t = coeus_autograd::reshape(&x_t_3d, vec![batch, self.input_size])?;
             let (h_new, c_new) = self.cell.step_validated(&x_t, &h, &c, batch)?;
             outputs.push(coeus_autograd::reshape(
                 &h_new,
                 vec![batch, 1, self.hidden_size],
-            ));
+            )?);
             h = h_new;
             c = c_new;
         }
 
         let refs: Vec<&Var<T, B>> = outputs.iter().collect();
-        let output = coeus_autograd::cat(&refs, 1);
+        let output = coeus_autograd::cat(&refs, 1)?;
         Ok((output, (h, c)))
     }
 }

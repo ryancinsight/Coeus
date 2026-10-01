@@ -24,7 +24,7 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     );
     // Shift by max for numerical stability: shifted = x - max(x, axis)
     let max_vals = crate::reduction::max_axis(input, axis, backend)?;
-    let shifted = crate::binary::sub(input, &max_vals, backend);
+    let shifted = crate::binary::sub(input, &max_vals, backend)?;
     // exp(shifted)
     let exp_shifted = elementwise_unary(&shifted, backend, UnaryOp::Exp)?;
     // sum(exp(shifted), axis)
@@ -32,7 +32,7 @@ pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     // log(sum_exp)
     let log_sum_exp = elementwise_unary(&sum_exp, backend, UnaryOp::Log)?;
     // out = shifted - log_sum_exp  (broadcasts log_sum_exp along axis)
-    Ok(crate::binary::sub(&shifted, &log_sum_exp, backend))
+    crate::binary::sub(&shifted, &log_sum_exp, backend)
 }
 
 /// Masked Softmax: excludes masked positions while computing softmax.
@@ -70,8 +70,8 @@ where
     let pre_count: usize = shape[..dim].iter().product();
     let post_count: usize = shape[dim + 1..].iter().product();
 
-    let input_contiguous = input.to_contiguous_on(backend);
-    let mask_contiguous = mask.to_contiguous_on(backend);
+    let input_contiguous = input.to_contiguous_on(backend)?;
+    let mask_contiguous = mask.to_contiguous_on(backend)?;
     let input_values = input_contiguous.as_slice();
     let mask_values = mask_contiguous.as_slice();
     let mut output = vec![T::zero(); input.numel()];
@@ -113,7 +113,7 @@ where
         }
     }
 
-    Ok(Tensor::from_slice_on(shape.to_vec(), &output, backend))
+    Tensor::from_slice_on(shape.to_vec(), &output, backend)
 }
 
 /// Causal (lower-triangular) Softmax along `dim`.
@@ -162,6 +162,6 @@ where
             }
         }
     }
-    let mask = Tensor::from_slice_on(shape.to_vec(), &mask_data, backend);
+    let mask = Tensor::from_slice_on(shape.to_vec(), &mask_data, backend)?;
     masked_softmax(input, &mask, dim, backend)
 }

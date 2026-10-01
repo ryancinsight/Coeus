@@ -6,7 +6,12 @@ use coeus_tensor::Tensor;
 fn test_avg_pool2d_forward_backward() {
     let pool = AvgPool2d::<f64>::with_params(2, 2, 0, 1);
     let input_data: Vec<f64> = (1..=16).map(|x| x as f64).collect();
-    let input = Var::new(Tensor::from_slice(vec![1, 1, 4, 4], &input_data), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 1, 4, 4], &input_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = pool.forward(&input).expect("valid MaxPool2d input");
 
     assert_eq!(output.tensor.shape(), &[1, 1, 2, 2]);
@@ -27,7 +32,12 @@ fn test_avg_pool2d_forward_backward() {
 fn test_max_pool2d_forward_backward() {
     let pool = MaxPool2d::<f64>::with_params(2, 2, 0, 1);
     let input_data: Vec<f64> = (1..=16).map(|x| x as f64).collect();
-    let input = Var::new(Tensor::from_slice(vec![1, 1, 4, 4], &input_data), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 1, 4, 4], &input_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = pool.forward(&input).expect("valid AvgPool2d input");
 
     assert_eq!(output.tensor.shape(), &[1, 1, 2, 2]);
@@ -56,7 +66,11 @@ fn test_max_pool2d_forward_backward() {
 
 #[test]
 fn pool2d_rejects_invalid_window_configuration() {
-    let input: Var<f64> = Var::new(Tensor::ones([1, 1, 4, 4]), false);
+    let input: Var<f64> = Var::new(
+        Tensor::ones([1, 1, 4, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     for error in [
         AvgPool2d::<f64>::new(0)
             .forward(&input)

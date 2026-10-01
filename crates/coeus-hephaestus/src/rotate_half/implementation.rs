@@ -19,7 +19,10 @@ where
         layout: &Layout,
     ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         rotate_half::<P, T>(input.buffer(), layout)
-            .map(HephaestusStorage::from_buffer)
-            .map_err(|source| HephaestusBackendError::device("rotate_half", source))
+            .map(|buffer| {
+                // SAFETY: rotate_half writes every element before returning.
+                unsafe { HephaestusStorage::from_buffer(buffer) }
+            })
+            .map_err(|source| P::Error::from(HephaestusBackendError::device("rotate_half", source)))
     }
 }

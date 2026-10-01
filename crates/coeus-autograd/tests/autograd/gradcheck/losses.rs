@@ -70,9 +70,11 @@ fn target_below<T: GradcheckScalar>(
             pred.shape().to_vec(),
             &values,
             &MoiraiBackend::new(),
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         false,
     )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn l1_loss_case<T: GradcheckScalar>() {
@@ -82,8 +84,10 @@ fn l1_loss_case<T: GradcheckScalar>() {
     let pred = tensor::<T>(&PAIR_SHAPE, 0.19);
     let target = target_below(&pred, &RESIDUALS);
 
-    gradcheck(&[pred], |v| l1_loss(&v[0], &target))
-        .expect("l1_loss backward must match central differences");
+    gradcheck(&[pred], |v| {
+        l1_loss(&v[0], &target).expect("invariant: test operation succeeds")
+    })
+    .expect("l1_loss backward must match central differences");
 }
 
 #[test]
@@ -105,6 +109,7 @@ fn smooth_l1_loss_case<T: GradcheckScalar>() {
             &target,
             <T as coeus_core::Scalar>::from_f64(SMOOTH_L1_BETA),
         )
+        .expect("invariant: test operation succeeds")
     })
     .expect("smooth_l1_loss backward must match central differences");
 }
@@ -148,6 +153,7 @@ fn binary_cross_entropy_case<T: GradcheckScalar>() {
 
     gradcheck(&[pred], |v| {
         binary_cross_entropy(&v[0], &target, <T as coeus_core::Scalar>::from_f64(1e-12))
+            .expect("invariant: test operation succeeds")
     })
     .expect("binary_cross_entropy backward must match central differences");
 }
@@ -178,11 +184,14 @@ fn bce_with_logits_case<T: GradcheckScalar>() {
         PAIR_SHAPE.to_vec(),
         &logit_values,
         &MoiraiBackend::new(),
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Sampler::probability(0.37).constant::<T>(&PAIR_SHAPE);
 
-    gradcheck(&[logits], |v| bce_with_logits(&v[0], &target))
-        .expect("bce_with_logits backward must match central differences");
+    gradcheck(&[logits], |v| {
+        bce_with_logits(&v[0], &target).expect("invariant: test operation succeeds")
+    })
+    .expect("bce_with_logits backward must match central differences");
 }
 
 #[test]
@@ -199,8 +208,10 @@ fn kl_divergence_case<T: GradcheckScalar>() {
     let log_q = Sampler::new(0.23, -2.5, -0.3).tensor::<T>(&PAIR_SHAPE);
     let p = Sampler::positive(0.59).constant::<T>(&PAIR_SHAPE);
 
-    gradcheck(&[log_q], |v| kl_divergence(&v[0], &p))
-        .expect("kl_divergence backward must match central differences");
+    gradcheck(&[log_q], |v| {
+        kl_divergence(&v[0], &p).expect("invariant: test operation succeeds")
+    })
+    .expect("kl_divergence backward must match central differences");
 }
 
 #[test]
@@ -216,8 +227,10 @@ fn poisson_nll_case<T: GradcheckScalar>() {
     let log_rate = Sampler::new(0.31, -1.2, 1.2).tensor::<T>(&PAIR_SHAPE);
     let counts = Sampler::positive(0.67).constant::<T>(&PAIR_SHAPE);
 
-    gradcheck(&[log_rate], |v| poisson_nll(&v[0], &counts))
-        .expect("poisson_nll backward must match central differences");
+    gradcheck(&[log_rate], |v| {
+        poisson_nll(&v[0], &counts).expect("invariant: test operation succeeds")
+    })
+    .expect("poisson_nll backward must match central differences");
 }
 
 #[test]
@@ -243,12 +256,16 @@ fn soft_margin_case<T: GradcheckScalar>() {
             PAIR_SHAPE.to_vec(),
             &sign_values,
             &MoiraiBackend::new(),
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    gradcheck(&[input], |v| soft_margin(&v[0], &labels))
-        .expect("soft_margin backward must match central differences");
+    gradcheck(&[input], |v| {
+        soft_margin(&v[0], &labels).expect("invariant: test operation succeeds")
+    })
+    .expect("soft_margin backward must match central differences");
 }
 
 #[test]
@@ -265,8 +282,10 @@ fn nll_loss_case<T: GradcheckScalar>() {
     let log_probs = Sampler::new(0.17, -2.4, -0.4).tensor::<T>(&[3, 4]);
     let targets = [2usize, 0, 3];
 
-    gradcheck(&[log_probs], |v| nll_loss(&v[0], &targets))
-        .expect("nll_loss backward must match central differences");
+    gradcheck(&[log_probs], |v| {
+        nll_loss(&v[0], &targets).expect("invariant: test operation succeeds")
+    })
+    .expect("nll_loss backward must match central differences");
 }
 
 #[test]
@@ -304,7 +323,8 @@ fn margin_ranking_loss_case<T: GradcheckScalar>() {
         .zip(&RANKING_GAPS)
         .map(|(&bv, &gap)| bv + <T as coeus_core::Scalar>::from_f64(gap))
         .collect();
-    let a = Tensor::<T, MoiraiBackend>::from_slice_on([4], &a_values, &backend);
+    let a = Tensor::<T, MoiraiBackend>::from_slice_on([4], &a_values, &backend)
+        .expect("invariant: test backend operation succeeds");
     let labels: Vec<T> = RANKING_LABELS
         .into_iter()
         .map(<T as coeus_core::Scalar>::from_f64)
@@ -317,6 +337,7 @@ fn margin_ranking_loss_case<T: GradcheckScalar>() {
             &labels,
             <T as coeus_core::Scalar>::from_f64(RANKING_MARGIN),
         )
+        .expect("invariant: test operation succeeds")
     })
     .expect("margin_ranking_loss backward must match central differences");
 }
@@ -354,7 +375,8 @@ fn multi_margin_case<T: GradcheckScalar>() {
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
     let scores =
-        Tensor::<T, MoiraiBackend>::from_slice_on([2, 3], &score_values, &MoiraiBackend::new());
+        Tensor::<T, MoiraiBackend>::from_slice_on([2, 3], &score_values, &MoiraiBackend::new())
+            .expect("invariant: test backend operation succeeds");
     let targets = [0usize, 1];
 
     gradcheck(&[scores], |v| {
@@ -364,6 +386,7 @@ fn multi_margin_case<T: GradcheckScalar>() {
             <T as coeus_core::Scalar>::from_f64(1.0),
             <T as coeus_core::Scalar>::from_f64(0.5),
         )
+        .expect("invariant: test operation succeeds")
     })
     .expect("multi_margin p=1 backward must match central differences");
 }
@@ -403,11 +426,14 @@ fn multi_label_margin_case<T: GradcheckScalar>() {
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
     let scores =
-        Tensor::<T, MoiraiBackend>::from_slice_on([2, 4], &score_values, &MoiraiBackend::new());
+        Tensor::<T, MoiraiBackend>::from_slice_on([2, 4], &score_values, &MoiraiBackend::new())
+            .expect("invariant: test backend operation succeeds");
     let targets = [0isize, -1, -1, -1, 1, 3, -1, -1];
 
-    gradcheck(&[scores], |v| multi_label_margin_loss(&v[0], &targets))
-        .expect("multi_label_margin_loss backward must match central differences");
+    gradcheck(&[scores], |v| {
+        multi_label_margin_loss(&v[0], &targets).expect("invariant: test operation succeeds")
+    })
+    .expect("multi_label_margin_loss backward must match central differences");
 }
 
 #[test]
@@ -427,7 +453,8 @@ fn cosine_similarity_case<T: GradcheckScalar>() {
 
     gradcheck(&[x1, x2], |v| {
         weighted(
-            &cosine_similarity(&v[0], &v[1], 1, <T as coeus_core::Scalar>::from_f64(1e-8)),
+            &cosine_similarity(&v[0], &v[1], 1, <T as coeus_core::Scalar>::from_f64(1e-8))
+                .expect("invariant: test operation succeeds"),
             &w,
         )
     })
@@ -459,6 +486,7 @@ fn cosine_embedding_loss_case<T: GradcheckScalar>() {
             &labels,
             <T as coeus_core::Scalar>::from_f64(-0.5),
         )
+        .expect("invariant: test operation succeeds")
     })
     .expect("cosine_embedding_loss backward must match central differences");
 }
@@ -486,7 +514,8 @@ fn pairwise_distance_case<T: GradcheckScalar>() {
                 &v[1],
                 <T as coeus_core::Scalar>::from_f64(2.0),
                 <T as coeus_core::Scalar>::from_f64(1e-6),
-            ),
+            )
+            .expect("invariant: test operation succeeds"),
             &w,
         )
     })
@@ -514,7 +543,8 @@ fn pairwise_distance_p_three_case<T: GradcheckScalar>() {
                 &v[1],
                 <T as coeus_core::Scalar>::from_f64(3.0),
                 <T as coeus_core::Scalar>::from_f64(1e-6),
-            ),
+            )
+            .expect("invariant: test operation succeeds"),
             &w,
         )
     })

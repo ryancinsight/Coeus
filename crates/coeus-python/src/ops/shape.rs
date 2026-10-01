@@ -1,19 +1,19 @@
-use crate::tensor::PyTensor;
+use crate::{error::map_backend_error, tensor::PyTensor};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pyfunction]
-pub fn reshape(input: &PyTensor, shape: Vec<usize>, py: Python<'_>) -> PyTensor {
+pub fn reshape(input: &PyTensor, shape: Vec<usize>, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::reshape(&input.inner, shape));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn permute(input: &PyTensor, dims: Vec<usize>, py: Python<'_>) -> PyTensor {
+pub fn permute(input: &PyTensor, dims: Vec<usize>, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::permute(&input.inner, &dims));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Move dimension `source` to position `dest` (`torch.movedim`; negative allowed).
@@ -28,7 +28,7 @@ pub fn movedim(input: &PyTensor, source: isize, dest: isize, py: Python<'_>) -> 
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::movedim(&input.inner, s as usize, d as usize));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Swap two axes (`torch.swapaxes`; negative allowed).
@@ -48,7 +48,7 @@ pub fn swapaxes(
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::swapaxes(&input.inner, a as usize, b as usize));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// N-th order discrete difference along `dim` (`torch.diff`; negative dim allowed).
@@ -69,19 +69,19 @@ pub fn diff(input: &PyTensor, n: usize, dim: isize, py: Python<'_>) -> PyResult<
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::diff(&input.inner, n, axis as usize));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn t(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn t(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::transpose_2d(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn flip(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
+pub fn flip(input: &PyTensor, axis: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::flip(&input.inner, axis));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -93,7 +93,7 @@ pub fn unsqueeze(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTen
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::unsqueeze(&input.inner, dim));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -115,7 +115,7 @@ pub fn squeeze(input: &PyTensor, dim: Option<usize>, py: Python<'_>) -> PyResult
         }
     }
     let inner = py.allow_threads(|| coeus_autograd::squeeze(&input.inner, dim));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -130,7 +130,7 @@ pub fn flatten(
     if ndim == 0 {
         // torch: flattening a 0-D tensor yields shape [1].
         let inner = py.allow_threads(|| coeus_autograd::reshape(&input.inner, vec![1]));
-        return Ok(PyTensor::from_var(inner));
+        return inner.map(PyTensor::from_var).map_err(map_backend_error);
     }
     let end = end_dim.unwrap_or(ndim - 1);
     if start_dim >= ndim || end >= ndim || end < start_dim {
@@ -141,7 +141,7 @@ pub fn flatten(
     // Collapse logic lives in coeus_autograd::flatten; the binding only handles
     // torch's 0-D edge case and argument validation.
     let inner = py.allow_threads(|| coeus_autograd::flatten(&input.inner, start_dim, end));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -158,13 +158,13 @@ pub fn broadcast_to(
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::broadcast_to(&input.inner, target_shape));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn tile(input: &PyTensor, reps: Vec<usize>, py: Python<'_>) -> PyTensor {
+pub fn tile(input: &PyTensor, reps: Vec<usize>, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::tile(&input.inner, &reps));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -192,16 +192,20 @@ pub fn meshgrid(
         .map(|t| t.bind(py).borrow().inner.tensor.clone())
         .collect();
     let backend = MoiraiBackend::new();
-    let grids = py.allow_threads(|| {
-        let refs: Vec<&Tensor<f64, MoiraiBackend>> = rust_tensors.iter().collect();
-        coeus_ops::meshgrid(&refs, indexing, &backend)
-    });
-    Ok(grids
-        .into_iter()
-        .map(|t| PyTensor {
-            inner: coeus_autograd::Var::new(t, false),
+    let grids = py
+        .allow_threads(|| {
+            let refs: Vec<&Tensor<f64, MoiraiBackend>> = rust_tensors.iter().collect();
+            coeus_ops::meshgrid(&refs, indexing, &backend)
         })
-        .collect())
+        .map_err(map_backend_error)?;
+    grids
+        .into_iter()
+        .map(|tensor| {
+            coeus_autograd::Var::new(tensor, false)
+                .map(PyTensor::from_var)
+                .map_err(map_backend_error)
+        })
+        .collect()
 }
 
 /// Broadcast a list of tensors to a common shape.
@@ -252,7 +256,7 @@ pub fn broadcast_tensors(
     // Expand each tensor to the broadcast shape.
     let results = tensors
         .iter()
-        .map(|t| {
+        .map(|t| -> PyResult<PyTensor> {
             let t_ref = t.bind(py).borrow();
             let src_ndim = t_ref.inner.tensor.ndim();
             // Prepend ones to match output ndim.
@@ -272,15 +276,15 @@ pub fn broadcast_tensors(
                 t_ref.inner.clone()
             } else {
                 // Reshape to padded then add zeros of target shape to broadcast.
-                let reshaped = coeus_autograd::reshape(&t_ref.inner, padded_shape);
-                let zeros_v = coeus_autograd::Var::new(
-                    coeus_tensor::Tensor::<f64, MoiraiBackend>::zeros(expand_shape),
-                    false,
-                );
-                coeus_autograd::add(&reshaped, &zeros_v)
+                let reshaped = coeus_autograd::reshape(&t_ref.inner, padded_shape)
+                    .map_err(map_backend_error)?;
+                let zeros = coeus_tensor::Tensor::<f64, MoiraiBackend>::zeros(expand_shape)
+                    .map_err(map_backend_error)?;
+                let zeros_v = coeus_autograd::Var::new(zeros, false).map_err(map_backend_error)?;
+                coeus_autograd::add(&reshaped, &zeros_v).map_err(map_backend_error)?
             };
-            PyTensor::from_var(var)
+            Ok(PyTensor::from_var(var))
         })
-        .collect();
+        .collect::<PyResult<_>>()?;
     Ok(results)
 }

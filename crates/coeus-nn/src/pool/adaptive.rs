@@ -25,7 +25,7 @@ fn avg_pool_matrix_t<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     in_len: usize,
     out_len: usize,
     backend: &B,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -45,7 +45,7 @@ where
         }
     }
     Var::new(
-        Tensor::from_slice_on([in_len, out_len], &pt, backend),
+        Tensor::from_slice_on([in_len, out_len], &pt, backend)?,
         false,
     )
 }
@@ -62,7 +62,7 @@ fn masked_adaptive_max<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     in_len: usize,
     out_len: usize,
     backend: &B,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -74,15 +74,15 @@ where
         outside[o * in_len + start..o * in_len + end].fill(T::zero());
     }
     let outside_var = Var::new(
-        Tensor::from_slice_on([1, out_len, in_len], &outside, backend),
+        Tensor::from_slice_on([1, out_len, in_len], &outside, backend)?,
         false,
-    );
+    )?;
     let xb = coeus_autograd::broadcast_to(
-        &coeus_autograd::reshape(x2, [rows, 1, in_len]),
+        &coeus_autograd::reshape(x2, [rows, 1, in_len])?,
         vec![rows, out_len, in_len],
-    );
-    let ob = coeus_autograd::broadcast_to(&outside_var, vec![rows, out_len, in_len]);
-    let masked = coeus_autograd::masked_fill(&xb, &ob, T::from_f64(f64::NEG_INFINITY));
+    )?;
+    let ob = coeus_autograd::broadcast_to(&outside_var, vec![rows, out_len, in_len])?;
+    let masked = coeus_autograd::masked_fill(&xb, &ob, T::from_f64(f64::NEG_INFINITY))?;
     coeus_autograd::max_axis(&masked, 2)
 }
 
@@ -103,7 +103,11 @@ where
 /// use coeus_core::SequentialBackend;
 ///
 /// let m = AdaptiveAvgPool1d::<f32, SequentialBackend>::new(2);
-/// let x = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 3, 8]), false);
+/// let x = Var::new(
+///     Tensor::<f32, SequentialBackend>::ones([1, 3, 8])
+///         .expect("invariant: example shape allocation succeeds"),
+///     false,
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 /// let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
 /// assert_eq!(y.tensor.shape(), &[1, 3, 2]);
 /// ```
@@ -154,10 +158,10 @@ where
             });
         }
         let backend = B::default();
-        let p_t = avg_pool_matrix_t::<T, B>(l, o, &backend);
-        let x2 = coeus_autograd::reshape(input, [n * c, l]);
-        let out2 = coeus_autograd::matmul(&x2, &p_t);
-        Ok(coeus_autograd::reshape(&out2, [n, c, o]))
+        let p_t = avg_pool_matrix_t::<T, B>(l, o, &backend)?;
+        let x2 = coeus_autograd::reshape(input, [n * c, l])?;
+        let out2 = coeus_autograd::matmul(&x2, &p_t)?;
+        Ok(coeus_autograd::reshape(&out2, [n, c, o])?)
     }
 }
 
@@ -177,7 +181,11 @@ where
 /// use coeus_core::SequentialBackend;
 ///
 /// let m = AdaptiveAvgPool2d::<f32, SequentialBackend>::new(1, 1);
-/// let x = Var::new(Tensor::<f32, SequentialBackend>::ones([2, 4, 8, 8]), false);
+/// let x = Var::new(
+///     Tensor::<f32, SequentialBackend>::ones([2, 4, 8, 8])
+///         .expect("invariant: example shape allocation succeeds"),
+///     false,
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 /// let y = m.forward(&x).expect("valid AdaptiveAvgPool2d input");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 1, 1]);
 /// ```
@@ -241,23 +249,23 @@ where
         // Fast path for global (1×1) pooling: sequential mean_axis reductions
         // avoid allocating the O(H*W) averaging matrix.
         if oh == 1 && ow == 1 {
-            let after_h = coeus_autograd::mean_axis(input, 2); // [N, C, 1, W]
-            return Ok(coeus_autograd::mean_axis(&after_h, 3)); // [N, C, 1, 1]
+            let after_h = coeus_autograd::mean_axis(input, 2)?; // [N, C, 1, W]
+            return Ok(coeus_autograd::mean_axis(&after_h, 3)?); // [N, C, 1, 1]
         }
 
         // Pool W: [N, C, H, W] -> [N*C*H, W] @ PW_T[W, OW] -> [N, C, H, OW].
-        let pw_t = avg_pool_matrix_t::<T, B>(w, ow, &backend);
-        let yw = coeus_autograd::matmul(&coeus_autograd::reshape(input, [n * c * h, w]), &pw_t);
-        let yw = coeus_autograd::reshape(&yw, [n, c, h, ow]);
+        let pw_t = avg_pool_matrix_t::<T, B>(w, ow, &backend)?;
+        let yw = coeus_autograd::matmul(&coeus_autograd::reshape(input, [n * c * h, w])?, &pw_t)?;
+        let yw = coeus_autograd::reshape(&yw, [n, c, h, ow])?;
 
         // Pool H: bring H last, [N, C, OW, H] -> [N*C*OW, H] @ PH_T[H, OH].
-        let ph_t = avg_pool_matrix_t::<T, B>(h, oh, &backend);
-        let yw_p = coeus_autograd::permute(&yw, &[0, 1, 3, 2]);
-        let yh = coeus_autograd::matmul(&coeus_autograd::reshape(&yw_p, [n * c * ow, h]), &ph_t);
-        let yh = coeus_autograd::reshape(&yh, [n, c, ow, oh]);
+        let ph_t = avg_pool_matrix_t::<T, B>(h, oh, &backend)?;
+        let yw_p = coeus_autograd::permute(&yw, &[0, 1, 3, 2])?;
+        let yh = coeus_autograd::matmul(&coeus_autograd::reshape(&yw_p, [n * c * ow, h])?, &ph_t)?;
+        let yh = coeus_autograd::reshape(&yh, [n, c, ow, oh])?;
         // Final transpose to [N, C, OH, OW]; reshape materializes it contiguous.
-        let out = coeus_autograd::permute(&yh, &[0, 1, 3, 2]);
-        Ok(coeus_autograd::reshape(&out, [n, c, oh, ow]))
+        let out = coeus_autograd::permute(&yh, &[0, 1, 3, 2])?;
+        Ok(coeus_autograd::reshape(&out, [n, c, oh, ow])?)
     }
 }
 
@@ -312,9 +320,9 @@ where
             });
         }
         let backend = B::default();
-        let x2 = coeus_autograd::reshape(input, [n * c, l]);
-        let pooled = masked_adaptive_max::<T, B>(&x2, n * c, l, o, &backend);
-        Ok(coeus_autograd::reshape(&pooled, [n, c, o]))
+        let x2 = coeus_autograd::reshape(input, [n * c, l])?;
+        let pooled = masked_adaptive_max::<T, B>(&x2, n * c, l, o, &backend)?;
+        Ok(coeus_autograd::reshape(&pooled, [n, c, o])?)
     }
 }
 
@@ -381,26 +389,26 @@ where
 
         // Fast path for global (1×1) max pooling: sequential max_axis reductions.
         if oh == 1 && ow == 1 {
-            let after_h = coeus_autograd::max_axis(input, 2); // [N, C, 1, W]
-            return Ok(coeus_autograd::max_axis(&after_h, 3)); // [N, C, 1, 1]
+            let after_h = coeus_autograd::max_axis(input, 2)?; // [N, C, 1, W]
+            return Ok(coeus_autograd::max_axis(&after_h, 3)?); // [N, C, 1, 1]
         }
 
         // Pool W: [N, C, H, W] -> [N*C*H, W] -> [N*C*H, OW] -> [N, C, H, OW].
-        let xw = coeus_autograd::reshape(input, [n * c * h, w]);
-        let pw = masked_adaptive_max::<T, B>(&xw, n * c * h, w, ow, &backend);
-        let yw = coeus_autograd::reshape(&pw, [n, c, h, ow]);
+        let xw = coeus_autograd::reshape(input, [n * c * h, w])?;
+        let pw = masked_adaptive_max::<T, B>(&xw, n * c * h, w, ow, &backend)?;
+        let yw = coeus_autograd::reshape(&pw, [n, c, h, ow])?;
 
         // Pool H: bring H last, [N, C, OW, H] -> [N*C*OW, H] -> [N*C*OW, OH].
-        let yw_p = coeus_autograd::permute(&yw, &[0, 1, 3, 2]);
+        let yw_p = coeus_autograd::permute(&yw, &[0, 1, 3, 2])?;
         let ph = masked_adaptive_max::<T, B>(
-            &coeus_autograd::reshape(&yw_p, [n * c * ow, h]),
+            &coeus_autograd::reshape(&yw_p, [n * c * ow, h])?,
             n * c * ow,
             h,
             oh,
             &backend,
-        );
-        let yh = coeus_autograd::reshape(&ph, [n, c, ow, oh]);
-        let out = coeus_autograd::permute(&yh, &[0, 1, 3, 2]);
-        Ok(coeus_autograd::reshape(&out, [n, c, oh, ow]))
+        )?;
+        let yh = coeus_autograd::reshape(&ph, [n, c, ow, oh])?;
+        let out = coeus_autograd::permute(&yh, &[0, 1, 3, 2])?;
+        Ok(coeus_autograd::reshape(&out, [n, c, oh, ow])?)
     }
 }

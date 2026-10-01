@@ -34,7 +34,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     /// - `max_len`: maximum sequence length.
     /// - `d_head`: dimension per attention head (must be even).
     /// - `base`: base value for theta (typically 10000.0).
-    pub fn new(max_len: usize, d_head: usize, base: f64) -> Self {
+    pub fn new(
+        max_len: usize,
+        d_head: usize,
+        base: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         assert!(
             d_head.is_multiple_of(2),
             "RotaryEmbedding: d_head must be even, got {d_head}"
@@ -58,15 +62,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
                 sin_values[pos * d_head + i + half_dim] = s;
             }
         }
-        let cos_table = Tensor::from_slice_on([max_len, d_head], &cos_values, &backend);
-        let sin_table = Tensor::from_slice_on([max_len, d_head], &sin_values, &backend);
+        let cos_table = Tensor::from_slice_on([max_len, d_head], &cos_values, &backend)?;
+        let sin_table = Tensor::from_slice_on([max_len, d_head], &sin_values, &backend)?;
 
-        Self {
+        Ok(Self {
             cos: cos_table,
             sin: sin_table,
             max_len,
             d_head,
-        }
+        })
     }
 
     /// Forward pass applying RoPE to `x`.
@@ -114,18 +118,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         broadcast_shape[1] = seq_len;
         broadcast_shape[ndim - 1] = d_head;
 
-        let cos_var = Var::new(cos_slice.reshape(broadcast_shape.clone()), false);
-        let sin_var = Var::new(sin_slice.reshape(broadcast_shape), false);
+        let cos_var = Var::new(cos_slice?.reshape(broadcast_shape.clone()), false)?;
+        let sin_var = Var::new(sin_slice?.reshape(broadcast_shape), false)?;
 
         // x_rot = x * cos + rotate_half(x) * sin
-        let x_cos = coeus_autograd::mul(x, &cos_var);
+        let x_cos = coeus_autograd::mul(x, &cos_var)?;
         let rx = coeus_autograd::rotate_half(x).map_err(|source| ModuleError::Backend {
             module: "RotaryEmbedding",
             source,
         })?;
-        let rx_sin = coeus_autograd::mul(&rx, &sin_var);
+        let rx_sin = coeus_autograd::mul(&rx, &sin_var)?;
 
-        Ok(coeus_autograd::add(&x_cos, &rx_sin))
+        Ok(coeus_autograd::add(&x_cos, &rx_sin)?)
     }
 }
 
@@ -147,6 +151,6 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     table: &Tensor<T, B>,
     seq_len: usize,
     d_model: usize,
-) -> Tensor<T, B> {
-    table.slice(&[(0, seq_len), (0, d_model)])
+) -> Result<Tensor<T, B>, B::Error> {
+    Ok(table.slice(&[(0, seq_len), (0, d_model)]))
 }

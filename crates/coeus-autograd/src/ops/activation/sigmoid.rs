@@ -17,12 +17,15 @@ unary_autograd!(
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[0.0, 0.0]), true);
-    /// let y = coeus_autograd::sigmoid(&x);
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[0.0, 0.0]).expect("invariant: example shape matches data"),
+    ///     true,
+    /// ).expect("invariant: example gradient buffer allocation succeeds");
+    /// let y = coeus_autograd::sigmoid(&x).expect("invariant: example activation succeeds");
     /// assert!((y.tensor.as_slice()[0] - 0.5).abs() < 1e-5);
-    /// let loss = coeus_autograd::sum(&y);
+    /// let loss = coeus_autograd::sum(&y).expect("invariant: example reduction succeeds");
     /// loss.backward().expect("invariant: valid autograd fixture completes backward");
-    /// let grad = x.grad().unwrap();
+    /// let grad = x.grad().expect("invariant: backward populates the tracked leaf gradient");
     /// assert!((grad.as_slice()[0] - 0.25).abs() < 1e-5); // 0.5 * (1 - 0.5)
     /// assert!((grad.as_slice()[1] - 0.25).abs() < 1e-5);
     /// ```

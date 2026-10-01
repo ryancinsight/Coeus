@@ -18,8 +18,17 @@ use super::super::CpuBackend;
 /// [`BackendOps`].  Backends implement `ReductionOps` directly; the
 /// blanket impl provides `BackendOps` automatically.
 ///
+/// # Safety
+///
+/// On `Ok(())`, `reduce`, `argmax`, `argmin`, `topk`, `cumsum`, `suffix_sum`,
+/// `cumprod`, and `suffix_prod` must write every logical output element
+/// described by their output layouts without reading prior output contents.
+/// `topk` must initialize both values and indices. An error may leave
+/// destinations partially written; callers must discard uninitialized
+/// destinations on error.
+///
 /// [`BackendOps`]: super::super::BackendOps
-pub trait ReductionOps<T: Scalar>: ComputeBackend {
+pub unsafe trait ReductionOps<T: Scalar>: ComputeBackend {
     /// Reduction operations along an axis.
     ///
     /// # Errors
@@ -44,7 +53,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {
@@ -59,7 +69,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {
@@ -82,7 +93,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         values_layout: &Layout,
         indices: &mut Self::DeviceBuffer<i64>,
         indices_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
         Self: CpuBackend,
     {

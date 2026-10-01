@@ -99,7 +99,8 @@ pub fn matmul<
         operation: "matmul",
         reason: "output element count overflow",
     })?;
-    let mut c_storage = coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(element_count);
+    let mut c_storage = coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(element_count)
+        .map_err(|source| WgpuBackendError::dispatch("matmul", source))?;
     let c_layout = Layout::new([*m, *n].into());
 
     coeus_ops::MatmulOps::matmul(
@@ -145,7 +146,8 @@ pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     })?;
     let out_layout = Layout::new(out_shape);
     let mut out_storage =
-        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(out_layout.numel());
+        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(out_layout.numel())
+            .map_err(|source| WgpuBackendError::dispatch("fused expression", source))?;
 
     fusion::dispatch_fused(expr, &mut out_storage, &out_layout)?;
 
@@ -216,7 +218,8 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     *output_axis = 1;
     let out_layout = Layout::new(out_shape.clone());
     let out_numel = backend::checked_numel(OPERATION, out_layout.shape())?;
-    let mut out_storage = coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(out_numel);
+    let mut out_storage = coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(out_numel)
+        .map_err(|source| WgpuBackendError::dispatch(OPERATION, source))?;
 
     if axis_len == 0 {
         let identity = match op {
@@ -232,7 +235,7 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
                 .into());
             }
         };
-        WgpuBackend::new().fill(&mut out_storage, identity);
+        WgpuBackend::new().fill(&mut out_storage, identity)?;
         return Ok(Tensor::from_raw_parts(out_storage, out_layout));
     }
 

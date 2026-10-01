@@ -17,7 +17,7 @@ use coeus_tensor::Tensor;
 pub fn stack<T: Scalar, B: ComputeBackend + Default>(
     tensors: &[&Tensor<T, B>],
     dim: usize,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

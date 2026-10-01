@@ -63,7 +63,8 @@ pub use binary::{
 pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
 pub use interpolation::{
     linear_interpolation, linear_interpolation_backward, BoundaryPolicy, Dimension,
-    InterpolationError, InterpolationGradients, Replicate, SupportedDimension,
+    InterpolationError, InterpolationFailure, InterpolationGradients, Replicate,
+    SupportedDimension,
 };
 pub use matmul::{bmm, matmul, matmul_accumulate, outer};
 pub use reduction::{

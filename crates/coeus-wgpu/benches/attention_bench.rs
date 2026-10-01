@@ -35,14 +35,23 @@ fn bench_attention_forward(c: &mut Criterion) {
     for &(b, sq, sk, dk, dv) in SHAPES {
         let id = format!("{b}x{sq}x{sk}x{dk}x{dv}");
         let q_cpu =
-            Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0));
+            Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0))
+                .expect("invariant: test backend operation succeeds");
         let k_cpu =
-            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0));
+            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0))
+                .expect("invariant: test backend operation succeeds");
         let v_cpu =
-            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0));
-        let q_g = q_cpu.to_backend_on(&seq, &wgpu);
-        let k_g = k_cpu.to_backend_on(&seq, &wgpu);
-        let v_g = v_cpu.to_backend_on(&seq, &wgpu);
+            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0))
+                .expect("invariant: test backend operation succeeds");
+        let q_g = q_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let k_g = k_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let v_g = v_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
@@ -90,30 +99,47 @@ fn bench_attention_backward(c: &mut Criterion) {
     for &(b, sq, sk, dk, dv) in SHAPES {
         let id = format!("{b}x{sq}x{sk}x{dk}x{dv}");
         let q_cpu =
-            Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0));
+            Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0))
+                .expect("invariant: test backend operation succeeds");
         let k_cpu =
-            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0));
+            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0))
+                .expect("invariant: test backend operation succeeds");
         let v_cpu =
-            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0));
+            Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0))
+                .expect("invariant: test backend operation succeeds");
         let go_cpu =
-            Tensor::<f32, SequentialBackend>::from_slice([b, sq, dv], &fill(b * sq * dv, 7.0));
+            Tensor::<f32, SequentialBackend>::from_slice([b, sq, dv], &fill(b * sq * dv, 7.0))
+                .expect("invariant: test backend operation succeeds");
 
         // Stored attention weights from the forward pass feed the backward.
         let (_, aw_cpu) =
             scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, false, scale, &seq)
                 .expect("CPU attention setup must succeed");
 
-        let q_g = q_cpu.to_backend_on(&seq, &wgpu);
-        let k_g = k_cpu.to_backend_on(&seq, &wgpu);
-        let v_g = v_cpu.to_backend_on(&seq, &wgpu);
-        let go_g = go_cpu.to_backend_on(&seq, &wgpu);
-        let aw_g = aw_cpu.to_backend_on(&seq, &wgpu);
+        let q_g = q_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let k_g = k_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let v_g = v_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let go_g = go_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let aw_g = aw_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, SequentialBackend>::zeros_on([b, sq, dk], &seq);
-                let mut gk = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dk], &seq);
-                let mut gv = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dv], &seq);
+                let mut gq = Tensor::<f32, SequentialBackend>::zeros_on([b, sq, dk], &seq)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gk = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dk], &seq)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gv = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dv], &seq)
+                    .expect("invariant: test backend operation succeeds");
                 scaled_dot_product_attention_backward(
                     black_box(&go_cpu),
                     black_box(&q_cpu),
@@ -133,9 +159,12 @@ fn bench_attention_backward(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("Coeus WGPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, WgpuBackend>::zeros_on([b, sq, dk], &wgpu);
-                let mut gk = Tensor::<f32, WgpuBackend>::zeros_on([b, sk, dk], &wgpu);
-                let mut gv = Tensor::<f32, WgpuBackend>::zeros_on([b, sk, dv], &wgpu);
+                let mut gq = Tensor::<f32, WgpuBackend>::zeros_on([b, sq, dk], &wgpu)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gk = Tensor::<f32, WgpuBackend>::zeros_on([b, sk, dk], &wgpu)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gv = Tensor::<f32, WgpuBackend>::zeros_on([b, sk, dv], &wgpu)
+                    .expect("invariant: test backend operation succeeds");
                 scaled_dot_product_attention_backward(
                     black_box(&go_g),
                     black_box(&q_g),

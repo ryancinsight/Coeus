@@ -1,5 +1,7 @@
 #[path = "../../../coeus-ops/tests/ops/ownership/device_outputs.rs"]
 mod shared;
+#[path = "../../../coeus-hephaestus/tests/support/device_transfer.rs"]
+mod transfer;
 
 use coeus_hephaestus::HephaestusBackend;
 use coeus_wgpu::WgpuBackend;
@@ -7,6 +9,30 @@ use shared::{
     preserves_output_clones, rejects_invalid_output_write, scans_preserve_output_clones, Add,
     Negate, Product, Square, Sum,
 };
+
+#[test]
+fn backend_rejects_invalid_device_transfer_without_detaching() {
+    if !crate::availability::device_available("device transfer validation") {
+        return;
+    }
+    let backend = WgpuBackend::new();
+    transfer::rejects_invalid_device_transfer_without_detaching(&backend, |error| {
+        matches!(
+            error,
+            coeus_wgpu::WgpuBackendError::Validation(
+                coeus_core::BackendError::BufferLengthMismatch {
+                    operation: "copy_to_device",
+                    source_len: 1,
+                    destination_len: 2,
+                } | coeus_core::BackendError::BufferLengthMismatch {
+                    operation: "copy_to_host",
+                    source_len: 2,
+                    destination_len: 1,
+                }
+            )
+        )
+    });
+}
 
 #[test]
 fn backend_negate_preserves_output_clones() {

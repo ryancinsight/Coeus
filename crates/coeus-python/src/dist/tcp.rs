@@ -1,6 +1,6 @@
 //! The TCP communicator: ranks joined by a socket mesh.
 
-use crate::error::map_tcp_mesh_error;
+use crate::error::{map_tcp_collective_error, map_tcp_mesh_error};
 use crate::tensor::PyTensor;
 use coeus_dist::Communicator;
 use pyo3::prelude::*;
@@ -118,9 +118,12 @@ impl PyTcpCommunicator {
                 let backend = coeus_core::MoiraiBackend::new();
                 let mut t_val = t_val;
                 comm.all_reduce::<f64, _, coeus_dist::Sum>(&mut t_val, &backend)?;
-                Ok::<_, coeus_dist::TcpMeshError>(t_val)
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<coeus_dist::TcpMeshError, coeus_core::BackendError>,
+                >(t_val)
             })
-            .map_err(map_tcp_mesh_error)?;
+            .map_err(map_tcp_collective_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -135,9 +138,12 @@ impl PyTcpCommunicator {
                 let backend = coeus_core::MoiraiBackend::new();
                 let mut t_val = t_val;
                 comm.broadcast::<f64, _>(&mut t_val, root, &backend)?;
-                Ok::<_, coeus_dist::TcpMeshError>(t_val)
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<coeus_dist::TcpMeshError, coeus_core::BackendError>,
+                >(t_val)
             })
-            .map_err(map_tcp_mesh_error)?;
+            .map_err(map_tcp_collective_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -170,9 +176,12 @@ impl PyTcpCommunicator {
                 let backend = coeus_core::MoiraiBackend::new();
                 let mut rust_tensors = rust_tensors;
                 comm.all_gather::<f64, _>(&input_tensor, &mut rust_tensors, &backend)?;
-                Ok::<_, coeus_dist::TcpMeshError>(rust_tensors)
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<coeus_dist::TcpMeshError, coeus_core::BackendError>,
+                >(rust_tensors)
             })
-            .map_err(map_tcp_mesh_error)?;
+            .map_err(map_tcp_collective_error)?;
 
         for (item, rust_t) in output.iter().zip(rust_tensors) {
             item.bind(py).borrow_mut().inner.tensor = rust_t;
@@ -191,9 +200,12 @@ impl PyTcpCommunicator {
                 let backend = coeus_core::MoiraiBackend::new();
                 let mut t_val = t_val;
                 comm.reduce::<f64, _, coeus_dist::Sum>(&mut t_val, root, &backend)?;
-                Ok::<_, coeus_dist::TcpMeshError>(t_val)
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<coeus_dist::TcpMeshError, coeus_core::BackendError>,
+                >(t_val)
             })
-            .map_err(map_tcp_mesh_error)?;
+            .map_err(map_tcp_collective_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -228,9 +240,12 @@ impl PyTcpCommunicator {
                 let backend = coeus_core::MoiraiBackend::new();
                 let mut rust_tensors = rust_tensors;
                 comm.gather::<f64, _>(&input_tensor, &mut rust_tensors, root, &backend)?;
-                Ok::<_, coeus_dist::TcpMeshError>(rust_tensors)
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<coeus_dist::TcpMeshError, coeus_core::BackendError>,
+                >(rust_tensors)
             })
-            .map_err(map_tcp_mesh_error)?;
+            .map_err(map_tcp_collective_error)?;
 
         if rank == root {
             for (item, rust_t) in output.iter().zip(rust_tensors) {
@@ -272,9 +287,12 @@ impl PyTcpCommunicator {
                 let backend = coeus_core::MoiraiBackend::new();
                 let mut t_val = t_val;
                 comm.scatter::<f64, _>(&mut t_val, &rust_tensors, root, &backend)?;
-                Ok::<_, coeus_dist::TcpMeshError>((t_val, rust_tensors))
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<coeus_dist::TcpMeshError, coeus_core::BackendError>,
+                >((t_val, rust_tensors))
             })
-            .map_err(map_tcp_mesh_error)?;
+            .map_err(map_tcp_collective_error)?;
 
         t_borrow.inner.tensor = t_val;
         Ok(())

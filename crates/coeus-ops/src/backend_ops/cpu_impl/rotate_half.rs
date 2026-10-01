@@ -22,8 +22,8 @@ where
         let plan = coeus_leto::prepare_rotate_half_input(layout, input.as_slice())
             .map_err(provider_error)?;
         let output_layout = Layout::new(layout.shape_cloned());
-        let mut output = self.allocate_zeroed(layout.numel());
-        coeus_leto::rotate_half_into(plan, &output_layout, output.as_mut_slice())
+        let mut output = self.allocate_zeroed(layout.numel())?;
+        coeus_leto::rotate_half_into(plan, &output_layout, output.as_mut_slice()?)
             .map_err(provider_error)?;
         Ok(output)
     }

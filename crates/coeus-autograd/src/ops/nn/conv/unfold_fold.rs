@@ -91,7 +91,7 @@ pub fn unfold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -208,12 +208,14 @@ pub fn unfold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         &backend,
     )?;
     let requires_grad = crate::grad_mode::should_track_var(input);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|grad| {
         let shape = input.tensor.shape();
         Arc::new(Unfold2dNode {
@@ -309,12 +311,14 @@ pub fn fold1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         &backend,
     )?;
     let requires_grad = crate::grad_mode::should_track_var(input);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|grad| {
         Arc::new(Fold1dNode {
             output_grad: grad.clone(),
@@ -424,12 +428,14 @@ pub fn fold2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         &backend,
     )?;
     let requires_grad = crate::grad_mode::should_track_var(input);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|grad| {
         Arc::new(Fold2dNode {
             output_grad: grad.clone(),

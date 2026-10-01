@@ -42,19 +42,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Poi
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
+        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
 
         // d/d_input = (exp(input) - target) / n.
         if let Some(Some(ref g)) = input_grads.first() {
-            let d_input = coeus_ops::sub(&self.exp_input, &self.inputs[1].tensor, &backend);
-            let d_input = coeus_ops::mul(&d_input, &scale, &backend);
+            let d_input = coeus_ops::sub(&self.exp_input, &self.inputs[1].tensor, &backend)?;
+            let d_input = coeus_ops::mul(&d_input, &scale, &backend)?;
             coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
 
         // d/d_target = -input / n.
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let d_target = coeus_ops::neg(&self.inputs[0].tensor, &backend);
-            let d_target = coeus_ops::mul(&d_target, &scale, &backend);
+            let d_target = coeus_ops::neg(&self.inputs[0].tensor, &backend)?;
+            let d_target = coeus_ops::mul(&d_target, &scale, &backend)?;
             coeus_ops::add_assign(g.write(), &d_target, &backend)?;
         }
         Ok(())
@@ -72,7 +72,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Poi
 pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         input.tensor.shape(),
@@ -84,19 +84,19 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let shape = input.tensor.shape_cloned();
 
     // loss_i = exp(input) - target * input, all on-provider.
-    let exp_input = coeus_ops::exp(&input.tensor, &backend);
-    let product = coeus_ops::mul(&target.tensor, &input.tensor, &backend);
-    let per_elem = coeus_ops::sub(&exp_input, &product, &backend);
-    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty Poisson NLL reduction has axis zero");
+    let exp_input = coeus_ops::exp(&input.tensor, &backend)?;
+    let product = coeus_ops::mul(&target.tensor, &input.tensor, &backend)?;
+    let per_elem = coeus_ops::sub(&exp_input, &product, &backend)?;
+    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
+    let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
     let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = PoissonNllNode {
             output_grad,
@@ -104,15 +104,15 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             exp_input,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale,
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -122,9 +122,11 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
@@ -133,7 +135,7 @@ mod tests {
         //   loss = mean(exp(0) - 1·0, exp(1) - 2·1) = mean(1, e - 2).
         let input = var_from(&[0.0, 1.0]);
         let target = var_from(&[1.0, 2.0]);
-        let loss = poisson_nll(&input, &target);
+        let loss = poisson_nll(&input, &target).expect("invariant: test operation succeeds");
         let expected = (1.0 + (std::f64::consts::E - 2.0)) / 2.0;
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-12);
@@ -144,7 +146,7 @@ mod tests {
         // d/dinput = (exp(input) - target) / n; d/dtarget = -input / n.
         let input = var_from(&[0.0, 1.0]);
         let target = var_from(&[1.0, 2.0]);
-        let loss = poisson_nll(&input, &target);
+        let loss = poisson_nll(&input, &target).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let input_grad = input.grad().expect("input must receive a gradient");
         let target_grad = target.grad().expect("target must receive a gradient");
@@ -179,6 +181,6 @@ mod tests {
     fn poisson_nll_rejects_shape_mismatch() {
         let input = var_from(&[0.0, 1.0]);
         let target = var_from(&[1.0]);
-        let _ = poisson_nll(&input, &target);
+        let _ = poisson_nll(&input, &target).expect("invariant: test operation succeeds");
     }
 }

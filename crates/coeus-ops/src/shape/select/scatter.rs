@@ -34,7 +34,7 @@ pub fn scatter_add<T: Scalar, B: ComputeBackend + Default>(
     index: &Tensor<T, B>,
     src: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -54,9 +54,9 @@ where
     let out_shape = input.shape().to_vec();
     let idx_shape = index.shape().to_vec();
 
-    let in_cont = input.to_contiguous();
-    let idx_cont = index.to_contiguous();
-    let src_cont = src.to_contiguous();
+    let in_cont = input.to_contiguous()?;
+    let idx_cont = index.to_contiguous()?;
+    let src_cont = src.to_contiguous()?;
 
     let in_s = in_cont.as_slice();
     let idx_s = idx_cont.as_slice();
@@ -84,9 +84,10 @@ where
     // in backend storage avoids the temporary host vector and the second
     // tensor allocation that made allocation counts depend on the shape.
     let out_dim = out_shape[dim];
-    let mut output = Tensor::alloc_on(out_shape, backend);
-    output.as_mut_slice().copy_from_slice(in_s);
-    let out_s = output.as_mut_slice();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut output = unsafe { Tensor::alloc_on(out_shape, backend) }?;
+    output.as_mut_slice()?.copy_from_slice(in_s);
+    let out_s = output.as_mut_slice()?;
 
     for flat in 0..idx_numel {
         let scatter_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
@@ -111,7 +112,7 @@ where
         out_s[out_flat] = out_s[out_flat].add(src_s[flat]);
     }
 
-    output
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -123,10 +124,13 @@ mod tests {
     #[test]
     fn scatter_add_zero_src_returns_shared_storage() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
-        let idx = Tensor::from_slice(vec![2], &[1.0f32, 3.0]);
-        let src = Tensor::from_slice(vec![2], &[0.0f32, 0.0]);
-        let out = scatter_add(&x, 0, &idx, &src, &b);
+        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::from_slice(vec![2], &[1.0f32, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let src = Tensor::from_slice(vec![2], &[0.0f32, 0.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = scatter_add(&x, 0, &idx, &src, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[4]);
         assert_eq!(out.as_slice(), x.as_slice());
         assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());

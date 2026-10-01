@@ -18,12 +18,16 @@ use coeus_tensor::Tensor;
 /// # Panics
 /// Panics if `axis >= input.ndim()`.
 #[inline]
+#[expect(
+    clippy::type_complexity,
+    reason = "the established sort contract returns sorted values and source indices together"
+)]
 pub fn sort<T: Scalar + PartialOrd, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     axis: usize,
     descending: bool,
     backend: &B,
-) -> (Tensor<T, B>, Tensor<T, B>)
+) -> Result<(Tensor<T, B>, Tensor<T, B>), B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -76,9 +80,8 @@ where
         }
     }
 
-    let _ = backend;
-    (
-        Tensor::from_slice(shape.clone(), &out_vals),
-        Tensor::from_slice(shape, &out_idx),
-    )
+    Ok((
+        Tensor::from_slice_on(shape.clone(), &out_vals, backend)?,
+        Tensor::from_slice_on(shape, &out_idx, backend)?,
+    ))
 }

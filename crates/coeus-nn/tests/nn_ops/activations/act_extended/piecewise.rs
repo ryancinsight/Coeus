@@ -37,10 +37,12 @@ fn hardswish_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| hardswish_grad_expected(x)).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = hardswish(&input);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = hardswish(&input).expect("invariant: test operation succeeds");
     assert_close_slice(
         "hardswish_forward",
         output.tensor.as_slice(),
@@ -75,10 +77,12 @@ fn hardsigmoid_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| hardsigmoid_grad_expected(x)).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = hardsigmoid(&input);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = hardsigmoid(&input).expect("invariant: test operation succeeds");
     assert_close_slice(
         "hardsigmoid_forward",
         output.tensor.as_slice(),
@@ -122,10 +126,12 @@ fn hardtanh_forward_and_backward() {
         .collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = hardtanh(&input, lo, hi);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = hardtanh(&input, lo, hi).expect("invariant: test operation succeeds");
     assert_close_slice(
         "hardtanh_forward",
         output.tensor.as_slice(),
@@ -175,10 +181,12 @@ fn softshrink_forward_and_backward() {
         .collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = softshrink(&input, lam);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = softshrink(&input, lam).expect("invariant: test operation succeeds");
     assert_close_slice(
         "softshrink_forward",
         output.tensor.as_slice(),
@@ -226,10 +234,12 @@ fn hardshrink_forward_and_backward() {
         .collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = hardshrink(&input, lam);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = hardshrink(&input, lam).expect("invariant: test operation succeeds");
     assert_close_slice(
         "hardshrink_forward",
         output.tensor.as_slice(),
@@ -265,10 +275,12 @@ fn softsign_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| softsign_grad_expected(x)).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = softsign(&input);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = softsign(&input).expect("invariant: test operation succeeds");
     assert_close_slice(
         "softsign_forward",
         output.tensor.as_slice(),
@@ -314,10 +326,12 @@ fn threshold_forward_and_backward() {
         .collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = threshold(&input, thresh, value);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = threshold(&input, thresh, value).expect("invariant: test operation succeeds");
     assert_close_slice(
         "threshold_forward",
         output.tensor.as_slice(),
@@ -357,10 +371,12 @@ fn celu_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| celu_grad_expected(x, alpha)).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = celu(&input, alpha);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = celu(&input, alpha).expect("invariant: test operation succeeds");
     assert_close_slice("celu_forward", output.tensor.as_slice(), &expected, 1e-12);
     output
         .backward()

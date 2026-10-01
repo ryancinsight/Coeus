@@ -23,11 +23,14 @@ use coeus_core::Float;
 /// # Panics
 /// Panics if `a` is empty, or if `unbiased` and `a` has a single element
 /// (variance denominator would be zero).
-#[must_use]
+#[expect(
+    clippy::type_complexity,
+    reason = "the established reduction contract returns variance and mean together"
+)]
 pub fn var_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
-) -> (Var<T, B>, Var<T, B>) {
+) -> Result<(Var<T, B>, Var<T, B>), B::Error> {
     let n = a.tensor.numel();
     assert!(n > 0, "var_mean: empty tensor has no variance");
     let denom = n - usize::from(unbiased);
@@ -36,45 +39,46 @@ pub fn var_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         "var_mean: unbiased variance of a single element divides by zero"
     );
 
-    let mu = crate::ops::arithmetic::mean(a);
+    let mu = crate::ops::arithmetic::mean(a)?;
     // Flatten so the deviation broadcasts against the scalar mean uniformly.
-    let flat = crate::ops::shape::reshape(a, vec![n]);
-    let dev = crate::ops::arithmetic::sub(&flat, &mu);
-    let sq = crate::ops::arithmetic::mul(&dev, &dev);
-    let ssum = crate::ops::arithmetic::sum(&sq);
-    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_f64(denom as f64));
-    (v, mu)
+    let flat = crate::ops::shape::reshape(a, vec![n])?;
+    let dev = crate::ops::arithmetic::sub(&flat, &mu)?;
+    let sq = crate::ops::arithmetic::mul(&dev, &dev)?;
+    let ssum = crate::ops::arithmetic::sum(&sq)?;
+    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_f64(denom as f64))?;
+    Ok((v, mu))
 }
 
 /// Tracked variance over all elements (`torch.var`). See [`var_mean`].
-#[must_use]
 #[inline]
 pub fn var<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
-) -> Var<T, B> {
-    var_mean(a, unbiased).0
+) -> Result<Var<T, B>, B::Error> {
+    Ok(var_mean(a, unbiased)?.0)
 }
 
 /// Tracked standard deviation and mean over all elements (`torch.std_mean`).
-#[must_use]
 #[inline]
+#[expect(
+    clippy::type_complexity,
+    reason = "the established reduction contract returns standard deviation and mean together"
+)]
 pub fn std_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
-) -> (Var<T, B>, Var<T, B>) {
-    let (v, mu) = var_mean(a, unbiased);
-    (crate::ops::activation::sqrt(&v), mu)
+) -> Result<(Var<T, B>, Var<T, B>), B::Error> {
+    let (v, mu) = var_mean(a, unbiased)?;
+    Ok((crate::ops::activation::sqrt(&v)?, mu))
 }
 
 /// Tracked standard deviation over all elements (`torch.std`).
-#[must_use]
 #[inline]
 pub fn std_dev<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
-) -> Var<T, B> {
-    std_mean(a, unbiased).0
+) -> Result<Var<T, B>, B::Error> {
+    Ok(std_mean(a, unbiased)?.0)
 }
 
 /// Tracked variance and mean along `axis` (`torch.var_mean(dim=axis)`).
@@ -85,12 +89,15 @@ pub fn std_dev<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// # Panics
 /// Panics if `axis` is out of range, or if `unbiased` and the axis extent is
 /// 1 (denominator would be zero).
-#[must_use]
+#[expect(
+    clippy::type_complexity,
+    reason = "the established axis reduction contract returns variance and mean together"
+)]
 pub fn var_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,
-) -> (Var<T, B>, Var<T, B>) {
+) -> Result<(Var<T, B>, Var<T, B>), B::Error> {
     let shape = a.tensor.shape();
     assert!(
         axis < shape.len(),
@@ -104,44 +111,45 @@ pub fn var_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         "var_mean_axis: unbiased variance along axis {axis} of extent {extent} divides by zero"
     );
 
-    let mu = crate::ops::arithmetic::mean_axis(a, axis);
-    let dev = crate::ops::arithmetic::sub(a, &mu);
-    let sq = crate::ops::arithmetic::mul(&dev, &dev);
-    let ssum = crate::ops::arithmetic::sum_axis(&sq, axis);
-    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_f64(denom as f64));
-    (v, mu)
+    let mu = crate::ops::arithmetic::mean_axis(a, axis)?;
+    let dev = crate::ops::arithmetic::sub(a, &mu)?;
+    let sq = crate::ops::arithmetic::mul(&dev, &dev)?;
+    let ssum = crate::ops::arithmetic::sum_axis(&sq, axis)?;
+    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_f64(denom as f64))?;
+    Ok((v, mu))
 }
 
 /// Tracked variance along `axis` (`torch.var(dim=axis, keepdim=True)`).
-#[must_use]
 #[inline]
 pub fn var_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,
-) -> Var<T, B> {
-    var_mean_axis(a, axis, unbiased).0
+) -> Result<Var<T, B>, B::Error> {
+    Ok(var_mean_axis(a, axis, unbiased)?.0)
 }
 
 /// Tracked standard deviation and mean along `axis` (`torch.std_mean(dim=axis)`).
-#[must_use]
 #[inline]
+#[expect(
+    clippy::type_complexity,
+    reason = "the established axis reduction contract returns standard deviation and mean together"
+)]
 pub fn std_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,
-) -> (Var<T, B>, Var<T, B>) {
-    let (v, mu) = var_mean_axis(a, axis, unbiased);
-    (crate::ops::activation::sqrt(&v), mu)
+) -> Result<(Var<T, B>, Var<T, B>), B::Error> {
+    let (v, mu) = var_mean_axis(a, axis, unbiased)?;
+    Ok((crate::ops::activation::sqrt(&v)?, mu))
 }
 
 /// Tracked standard deviation along `axis` (`torch.std(dim=axis, keepdim=True)`).
-#[must_use]
 #[inline]
 pub fn std_dev_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,
-) -> Var<T, B> {
-    std_mean_axis(a, axis, unbiased).0
+) -> Result<Var<T, B>, B::Error> {
+    Ok(std_mean_axis(a, axis, unbiased)?.0)
 }

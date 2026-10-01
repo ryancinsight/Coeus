@@ -55,11 +55,11 @@ pub fn var_mean<T: Float, B: BackendOps<T> + Default>(
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([n])
     } else {
-        a.to_contiguous_on(backend).reshape([n])
+        a.to_contiguous_on(backend)?.reshape([n])
     };
-    let mu_full = Tensor::full_on([n], mu, backend);
-    let dev = binary::sub(&flattened, &mu_full, backend);
-    let sq = binary::mul(&dev, &dev, backend);
+    let mu_full = Tensor::full_on([n], mu, backend)?;
+    let dev = binary::sub(&flattened, &mu_full, backend)?;
+    let sq = binary::mul(&dev, &dev, backend)?;
     let s = super::sum(&sq, backend)?;
     let denom = if unbiased && n > 1 { n - 1 } else { n };
     Ok((s / T::from_usize(denom), mu))
@@ -135,12 +135,12 @@ pub fn var_mean_axis<T: Float, B: BackendOps<T> + Default>(
     assert!(n > 0, "var_mean_axis: axis {axis} has zero elements");
 
     let mu = super::mean_axis(a, axis, backend)?;
-    let dev = binary::sub(a, &mu, backend);
-    let sq = binary::mul(&dev, &dev, backend);
+    let dev = binary::sub(a, &mu, backend)?;
+    let sq = binary::mul(&dev, &dev, backend)?;
     let s = super::sum_axis(&sq, axis, backend)?;
     let denom = if unbiased && n > 1 { n - 1 } else { n };
-    let denom_full = Tensor::full_on(s.shape_cloned(), T::from_usize(denom), backend);
-    let v = binary::div(&s, &denom_full, backend);
+    let denom_full = Tensor::full_on(s.shape_cloned(), T::from_usize(denom), backend)?;
+    let v = binary::div(&s, &denom_full, backend)?;
     Ok((v, mu))
 }
 
@@ -160,6 +160,6 @@ pub fn std_mean_axis<T: Float, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> Result<(Tensor<T, B>, Tensor<T, B>), B::Error> {
     let (v, mu) = var_mean_axis(a, axis, unbiased, backend)?;
-    let std = crate::unary::sqrt(&v, backend);
+    let std = crate::unary::sqrt(&v, backend)?;
     Ok((std, mu))
 }

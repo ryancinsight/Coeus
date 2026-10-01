@@ -66,7 +66,7 @@ where
             "forward output",
         )?;
         // Reverse along the time axis, run the backward module, then restore order.
-        let rev_x = coeus_autograd::flip(x, 1);
+        let rev_x = coeus_autograd::flip(x, 1)?;
         let bwd_rev = self.backward_module.forward(&rev_x)?;
         validation::child_sequence_output(
             bwd_rev.tensor.shape(),
@@ -76,7 +76,7 @@ where
             "backward output",
         )?;
         validation::matching_child_outputs(fwd.tensor.shape(), bwd_rev.tensor.shape())?;
-        let bwd = coeus_autograd::flip(&bwd_rev, 1);
-        Ok(coeus_autograd::cat(&[&fwd, &bwd], 2))
+        let bwd = coeus_autograd::flip(&bwd_rev, 1)?;
+        Ok(coeus_autograd::cat(&[&fwd, &bwd], 2)?)
     }
 }

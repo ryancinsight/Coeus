@@ -52,16 +52,20 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     /// Create an EmbeddingBag with unit weight matrix.
-    pub fn new(num_embeddings: usize, embedding_dim: usize, mode: EmbeddingBagMode) -> Self {
+    pub fn new(
+        num_embeddings: usize,
+        embedding_dim: usize,
+        mode: EmbeddingBagMode,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         let backend = B::default();
-        let w_tensor = Tensor::ones_on([num_embeddings, embedding_dim], &backend);
-        let weight = Var::new(w_tensor, true);
-        Self {
+        let w_tensor = Tensor::ones_on([num_embeddings, embedding_dim], &backend)?;
+        let weight = Var::new(w_tensor, true)?;
+        Ok(Self {
             weight,
             num_embeddings,
             embedding_dim,
             mode,
-        }
+        })
     }
 
     fn bag_starts(
@@ -87,15 +91,20 @@ where
         }
     }
 
-    fn reduce_one_bag(&self, embeddings: &Var<T, B>, start: usize, end: usize) -> Var<T, B> {
+    fn reduce_one_bag(
+        &self,
+        embeddings: &Var<T, B>,
+        start: usize,
+        end: usize,
+    ) -> Result<Var<T, B>, B::Error> {
         let backend = B::default();
         let d = self.embedding_dim;
 
         if start == end {
-            return Var::new(Tensor::zeros_on([1, d], &backend), false);
+            return Var::new(Tensor::zeros_on([1, d], &backend)?, false);
         }
 
-        let bag = slice(embeddings, &[(start, end), (0, d)]);
+        let bag = slice(embeddings, &[(start, end), (0, d)])?;
         match self.mode {
             EmbeddingBagMode::Sum => sum_axis(&bag, 0),
             EmbeddingBagMode::Mean => mean_axis(&bag, 0),
@@ -139,8 +148,8 @@ where
                     .expect("invariant: embedding index range was validated before conversion")
             })
             .collect();
-        let idx_tensor = Tensor::from_slice_on([indices.len()], &idx_data, &backend);
-        let embeddings = embedding(&self.weight, &idx_tensor);
+        let idx_tensor = Tensor::from_slice_on([indices.len()], &idx_data, &backend)?;
+        let embeddings = embedding(&self.weight, &idx_tensor)?;
 
         let rows: Vec<Var<T, B>> = starts
             .iter()
@@ -149,10 +158,10 @@ where
                 let end = starts.get(bag + 1).copied().unwrap_or(indices.len());
                 self.reduce_one_bag(&embeddings, start, end)
             })
-            .collect();
+            .collect::<Result<_, _>>()?;
 
         let row_refs: Vec<&Var<T, B>> = rows.iter().collect();
-        Ok(cat(&row_refs, 0))
+        Ok(cat(&row_refs, 0)?)
     }
 }
 

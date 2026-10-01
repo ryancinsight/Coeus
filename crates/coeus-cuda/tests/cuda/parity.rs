@@ -44,6 +44,7 @@ pub(super) fn to_gpu(
     c: &CudaBackend,
 ) -> Tensor<f32, CudaBackend> {
     t.to_backend_on(s, c)
+        .expect("invariant: test backend transfer succeeds")
 }
 
 pub(super) fn to_cpu(
@@ -52,6 +53,7 @@ pub(super) fn to_cpu(
     s: &SequentialBackend,
 ) -> Tensor<f32, SequentialBackend> {
     t.to_backend_on(c, s)
+        .expect("invariant: test backend transfer succeeds")
 }
 
 pub(super) fn assert_parity_tol(label: &str, cpu: &[f32], gpu: &[f32], tol: f32) {

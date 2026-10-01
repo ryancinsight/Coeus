@@ -8,10 +8,15 @@ fn test_wgpu_max_pool2d() {
     let wgpu_b = WgpuBackend::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data);
-    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_wgpu = input_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut out_wgpu_storage = wgpu_b.allocate::<f32>(4);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut out_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(4) }.expect("invariant: test backend operation succeeds");
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2].into());
 
     coeus_ops::PoolOps::max_pool2d(
@@ -29,18 +34,27 @@ fn test_wgpu_max_pool2d() {
 
     let out_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
-    let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let out_wgpu_cpu = out_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     assert_eq!(out_wgpu_cpu.as_slice(), &[6.0, 8.0, 14.0, 16.0]);
 
     // Backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
-    let grad_out_wgpu = grad_out_seq.to_backend_on(&seq, &wgpu_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_wgpu = grad_out_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut grad_input_wgpu_storage = wgpu_b.allocate::<f32>(16);
-    wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut grad_input_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(16) }.expect("invariant: test backend operation succeeds");
+    wgpu_b
+        .fill(&mut grad_input_wgpu_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 4, 4].into());
 
     coeus_ops::PoolOps::max_pool2d_backward(
@@ -60,7 +74,9 @@ fn test_wgpu_max_pool2d() {
 
     let gi_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(grad_input_wgpu_storage, gi_layout);
-    let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let gi_wgpu_cpu = gi_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     let mut expected_gi = vec![0.0f32; 16];
     expected_gi[5] = 1.0;
@@ -77,10 +93,15 @@ fn test_wgpu_avg_pool2d() {
     let wgpu_b = WgpuBackend::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data);
-    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_wgpu = input_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut out_wgpu_storage = wgpu_b.allocate::<f32>(4);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut out_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(4) }.expect("invariant: test backend operation succeeds");
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2].into());
 
     coeus_ops::PoolOps::avg_pool2d(
@@ -98,18 +119,27 @@ fn test_wgpu_avg_pool2d() {
 
     let out_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
-    let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let out_wgpu_cpu = out_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     assert_eq!(out_wgpu_cpu.as_slice(), &[3.5, 5.5, 11.5, 13.5]);
 
     // Backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
-    let grad_out_wgpu = grad_out_seq.to_backend_on(&seq, &wgpu_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_wgpu = grad_out_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut grad_input_wgpu_storage = wgpu_b.allocate::<f32>(16);
-    wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut grad_input_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(16) }.expect("invariant: test backend operation succeeds");
+    wgpu_b
+        .fill(&mut grad_input_wgpu_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 4, 4].into());
 
     coeus_ops::PoolOps::avg_pool2d_backward(
@@ -127,7 +157,9 @@ fn test_wgpu_avg_pool2d() {
 
     let gi_wgpu_tensor: Tensor<f32, WgpuBackend> =
         Tensor::from_raw_parts(grad_input_wgpu_storage, gi_layout);
-    let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let gi_wgpu_cpu = gi_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     let expected_gi = vec![
         0.25f32, 0.25, 0.5, 0.5, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 0.75, 0.75, 1.0, 1.0,
@@ -141,10 +173,15 @@ fn test_wgpu_max_pool3d() {
     let wgpu_b = WgpuBackend::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
-    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_wgpu = input_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut out_wgpu_storage = wgpu_b.allocate::<f32>(8);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut out_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(8) }.expect("invariant: test backend operation succeeds");
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2, 2].into());
 
     coeus_ops::PoolOps::max_pool3d(
@@ -162,9 +199,13 @@ fn test_wgpu_max_pool3d() {
 
     let out_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
-    let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let out_wgpu_cpu = out_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut out_expected_storage = seq.allocate::<f32>(8);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut out_expected_storage =
+        unsafe { seq.allocate::<f32>(8) }.expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool3d(
         &seq,
         input_seq.storage(),
@@ -185,11 +226,18 @@ fn test_wgpu_max_pool3d() {
     // Backward
     let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data);
-    let grad_out_wgpu = grad_out_seq.to_backend_on(&seq, &wgpu_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_wgpu = grad_out_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut grad_input_wgpu_storage = wgpu_b.allocate::<f32>(27);
-    wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut grad_input_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(27) }.expect("invariant: test backend operation succeeds");
+    wgpu_b
+        .fill(&mut grad_input_wgpu_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 3, 3, 3].into());
 
     coeus_ops::PoolOps::max_pool3d_backward(
@@ -209,10 +257,15 @@ fn test_wgpu_max_pool3d() {
 
     let gi_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(grad_input_wgpu_storage, gi_layout.clone());
-    let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let gi_wgpu_cpu = gi_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut grad_input_expected_storage = seq.allocate::<f32>(27);
-    seq.fill(&mut grad_input_expected_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut grad_input_expected_storage =
+        unsafe { seq.allocate::<f32>(27) }.expect("invariant: test backend operation succeeds");
+    seq.fill(&mut grad_input_expected_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool3d_backward(
         &seq,
         grad_out_seq.storage(),
@@ -239,10 +292,15 @@ fn test_wgpu_avg_pool3d() {
     let wgpu_b = WgpuBackend::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
-    let input_wgpu = input_seq.to_backend_on(&seq, &wgpu_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_wgpu = input_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut out_wgpu_storage = wgpu_b.allocate::<f32>(8);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut out_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(8) }.expect("invariant: test backend operation succeeds");
     let out_layout = coeus_core::Layout::new(vec![1, 1, 2, 2, 2].into());
 
     coeus_ops::PoolOps::avg_pool3d(
@@ -260,9 +318,13 @@ fn test_wgpu_avg_pool3d() {
 
     let out_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
-    let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let out_wgpu_cpu = out_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut out_expected_storage = seq.allocate::<f32>(8);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut out_expected_storage =
+        unsafe { seq.allocate::<f32>(8) }.expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool3d(
         &seq,
         input_seq.storage(),
@@ -296,11 +358,18 @@ fn test_wgpu_avg_pool3d() {
     // Backward
     let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data);
-    let grad_out_wgpu = grad_out_seq.to_backend_on(&seq, &wgpu_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_wgpu = grad_out_seq
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut grad_input_wgpu_storage = wgpu_b.allocate::<f32>(27);
-    wgpu_b.fill(&mut grad_input_wgpu_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut grad_input_wgpu_storage =
+        unsafe { wgpu_b.allocate::<f32>(27) }.expect("invariant: test backend operation succeeds");
+    wgpu_b
+        .fill(&mut grad_input_wgpu_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     let gi_layout = coeus_core::Layout::new(vec![1, 1, 3, 3, 3].into());
 
     coeus_ops::PoolOps::avg_pool3d_backward(
@@ -318,10 +387,15 @@ fn test_wgpu_avg_pool3d() {
 
     let gi_wgpu_tensor =
         Tensor::<f32, WgpuBackend>::from_raw_parts(grad_input_wgpu_storage, gi_layout.clone());
-    let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
+    let gi_wgpu_cpu = gi_wgpu_tensor
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut grad_input_expected_storage = seq.allocate::<f32>(27);
-    seq.fill(&mut grad_input_expected_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut grad_input_expected_storage =
+        unsafe { seq.allocate::<f32>(27) }.expect("invariant: test backend operation succeeds");
+    seq.fill(&mut grad_input_expected_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool3d_backward(
         &seq,
         grad_out_seq.storage(),

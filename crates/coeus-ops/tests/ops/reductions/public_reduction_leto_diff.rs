@@ -18,6 +18,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], context: &str) {
@@ -125,9 +126,11 @@ where
         "strided global product",
     );
     let shared = transposed.clone();
-    let _ = coeus_ops::prod(&shared, backend);
+    let _ = coeus_ops::prod(&shared, backend).expect("invariant: test operation succeeds");
     assert_same_bits(
-        &shared.to_vec(),
+        &shared
+            .to_vec()
+            .expect("invariant: test backend operation succeeds"),
         [1.0, 4.0, 2.0, 5.0, 3.0, 6.0].map(T::from_f64),
         "COW product input",
     );
@@ -138,7 +141,8 @@ where
     B: BackendOps<f32> + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
-    let empty = Tensor::<f32, B>::zeros_on([0usize], backend);
+    let empty = Tensor::<f32, B>::zeros_on([0usize], backend)
+        .expect("invariant: test backend operation succeeds");
     let empty_product = coeus_ops::prod_axis(&empty, 0, backend).expect("empty product identity");
     assert_eq!(empty_product.shape(), &[1]);
     assert_eq!(empty_product.as_slice(), &[1.0]);

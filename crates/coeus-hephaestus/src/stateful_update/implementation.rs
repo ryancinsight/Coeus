@@ -129,6 +129,6 @@ where
         operation: &'static str,
         source: hephaestus_core::HephaestusError,
     ) -> Self::Error {
-        crate::HephaestusBackendError::device(operation, source)
+        P::Error::from(crate::HephaestusBackendError::device(operation, source))
     }
 }

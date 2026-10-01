@@ -7,7 +7,8 @@ use themis::{MemoryTier, PlacementHint};
 
 #[test]
 fn storage_allocates_device_tier() {
-    let storage = HephaestusStorage::<crate::WgpuBackend, f32>::new(16);
+    let storage = HephaestusStorage::<crate::WgpuBackend, f32>::new(16)
+        .expect("invariant: WGPU test storage allocation succeeds");
     assert_eq!(storage.buffer().tier(), MemoryTier::Device);
 }
 
@@ -30,14 +31,24 @@ fn device_upload_roundtrip_preserves_values() {
 #[test]
 fn backend_zero_memory_operations_preserve_exact_values() {
     let backend = crate::backend::WgpuBackend::new();
-    let mut storage = backend.allocate_zeroed::<u32>(4);
+    let mut storage = backend
+        .allocate_zeroed::<u32>(4)
+        .expect("invariant: WGPU test storage allocation succeeds");
     let mut values = [u32::MAX; 4];
-    backend.copy_to_host(&storage, &mut values);
+    backend
+        .copy_to_host(&storage, &mut values)
+        .expect("invariant: WGPU test storage transfer succeeds");
     assert_eq!(values, [0; 4]);
 
-    backend.fill(&mut storage, 0xdead_beef);
-    backend.fill(&mut storage, 0);
-    backend.copy_to_host(&storage, &mut values);
+    backend
+        .fill(&mut storage, 0xdead_beef)
+        .expect("invariant: WGPU test storage fill succeeds");
+    backend
+        .fill(&mut storage, 0)
+        .expect("invariant: WGPU test storage fill succeeds");
+    backend
+        .copy_to_host(&storage, &mut values)
+        .expect("invariant: WGPU test storage transfer succeeds");
     assert_eq!(values, [0; 4]);
 }
 
@@ -66,10 +77,13 @@ fn copy_on_write_preserves_values_in_both_device_buffers() {
         .hephaestus_device
         .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::Device))
         .expect("failed to upload COW source");
-    let mut writable = HephaestusStorage::<crate::WgpuBackend, _>::from_buffer(source);
+    // SAFETY: `upload_with_hint` initializes the complete source buffer.
+    let mut writable = unsafe { HephaestusStorage::<crate::WgpuBackend, _>::from_buffer(source) };
     let retained = writable.clone();
 
-    writable.make_unique();
+    writable
+        .make_unique()
+        .expect("invariant: detaching a shared device buffer allocates the copy");
 
     assert_ne!(writable.allocation_id(), retained.allocation_id());
     let mut writable_values = vec![0.0f32; input.len()];

@@ -14,7 +14,8 @@ fn disabled_provider_reports_unavailable_backend_identity() {
 #[test]
 fn disabled_provider_rejects_fused_execution() {
     let backend = CudaBackend::new();
-    let input = Tensor::<f32, CudaBackend>::from_slice_on([2], &[1.0, -2.0], &backend);
+    let input = Tensor::<f32, CudaBackend>::from_slice_on([2], &[1.0, -2.0], &backend)
+        .expect("invariant: test backend operation succeeds");
     let expression = input.expr().relu();
 
     let error = match coeus_cuda::evaluate_fused(&expression) {
@@ -34,7 +35,8 @@ fn disabled_provider_rejects_fused_execution() {
 #[test]
 fn disabled_provider_rejects_fused_reduction() {
     let backend = CudaBackend::new();
-    let input = Tensor::<f32, CudaBackend>::from_slice_on([2], &[1.0, -2.0], &backend);
+    let input = Tensor::<f32, CudaBackend>::from_slice_on([2], &[1.0, -2.0], &backend)
+        .expect("invariant: test backend operation succeeds");
     let expression = input.expr().relu();
 
     let error = match coeus_cuda::evaluate_fused_reduce(&expression, coeus_ops::ReductionOp::Sum, 0)

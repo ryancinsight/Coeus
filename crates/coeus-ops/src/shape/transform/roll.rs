@@ -24,7 +24,7 @@ pub fn roll<T: Scalar, B: BackendOps<T> + Default>(
     shifts: &[isize],
     dims: &[usize],
     _backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -75,33 +75,37 @@ mod tests {
     #[test]
     fn roll_1d_shift_1() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0]);
-        let out = roll(&x, &[1], &[0], &b);
+        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = roll(&x, &[1], &[0], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[3.0, 0.0, 1.0, 2.0]);
     }
 
     #[test]
     fn roll_1d_negative_shift() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0]);
-        let out = roll(&x, &[-1], &[0], &b);
+        let x = Tensor::from_slice(vec![4], &[0.0f32, 1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = roll(&x, &[-1], &[0], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[1.0, 2.0, 3.0, 0.0]);
     }
 
     #[test]
     fn roll_2d_shift_row() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds");
         // roll along rows by 1: row 1 → row 0, row 0 → row 1
-        let out = roll(&x, &[1], &[0], &b);
+        let out = roll(&x, &[1], &[0], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[4.0, 5.0, 6.0, 1.0, 2.0, 3.0]);
     }
 
     #[test]
     fn roll_shift_zero_is_identity() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[7.0f32, 8.0, 9.0]);
-        let out = roll(&x, &[0], &[0], &b);
+        let x = Tensor::from_slice(vec![3], &[7.0f32, 8.0, 9.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = roll(&x, &[0], &[0], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[7.0, 8.0, 9.0]);
     }
 }

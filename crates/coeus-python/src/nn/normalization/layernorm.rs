@@ -1,5 +1,5 @@
 use crate::{
-    error::map_module_error,
+    error::{map_backend_error, map_module_error},
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;
@@ -54,7 +54,8 @@ impl PyLayerNorm {
         let layer = coeus_nn::normalization::layernorm::LayerNorm::<
             f64,
             coeus_core::MoiraiBackend,
-        >::from_shape(normalized_shape, eps);
+        >::from_shape(normalized_shape, eps)
+        .map_err(map_backend_error)?;
         let weight = Py::new(
             py,
             PyTensor {
@@ -83,10 +84,11 @@ impl PyLayerNorm {
 
         let inner = py.allow_threads(move || {
             let layer =
-                coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val);
-            layer.forward_nd(&input_var)
+                coeus_nn::normalization::layernorm::LayerNorm::from_parts(w_var, b_var, eps_val)
+                    .map_err(map_backend_error)?;
+            layer.forward_nd(&input_var).map_err(map_module_error)
         });
-        inner.map(PyTensor::from_var).map_err(map_module_error)
+        inner.map(PyTensor::from_var)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -112,8 +114,8 @@ impl PyLayerNorm {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
-        self.bias.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
+        self.bias.bind(py).borrow().zero_grad()
     }
 }

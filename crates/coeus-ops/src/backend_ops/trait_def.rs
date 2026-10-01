@@ -30,14 +30,16 @@ use super::traits::{ConvOps, ElementwiseOps, MatmulOps, PoolOps, ReductionOps, U
 ///     a: &Tensor<f32, B>,
 ///     b: &Tensor<f32, B>,
 ///     backend: &B,
-/// ) -> Tensor<f32, B> {
+/// ) -> Result<Tensor<f32, B>, B::Error> {
 ///     add(a, b, backend)
 /// }
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0]);
-/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]);
-/// let c = compute(&a, &b, &backend);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2], &[1.0, 2.0])
+///     .expect("example tensor allocation succeeds");
+/// let b = Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0])
+///     .expect("example tensor allocation succeeds");
+/// let c = compute(&a, &b, &backend).expect("example addition succeeds");
 /// assert_eq!(c.as_slice(), &[4.0, 6.0]);
 /// ```
 pub trait BackendOps<T: Scalar>:

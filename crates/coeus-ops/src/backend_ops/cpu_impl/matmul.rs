@@ -27,7 +27,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("matmul", error))
 }
@@ -53,7 +53,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("batched matmul", error))
 }
@@ -79,7 +79,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("matmul accumulate", error))
 }
@@ -105,7 +105,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("batched matmul accumulate", error))
 }
