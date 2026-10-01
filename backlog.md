@@ -5,6 +5,19 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
+<a id="coeus-rescue-queue"></a>
+## COEUS-RESCUE-QUEUE — Complete or close the stranded rescue PRs
+
+- Status: todo; priority: correctness; [patch].
+- Outcome: each listed rescue PR is completed onto current `main` (ported, verified, merged) or closed once its diff resolves empty against `main`.
+- Scope: head refs of the PRs below; no board or code change until a PR is claimed.
+- PRs (draft parking records, unclaimed; head ref is the only durable copy):
+  - `ryancinsight/coeus#469` (`rescue/audit-coeus-20260928`): 2 audit commits (module-root splits, crate-level allow removal, RNG unit fix); 68 files, +2309/-2430, code across `coeus-ops`, `coeus-nn`, `coeus-autograd`, `coeus-python` and 7 other crates.
+  - `ryancinsight/coeus#464` (`rescue/coeus-fallible-storage-core-recovery`): 6 commits of the unverified fallible-storage migration preserved from PR #461 (storage seam, COW failures, caller propagation); 584 files, +19839/-11005, code across 15 crates plus one ADR. Overlaps [COEUS-FALLIBLE-STORAGE-CORE](#coeus-fallible-storage-core) and its dependent leaves; port per those leaves' scopes.
+- Acceptance: no open `rescue/` PR for this repository remains unaccounted for; a port's resolved diff against `main` is either integrated and verified by the committed gate or empty (landed-work proof), never closed on resemblance.
+- Needs: none for #469; #464 is claimed through the storage leaves above.
+- Next step: `git diff $(git merge-base origin/main <head>) <head>` per PR, port onto a fresh branch from `main`, run the package gates.
+
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
 
