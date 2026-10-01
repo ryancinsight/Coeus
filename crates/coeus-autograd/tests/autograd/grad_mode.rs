@@ -6,13 +6,15 @@ use coeus_tensor::Tensor;
 fn no_grad_blocks_operation_graph_construction() {
     let backend = MoiraiBackend::new();
     let x = Var::new(
-        Tensor::from_slice_on(vec![3], &[1.0f64, -2.0, 3.0], &backend),
+        Tensor::from_slice_on(vec![3], &[1.0f64, -2.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     {
         let _guard = no_grad_guard();
-        let y = relu(&x);
+        let y = relu(&x).expect("invariant: test operation succeeds");
         assert_eq!(y.tensor.as_slice(), &[1.0, 0.0, 3.0]);
         assert!(y.grad.is_none(), "no_grad op output must not allocate grad");
         assert!(
@@ -21,7 +23,7 @@ fn no_grad_blocks_operation_graph_construction() {
         );
     }
 
-    let tracked = relu(&x);
+    let tracked = relu(&x).expect("invariant: test operation succeeds");
     // The guard's counterpart to the two `is_none` assertions above: a
     // resumed op allocates a zeroed accumulator of the output's shape, not
     // merely a slot. `is_some` could not tell the two apart.
@@ -37,6 +39,7 @@ fn no_grad_blocks_operation_graph_construction() {
     // gradient reaching `x` three lines below is what a node existing and
     // propagating actually means, and `is_some` restates it more weakly.
     sum(&tracked)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(x.grad().unwrap().as_slice(), &[1.0, 0.0, 1.0]);
@@ -48,9 +51,11 @@ fn no_grad_preserves_explicit_leaf_requires_grad() {
     let x = {
         let _guard = no_grad_guard();
         Var::new(
-            Tensor::from_slice_on(vec![2], &[2.0f64, 4.0], &backend),
+            Tensor::from_slice_on(vec![2], &[2.0f64, 4.0], &backend)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     };
 
     assert_eq!(
@@ -61,7 +66,7 @@ fn no_grad_preserves_explicit_leaf_requires_grad() {
         "an explicitly tracked leaf starts with a zeroed accumulator"
     );
 
-    let y = add(&x, &x);
+    let y = add(&x, &x).expect("invariant: test operation succeeds");
     assert_eq!(y.tensor.as_slice(), &[4.0, 8.0]);
     assert_eq!(
         y.grad()
@@ -71,6 +76,7 @@ fn no_grad_preserves_explicit_leaf_requires_grad() {
         "a post-guard operation starts with a zeroed accumulator"
     );
     sum(&y)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(x.grad().unwrap().as_slice(), &[2.0, 2.0]);

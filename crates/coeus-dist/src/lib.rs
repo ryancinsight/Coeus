@@ -19,7 +19,7 @@ pub mod ops;
 /// Socket-based communicators for real multi-process training.
 pub mod tcp;
 
-pub use communicator::Communicator;
+pub use communicator::{CollectiveError, Communicator};
 pub use gradients::{synchronize_gradients, GradientSyncError};
 pub use local::LocalCommunicator;
 pub use ops::{Max, Min, Product, ReduceOpTag, Sum};

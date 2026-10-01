@@ -15,8 +15,16 @@ use super::elementwise::ElementwiseOps;
 /// [`BackendOps`].  Backends implement `MatmulOps` directly; the
 /// blanket impl provides `BackendOps` automatically.
 ///
+/// # Safety
+///
+/// On `Ok(())`, `matmul` and `batched_matmul` must write every logical output
+/// element described by the destination layout without reading prior output
+/// contents. The accumulation methods require an initialized destination and
+/// are not output initializers. An error may leave a destination partially
+/// written; callers must discard an uninitialized destination on error.
+///
 /// [`BackendOps`]: super::super::BackendOps
-pub trait MatmulOps<T: Scalar>: ComputeBackend {
+pub unsafe trait MatmulOps<T: Scalar>: ComputeBackend {
     /// Matrix multiplication.
     fn matmul(
         &self,

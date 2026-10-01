@@ -45,8 +45,8 @@ Bindings:
    What this does *not* claim: copying is not eliminated everywhere.
    `to_contiguous()` returns the receiver unchanged only when it is already
    contiguous at offset 0; on a strided input it materializes a compacted copy.
-   The `iter()` / `iter_mut()` element iterators assert contiguity rather than
-   walking strides, so iterating a strided tensor requires materializing first.
+   The `iter()` / `try_iter_mut()` element accessors assert contiguity rather
+   than walking strides, so a strided tensor requires materializing first.
 2. **Monomorphized Kernel Dispatch**
    Operations are parameterized by generic parameters such as
    `<T: Scalar, B: ComputeBackend>`. Downstream compiles evaluate to direct

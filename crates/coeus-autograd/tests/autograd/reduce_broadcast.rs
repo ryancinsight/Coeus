@@ -16,6 +16,7 @@ fn ramp(shape: Vec<usize>) -> Tensor<f32, MoiraiBackend> {
     let len = shape.iter().product::<usize>();
     let values = (0..len).map(|i| i as f32 + 1.0).collect::<Vec<_>>();
     Tensor::from_slice_on(shape, &values, &backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_reduces_to(grad_shape: Vec<usize>, target: &[usize], expected: &[f32]) {

@@ -50,21 +50,29 @@ fn rmsnorm_case<T: GradcheckScalar>() {
     gradcheck(&[x, weight], |v| {
         let backend = MoiraiBackend::new();
 
-        let x_sq = coeus_ops::mul(&v[0].tensor, &v[0].tensor, &backend);
+        let x_sq = coeus_ops::mul(&v[0].tensor, &v[0].tensor, &backend)
+            .expect("invariant: test operation succeeds");
         let mut rms = coeus_ops::mean_axis(&x_sq, 1, &backend).expect("row mean square");
         let epsilon = Tensor::<T, MoiraiBackend>::full_on(
             [1],
             <T as coeus_core::Scalar>::from_f64(EPS),
             &backend,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         coeus_ops::add_assign(&mut rms, &epsilon, &backend).expect("mean square + eps");
         coeus_ops::sqrt_assign(&mut rms, &backend).expect("root mean square");
 
-        let x_hat = coeus_ops::div(&v[0].tensor, &rms, &backend);
+        let x_hat = coeus_ops::div(&v[0].tensor, &rms, &backend)
+            .expect("invariant: test operation succeeds");
         let weight_row = v[1].tensor.reshape([1, WIDTH]);
-        let out_tensor = coeus_ops::mul(&x_hat, &weight_row, &backend);
+        let out_tensor = coeus_ops::mul(&x_hat, &weight_row, &backend)
+            .expect("invariant: test operation succeeds");
 
-        weighted(&rmsnorm(&v[0], &v[1], out_tensor, x_hat, rms), &w)
+        weighted(
+            &rmsnorm(&v[0], &v[1], out_tensor, x_hat, rms)
+                .expect("invariant: test operation succeeds"),
+            &w,
+        )
     })
     .expect("rmsnorm backward must match central differences");
 }
@@ -100,12 +108,18 @@ fn batchnorm1d_case<T: GradcheckScalar>() {
         let backend = MoiraiBackend::new();
 
         // [N, C, L] → [N, L, C] → [M, C], matching the layer's own view.
-        let nlc = v[0].tensor.permute(&[0, 2, 1]).to_contiguous_on(&backend);
+        let nlc = v[0]
+            .tensor
+            .permute(&[0, 2, 1])
+            .to_contiguous_on(&backend)
+            .expect("invariant: test operation succeeds");
         let flat = nlc.reshape([M, C]);
 
         let mean = coeus_ops::mean_axis(&flat, 0, &backend).expect("per-channel mean");
-        let xmu = coeus_ops::sub(&flat, &mean, &backend);
-        let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
+        let xmu =
+            coeus_ops::sub(&flat, &mean, &backend).expect("invariant: test operation succeeds");
+        let xmu_sq =
+            coeus_ops::mul(&xmu, &xmu, &backend).expect("invariant: test operation succeeds");
         let variance = coeus_ops::mean_axis(&xmu_sq, 0, &backend).expect("per-channel variance");
 
         let mut stdev = variance;
@@ -113,23 +127,28 @@ fn batchnorm1d_case<T: GradcheckScalar>() {
             [1],
             <T as coeus_core::Scalar>::from_f64(EPS),
             &backend,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         coeus_ops::add_assign(&mut stdev, &epsilon, &backend).expect("variance + eps");
         coeus_ops::sqrt_assign(&mut stdev, &backend).expect("standard deviation");
 
-        let mut istdev = Tensor::<T, MoiraiBackend>::ones_on([1, C], &backend);
+        let mut istdev = Tensor::<T, MoiraiBackend>::ones_on([1, C], &backend)
+            .expect("invariant: test backend operation succeeds");
         coeus_ops::div_assign(&mut istdev, &stdev, &backend).expect("inverse standard deviation");
 
-        let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
+        let x_hat =
+            coeus_ops::mul(&xmu, &istdev, &backend).expect("invariant: test operation succeeds");
         let weight_row = v[1].tensor.reshape([1, C]);
         let bias_row = v[2].tensor.reshape([1, C]);
-        let mut y_flat = coeus_ops::mul(&x_hat, &weight_row, &backend);
+        let mut y_flat = coeus_ops::mul(&x_hat, &weight_row, &backend)
+            .expect("invariant: test operation succeeds");
         coeus_ops::add_assign(&mut y_flat, &bias_row, &backend).expect("affine shift");
 
         let out_tensor = y_flat
             .reshape([N, L, C])
             .permute(&[0, 2, 1])
-            .to_contiguous_on(&backend);
+            .to_contiguous_on(&backend)
+            .expect("invariant: test operation succeeds");
 
         let normalized = batchnorm1d(
             &v[0],
@@ -144,23 +163,27 @@ fn batchnorm1d_case<T: GradcheckScalar>() {
                     [1],
                     <T as coeus_core::Scalar>::from_f64(M as f64),
                     &backend,
-                ),
+                )
+                .expect("invariant: test backend operation succeeds"),
                 minus_half: Tensor::<T, MoiraiBackend>::full_on(
                     [1],
                     <T as coeus_core::Scalar>::from_f64(-0.5),
                     &backend,
-                ),
+                )
+                .expect("invariant: test backend operation succeeds"),
                 two_const: Tensor::<T, MoiraiBackend>::full_on(
                     [1],
                     <T as coeus_core::Scalar>::from_f64(2.0),
                     &backend,
-                ),
+                )
+                .expect("invariant: test backend operation succeeds"),
                 n: N,
                 c: C,
                 spatial: [L, 1, 1],
                 m: M,
             },
-        );
+        )
+        .expect("invariant: test operation succeeds");
         weighted(&normalized, &w)
     })
     .expect("batchnorm1d backward must match central differences");

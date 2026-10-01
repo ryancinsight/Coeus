@@ -1,5 +1,6 @@
 use crate::{
     error::map_module_error,
+    init::map_initialization_error,
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;
@@ -60,7 +61,8 @@ impl PyConv3d {
             padding,
             dilation,
             bias,
-        );
+        )
+        .map_err(map_initialization_error)?;
 
         let weight = Py::new(
             py,
@@ -144,10 +146,11 @@ impl PyConv3d {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
         if let Some(ref b) = self.bias {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 }

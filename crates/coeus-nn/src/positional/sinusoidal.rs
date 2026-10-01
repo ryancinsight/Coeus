@@ -29,7 +29,10 @@ impl<T: Float + FloatElement, B: ComputeBackend + Default> SinusoidalEncoding<T,
     ///
     /// - `max_len`: maximum sequence length supported.
     /// - `d_model`: embedding dimension (must be even).
-    pub fn new(max_len: usize, d_model: usize) -> Self {
+    pub fn new(
+        max_len: usize,
+        d_model: usize,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         assert!(
             d_model.is_multiple_of(2),
             "SinusoidalEncoding: d_model must be even, got {d_model}"
@@ -53,12 +56,12 @@ impl<T: Float + FloatElement, B: ComputeBackend + Default> SinusoidalEncoding<T,
                 values.push(Float::cos(angle));
             }
         }
-        let table = Tensor::from_slice_on([max_len, d_model], &values, &backend);
-        Self {
+        let table = Tensor::from_slice_on([max_len, d_model], &values, &backend)?;
+        Ok(Self {
             table,
             max_len,
             d_model,
-        }
+        })
     }
 }
 
@@ -107,11 +110,11 @@ impl<
         // provider consumes the view layout directly, so forward never stages
         // or downloads the precomputed table.
         let pe_slice = prefix_view(&self.table, seq_len, self.d_model);
-        let pe_var = Var::new(pe_slice, false);
+        let pe_var = Var::new(pe_slice?, false)?;
 
         // Broadcast add: input [B, seq, d] + pe [seq, d] via autograd add.
         // autograd::add handles the broadcast accumulation.
-        Ok(coeus_autograd::add(input, &pe_var))
+        Ok(coeus_autograd::add(input, &pe_var)?)
     }
 }
 
@@ -121,8 +124,8 @@ fn prefix_view<T: coeus_core::Scalar, B: ComputeBackend>(
     table: &Tensor<T, B>,
     seq_len: usize,
     d_model: usize,
-) -> Tensor<T, B> {
-    table.slice(&[(0, seq_len), (0, d_model)])
+) -> Result<Tensor<T, B>, B::Error> {
+    Ok(table.slice(&[(0, seq_len), (0, d_model)]))
 }
 
 #[cfg(test)]
@@ -132,10 +135,10 @@ mod tests {
     use coeus_tensor::Tensor;
 
     #[test]
-    fn prefix_view_shares_cpu_storage() {
+    fn prefix_view_shares_cpu_storage() -> Result<(), Box<dyn std::error::Error>> {
         let backend = SequentialBackend;
-        let table = Tensor::from_slice_on([4, 6], &[0.0_f32; 24], &backend);
-        let prefix = prefix_view(&table, 2, 6);
+        let table = Tensor::from_slice_on([4, 6], &[0.0_f32; 24], &backend)?;
+        let prefix = prefix_view(&table, 2, 6)?;
 
         let table_ptr = table
             .storage()
@@ -149,5 +152,6 @@ mod tests {
             .as_ptr();
         assert_eq!(prefix_ptr, table_ptr);
         assert_eq!(prefix.shape(), &[2, 6]);
+        Ok(())
     }
 }

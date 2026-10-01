@@ -48,8 +48,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
         };
 
         let norm_broad = self.norm_tensor.broadcast(self.input_tensor.shape_cloned());
-        let scale = coeus_ops::div(grad_out, &norm_broad, &backend);
-        let grad_in = coeus_ops::mul(&scale, &self.input_tensor, &backend);
+        let scale = coeus_ops::div(grad_out, &norm_broad, &backend)?;
+        let grad_in = coeus_ops::mul(&scale, &self.input_tensor, &backend)?;
 
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_in, &backend)?;
@@ -64,18 +64,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
 #[inline]
 pub fn norm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let norm_val = coeus_ops::norm(&a.tensor, &backend).expect("norm");
-    let out_tensor = Tensor::full_on([1], norm_val, &backend);
+    let norm_val = coeus_ops::norm(&a.tensor, &backend)?;
+    let out_tensor = Tensor::full_on([1], norm_val, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
     let creator = requires_grad.then(|| {
         let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
@@ -86,11 +88,11 @@ pub fn norm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + D
             norm_tensor: out_tensor.clone(),
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── NormPNode (general Lp norm, scalar output) ─────────────────────────────
@@ -136,27 +138,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
         };
 
         let shape = self.input_tensor.shape_cloned();
-        let ones = Tensor::full_on(shape.clone(), T::ONE, &backend);
-        let zeros = Tensor::zeros_on(shape.clone(), &backend);
-        let abs_x = coeus_ops::abs(&self.input_tensor, &backend);
-        let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)
-            .expect("norm_p backward: safe absolute value");
-        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::ONE, &backend);
+        let ones = Tensor::full_on(shape.clone(), T::ONE, &backend)?;
+        let zeros = Tensor::zeros_on(shape.clone(), &backend)?;
+        let abs_x = coeus_ops::abs(&self.input_tensor, &backend)?;
+        let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)?;
+        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::ONE, &backend)?;
 
         let norm_broad = self.norm_tensor.broadcast(shape.clone());
-        let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)
-            .expect("norm_p backward: safe norm");
-        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::ONE - self.p, &backend);
+        let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)?;
+        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::ONE - self.p, &backend)?;
         let signed = coeus_ops::mul(
-            &coeus_ops::sign(&self.input_tensor, &backend),
+            &coeus_ops::sign(&self.input_tensor, &backend)?,
             &abs_power,
             &backend,
-        );
-        let scaled = coeus_ops::mul(&signed, &norm_factor, &backend);
+        )?;
+        let scaled = coeus_ops::mul(&signed, &norm_factor, &backend)?;
         let grad_broad = grad_out.broadcast(shape);
-        let local = coeus_ops::mul(&scaled, &grad_broad, &backend);
-        let grad_t = coeus_ops::where_cond(&self.input_tensor, &local, &zeros, &backend)
-            .expect("norm_p backward: zero-input mask");
+        let local = coeus_ops::mul(&scaled, &grad_broad, &backend)?;
+        let grad_t = coeus_ops::where_cond(&self.input_tensor, &local, &zeros, &backend)?;
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_t, &backend)?;
         Ok(())
@@ -173,17 +172,19 @@ pub fn norm_p<
 >(
     a: &Var<T, B>,
     p: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = coeus_ops::norm_p_tensor(&a.tensor, p, &backend);
+    let out_tensor = coeus_ops::norm_p_tensor(&a.tensor, p, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
     let creator = requires_grad.then(|| {
         let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
@@ -195,11 +196,11 @@ pub fn norm_p<
             norm_tensor: out_tensor.clone(),
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── NormPAxisNode (per-axis Lp norm) ───────────────────────────────────────
@@ -245,27 +246,24 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
         };
 
         let shape = self.input_tensor.shape_cloned();
-        let ones = Tensor::full_on(shape.clone(), T::ONE, &backend);
-        let zeros = Tensor::zeros_on(shape.clone(), &backend);
-        let abs_x = coeus_ops::abs(&self.input_tensor, &backend);
-        let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)
-            .expect("norm_p_axis backward: safe absolute value");
-        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::ONE, &backend);
+        let ones = Tensor::full_on(shape.clone(), T::ONE, &backend)?;
+        let zeros = Tensor::zeros_on(shape.clone(), &backend)?;
+        let abs_x = coeus_ops::abs(&self.input_tensor, &backend)?;
+        let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)?;
+        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::ONE, &backend)?;
 
         let norm_broad = self.norm_tensor.broadcast(shape.clone());
-        let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)
-            .expect("norm_p_axis backward: safe norm");
-        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::ONE - self.p, &backend);
+        let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)?;
+        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::ONE - self.p, &backend)?;
         let signed = coeus_ops::mul(
-            &coeus_ops::sign(&self.input_tensor, &backend),
+            &coeus_ops::sign(&self.input_tensor, &backend)?,
             &abs_power,
             &backend,
-        );
-        let scaled = coeus_ops::mul(&signed, &norm_factor, &backend);
+        )?;
+        let scaled = coeus_ops::mul(&signed, &norm_factor, &backend)?;
         let grad_broad = grad_out.broadcast(shape.clone());
-        let local = coeus_ops::mul(&scaled, &grad_broad, &backend);
-        let grad_t = coeus_ops::where_cond(&self.input_tensor, &local, &zeros, &backend)
-            .expect("norm_p_axis backward: zero-input mask");
+        let local = coeus_ops::mul(&scaled, &grad_broad, &backend)?;
+        let grad_t = coeus_ops::where_cond(&self.input_tensor, &local, &zeros, &backend)?;
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_t, &backend)?;
         Ok(())
@@ -281,17 +279,19 @@ pub fn norm_p_axis<
     a: &Var<T, B>,
     p: T,
     axis: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = coeus_ops::norm_p_axis(&a.tensor, p, axis, &backend);
+    let out_tensor = coeus_ops::norm_p_axis(&a.tensor, p, axis, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
     let creator = requires_grad.then(|| {
         let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
@@ -303,11 +303,11 @@ pub fn norm_p_axis<
             norm_tensor: out_tensor.clone(),
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -317,15 +317,17 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
     fn norm_forward_matches_reference() {
         let input = var_from(&[3.0, -4.0, 12.0]);
-        let norm = norm(&input);
+        let norm = norm(&input).expect("invariant: test operation succeeds");
         assert_eq!(norm.tensor.shape(), &[1]);
         // sqrt(9 + 16 + 144) = sqrt(169) = 13.
         assert!((norm.tensor.as_slice()[0] - 13.0).abs() < 1e-12);
@@ -335,10 +337,10 @@ mod tests {
     fn norm_p_forward_matches_reference_for_p1_and_p3() {
         let input = var_from(&[2.0, -3.0, 4.0]);
         // p = 1: |2| + |3| + |4| = 9.
-        let p1 = norm_p(&input, 1.0);
+        let p1 = norm_p(&input, 1.0).expect("invariant: test operation succeeds");
         assert!((p1.tensor.as_slice()[0] - 9.0).abs() < 1e-12);
         // p = 3: (8 + 27 + 64)^(1/3) = 99^(1/3).
-        let p3 = norm_p(&input, 3.0);
+        let p3 = norm_p(&input, 3.0).expect("invariant: test operation succeeds");
         let expected = 99.0_f64.powf(1.0 / 3.0);
         assert!((p3.tensor.as_slice()[0] - expected).abs() < 1e-9);
     }
@@ -348,7 +350,7 @@ mod tests {
         // x = [3, -4, 12], p = 2 → ||x|| = 13.
         // d/dx ||x||_2 = x / ||x||.
         let input = var_from(&[3.0, -4.0, 12.0]);
-        let norm = norm_p(&input, 2.0);
+        let norm = norm_p(&input, 2.0).expect("invariant: test operation succeeds");
         norm.backward().expect("invariant: backward completes");
         let grad = input.grad().expect("input must receive a gradient");
         let expected = [3.0 / 13.0, -4.0 / 13.0, 12.0 / 13.0];
@@ -373,7 +375,7 @@ mod tests {
         // x = [2, -3, 4], p = 3, ||x||_3 = 99^(1/3).
         // d/dx = sign(x)·|x|^2·norm^(1-3).
         let input = var_from(&[2.0, -3.0, 4.0]);
-        let norm = norm_p(&input, 3.0);
+        let norm = norm_p(&input, 3.0).expect("invariant: test operation succeeds");
         norm.backward().expect("invariant: backward completes");
         let grad = input.grad().expect("input must receive a gradient");
         let norm_val = 99.0_f64.powf(1.0 / 3.0);
@@ -402,19 +404,23 @@ mod tests {
         // `norm_p` already reduces to a scalar, so no output weighting is
         // needed and the gradient is nowhere near zero. Mixed signs keep the
         // sign(x) factor in the comparison.
-        let input = Tensor::<f64, MoiraiBackend>::from_slice([3], &[2.0, -3.0, 4.0]);
+        let input = Tensor::<f64, MoiraiBackend>::from_slice([3], &[2.0, -3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
 
-        crate::gradcheck::gradcheck(&[input], |v| norm_p(&v[0], 3.0))
-            .expect("norm_p p=3 backward must match central differences");
+        crate::gradcheck::gradcheck(&[input], |v| {
+            norm_p(&v[0], 3.0).expect("invariant: test operation succeeds")
+        })
+        .expect("norm_p p=3 backward must match central differences");
     }
 
     #[test]
     fn norm_p_axis_forward_and_backward_preserve_axis() {
         // Matrix [[1, 2], [3, 4]] with p = 2 along axis 0:
         // slice 0: sqrt(1 + 9) = sqrt(10); slice 1: sqrt(4 + 16) = sqrt(20).
-        let base = Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
-        let input = Var::new(base, true);
-        let norm = norm_p_axis(&input, 2.0, 0);
+        let base = Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let input = Var::new(base, true).expect("invariant: test backend operation succeeds");
+        let norm = norm_p_axis(&input, 2.0, 0).expect("invariant: test operation succeeds");
         assert_eq!(norm.tensor.shape(), &[1, 2]);
         assert!((norm.tensor.as_slice()[0] - 10.0_f64.sqrt()).abs() < 1e-12);
         assert!((norm.tensor.as_slice()[1] - 20.0_f64.sqrt()).abs() < 1e-12);
@@ -440,20 +446,20 @@ mod tests {
     #[should_panic(expected = "finite positive")]
     fn norm_p_panics_on_zero_ord() {
         let input = var_from(&[1.0, 2.0]);
-        let _ = norm_p(&input, 0.0);
+        let _ = norm_p(&input, 0.0).expect("invariant: test operation succeeds");
     }
 
     #[test]
     #[should_panic(expected = "finite positive")]
     fn norm_p_panics_on_non_finite_ord() {
         let input = var_from(&[1.0, 2.0]);
-        let _ = norm_p(&input, f64::NAN);
+        let _ = norm_p(&input, f64::NAN).expect("invariant: test operation succeeds");
     }
 
     #[test]
     #[should_panic(expected = "out of bounds")]
     fn norm_p_axis_panics_on_bad_axis() {
         let input = var_from(&[1.0, 2.0]);
-        let _ = norm_p_axis(&input, 2.0, 3);
+        let _ = norm_p_axis(&input, 2.0, 3).expect("invariant: test operation succeeds");
     }
 }

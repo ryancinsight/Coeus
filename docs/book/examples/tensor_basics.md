@@ -27,8 +27,9 @@ all tensor-basics assertions passed
   It routes CPU operations through the moirai work-stealing scheduler.
 
 - `Tensor::from_slice_on(shape, data, &backend)` takes a `Vec<usize>` shape and
-  a `&[T]` slice.  The backend owns the storage type; switching to a GPU backend
-  would copy `data` to device memory.
+  a `&[T]` slice and returns the backend's typed allocation or transfer error.
+  The backend owns the storage type; switching to a GPU backend copies `data`
+  to device memory.
 
 - `coeus_ops::sum(&tensor, &backend)` returns `Result<T, _>` because an empty
-  tensor has no defined sum.  The `.expect("sum")` pattern is idiomatic.
+  tensor has no defined sum. The example propagates the typed error with `?`.

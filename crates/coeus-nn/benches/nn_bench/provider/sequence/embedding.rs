@@ -18,10 +18,14 @@ pub(crate) fn bench_embedding_forward(c: &mut Criterion) {
         .map(|&v| v as f32)
         .collect();
 
-    let emb_seq = Embedding::<f32, SequentialBackend>::new(EMB_VOCAB, EMB_DIM);
-    let emb_moirai = Embedding::<f32, MoiraiBackend>::new(EMB_VOCAB, EMB_DIM);
-    let idx_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data);
-    let idx_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data);
+    let emb_seq = Embedding::<f32, SequentialBackend>::new(EMB_VOCAB, EMB_DIM)
+        .expect("invariant: test operation succeeds");
+    let emb_moirai = Embedding::<f32, MoiraiBackend>::new(EMB_VOCAB, EMB_DIM)
+        .expect("invariant: test operation succeeds");
+    let idx_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data)
+        .expect("invariant: test backend operation succeeds");
+    let idx_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![EMB_BATCH, EMB_SEQ], &idx_data)
+        .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — Embedding lookup forward (2x16, vocab=4096, d=256)");
     group.bench_function("Coeus Sequential", |b| {
@@ -46,13 +50,17 @@ pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
 
     // Coeus EmbeddingBag.
     let eb_seq =
-        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum)
+            .expect("invariant: test operation succeeds");
     let eb_moirai =
-        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum);
+        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Sum)
+            .expect("invariant: test operation succeeds");
     let eb_mean_seq =
-        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean);
+        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean)
+            .expect("invariant: test operation succeeds");
     let eb_mean_moirai =
-        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean);
+        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean)
+            .expect("invariant: test operation succeeds");
 
     let mut group = c.benchmark_group(
         "Coeus — EmbeddingBag reductions (16 bags × 100 tokens, vocab=200 dim=64)",

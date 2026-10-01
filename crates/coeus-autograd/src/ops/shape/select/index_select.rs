@@ -54,9 +54,9 @@ where
             let ndim = in_shape.len();
             let dim = self.dim;
 
-            let idx_cont = self.index_tensor.to_contiguous();
+            let idx_cont = self.index_tensor.to_contiguous()?;
             let idx_s = idx_cont.as_slice();
-            let go_cont = grad_out.to_contiguous();
+            let go_cont = grad_out.to_contiguous()?;
             let go_s = go_cont.as_slice();
 
             // Build output shape from input_shape with dim replaced by k.
@@ -96,7 +96,7 @@ where
             }
 
             // Accumulate increment into the gradient buffer.
-            let gi_increment = Tensor::from_slice(in_shape.clone(), &gi_data);
+            let gi_increment = Tensor::from_slice_on(in_shape.clone(), &gi_data, &backend)?;
             coeus_ops::add_assign(gl, &gi_increment, &backend)?;
         }
         Ok(())
@@ -107,26 +107,25 @@ where
 ///
 /// `index` must be 1-D. Backward scatters (accumulates) output gradients
 /// back to the selected input positions.
-#[must_use]
 #[inline]
 pub fn index_select<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
     index: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::index_select(&input.tensor, dim, &index.tensor, &backend);
+    let out_tensor = coeus_ops::index_select(&input.tensor, dim, &index.tensor, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -142,9 +141,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

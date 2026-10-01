@@ -35,7 +35,7 @@ where
 {
     let input_layout = ranked_exact::<R>(operation, input.1)?;
     let output_layout = ranked_exact::<R>(operation, output.1)?;
-    output.0.make_unique();
+    output.0.make_unique()?;
     let operands = PoolingForwardOperands {
         input: StridedView::new(B::pooling_buffer(input.0), &input_layout),
         output: StridedView::new(B::pooling_buffer(output.0), &output_layout),
@@ -66,7 +66,7 @@ where
     let input = input
         .zip(input_layout.as_ref())
         .map(|((buffer, _), layout)| StridedView::new(B::pooling_buffer(buffer), layout));
-    grad_input.0.make_unique();
+    grad_input.0.make_unique()?;
     let operands = PoolingBackwardOperands {
         input,
         grad_output: StridedView::new(B::pooling_buffer(grad_output.0), &grad_output_layout),

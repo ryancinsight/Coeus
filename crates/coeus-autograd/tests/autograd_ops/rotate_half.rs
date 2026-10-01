@@ -11,7 +11,8 @@ where
     B::DeviceBuffer<f64>:
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
-    let input = Tensor::from_slice_on([2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], backend);
+    let input = Tensor::from_slice_on([2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], backend)
+        .expect("invariant: test backend operation succeeds");
     let output = coeus_ops::rotate_half(&input, backend).expect("valid even final extent");
     assert_eq!(
         output.as_slice(),
@@ -28,7 +29,8 @@ fn sequential_and_moirai_match_the_rotation_definition() {
 #[test]
 fn odd_final_extent_is_rejected() {
     let backend = SequentialBackend;
-    let input = Tensor::from_slice_on([1, 3], &[1.0_f64, 2.0, 3.0], &backend);
+    let input = Tensor::from_slice_on([1, 3], &[1.0_f64, 2.0, 3.0], &backend)
+        .expect("invariant: test backend operation succeeds");
     let error = match coeus_ops::rotate_half(&input, &backend) {
         Ok(_) => panic!("odd extent must fail"),
         Err(error) => error,
@@ -46,11 +48,16 @@ where
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
     let input = Var::new(
-        Tensor::from_slice_on([1, 4], &[1.0_f64, 2.0, 3.0, 4.0], &backend),
+        Tensor::from_slice_on([1, 4], &[1.0_f64, 2.0, 3.0, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = rotate_half(&input).expect("valid rotation");
-    sum(&output).backward().expect("rotation backward");
+    sum(&output)
+        .expect("invariant: test operation succeeds")
+        .backward()
+        .expect("rotation backward");
     assert_eq!(
         input.grad().expect("tracked input gradient").as_slice(),
         &[1.0, 1.0, -1.0, -1.0]

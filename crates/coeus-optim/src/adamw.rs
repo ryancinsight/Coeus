@@ -29,10 +29,18 @@ use coeus_tensor::Tensor;
 /// use coeus_optim::{AdamW, Optimizer};
 /// use coeus_tensor::Tensor;
 ///
-/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
-/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+/// let x: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![2], &[2.0f32, 3.0]).expect("example tensor allocation succeeds"),
+///     true,
+/// )
+/// .expect("example variable allocation succeeds");
+/// x.set_grad(
+///     Tensor::from_slice(vec![2], &[1.0f32, -2.0])
+///         .expect("example gradient allocation succeeds"),
+/// );
 ///
-/// let mut opt = AdamW::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.01f32);
+/// let mut opt = AdamW::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32, 0.999f32, 1e-8f32, 0.01f32)
+///     .expect("example optimizer allocation succeeds");
 /// opt.step().unwrap();
 /// // adam_update ≈ lr * [1.0, -1.0] = [0.1, -0.1]; wd_update = lr * wd * p = [0.002, 0.003]
 /// // p' = [2.0, 3.0] - [0.1, -0.1] - [0.002, 0.003] = [1.898, 3.097]
@@ -78,17 +86,17 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
         beta2: T,
         eps: T,
         weight_decay: T,
-    ) -> Self {
+    ) -> Result<Self, B::Error> {
         let backend = B::default();
         let m = params
             .iter()
             .map(|p| Tensor::zeros_on(p.var.tensor.shape(), &backend))
-            .collect();
+            .collect::<Result<_, _>>()?;
         let v = params
             .iter()
             .map(|p| Tensor::zeros_on(p.var.tensor.shape(), &backend))
-            .collect();
-        Self {
+            .collect::<Result<_, _>>()?;
+        Ok(Self {
             params,
             lr,
             beta1,
@@ -98,12 +106,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
             t: 0,
             m,
             v,
-        }
+        })
     }
 
     /// Construct with standard defaults: β₁=0.9, β₂=0.999, ε=1e-8.
     #[inline]
-    pub fn with_defaults(params: Vec<Parameter<T, B>>, lr: T, weight_decay: T) -> Self {
+    pub fn with_defaults(
+        params: Vec<Parameter<T, B>>,
+        lr: T,
+        weight_decay: T,
+    ) -> Result<Self, B::Error> {
         Self::new(
             params,
             lr,
@@ -152,9 +164,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
                 let m_tensor = &mut self.m[i];
                 let v_tensor = &mut self.v[i];
 
-                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout();
-                let (m_storage, m_layout) = m_tensor.storage_mut_and_layout();
-                let (v_storage, v_layout) = v_tensor.storage_mut_and_layout();
+                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout()?;
+                let (m_storage, m_layout) = m_tensor.storage_mut_and_layout()?;
+                let (v_storage, v_layout) = v_tensor.storage_mut_and_layout()?;
 
                 backend.adamw_step(
                     param_storage,
@@ -178,17 +190,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
         Ok(())
     }
 
-    fn zero_grad(&mut self) {
+    fn zero_grad(&mut self) -> Result<(), B::Error> {
         for p in &self.params {
-            p.var.zero_grad();
+            p.var.zero_grad()?;
         }
+        Ok(())
     }
 
     fn set_lr(&mut self, lr: T) {
         self.lr = lr;
     }
 
-    fn clip_grad_norm(&mut self, max_norm: T) -> T
+    fn clip_grad_norm(&mut self, max_norm: T) -> Result<T, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

@@ -12,12 +12,17 @@ fn test_cuda_backend_transfer_roundtrip() {
 
     let data = vec![1.0f32, 2.0, 3.0];
     let seq = SequentialBackend::new();
-    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![3], &data);
+    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![3], &data)
+        .expect("invariant: test backend operation succeeds");
 
-    let a_cuda = a_seq.to_backend_on(&seq, &cuda_b);
+    let a_cuda = a_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
     assert_eq!(a_cuda.shape(), &[3]);
 
-    let a_seq_back = a_cuda.to_backend_on(&cuda_b, &seq);
+    let a_seq_back = a_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
     assert_eq!(a_seq_back.shape(), &[3]);
 }
 
@@ -36,23 +41,39 @@ fn test_cuda_backend_ops() {
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0];
     let b_data = vec![10.0f32, 20.0, 30.0, 40.0];
 
-    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &a_data);
-    let b_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &b_data);
+    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &a_data)
+        .expect("invariant: test backend operation succeeds");
+    let b_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2], &b_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let a_cuda = a_seq.to_backend_on(&seq, &cuda_b);
-    let b_cuda = b_seq.to_backend_on(&seq, &cuda_b);
+    let a_cuda = a_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let b_cuda = b_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let c_cuda = coeus_ops::add(&a_cuda, &b_cuda, &cuda_b);
-    let c_seq = c_cuda.to_backend_on(&cuda_b, &seq);
+    let c_cuda =
+        coeus_ops::add(&a_cuda, &b_cuda, &cuda_b).expect("invariant: test operation succeeds");
+    let c_seq = c_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
-    let m_cuda = coeus_ops::matmul(&a_cuda, &b_cuda, &cuda_b);
-    let m_seq = m_cuda.to_backend_on(&cuda_b, &seq);
+    let m_cuda =
+        coeus_ops::matmul(&a_cuda, &b_cuda, &cuda_b).expect("invariant: test operation succeeds");
+    let m_seq = m_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
-    let s_cuda = coeus_ops::silu(&a_cuda, &cuda_b);
-    let s_seq = s_cuda.to_backend_on(&cuda_b, &seq);
+    let s_cuda = coeus_ops::silu(&a_cuda, &cuda_b).expect("invariant: test operation succeeds");
+    let s_seq = s_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mish_cuda = coeus_ops::mish(&a_cuda, &cuda_b);
-    let mish_seq = mish_cuda.to_backend_on(&cuda_b, &seq);
+    let mish_cuda = coeus_ops::mish(&a_cuda, &cuda_b).expect("invariant: test operation succeeds");
+    let mish_seq = mish_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(c_seq.as_slice(), &[11.0, 22.0, 33.0, 44.0]);
     assert_eq!(m_seq.as_slice(), &[70.0, 100.0, 150.0, 220.0]);
@@ -75,15 +96,21 @@ fn test_cuda_norm_p_provider_dispatch() {
     let backend = CudaBackend::new();
     let sequential = SequentialBackend::new();
     let input =
-        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
-    let device_input = input.to_backend_on(&sequential, &backend);
+        Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0])
+            .expect("invariant: test backend operation succeeds");
+    let device_input = input
+        .to_backend_on(&sequential, &backend)
+        .expect("invariant: test backend transfer succeeds");
 
-    let actual = coeus_ops::norm_p(&device_input, 2.0, &backend);
+    let actual = coeus_ops::norm_p(&device_input, 2.0, &backend)
+        .expect("invariant: test operation succeeds");
     let expected = 91.0_f32.sqrt();
     assert!((actual - expected).abs() <= f32::EPSILON * 1024.0 * expected);
 
     let actual_axis = coeus_ops::norm_p_axis(&device_input, 2.0, 1, &backend)
-        .to_backend_on(&backend, &sequential);
+        .expect("invariant: test operation succeeds")
+        .to_backend_on(&backend, &sequential)
+        .expect("invariant: test backend transfer succeeds");
     assert_eq!(actual_axis.shape(), &[2, 1]);
     for (&actual, expected) in actual_axis
         .as_slice()

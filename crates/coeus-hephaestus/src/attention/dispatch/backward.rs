@@ -88,13 +88,13 @@ where
             .map_err(|source| B::attention_dispatch_error(OPERATION, source))?;
     }
     if let Some((buffer, _)) = request.grad_query.as_mut() {
-        buffer.make_unique();
+        buffer.make_unique()?;
     }
     if let Some((buffer, _)) = request.grad_key.as_mut() {
-        buffer.make_unique();
+        buffer.make_unique()?;
     }
     if let Some((buffer, _)) = request.grad_value.as_mut() {
-        buffer.make_unique();
+        buffer.make_unique()?;
     }
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();
     operations

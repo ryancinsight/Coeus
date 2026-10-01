@@ -12,10 +12,12 @@ fn log_sigmoid_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| 1.0 / (1.0 + x.exp())).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = log_sigmoid(&input);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = log_sigmoid(&input).expect("invariant: test operation succeeds");
     // Tolerance: stable identity vs coeus's `-softplus(-x)`; agreement is ~1e-15
     // for moderate x, 1e-10 is a safe margin.
     assert_close_slice(
@@ -46,10 +48,12 @@ fn tanhshrink_forward_and_backward() {
     let expected_grad: Vec<f64> = data.iter().map(|&x| x.tanh().powi(2)).collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = tanhshrink(&input);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = tanhshrink(&input).expect("invariant: test operation succeeds");
     assert_close_slice(
         "tanhshrink_forward",
         output.tensor.as_slice(),

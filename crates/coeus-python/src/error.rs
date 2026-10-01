@@ -1,5 +1,5 @@
 use coeus_core::BackendError;
-use coeus_dist::TcpMeshError;
+use coeus_dist::{CollectiveError, TcpMeshError};
 use coeus_nn::ModuleError;
 use pyo3::exceptions::{PyConnectionError, PyMemoryError, PyRuntimeError, PyValueError};
 use pyo3::PyErr;
@@ -9,6 +9,7 @@ pub(crate) fn map_backend_error(error: BackendError) -> PyErr {
         BackendError::Allocation { operation, source } => {
             PyMemoryError::new_err(format!("{operation} allocation failed: {source}"))
         }
+        BackendError::AllocatorExhausted { .. } => PyMemoryError::new_err(error.to_string()),
         BackendError::SequenceLengthCounts { .. }
         | BackendError::SequenceInputLength { .. }
         | BackendError::SequenceLabel { .. }
@@ -61,6 +62,26 @@ pub(crate) fn map_tcp_mesh_error(error: TcpMeshError) -> PyErr {
     PyConnectionError::new_err(message)
 }
 
+pub(crate) fn map_tcp_collective_error(
+    error: CollectiveError<TcpMeshError, BackendError>,
+) -> PyErr {
+    match error {
+        CollectiveError::Communicator(error) => map_tcp_mesh_error(error),
+        CollectiveError::Backend(error) => map_backend_error(error),
+        other => PyRuntimeError::new_err(other.to_string()),
+    }
+}
+
+pub(crate) fn map_local_collective_error(
+    error: CollectiveError<std::convert::Infallible, BackendError>,
+) -> PyErr {
+    match error {
+        CollectiveError::Communicator(never) => match never {},
+        CollectiveError::Backend(error) => map_backend_error(error),
+        other => PyRuntimeError::new_err(other.to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{map_backend_error, map_module_error, map_tcp_mesh_error};
@@ -84,6 +105,22 @@ mod tests {
             });
             assert!(error.is_instance_of::<PyMemoryError>(py));
             assert_eq!(error.value(py).to_string(), message);
+        });
+    }
+
+    #[test]
+    fn raw_allocator_failure_maps_to_memory_error() {
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let error = map_backend_error(BackendError::AllocatorExhausted {
+                operation: "cpu allocation",
+            });
+
+            assert!(error.is_instance_of::<PyMemoryError>(py));
+            assert_eq!(
+                error.value(py).to_string(),
+                "cpu allocation: allocator returned null"
+            );
         });
     }
 

@@ -24,7 +24,7 @@ pub fn repeat_interleave<T: Scalar, B: BackendOps<T> + Default>(
     repeats: usize,
     dim: usize,
     _backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -39,7 +39,7 @@ where
     let mut out_shape = in_shape.to_vec();
     out_shape[dim] *= repeats;
 
-    let in_cont = input.to_contiguous();
+    let in_cont = input.to_contiguous()?;
     let in_s = in_cont.as_slice();
 
     // Compute strides for input (row-major).

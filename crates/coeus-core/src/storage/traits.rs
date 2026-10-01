@@ -13,9 +13,10 @@ pub mod private {
 /// ```
 /// use coeus_core::{CpuStorage, Storage};
 ///
-/// let s = CpuStorage::<f32>::from_slice(&[1.0, 2.0, 3.0]);
+/// let s = CpuStorage::<f32>::from_slice(&[1.0, 2.0, 3.0])?;
 /// assert_eq!(s.len(), 3);
 /// assert!(!s.is_empty());
+/// # Ok::<(), coeus_core::BackendError>(())
 /// ```
 pub trait Storage<T>: private::Sealed + Clone + Send + Sync + 'static {
     /// Number of elements stored.
@@ -33,11 +34,24 @@ pub trait Storage<T>: private::Sealed + Clone + Send + Sync + 'static {
 
 /// Mutable storage access.
 pub trait StorageMut<T>: Storage<T> {
+    /// Error returned when copy-on-write cannot allocate or copy the storage.
+    type Error: std::error::Error + Send + Sync + 'static;
+
     /// Mutably borrow data as a host CPU slice if addressable.
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]>;
+    ///
+    /// A shared allocation may detach before returning the slice.
+    ///
+    /// # Errors
+    ///
+    /// Returns the storage error if detachment allocation or copying fails.
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error>;
 
     /// Make the storage allocation unique, triggering Copy-On-Write if shared.
-    fn make_unique(&mut self);
+    ///
+    /// # Errors
+    ///
+    /// Returns the storage error if detachment allocation or copying fails.
+    fn make_unique(&mut self) -> Result<(), Self::Error>;
 }
 
 /// Sub-trait for storages that are readable in CPU host memory.
@@ -55,5 +69,8 @@ pub trait CpuAddressableStorageMut<T>: StorageMut<T> + CpuAddressableStorage<T> 
     /// Mutably borrow data as a contiguous slice.
     ///
     /// Triggers COW if buffer is shared.
-    fn as_mut_slice(&mut self) -> &mut [T];
+    ///
+    /// # Errors
+    /// Returns the storage error if copy-on-write allocation or copying fails.
+    fn as_mut_slice(&mut self) -> Result<&mut [T], Self::Error>;
 }

@@ -2,15 +2,24 @@ use super::{Adam, AdamW, Optimizer, Parameter, RMSProp, SequentialBackend, Tenso
 
 fn failure_atomic_parameters() -> Vec<Parameter<f32, SequentialBackend>> {
     let first = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    first.set_grad(
+        Tensor::from_slice(vec![1], &[1.0]).expect("invariant: test backend operation succeeds"),
     );
-    first.set_grad(Tensor::from_slice(vec![1], &[1.0]));
     let second = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[3.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[3.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    second.set_grad(
+        Tensor::from_slice(vec![2], &[1.0, 1.0])
+            .expect("invariant: test backend operation succeeds"),
     );
-    second.set_grad(Tensor::from_slice(vec![2], &[1.0, 1.0]));
     vec![
         Parameter::new(first, "first"),
         Parameter::new(second, "second"),
@@ -23,21 +32,26 @@ fn assert_failed_pair_unchanged(params: &[Parameter<f32, SequentialBackend>]) {
 }
 
 fn repair_second_gradient(params: &mut [Parameter<f32, SequentialBackend>]) {
-    params[1].set_grad(Tensor::from_slice(vec![1], &[1.0]));
+    params[1].set_grad(
+        Tensor::from_slice(vec![1], &[1.0]).expect("invariant: test backend operation succeeds"),
+    );
 }
 
 #[test]
 fn test_sgd_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0])
+        .expect("invariant: test backend operation succeeds");
     x.set_grad(grad_val);
 
     // Test SGD step without momentum (momentum = 0.0, lr = 0.1)
-    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32)
+        .expect("invariant: optimizer state allocation succeeds");
     optimizer.step().expect("SGD step");
     assert_eq!(optimizer.params[0].name, "x");
 
@@ -49,7 +63,9 @@ fn test_sgd_optimizer() {
     assert!((updated_x[1] - 3.2).abs() < 1e-5);
 
     // Verify zero_grad works
-    optimizer.zero_grad();
+    optimizer
+        .zero_grad()
+        .expect("invariant: test backend operation succeeds");
     let cleared_grad = optimizer.params[0].grad().unwrap();
     assert_eq!(cleared_grad.as_slice(), &[0.0, 0.0]);
 }
@@ -57,17 +73,20 @@ fn test_sgd_optimizer() {
 #[test]
 fn test_sgd_with_momentum() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
     // Let's perform two steps of SGD with momentum = 0.9, lr = 0.1
-    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32);
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.9f32)
+        .expect("invariant: optimizer state allocation succeeds");
 
     // Step 1
     // grad = [1.0, -2.0]
     // v = momentum * 0 + grad = [1.0, -2.0]
     // param = param - lr * v = [2.0, 3.0] - 0.1 * [1.0, -2.0] = [1.9, 3.2]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0])
+        .expect("invariant: test backend operation succeeds");
     optimizer.params[0].set_grad(grad_val);
     optimizer.step().expect("SGD momentum step");
     assert_eq!(optimizer.params[0].name, "x");
@@ -81,7 +100,8 @@ fn test_sgd_with_momentum() {
     // v_prev = [1.0, -2.0]
     // v_new = 0.9 * v_prev + grad = 0.9 * [1.0, -2.0] + [0.5, 0.5] = [1.4, -1.3]
     // param = param - lr * v_new = [1.9, 3.2] - 0.1 * [1.4, -1.3] = [1.76, 3.33]
-    let grad_val2 = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5f32, 0.5]);
+    let grad_val2 = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.5f32, 0.5])
+        .expect("invariant: test backend operation succeeds");
     optimizer.params[0].set_grad(grad_val2);
     optimizer.step().expect("second SGD momentum step");
     assert_eq!(optimizer.params[0].name, "x");
@@ -94,11 +114,13 @@ fn test_sgd_with_momentum() {
 #[test]
 fn test_adam_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0])
+        .expect("invariant: test backend operation succeeds");
     x.set_grad(grad_val);
 
     // Test Adam (lr = 0.1, beta1 = 0.9, beta2 = 0.999, eps = 1e-8)
@@ -108,7 +130,8 @@ fn test_adam_optimizer() {
         0.9f32,
         0.999f32,
         1e-8f32,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
     optimizer.step().expect("Adam step");
     assert_eq!(optimizer.params[0].name, "x");
 
@@ -131,11 +154,13 @@ fn test_adam_optimizer() {
 #[test]
 fn test_rmsprop_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0])
+        .expect("invariant: test backend operation succeeds");
     x.set_grad(grad_val);
 
     // Test RMSProp (lr = 0.1, alpha = 0.99, eps = 1e-8)
@@ -144,7 +169,8 @@ fn test_rmsprop_optimizer() {
         0.1f32,
         0.99f32,
         1e-8f32,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
     optimizer.step().expect("RMSProp step");
     assert_eq!(optimizer.params[0].name, "x");
 
@@ -161,11 +187,13 @@ fn test_rmsprop_optimizer() {
 #[test]
 fn test_adamw_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0])
+        .expect("invariant: test backend operation succeeds");
     x.set_grad(grad_val);
 
     // Test AdamW (lr = 0.1, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weight_decay = 0.01)
@@ -176,7 +204,8 @@ fn test_adamw_optimizer() {
         0.999f32,
         1e-8f32,
         0.01f32,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
     optimizer.step().expect("AdamW step");
 
     // After step 1:
@@ -199,16 +228,19 @@ fn test_adamw_optimizer() {
 #[test]
 fn test_adagrad_optimizer() {
     let _backend = SequentialBackend::new();
-    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0]);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[2.0f32, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
     // Set mock gradient: [1.0, -2.0]
-    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0]);
+    let grad_val = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0f32, -2.0])
+        .expect("invariant: test backend operation succeeds");
     x.set_grad(grad_val);
 
     // Test AdaGrad (lr = 0.1, eps = 1e-6)
     let mut optimizer =
-        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32);
+        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 1e-6f32)
+            .expect("invariant: optimizer state allocation succeeds");
     optimizer.step().expect("AdaGrad step");
 
     // After step 1:
@@ -223,14 +255,18 @@ fn test_adagrad_optimizer() {
 
 #[test]
 fn failed_adam_family_steps_preserve_bias_counter() {
-    let gradient = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0]);
+    let gradient = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[1.0])
+        .expect("invariant: test backend operation succeeds");
 
     let adam_var = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     adam_var.set_grad(gradient.clone());
-    let mut adam = Adam::new(vec![Parameter::new(adam_var, "adam")], 0.1, 0.9, 0.999, 0.0);
+    let mut adam = Adam::new(vec![Parameter::new(adam_var, "adam")], 0.1, 0.9, 0.999, 0.0)
+        .expect("invariant: optimizer state allocation succeeds");
     adam.step()
         .expect_err("zero Adam epsilon must reject the update");
     assert_eq!(adam.t, 0);
@@ -243,9 +279,11 @@ fn failed_adam_family_steps_preserve_bias_counter() {
     assert!((adam.params[0].tensor.as_slice()[0] - 1.9).abs() < 1.0e-4);
 
     let adamw_var = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     adamw_var.set_grad(gradient);
     let mut adamw = AdamW::new(
         vec![Parameter::new(adamw_var, "adamw")],
@@ -254,7 +292,8 @@ fn failed_adam_family_steps_preserve_bias_counter() {
         0.999,
         0.0,
         0.01,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
     adamw
         .step()
         .expect_err("zero AdamW epsilon must reject the update");
@@ -270,7 +309,8 @@ fn failed_adam_family_steps_preserve_bias_counter() {
 
 #[test]
 fn multi_parameter_validation_is_failure_atomic() {
-    let mut sgd = SGD::new(failure_atomic_parameters(), 0.1, 0.9);
+    let mut sgd = SGD::new(failure_atomic_parameters(), 0.1, 0.9)
+        .expect("invariant: optimizer state allocation succeeds");
     sgd.step()
         .expect_err("second SGD shape must fail preflight");
     assert_failed_pair_unchanged(&sgd.params);
@@ -278,7 +318,8 @@ fn multi_parameter_validation_is_failure_atomic() {
     sgd.step().expect("repaired SGD step");
     assert!((sgd.params[0].tensor.as_slice()[0] - 1.9).abs() < 1.0e-6);
 
-    let mut adam = Adam::new(failure_atomic_parameters(), 0.1, 0.9, 0.999, 1.0e-8);
+    let mut adam = Adam::new(failure_atomic_parameters(), 0.1, 0.9, 0.999, 1.0e-8)
+        .expect("invariant: optimizer state allocation succeeds");
     adam.step()
         .expect_err("second Adam shape must fail preflight");
     assert_failed_pair_unchanged(&adam.params);
@@ -288,7 +329,8 @@ fn multi_parameter_validation_is_failure_atomic() {
     assert_eq!(adam.t, 1);
     assert!((adam.params[0].tensor.as_slice()[0] - 1.9).abs() < 1.0e-4);
 
-    let mut rmsprop = RMSProp::new(failure_atomic_parameters(), 0.1, 0.99, 1.0e-8);
+    let mut rmsprop = RMSProp::new(failure_atomic_parameters(), 0.1, 0.99, 1.0e-8)
+        .expect("invariant: optimizer state allocation succeeds");
     rmsprop
         .step()
         .expect_err("second RMSProp shape must fail preflight");
@@ -297,7 +339,8 @@ fn multi_parameter_validation_is_failure_atomic() {
     rmsprop.step().expect("repaired RMSProp step");
     assert!((rmsprop.params[0].tensor.as_slice()[0] - 1.0).abs() < 1.0e-4);
 
-    let mut adamw = AdamW::new(failure_atomic_parameters(), 0.1, 0.9, 0.999, 1.0e-8, 0.01);
+    let mut adamw = AdamW::new(failure_atomic_parameters(), 0.1, 0.9, 0.999, 1.0e-8, 0.01)
+        .expect("invariant: optimizer state allocation succeeds");
     adamw
         .step()
         .expect_err("second AdamW shape must fail preflight");
@@ -308,7 +351,8 @@ fn multi_parameter_validation_is_failure_atomic() {
     assert_eq!(adamw.t, 1);
     assert!((adamw.params[0].tensor.as_slice()[0] - 1.898).abs() < 1.0e-4);
 
-    let mut adagrad = coeus_optim::AdaGrad::new(failure_atomic_parameters(), 0.1, 1.0e-6);
+    let mut adagrad = coeus_optim::AdaGrad::new(failure_atomic_parameters(), 0.1, 1.0e-6)
+        .expect("invariant: optimizer state allocation succeeds");
     adagrad
         .step()
         .expect_err("second AdaGrad shape must fail preflight");

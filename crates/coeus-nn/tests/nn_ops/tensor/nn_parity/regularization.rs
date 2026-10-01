@@ -11,9 +11,11 @@ fn test_dropout_parity() {
 
     // Coeus setup
     let x_coeus = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &x_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut dropout_coeus = coeus_nn::Dropout::new(p);
     dropout_coeus.is_training = true;
     let out_coeus = dropout_coeus
@@ -36,9 +38,11 @@ fn test_dropout_parity() {
 
     // Stochastic scaling test in Coeus
     let x_coeus2 = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1000], &vec![1.0f32; 1000]),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![1000], &vec![1.0f32; 1000])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut dropout_coeus2 = coeus_nn::Dropout::new(0.5);
     dropout_coeus2.is_training = true;
     let out_coeus2 = dropout_coeus2
@@ -71,13 +75,29 @@ fn test_batchnorm2d_parity() {
     let momentum = 0.1;
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 2, 2, 3], &x_data), true);
+    let x_coeus = CoeusVar::new(
+        CoeusTensor::from_slice(vec![2, 2, 2, 3], &x_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut bn_coeus =
         coeus_nn::normalization::batchnorm2d::BatchNorm2d::<f32, SequentialBackend>::new(
             2, eps, momentum,
-        );
-    bn_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2], &w_data), true);
-    bn_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![2], &b_data), true);
+        )
+        .expect("invariant: test operation succeeds");
+    bn_coeus.weight = CoeusVar::new(
+        CoeusTensor::from_slice(vec![2], &w_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    bn_coeus.bias = CoeusVar::new(
+        CoeusTensor::from_slice(vec![2], &b_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let out_coeus = bn_coeus.forward(&x_coeus).expect("valid BatchNorm2d input");
 
     // Verify forward

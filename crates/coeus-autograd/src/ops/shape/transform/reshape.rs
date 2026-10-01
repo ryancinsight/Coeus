@@ -48,10 +48,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Re
 pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>(
     x: &Var<T, B>,
     shape: S,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let shape = shape.into();
     if !x.tensor.is_contiguous() {
-        let x_cont = make_contiguous(x);
+        let x_cont = make_contiguous(x)?;
         return reshape(&x_cont, shape);
     }
     let backend = B::default();
@@ -65,7 +65,7 @@ pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = ReshapeNode {
@@ -75,11 +75,11 @@ pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Collapse dimensions `start_dim..=end_dim` into a single dimension
@@ -87,12 +87,11 @@ pub fn reshape<T: Scalar, B: coeus_ops::BackendOps<T> + Default, S: Into<Shape>>
 ///
 /// # Panics
 /// If `start_dim > end_dim` or `end_dim` is out of range.
-#[must_use]
 pub fn flatten<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     start_dim: usize,
     end_dim: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let dims = x.tensor.shape();
     let ndim = dims.len();
     assert!(
@@ -118,10 +117,21 @@ mod flatten_tests {
     fn flatten_collapses_dims_and_backprops() {
         // [2,3,4] flatten(1,2) -> [2,12], row-major values preserved.
         let data: Vec<f64> = (0..24).map(|v| v as f64).collect();
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3, 4], &data), true);
-        let flat = flatten(&x, 1, 2);
+        let x = Var::<f64, MoiraiBackend>::new(
+            Tensor::from_slice([2, 3, 4], &data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let flat = flatten(&x, 1, 2).expect("invariant: test operation succeeds");
         assert_eq!(flat.tensor.shape(), &[2, 12]);
-        assert_eq!(flat.tensor.to_contiguous().as_slice(), data.as_slice());
+        assert_eq!(
+            flat.tensor
+                .to_contiguous()
+                .expect("invariant: test operation succeeds")
+                .as_slice(),
+            data.as_slice()
+        );
         flat.backward()
             .expect("invariant: valid autograd fixture completes backward");
         assert_eq!(x.grad().unwrap().shape(), &[2, 3, 4]);

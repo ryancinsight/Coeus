@@ -64,9 +64,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
         // Σ_j g_j along axis; result shape has axis dimension reduced (broadcast-compatible)
         let sum_g = coeus_ops::sum_axis(grad_out, self.axis, &backend)?;
         // p_i · Σ_j g_j
-        let scaled = coeus_ops::mul(&self.probs, &sum_g, &backend);
+        let scaled = coeus_ops::mul(&self.probs, &sum_g, &backend)?;
         // g_i − p_i · Σ_j g_j
-        let dx = coeus_ops::sub(grad_out, &scaled, &backend);
+        let dx = coeus_ops::sub(grad_out, &scaled, &backend)?;
 
         let lock = acc.write();
         coeus_ops::add_assign(lock, &dx, &backend)?;
@@ -87,7 +87,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Log
 pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     axis: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let ndim = input.tensor.ndim();
     assert!(
@@ -96,18 +96,17 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     );
 
     // Forward: log-softmax values
-    let log_prob_tensor =
-        coeus_ops::log_softmax_axis(&input.tensor, axis, &backend).expect("log_softmax_axis");
+    let log_prob_tensor = coeus_ops::log_softmax_axis(&input.tensor, axis, &backend)?;
 
     // softmax probs = exp(log_probs), stored for backward
-    let probs = coeus_ops::exp(&log_prob_tensor, &backend);
+    let probs = coeus_ops::exp(&log_prob_tensor, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             log_prob_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -125,9 +124,9 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: log_prob_tensor,
         grad,
         creator,
-    }
+    })
 }

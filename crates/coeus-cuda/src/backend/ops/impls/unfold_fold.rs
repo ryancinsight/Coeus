@@ -6,7 +6,9 @@ use hephaestus_core::{ComputeDevice, CudaC, DialectScalar, HephaestusError};
 use hephaestus_cuda::{CudaDevice, CudaSlidingWindowOps};
 use leto::WindowParameters;
 
-impl<T> UnfoldFoldProvider<T> for CudaBackend
+// SAFETY: `CudaSlidingWindowOps` initializes unfold outputs and clears fold
+// outputs before accumulating, as required by the Hephaestus contract.
+unsafe impl<T> UnfoldFoldProvider<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC>,
 {
@@ -41,7 +43,8 @@ where
     }
 }
 
-impl<T> coeus_ops::UnfoldFoldOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::UnfoldFoldOps<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC>,
 {

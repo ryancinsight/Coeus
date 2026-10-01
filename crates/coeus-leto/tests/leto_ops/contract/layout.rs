@@ -160,7 +160,7 @@ fn random_dispatch_matches_leto_seeded_constructors() {
 #[test]
 fn contiguous_dispatch_matches_leto_view_materialization() {
     let data = (0..12).collect::<Vec<i32>>();
-    let source = CpuStorage::from_slice(&data);
+    let source = CpuStorage::from_slice(&data).expect("CPU storage allocation succeeds");
     let sliced = layout(&[3, 4]).slice(&[(0, 3), (1, 4)]);
     let view = Layout::from_shape_strides(
         Shape::from(vec![3, 3]),
@@ -246,7 +246,8 @@ fn shape_function_dispatch_matches_leto_coordinate_order() {
 #[test]
 fn view_over_cpu_storage_reads_logical_values() {
     // Prove the adapter binds directly to coeus CpuStorage slices.
-    let storage = CpuStorage::from_slice(&[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let storage = CpuStorage::from_slice(&[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("CPU storage allocation succeeds");
     let la = layout(&[2, 3]);
     let view = to_leto_view::<f64, 2>(&la, storage.as_slice()).unwrap();
     assert_eq!(view.shape(), [2, 3]);

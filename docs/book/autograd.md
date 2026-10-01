@@ -11,8 +11,8 @@ gradient accumulator and a link to the backward node that created it.
 ```rust,ignore
 use coeus::autograd::{Var, Parameter};
 
-let x: Var<f32> = Var::from_tensor(data, requires_grad=false);
-let w: Parameter<f32> = Parameter::new("weight", weights);
+let x: Var<f32> = Var::new(data, false)?;
+let w: Parameter<f32> = Parameter::new(Var::new(weights, true)?, "weight");
 ```
 
 ## Forward Pass
@@ -23,16 +23,16 @@ Every autograd op returns a new `Var` that stores:
 
 ```rust,ignore
 let h = coeus::autograd::matmul(&x, &w)?;
-let y = h.gelu();
+let y = coeus::autograd::gelu(&h)?;
 let loss = coeus::autograd::cross_entropy_loss(&y, &targets)?;
 ```
 
 ## Backward Pass
 
 ```rust,ignore
-loss.backward();  // topological reverse traversal
+loss.backward()?;  // topological reverse traversal
 
-let dw = w.grad().unwrap();  // gradient of loss w.r.t. w
+let dw = w.grad().expect("tracked parameter receives a gradient");
 ```
 
 ## `NoGradGuard`

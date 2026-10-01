@@ -15,17 +15,25 @@ fn cosine_similarity_dispatches_with_cuda_parity() {
     let Some((cpu, cuda)) = backends() else {
         return;
     };
-    let x1_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[0.0, 0.0, 2.0, 1.0]);
-    let x2_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 0.0, 1.0, 0.0]);
-    let x1_cuda = x1_cpu.to_backend_on(&cpu, &cuda);
-    let x2_cuda = x2_cpu.to_backend_on(&cpu, &cuda);
+    let x1_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[0.0, 0.0, 2.0, 1.0])
+        .expect("invariant: test backend operation succeeds");
+    let x2_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 0.0, 1.0, 0.0])
+        .expect("invariant: test backend operation succeeds");
+    let x1_cuda = x1_cpu
+        .to_backend_on(&cpu, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let x2_cuda = x2_cpu
+        .to_backend_on(&cpu, &cuda)
+        .expect("invariant: test backend transfer succeeds");
 
-    let x1_cpu = Var::new(x1_cpu, true);
-    let x2_cpu = Var::new(x2_cpu, true);
-    let x1_cuda = Var::new(x1_cuda, true);
-    let x2_cuda = Var::new(x2_cuda, true);
-    let cpu_output = cosine_similarity(&x1_cpu, &x2_cpu, 1, 0.5);
-    let cuda_output = cosine_similarity(&x1_cuda, &x2_cuda, 1, 0.5);
+    let x1_cpu = Var::new(x1_cpu, true).expect("invariant: test backend operation succeeds");
+    let x2_cpu = Var::new(x2_cpu, true).expect("invariant: test backend operation succeeds");
+    let x1_cuda = Var::new(x1_cuda, true).expect("invariant: test backend operation succeeds");
+    let x2_cuda = Var::new(x2_cuda, true).expect("invariant: test backend operation succeeds");
+    let cpu_output =
+        cosine_similarity(&x1_cpu, &x2_cpu, 1, 0.5).expect("CPU cosine forward must succeed");
+    let cuda_output =
+        cosine_similarity(&x1_cuda, &x2_cuda, 1, 0.5).expect("CUDA cosine forward must succeed");
 
     cpu_output
         .backward()
@@ -34,15 +42,20 @@ fn cosine_similarity_dispatches_with_cuda_parity() {
         .backward()
         .expect("CUDA cosine backward must succeed");
 
-    let cuda_output = cuda_output.tensor.to_backend_on(&cuda, &cpu);
+    let cuda_output = cuda_output
+        .tensor
+        .to_backend_on(&cuda, &cpu)
+        .expect("invariant: test backend transfer succeeds");
     let cuda_x1_gradient = x1_cuda
         .grad()
         .expect("tracked CUDA x1 gradient")
-        .to_backend_on(&cuda, &cpu);
+        .to_backend_on(&cuda, &cpu)
+        .expect("invariant: test backend transfer succeeds");
     let cuda_x2_gradient = x2_cuda
         .grad()
         .expect("tracked CUDA x2 gradient")
-        .to_backend_on(&cuda, &cpu);
+        .to_backend_on(&cuda, &cpu)
+        .expect("invariant: test backend transfer succeeds");
     let cpu_x1_gradient = x1_cpu.grad().expect("tracked CPU x1 gradient");
     let cpu_x2_gradient = x2_cpu.grad().expect("tracked CPU x2 gradient");
 

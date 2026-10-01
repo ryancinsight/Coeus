@@ -24,11 +24,16 @@ fn assert_close(actual: &[f32], expected: &[f32]) {
 fn wgpu_pool1d_max_matches_sequential() {
     let sequential = SequentialBackend::new();
     let wgpu = WgpuBackend::new();
-    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 7], &INPUT);
-    let input_wgpu = input.to_backend_on(&sequential, &wgpu);
+    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 7], &INPUT)
+        .expect("invariant: test backend operation succeeds");
+    let input_wgpu = input
+        .to_backend_on(&sequential, &wgpu)
+        .expect("invariant: test backend operation succeeds");
     let output_layout = Layout::new(vec![1, 1, 3].into());
 
-    let mut expected_storage = sequential.allocate::<f32>(3);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut expected_storage = unsafe { sequential.allocate::<f32>(3) }
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool1d(
         &sequential,
         input.storage(),
@@ -44,7 +49,9 @@ fn wgpu_pool1d_max_matches_sequential() {
     let expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(expected_storage, output_layout.clone());
 
-    let mut actual_storage = wgpu.allocate::<f32>(3);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut actual_storage =
+        unsafe { wgpu.allocate::<f32>(3) }.expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool1d(
         &wgpu,
         input_wgpu.storage(),
@@ -58,14 +65,22 @@ fn wgpu_pool1d_max_matches_sequential() {
     )
     .expect("WGPU max_pool1d dispatch");
     let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_storage, output_layout.clone())
-        .to_backend_on(&wgpu, &sequential);
+        .to_backend_on(&wgpu, &sequential)
+        .expect("invariant: test backend operation succeeds");
     assert_close(actual.as_slice(), expected.as_slice());
 
-    let grad_out = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[1.0, 2.0, 3.0]);
-    let grad_out_wgpu = grad_out.to_backend_on(&sequential, &wgpu);
+    let grad_out = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let grad_out_wgpu = grad_out
+        .to_backend_on(&sequential, &wgpu)
+        .expect("invariant: test backend operation succeeds");
     let input_layout = input.layout().clone();
-    let mut expected_grad_storage = sequential.allocate::<f32>(7);
-    sequential.fill(&mut expected_grad_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut expected_grad_storage = unsafe { sequential.allocate::<f32>(7) }
+        .expect("invariant: test backend operation succeeds");
+    sequential
+        .fill(&mut expected_grad_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool1d_backward(
         &sequential,
         grad_out.storage(),
@@ -85,8 +100,11 @@ fn wgpu_pool1d_max_matches_sequential() {
         input_layout.clone(),
     );
 
-    let mut actual_grad_storage = wgpu.allocate::<f32>(7);
-    wgpu.fill(&mut actual_grad_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut actual_grad_storage =
+        unsafe { wgpu.allocate::<f32>(7) }.expect("invariant: test backend operation succeeds");
+    wgpu.fill(&mut actual_grad_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool1d_backward(
         &wgpu,
         grad_out_wgpu.storage(),
@@ -102,7 +120,8 @@ fn wgpu_pool1d_max_matches_sequential() {
     )
     .expect("WGPU max_pool1d backward dispatch");
     let actual_grad = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_grad_storage, input_layout)
-        .to_backend_on(&wgpu, &sequential);
+        .to_backend_on(&wgpu, &sequential)
+        .expect("invariant: test backend operation succeeds");
     assert_close(actual_grad.as_slice(), expected_grad.as_slice());
 }
 
@@ -110,11 +129,16 @@ fn wgpu_pool1d_max_matches_sequential() {
 fn wgpu_pool1d_avg_matches_sequential() {
     let sequential = SequentialBackend::new();
     let wgpu = WgpuBackend::new();
-    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 7], &INPUT);
-    let input_wgpu = input.to_backend_on(&sequential, &wgpu);
+    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 7], &INPUT)
+        .expect("invariant: test backend operation succeeds");
+    let input_wgpu = input
+        .to_backend_on(&sequential, &wgpu)
+        .expect("invariant: test backend operation succeeds");
     let output_layout = Layout::new(vec![1, 1, 3].into());
 
-    let mut expected_storage = sequential.allocate::<f32>(3);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut expected_storage = unsafe { sequential.allocate::<f32>(3) }
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool1d(
         &sequential,
         input.storage(),
@@ -130,7 +154,9 @@ fn wgpu_pool1d_avg_matches_sequential() {
     let expected =
         Tensor::<f32, SequentialBackend>::from_raw_parts(expected_storage, output_layout.clone());
 
-    let mut actual_storage = wgpu.allocate::<f32>(3);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut actual_storage =
+        unsafe { wgpu.allocate::<f32>(3) }.expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool1d(
         &wgpu,
         input_wgpu.storage(),
@@ -144,14 +170,22 @@ fn wgpu_pool1d_avg_matches_sequential() {
     )
     .expect("WGPU avg_pool1d dispatch");
     let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_storage, output_layout)
-        .to_backend_on(&wgpu, &sequential);
+        .to_backend_on(&wgpu, &sequential)
+        .expect("invariant: test backend operation succeeds");
     assert_close(actual.as_slice(), expected.as_slice());
 
-    let grad_out = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[2.0, 3.0, 2.0]);
-    let grad_out_wgpu = grad_out.to_backend_on(&sequential, &wgpu);
+    let grad_out = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[2.0, 3.0, 2.0])
+        .expect("invariant: test backend operation succeeds");
+    let grad_out_wgpu = grad_out
+        .to_backend_on(&sequential, &wgpu)
+        .expect("invariant: test backend operation succeeds");
     let input_layout = input.layout().clone();
-    let mut expected_grad_storage = sequential.allocate::<f32>(7);
-    sequential.fill(&mut expected_grad_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut expected_grad_storage = unsafe { sequential.allocate::<f32>(7) }
+        .expect("invariant: test backend operation succeeds");
+    sequential
+        .fill(&mut expected_grad_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool1d_backward(
         &sequential,
         grad_out.storage(),
@@ -169,8 +203,11 @@ fn wgpu_pool1d_avg_matches_sequential() {
         input_layout.clone(),
     );
 
-    let mut actual_grad_storage = wgpu.allocate::<f32>(7);
-    wgpu.fill(&mut actual_grad_storage, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut actual_grad_storage =
+        unsafe { wgpu.allocate::<f32>(7) }.expect("invariant: test backend operation succeeds");
+    wgpu.fill(&mut actual_grad_storage, 0.0)
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool1d_backward(
         &wgpu,
         grad_out_wgpu.storage(),
@@ -184,6 +221,7 @@ fn wgpu_pool1d_avg_matches_sequential() {
     )
     .expect("WGPU avg_pool1d backward dispatch");
     let actual_grad = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_grad_storage, input_layout)
-        .to_backend_on(&wgpu, &sequential);
+        .to_backend_on(&wgpu, &sequential)
+        .expect("invariant: test backend operation succeeds");
     assert_close(actual_grad.as_slice(), expected_grad.as_slice());
 }

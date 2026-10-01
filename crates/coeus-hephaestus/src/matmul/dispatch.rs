@@ -34,7 +34,7 @@ where
     let rhs = ranked::<2>(MATMUL, b_layout)?;
     let out = ranked::<2>(MATMUL, c_layout)?;
 
-    c.make_unique();
+    c.make_unique()?;
     B::Operations::default()
         .matmul_into(
             B::matmul_device(),

@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{error::map_backend_error, tensor::PyTensor};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
@@ -44,20 +44,20 @@ pub fn normal_(tensor: &mut PyTensor, mean: f64, std_dev: f64) -> PyResult<()> {
 
 /// Fill `tensor` in-place with the constant `val`.
 #[pyfunction]
-pub fn constant_(tensor: &mut PyTensor, val: f64) {
-    coeus_nn::init::constant(&mut tensor.inner, val);
+pub fn constant_(tensor: &mut PyTensor, val: f64) -> PyResult<()> {
+    coeus_nn::init::constant(&mut tensor.inner, val).map_err(map_backend_error)
 }
 
 /// Fill `tensor` in-place with zeros.
 #[pyfunction]
-pub fn zeros_(tensor: &mut PyTensor) {
-    coeus_nn::init::zeros(&mut tensor.inner);
+pub fn zeros_(tensor: &mut PyTensor) -> PyResult<()> {
+    coeus_nn::init::zeros(&mut tensor.inner).map_err(map_backend_error)
 }
 
 /// Fill `tensor` in-place with ones.
 #[pyfunction]
-pub fn ones_(tensor: &mut PyTensor) {
-    coeus_nn::init::ones(&mut tensor.inner);
+pub fn ones_(tensor: &mut PyTensor) -> PyResult<()> {
+    coeus_nn::init::ones(&mut tensor.inner).map_err(map_backend_error)
 }
 
 /// Apply Xavier uniform initialization (gain=1) in-place.

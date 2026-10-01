@@ -45,7 +45,7 @@ where
         if let Some(Some(ref g)) = input_grads.first() {
             // Gradient of tril(x, k) is tril(grad_out, k): zeroed positions
             // have zero gradient since they contributed nothing to the output.
-            let masked = coeus_ops::tril(grad_out, self.k, &backend);
+            let masked = coeus_ops::tril(grad_out, self.k, &backend)?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &masked, &backend)?;
         }
@@ -60,25 +60,24 @@ where
 ///
 /// # Panics
 /// Panics if `input.ndim() < 2`.
-#[must_use]
 #[inline]
 pub fn tril<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     k: isize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::tril(&input.tensor, k, &backend);
+    let out_tensor = coeus_ops::tril(&input.tensor, k, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -92,11 +91,11 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── triu ────────────────────────────────────────────────────────────────────
@@ -132,7 +131,7 @@ where
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let masked = coeus_ops::triu(grad_out, self.k, &backend);
+            let masked = coeus_ops::triu(grad_out, self.k, &backend)?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &masked, &backend)?;
         }
@@ -144,25 +143,24 @@ where
 ///
 /// # Panics
 /// Panics if `input.ndim() < 2`.
-#[must_use]
 #[inline]
 pub fn triu<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     k: isize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::triu(&input.tensor, k, &backend);
+    let out_tensor = coeus_ops::triu(&input.tensor, k, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -176,9 +174,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

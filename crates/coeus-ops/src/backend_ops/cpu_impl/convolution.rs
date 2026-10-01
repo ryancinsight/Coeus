@@ -1,8 +1,6 @@
 //! Direct zero-copy CPU convolution dispatch through Leto.
 
-use coeus_core::{
-    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar,
-};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use leto::{ConvolutionParameters, TransposedConvolutionParameters};
 use leto_ops::Scalar as LetoScalar;
 
@@ -37,13 +35,15 @@ pub(super) struct Backward<'a, B: ComputeBackend, T: Scalar> {
     pub grad_bias: Option<&'a mut B::DeviceBuffer<T>>,
 }
 
-fn forward_operands<'a, B, T>(request: Forward<'a, B, T>) -> ConvolutionForward<'a, T>
+fn forward_operands<'a, B, T>(
+    request: Forward<'a, B, T>,
+) -> Result<ConvolutionForward<'a, T>, B::Error>
 where
     B: ComputeBackend,
     T: Scalar,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    ConvolutionForward {
+    Ok(ConvolutionForward {
         input: ReadOperand {
             layout: request.input_layout,
             data: request.input.as_slice(),
@@ -55,18 +55,20 @@ where
         bias: request.bias.map(CpuAddressableStorage::as_slice),
         output: WriteOperand {
             layout: request.output_layout,
-            data: request.output.as_mut_slice(),
+            data: request.output.as_mut_slice()?,
         },
-    }
+    })
 }
 
-fn backward_operands<'a, B, T>(request: Backward<'a, B, T>) -> ConvolutionBackward<'a, T>
+fn backward_operands<'a, B, T>(
+    request: Backward<'a, B, T>,
+) -> Result<ConvolutionBackward<'a, T>, B::Error>
 where
     B: ComputeBackend,
     T: Scalar,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    ConvolutionBackward {
+    Ok(ConvolutionBackward {
         input: ReadOperand {
             layout: request.input_layout,
             data: request.input.as_slice(),
@@ -80,19 +82,30 @@ where
             data: request.grad_output.as_slice(),
         },
         gradients: ConvolutionGradients {
-            input: request.grad_input.map(|buffer| WriteOperand {
-                layout: request.grad_input_layout,
-                data: buffer.as_mut_slice(),
-            }),
-            weight: request.grad_weight.map(|buffer| WriteOperand {
-                layout: request.grad_weight_layout,
-                data: buffer.as_mut_slice(),
-            }),
+            input: request
+                .grad_input
+                .map(|buffer| {
+                    buffer.as_mut_slice().map(|data| WriteOperand {
+                        layout: request.grad_input_layout,
+                        data,
+                    })
+                })
+                .transpose()?,
+            weight: request
+                .grad_weight
+                .map(|buffer| {
+                    buffer.as_mut_slice().map(|data| WriteOperand {
+                        layout: request.grad_weight_layout,
+                        data,
+                    })
+                })
+                .transpose()?,
             bias: request
                 .grad_bias
-                .map(CpuAddressableStorageMut::as_mut_slice),
+                .map(CpuAddressableStorageMut::as_mut_slice)
+                .transpose()?,
         },
-    }
+    })
 }
 
 pub(super) fn regular_forward<B, T, const R: usize, const D: usize>(
@@ -100,16 +113,16 @@ pub(super) fn regular_forward<B, T, const R: usize, const D: usize>(
     stride: [usize; D],
     padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), BackendError>
+) -> Result<(), B::Error>
 where
     B: ComputeBackend,
     T: Scalar + LetoScalar,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let parameters = ConvolutionParameters::new(stride, padding, dilation)
-        .map_err(|error| map_leto_error("convolution", error))?;
-    convolution_forward_into::<T, R, D>(forward_operands(request), parameters)
-        .map_err(|error| map_leto_error("convolution", error))
+        .map_err(|error| B::Error::from(map_leto_error("convolution", error)))?;
+    convolution_forward_into::<T, R, D>(forward_operands(request)?, parameters)
+        .map_err(|error| B::Error::from(map_leto_error("convolution", error)))
 }
 
 pub(super) fn regular_backward<B, T, const R: usize, const D: usize>(
@@ -117,16 +130,16 @@ pub(super) fn regular_backward<B, T, const R: usize, const D: usize>(
     stride: [usize; D],
     padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), BackendError>
+) -> Result<(), B::Error>
 where
     B: ComputeBackend,
     T: Scalar + LetoScalar,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let parameters = ConvolutionParameters::new(stride, padding, dilation)
-        .map_err(|error| map_leto_error("convolution backward", error))?;
-    convolution_backward_accumulate::<T, R, D>(backward_operands(request), parameters)
-        .map_err(|error| map_leto_error("convolution backward", error))
+        .map_err(|error| B::Error::from(map_leto_error("convolution backward", error)))?;
+    convolution_backward_accumulate::<T, R, D>(backward_operands(request)?, parameters)
+        .map_err(|error| B::Error::from(map_leto_error("convolution backward", error)))
 }
 
 pub(super) fn transposed_forward<B, T, const R: usize, const D: usize>(
@@ -135,7 +148,7 @@ pub(super) fn transposed_forward<B, T, const R: usize, const D: usize>(
     padding: [usize; D],
     output_padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), BackendError>
+) -> Result<(), B::Error>
 where
     B: ComputeBackend,
     T: Scalar + LetoScalar,
@@ -143,9 +156,9 @@ where
 {
     let parameters =
         TransposedConvolutionParameters::new(stride, padding, output_padding, dilation)
-            .map_err(|error| map_leto_error("transposed convolution", error))?;
-    convolution_transposed_forward_into::<T, R, D>(forward_operands(request), parameters)
-        .map_err(|error| map_leto_error("transposed convolution", error))
+            .map_err(|error| B::Error::from(map_leto_error("transposed convolution", error)))?;
+    convolution_transposed_forward_into::<T, R, D>(forward_operands(request)?, parameters)
+        .map_err(|error| B::Error::from(map_leto_error("transposed convolution", error)))
 }
 
 pub(super) fn transposed_backward<B, T, const R: usize, const D: usize>(
@@ -154,15 +167,16 @@ pub(super) fn transposed_backward<B, T, const R: usize, const D: usize>(
     padding: [usize; D],
     output_padding: [usize; D],
     dilation: [usize; D],
-) -> Result<(), BackendError>
+) -> Result<(), B::Error>
 where
     B: ComputeBackend,
     T: Scalar + LetoScalar,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let parameters =
-        TransposedConvolutionParameters::new(stride, padding, output_padding, dilation)
-            .map_err(|error| map_leto_error("transposed convolution backward", error))?;
-    convolution_transposed_backward_accumulate::<T, R, D>(backward_operands(request), parameters)
-        .map_err(|error| map_leto_error("transposed convolution backward", error))
+        TransposedConvolutionParameters::new(stride, padding, output_padding, dilation).map_err(
+            |error| B::Error::from(map_leto_error("transposed convolution backward", error)),
+        )?;
+    convolution_transposed_backward_accumulate::<T, R, D>(backward_operands(request)?, parameters)
+        .map_err(|error| B::Error::from(map_leto_error("transposed convolution backward", error)))
 }

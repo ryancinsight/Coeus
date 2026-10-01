@@ -36,7 +36,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use coeus_core::{
     BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage,
-    Scalar, SequentialBackend,
+    Scalar, SequentialBackend, Storage,
 };
 use coeus_tensor::Tensor;
 
@@ -141,7 +141,7 @@ impl CountingBackend {
     fn allocate_storage<T: Scalar>(len: usize) -> CpuStorage<T> {
         STORAGE_REQUESTS.fetch_add(1, Ordering::Relaxed);
         let _scope = StorageAllocationScope::enter();
-        CpuStorage::new(len)
+        CpuStorage::new(len).expect("invariant: test CPU storage allocation succeeds")
     }
 }
 
@@ -168,13 +168,18 @@ unsafe impl coeus_core::backend::Backend for CountingBackend {
 /// in this file rather than only to those whose bounds happen not to need it.
 impl coeus_ops::backend_ops::CpuBackend for CountingBackend {
     #[inline]
-    fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64] {
+    fn as_mut_slice_i64<'a>(
+        &self,
+        buf: &'a mut Self::DeviceBuffer<i64>,
+    ) -> Result<&'a mut [i64], BackendError> {
         use coeus_core::CpuAddressableStorageMut;
         buf.as_mut_slice()
     }
 }
 
-impl ComputeBackend for CountingBackend {
+// SAFETY: `allocate` returns initialized CPU storage, and every mutating
+// operation preserves initialized storage on success.
+unsafe impl ComputeBackend for CountingBackend {
     type Error = BackendError;
     type DeviceBuffer<T: Scalar> = CpuStorage<T>;
     type KernelDescriptor = ();
@@ -188,24 +193,42 @@ impl ComputeBackend for CountingBackend {
         1
     }
 
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        Self::allocate_storage(len)
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        Ok(Self::allocate_storage(len))
     }
 
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        Self::allocate_storage(len)
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        Ok(Self::allocate_storage(len))
     }
 
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
-        dst.as_mut_slice().fill(val);
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
+        dst.as_mut_slice()?.fill(val);
+        Ok(())
     }
 
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        dst.as_mut_slice().copy_from_slice(src);
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_device",
+                source_len: src.len(),
+                destination_len: dst.len(),
+            });
+        }
+        dst.as_mut_slice()?.copy_from_slice(src);
+        Ok(())
     }
 
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
         dst.copy_from_slice(src.as_slice());
+        Ok(())
     }
 }
 
@@ -221,6 +244,7 @@ fn allocations_during<R>(body: impl FnOnce() -> R) -> usize {
 
 fn tensor(shape: &[usize], values: &[f64]) -> Tensor<f64, SequentialBackend> {
     Tensor::from_slice_on(shape.to_vec(), values, &SequentialBackend::new())
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn ramp(n: usize) -> Vec<f64> {
@@ -311,9 +335,18 @@ fn gather_allocation_count_is_independent_of_output_size() {
 
     assert_size_independent(
         "gather",
-        || Box::new(coeus_ops::gather(&si, 1, &sx, &backend)),
-        || Box::new(coeus_ops::gather(&li, 1, &lx, &backend)),
-        1,
+        || {
+            Box::new(
+                coeus_ops::gather(&si, 1, &sx, &backend)
+                    .expect("invariant: test operation succeeds"),
+            )
+        },
+        || {
+            Box::new(
+                coeus_ops::gather(&li, 1, &lx, &backend)
+                    .expect("invariant: test operation succeeds"),
+            )
+        },
     );
 }
 
@@ -331,9 +364,18 @@ fn index_select_allocation_count_is_independent_of_output_size() {
 
     assert_size_independent(
         "index_select",
-        || Box::new(coeus_ops::index_select(&si, 1, &sx, &backend)),
-        || Box::new(coeus_ops::index_select(&li, 1, &lx, &backend)),
-        1,
+        || {
+            Box::new(
+                coeus_ops::index_select(&si, 1, &sx, &backend)
+                    .expect("invariant: test operation succeeds"),
+            )
+        },
+        || {
+            Box::new(
+                coeus_ops::index_select(&li, 1, &lx, &backend)
+                    .expect("invariant: test operation succeeds"),
+            )
+        },
     );
 }
 
@@ -345,9 +387,18 @@ fn repeat_interleave_allocation_count_is_independent_of_output_size() {
 
     assert_size_independent(
         "repeat_interleave",
-        || Box::new(coeus_ops::repeat_interleave(&small, 2, 1, &backend)),
-        || Box::new(coeus_ops::repeat_interleave(&large, 2, 1, &backend)),
-        1,
+        || {
+            Box::new(
+                coeus_ops::repeat_interleave(&small, 2, 1, &backend)
+                    .expect("invariant: test operation succeeds"),
+            )
+        },
+        || {
+            Box::new(
+                coeus_ops::repeat_interleave(&large, 2, 1, &backend)
+                    .expect("invariant: test operation succeeds"),
+            )
+        },
     );
 }
 
@@ -356,25 +407,42 @@ fn scatter_add_allocation_count_is_independent_of_index_size() {
     let _oracle_guard = oracle_guard();
     let backend = CountingBackend;
     let build = |s: [usize; 3]| {
-        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend);
+        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend)
+            .expect("invariant: test backend operation succeeds");
         let src_shape = [s[0], s[1] / 2, s[2]];
         let src_numel: usize = src_shape.iter().product();
-        let src = Tensor::from_slice_on(src_shape.to_vec(), &ramp(src_numel), &backend);
-        let index = Tensor::from_slice_on(src_shape.to_vec(), &indices(src_numel, s[1]), &backend);
+        let src = Tensor::from_slice_on(src_shape.to_vec(), &ramp(src_numel), &backend)
+            .expect("invariant: test backend operation succeeds");
+        let index = Tensor::from_slice_on(src_shape.to_vec(), &indices(src_numel, s[1]), &backend)
+            .expect("invariant: test backend operation succeeds");
         (input, index, src)
     };
     let (si, sx, ss) = build([4, 8, 4]);
     let (li, lx, ls) = build([16, 32, 16]);
 
-    drop(coeus_ops::scatter_add(&si, 1, &sx, &ss, &backend));
-    drop(coeus_ops::scatter_add(&li, 1, &lx, &ls, &backend));
+    drop(
+        coeus_ops::scatter_add(&si, 1, &sx, &ss, &backend)
+            .expect("invariant: test operation succeeds"),
+    );
+    drop(
+        coeus_ops::scatter_add(&li, 1, &lx, &ls, &backend)
+            .expect("invariant: test operation succeeds"),
+    );
 
     STORAGE_REQUESTS.store(0, Ordering::Relaxed);
-    let small_allocs =
-        allocations_during(|| Box::new(coeus_ops::scatter_add(&si, 1, &sx, &ss, &backend)));
+    let small_allocs = allocations_during(|| {
+        Box::new(
+            coeus_ops::scatter_add(&si, 1, &sx, &ss, &backend)
+                .expect("invariant: test operation succeeds"),
+        )
+    });
     let small_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
-    let large_allocs =
-        allocations_during(|| Box::new(coeus_ops::scatter_add(&li, 1, &lx, &ls, &backend)));
+    let large_allocs = allocations_during(|| {
+        Box::new(
+            coeus_ops::scatter_add(&li, 1, &lx, &ls, &backend)
+                .expect("invariant: test operation succeeds"),
+        )
+    });
     let large_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
 
     assert_eq!(
@@ -405,15 +473,17 @@ fn topk_allocation_count_is_independent_of_slice_count() {
     let small = tensor(&[4, 8, 4], &ramp(4 * 8 * 4));
     let large = tensor(&[16, 8, 16], &ramp(16 * 8 * 16));
 
-    let count = |t: &Tensor<f64, SequentialBackend>| {
-        allocations_during(|| Box::new(coeus_ops::topk(t, 2, 1, true)))
-    };
-    let small_allocs = count(&small);
-    let large_allocs = count(&large);
-    assert_eq!(
-        small_allocs, large_allocs,
-        "topk: allocation count must not scale with workload size \
-         (small={small_allocs}, large={large_allocs}). A difference means a \
-         per-element or per-slice allocation has returned to this kernel."
+    assert_size_independent(
+        "topk",
+        || {
+            Box::new(
+                coeus_ops::topk(&small, 2, 1, true).expect("invariant: test operation succeeds"),
+            )
+        },
+        || {
+            Box::new(
+                coeus_ops::topk(&large, 2, 1, true).expect("invariant: test operation succeeds"),
+            )
+        },
     );
 }

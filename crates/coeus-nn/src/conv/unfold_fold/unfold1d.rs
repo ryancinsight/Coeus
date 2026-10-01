@@ -22,7 +22,11 @@ use std::marker::PhantomData;
 /// use coeus_core::SequentialBackend;
 ///
 /// let m = Unfold1d::<f32, SequentialBackend>::new(3, 1, 0, 1);
-/// let x = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 2, 5]), false);
+/// let x = Var::new(
+///     Tensor::<f32, SequentialBackend>::ones([1, 2, 5])
+///         .expect("invariant: example shape allocation succeeds"),
+///     false,
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 /// let y = m.forward(&x).expect("valid Unfold1d input");
 /// assert_eq!(y.tensor.shape(), &[1, 6, 3]);
 /// ```

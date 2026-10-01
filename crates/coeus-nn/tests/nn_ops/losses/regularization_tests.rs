@@ -7,9 +7,11 @@ use coeus_tensor::Tensor;
 
 fn seq_var(shape: impl Into<coeus_core::Shape>, data: &[f32]) -> Var<f32, SequentialBackend> {
     Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(shape, data),
+        Tensor::<f32, SequentialBackend>::from_slice(shape, data)
+            .expect("invariant: test backend operation succeeds"),
         false,
     )
+    .expect("invariant: test backend operation succeeds")
 }
 
 // ── AlphaDropout ──
@@ -219,9 +221,11 @@ fn lrn_backward_matches_numerical_gradient() {
 
     // Analytic: backward() seeds grad_output = ones, so x.grad = d sum(y) / d x.
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     lrn.forward(&x)
         .expect("valid LocalResponseNorm input")
         .backward()
@@ -233,9 +237,11 @@ fn lrn_backward_matches_numerical_gradient() {
     let h = 1e-6_f64;
     let sum_forward = |d: &[f64]| -> f64 {
         let xv = Var::new(
-            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d)
+                .expect("invariant: test backend operation succeeds"),
             false,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         lrn.forward(&xv)
             .expect("valid LocalResponseNorm input")
             .tensor

@@ -27,13 +27,20 @@ where
 {
     /// Iterate over contiguous elements mutably.
     ///
+    /// # Errors
+    /// Returns the backend storage error if copy-on-write allocation or copying fails.
+    ///
     /// # Panics
     /// If the tensor is not contiguous.
     #[inline]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        assert!(self.is_contiguous(), "iter_mut requires contiguous tensor");
+    pub fn try_iter_mut(&mut self) -> Result<impl Iterator<Item = &mut T> + '_, B::Error> {
+        assert!(
+            self.is_contiguous(),
+            "try_iter_mut requires contiguous tensor"
+        );
         let start = self.layout.offset();
         let len = self.numel();
-        self.storage.as_mut_slice()[start..start + len].iter_mut()
+        let storage = self.storage.as_mut_slice()?;
+        Ok(storage[start..start + len].iter_mut())
     }
 }

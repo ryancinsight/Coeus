@@ -280,7 +280,7 @@ where
         }
         .map_err(|source| B::convolution_dispatch_error(operation, source))?;
     }
-    request.output.make_unique();
+    request.output.make_unique()?;
     let operands = ConvolutionForwardOperands {
         input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
         weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
@@ -393,13 +393,13 @@ where
         .map_err(|source| B::convolution_dispatch_error(operation, source))?;
     }
     if let Some(buffer) = request.grad_input.as_mut() {
-        buffer.make_unique();
+        buffer.make_unique()?;
     }
     if let Some(buffer) = request.grad_weight.as_mut() {
-        buffer.make_unique();
+        buffer.make_unique()?;
     }
     if let Some(buffer) = request.grad_bias.as_mut() {
-        buffer.make_unique();
+        buffer.make_unique()?;
     }
     let operands = ConvolutionBackwardOperands {
         input: StridedView::new(B::convolution_buffer(request.input), &input_layout),

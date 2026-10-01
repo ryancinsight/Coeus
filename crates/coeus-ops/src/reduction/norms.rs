@@ -34,9 +34,9 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([n])
     } else {
-        a.to_contiguous_on(backend).reshape([n])
+        a.to_contiguous_on(backend)?.reshape([n])
     };
-    let sq = binary::mul(&flattened, &flattened, backend);
+    let sq = binary::mul(&flattened, &flattened, backend)?;
     Ok(<T as Float>::sqrt(super::sum(&sq, backend)?))
 }
 /// `L_p` norm over all elements: `(Σ|xᵢ|^p)^(1/p)` for finite `p > 0`.
@@ -56,17 +56,17 @@ pub fn norm_p_tensor<
     a: &Tensor<T, B>,
     p: T,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let n = a.numel();
     assert!(n > 0, "norm_p: empty tensor has no norm");
     assert!(
         p > T::ZERO && <T as Float>::is_finite(p),
         "norm_p: ord must be a finite positive number, got {p:?}"
     );
-    let magnitudes = crate::abs(a, backend);
-    let powered = crate::pow_scalar(&magnitudes, p, backend);
+    let magnitudes = crate::abs(a, backend)?;
+    let powered = crate::pow_scalar(&magnitudes, p, backend)?;
     let flattened = powered.reshape([n]);
-    let summed = super::sum_axis(&flattened, 0, backend).expect("norm_p: provider sum");
+    let summed = super::sum_axis(&flattened, 0, backend)?;
     crate::pow_scalar(&summed, T::ONE / p, backend)
 }
 
@@ -80,11 +80,11 @@ pub fn norm_p<T: Float, B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<
     a: &Tensor<T, B>,
     p: T,
     backend: &B,
-) -> T {
-    let result = norm_p_tensor(a, p, backend);
+) -> Result<T, B::Error> {
+    let result = norm_p_tensor(a, p, backend)?;
     let mut scalar = [T::ZERO];
-    backend.copy_to_host(result.storage(), &mut scalar);
-    scalar[0]
+    backend.copy_to_host(result.storage(), &mut scalar)?;
+    Ok(scalar[0])
 }
 
 /// Per-axis `L_p` norm: tensor reduced along `axis` to size 1, with each
@@ -108,7 +108,7 @@ pub fn norm_p_axis<
     p: T,
     axis: usize,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     assert!(axis < a.ndim(), "norm_p_axis: axis {axis} out of bounds");
     let n_axis = a.shape()[axis];
     assert!(n_axis > 0, "norm_p_axis: axis {axis} has zero elements");
@@ -117,9 +117,9 @@ pub fn norm_p_axis<
         "norm_p_axis: ord must be a finite positive number, got {p:?}"
     );
 
-    let magnitudes = crate::abs(a, backend);
-    let powered = crate::pow_scalar(&magnitudes, p, backend);
-    let summed = super::sum_axis(&powered, axis, backend).expect("norm_p_axis: provider sum");
+    let magnitudes = crate::abs(a, backend)?;
+    let powered = crate::pow_scalar(&magnitudes, p, backend)?;
+    let summed = super::sum_axis(&powered, axis, backend)?;
     crate::pow_scalar(&summed, T::ONE / p, backend)
 }
 
@@ -165,18 +165,18 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
     );
     if ndim == 2 {
         let v = norm(a, backend)?;
-        return Ok(Tensor::from_slice_on([], &[v], backend));
+        return Tensor::from_slice_on([], &[v], backend);
     }
 
     let contiguous = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape(a.shape().to_vec())
     } else {
-        a.to_contiguous_on(backend)
+        a.to_contiguous_on(backend)?
     };
-    let squared = binary::mul(&contiguous, &contiguous, backend);
+    let squared = binary::mul(&contiguous, &contiguous, backend)?;
     let reduced_last = super::sum_axis(&squared, ndim - 1, backend)?;
     let reduced_matrix = super::sum_axis(&reduced_last, ndim - 2, backend)?;
-    let norms = crate::unary::sqrt(&reduced_matrix, backend);
+    let norms = crate::unary::sqrt(&reduced_matrix, backend)?;
 
     let out_shape: Vec<usize> = contiguous.shape()[..ndim - 2].to_vec();
     Ok(norms.reshape(out_shape))

@@ -88,10 +88,11 @@ impl PyLinear {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
         if let Some(ref b) = self.bias {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 }

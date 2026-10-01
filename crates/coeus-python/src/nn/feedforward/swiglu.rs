@@ -137,8 +137,8 @@ impl PySwiGlu {
     }
 
     /// Zero gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.linear_inner.bind(py).borrow().zero_grad(py);
-        self.linear_outer.bind(py).borrow().zero_grad(py);
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.linear_inner.bind(py).borrow().zero_grad(py)?;
+        self.linear_outer.bind(py).borrow().zero_grad(py)
     }
 }

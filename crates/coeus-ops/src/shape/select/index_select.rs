@@ -25,7 +25,7 @@ pub fn index_select<T: Scalar, B: BackendOps<T> + Default>(
     dim: usize,
     index: &Tensor<T, B>,
     _backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -49,8 +49,8 @@ where
     out_shape[dim] = k;
 
     // Materialise contiguous views.
-    let in_cont = input.to_contiguous();
-    let idx_cont = index.to_contiguous();
+    let in_cont = input.to_contiguous()?;
+    let idx_cont = index.to_contiguous()?;
     let in_s = in_cont.as_slice();
     let idx_s = idx_cont.as_slice();
 
@@ -127,9 +127,11 @@ mod tests {
     #[test]
     fn index_select_1d_selects_correct_elements() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![5], &[10.0f32, 20.0, 30.0, 40.0, 50.0]);
-        let idx = Tensor::from_slice(vec![3], &[4.0f32, 0.0, 2.0]);
-        let out = index_select(&x, 0, &idx, &b);
+        let x = Tensor::from_slice(vec![5], &[10.0f32, 20.0, 30.0, 40.0, 50.0])
+            .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::from_slice(vec![3], &[4.0f32, 0.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = index_select(&x, 0, &idx, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[3]);
         assert_eq!(out.as_slice(), &[50.0, 10.0, 30.0]);
     }
@@ -142,9 +144,11 @@ mod tests {
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
-        );
-        let idx = Tensor::from_slice(vec![2], &[3.0f32, 1.0]);
-        let out = index_select(&x, 0, &idx, &b);
+        )
+        .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::from_slice(vec![2], &[3.0f32, 1.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = index_select(&x, 0, &idx, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 3]);
         assert_eq!(out.as_slice(), &[10.0, 11.0, 12.0, 4.0, 5.0, 6.0]);
     }
@@ -152,9 +156,11 @@ mod tests {
     #[test]
     fn index_select_2d_selects_cols() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![2, 4], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
-        let idx = Tensor::from_slice(vec![2], &[3.0f32, 0.0]);
-        let out = index_select(&x, 1, &idx, &b);
+        let x = Tensor::from_slice(vec![2, 4], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::from_slice(vec![2], &[3.0f32, 0.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = index_select(&x, 1, &idx, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 2]);
         assert_eq!(out.as_slice(), &[4.0, 1.0, 8.0, 5.0]);
     }
@@ -162,9 +168,11 @@ mod tests {
     #[test]
     fn index_select_identity_returns_shared_storage() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let idx = Tensor::from_slice(vec![2], &[0.0f32, 1.0]);
-        let out = index_select(&x, 0, &idx, &b);
+        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::from_slice(vec![2], &[0.0f32, 1.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = index_select(&x, 0, &idx, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 3]);
         assert_eq!(out.as_slice(), x.as_slice());
         assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());

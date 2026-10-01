@@ -14,14 +14,30 @@ fn cross_entropy_dispatches_with_metal_value_and_gradient_contract() {
     let backend = Backend::new();
     let logits_layout = Layout::new([2, 3].into());
     let scalar_layout = Layout::new([1].into());
-    let mut logits = backend.allocate::<f32>(6);
-    let mut loss = backend.allocate::<f32>(1);
-    let mut probabilities = backend.allocate::<f32>(6);
-    let mut output_gradient = backend.allocate::<f32>(1);
-    let mut logit_gradient = backend.allocate::<f32>(6);
-    backend.copy_to_device(&[1.5, 0.5, -0.5, -1.0, 2.0, 0.0], &mut logits);
-    backend.copy_to_device(&[1.0], &mut output_gradient);
-    backend.copy_to_device(&[0.0; 6], &mut logit_gradient);
+    let mut logits = backend
+        .allocate::<f32>(6)
+        .expect("invariant: test backend operation succeeds");
+    let mut loss = backend
+        .allocate::<f32>(1)
+        .expect("invariant: test backend operation succeeds");
+    let mut probabilities = backend
+        .allocate::<f32>(6)
+        .expect("invariant: test backend operation succeeds");
+    let mut output_gradient = backend
+        .allocate::<f32>(1)
+        .expect("invariant: test backend operation succeeds");
+    let mut logit_gradient = backend
+        .allocate::<f32>(6)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[1.5, 0.5, -0.5, -1.0, 2.0, 0.0], &mut logits)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[1.0], &mut output_gradient)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[0.0; 6], &mut logit_gradient)
+        .expect("invariant: test backend operation succeeds");
     let targets = backend
         .prepare_cross_entropy_targets(&[0, 1])
         .expect("Metal target upload");
@@ -51,8 +67,12 @@ fn cross_entropy_dispatches_with_metal_value_and_gradient_contract() {
 
     let mut actual_loss = [0.0];
     let mut actual_gradient = [0.0; 6];
-    backend.copy_to_host(&loss, &mut actual_loss);
-    backend.copy_to_host(&logit_gradient, &mut actual_gradient);
+    backend
+        .copy_to_host(&loss, &mut actual_loss)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_host(&logit_gradient, &mut actual_gradient)
+        .expect("invariant: test backend operation succeeds");
     assert!((actual_loss[0] - 0.288_726).abs() < 1.0e-4);
     for (actual, expected) in actual_gradient.iter().zip([
         -0.167_379, 0.122_364, 0.045_015, 0.021_005, -0.078_103, 0.057_098,

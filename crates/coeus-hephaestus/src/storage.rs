@@ -1,6 +1,7 @@
+use crate::error::HephaestusBackendError;
 use crate::reduction::HephaestusProvider;
 use coeus_core::{Scalar, Storage, StorageMut};
-use hephaestus_core::{ComputeDevice, DeviceBuffer};
+use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use std::{marker::PhantomData, sync::Arc};
 use themis::{MemoryTier, PlacementHint};
 
@@ -40,28 +41,41 @@ where
     T: Scalar,
 {
     /// Adopt an initialized provider buffer without copying its contents.
+    ///
+    /// # Safety
+    /// Every element must be initialized before any safe operation reads the
+    /// returned storage.
     #[must_use]
-    pub fn from_buffer(buffer: <P::Device as ComputeDevice>::Buffer<T>) -> Self {
+    pub unsafe fn from_buffer(buffer: <P::Device as ComputeDevice>::Buffer<T>) -> Self {
         Self {
             buffer: Arc::new(buffer),
             marker: PhantomData,
         }
     }
 
-    /// Allocate zeroed storage in the provider's device tier.
-    #[must_use]
-    pub fn new(len: usize) -> Self {
-        let buffer = P::device()
-            .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("Hephaestus provider allocation failed");
-        Self::from_buffer(buffer)
+    /// Allocate zeroed storage while preserving provider failures.
+    ///
+    /// # Errors
+    ///
+    /// Returns the provider's device-acquisition or allocation failure.
+    pub fn new(len: usize) -> Result<Self, HephaestusError> {
+        let buffer = P::try_device()?
+            .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
+        // SAFETY: the provider's zeroed allocation initializes every element.
+        Ok(unsafe { Self::from_buffer(buffer) })
     }
 
-    pub(crate) fn uninitialized(len: usize) -> Self {
-        let buffer = P::device()
-            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))
-            .expect("Hephaestus provider allocation failed");
-        Self::from_buffer(buffer)
+    /// Allocate uninitialized storage while preserving provider failures.
+    ///
+    /// # Safety
+    /// The caller must initialize every element before any safe operation
+    /// reads this storage.
+    pub(crate) unsafe fn uninitialized(len: usize) -> Result<Self, HephaestusError> {
+        let buffer = P::try_device()?
+            .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
+        // SAFETY: this method forwards its initialization obligation to the
+        // caller and does not read the allocation.
+        Ok(unsafe { Self::from_buffer(buffer) })
     }
 
     /// Identify the allocation without exposing its reference-counted owner.
@@ -121,31 +135,47 @@ where
     P: HephaestusProvider,
     T: Scalar,
 {
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
-        None
+    type Error = P::Error;
+
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error> {
+        Ok(None)
     }
 
-    fn make_unique(&mut self) {
+    fn make_unique(&mut self) -> Result<(), Self::Error> {
         if Arc::strong_count(&self.buffer) <= 1 {
-            return;
+            return Ok(());
         }
         // COW detachment is a storage operation, so preserve the provider's
         // allocation tier and keep the full payload on-device. The device
         // copy overwrites every element before the detached buffer is exposed,
         // so the replacement does not require a redundant initialization pass.
-        // The `StorageMut` contract is infallible; provider failures therefore
-        // panic until that upstream contract propagates typed failures.
-        let device = P::device();
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device(
+                "storage uniqueness device acquisition",
+                source,
+            ))
+        })?;
         let replacement = device
             .alloc_uninitialized_with_hint(
                 self.buffer.len(),
                 PlacementHint::Tier(self.buffer.tier()),
             )
-            .expect("Hephaestus storage uniqueness allocation failed");
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device(
+                    "storage uniqueness allocation",
+                    source,
+                ))
+            })?;
         device
             .copy_buffer(self.buffer.as_ref(), &replacement)
-            .expect("Hephaestus storage uniqueness device copy failed");
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device(
+                    "storage uniqueness copy",
+                    source,
+                ))
+            })?;
         self.buffer = Arc::new(replacement);
+        Ok(())
     }
 }
 

@@ -8,10 +8,17 @@ pub(crate) fn bench_uniform_initializer(c: &mut Criterion) {
     const SEED: u64 = 42;
 
     let mut sequential = Var::new(
-        Tensor::<f32, SequentialBackend>::zeros([ROWS, COLUMNS]),
+        Tensor::<f32, SequentialBackend>::zeros([ROWS, COLUMNS])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let mut moirai = Var::new(Tensor::<f32, MoiraiBackend>::zeros([ROWS, COLUMNS]), false);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mut moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::zeros([ROWS, COLUMNS])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — uniform initializer (1024x1024)");
     group.bench_function("Coeus Sequential", |b| {

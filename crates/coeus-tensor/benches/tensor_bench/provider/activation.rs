@@ -1,12 +1,17 @@
 //! Elementwise activation benchmarks.
 
-use coeus_core::{MoiraiBackend, SequentialBackend};
+use coeus_core::{BackendError, MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
 use criterion::{black_box, Criterion};
 
-type SequentialUnary =
-    fn(&Tensor<f32, SequentialBackend>, &SequentialBackend) -> Tensor<f32, SequentialBackend>;
-type MoiraiUnary = fn(&Tensor<f32, MoiraiBackend>, &MoiraiBackend) -> Tensor<f32, MoiraiBackend>;
+type SequentialUnary = fn(
+    &Tensor<f32, SequentialBackend>,
+    &SequentialBackend,
+) -> Result<Tensor<f32, SequentialBackend>, BackendError>;
+type MoiraiUnary = fn(
+    &Tensor<f32, MoiraiBackend>,
+    &MoiraiBackend,
+) -> Result<Tensor<f32, MoiraiBackend>, BackendError>;
 
 fn bench_unary(
     c: &mut Criterion,
@@ -20,24 +25,26 @@ fn bench_unary(
         .collect();
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
-    let sequential_input = Tensor::<f32, SequentialBackend>::from_slice([SIDE, SIDE], &data);
-    let moirai_input = Tensor::<f32, MoiraiBackend>::from_slice([SIDE, SIDE], &data);
+    let sequential_input = Tensor::<f32, SequentialBackend>::from_slice([SIDE, SIDE], &data)
+        .expect("invariant: test backend operation succeeds");
+    let moirai_input = Tensor::<f32, MoiraiBackend>::from_slice([SIDE, SIDE], &data)
+        .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group(group_name);
     group.bench_function("Coeus Sequential", |bencher| {
         bencher.iter(|| {
-            black_box(sequential_operation(
-                black_box(&sequential_input),
-                black_box(&sequential_backend),
-            ))
+            black_box(
+                sequential_operation(black_box(&sequential_input), black_box(&sequential_backend))
+                    .expect("invariant: activation benchmark dispatch succeeds"),
+            )
         })
     });
     group.bench_function("Coeus Moirai", |bencher| {
         bencher.iter(|| {
-            black_box(moirai_operation(
-                black_box(&moirai_input),
-                black_box(&moirai_backend),
-            ))
+            black_box(
+                moirai_operation(black_box(&moirai_input), black_box(&moirai_backend))
+                    .expect("invariant: activation benchmark dispatch succeeds"),
+            )
         })
     });
     group.finish();

@@ -48,7 +48,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pe
 pub fn permute<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     dims: &[usize],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let out_tensor = x.tensor.permute(dims);
 
@@ -60,7 +60,7 @@ pub fn permute<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     // Compute inverse permutation
@@ -76,11 +76,11 @@ pub fn permute<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Tracked general transpose operation. Swaps `dim0` and `dim1`.
@@ -89,14 +89,14 @@ pub fn transpose<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     dim0: usize,
     dim1: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let ndim = x.tensor.ndim();
     assert!(
         dim0 < ndim && dim1 < ndim,
         "transpose: dimensions out of bounds"
     );
     if dim0 == dim1 {
-        return x.clone();
+        return Ok(x.clone());
     }
     let mut dims: Vec<usize> = (0..ndim).collect();
     dims.swap(dim0, dim1);
@@ -106,12 +106,11 @@ pub fn transpose<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// Swap two axes (`torch.swapaxes` / `np.swapaxes`) — a named alias for
 /// [`transpose`].
 #[inline]
-#[must_use]
 pub fn swapaxes<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     axis0: usize,
     axis1: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     transpose(x, axis0, axis1)
 }
 
@@ -121,19 +120,18 @@ pub fn swapaxes<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 ///
 /// # Panics
 /// If `source` or `dest` is out of range.
-#[must_use]
 pub fn movedim<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     source: usize,
     dest: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let ndim = x.tensor.ndim();
     assert!(
         source < ndim && dest < ndim,
         "movedim: source {source} / dest {dest} out of range for rank {ndim}"
     );
     if source == dest {
-        return x.clone();
+        return Ok(x.clone());
     }
     let mut order: Vec<usize> = (0..ndim).filter(|&d| d != source).collect();
     order.insert(dest, source);
@@ -154,10 +152,18 @@ mod movedim_tests {
     fn movedim_reorders_axes_and_backprops() {
         // [2,3,4]; movedim(0,2) -> [3,4,2] with out[i,j,k] == in[k,i,j].
         let data: Vec<f64> = (0..24).map(|v| v as f64).collect();
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3, 4], &data), true);
-        let moved = movedim(&x, 0, 2);
+        let x = Var::<f64, MoiraiBackend>::new(
+            Tensor::from_slice([2, 3, 4], &data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let moved = movedim(&x, 0, 2).expect("invariant: test operation succeeds");
         assert_eq!(moved.tensor.shape(), &[3, 4, 2]);
-        let out = moved.tensor.to_contiguous();
+        let out = moved
+            .tensor
+            .to_contiguous()
+            .expect("invariant: test operation succeeds");
         let o = out.as_slice();
         for i in 0..3 {
             for j in 0..4 {
@@ -179,13 +185,23 @@ mod movedim_tests {
     #[test]
     fn swapaxes_matches_transpose() {
         let data: Vec<f64> = (0..6).map(|v| v as f64).collect();
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([2, 3], &data), false);
-        let s = swapaxes(&x, 0, 1);
-        let t = transpose(&x, 0, 1);
+        let x = Var::<f64, MoiraiBackend>::new(
+            Tensor::from_slice([2, 3], &data).expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let s = swapaxes(&x, 0, 1).expect("invariant: test operation succeeds");
+        let t = transpose(&x, 0, 1).expect("invariant: test operation succeeds");
         assert_eq!(s.tensor.shape(), t.tensor.shape());
         assert_eq!(
-            s.tensor.to_contiguous().as_slice(),
-            t.tensor.to_contiguous().as_slice()
+            s.tensor
+                .to_contiguous()
+                .expect("invariant: test operation succeeds")
+                .as_slice(),
+            t.tensor
+                .to_contiguous()
+                .expect("invariant: test operation succeeds")
+                .as_slice()
         );
     }
 }

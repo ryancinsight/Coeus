@@ -1,5 +1,6 @@
 use crate::{
-    error::map_module_error,
+    error::{map_backend_error, map_module_error},
+    init::map_initialization_error,
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::exceptions::PyValueError;
@@ -41,7 +42,11 @@ pub struct PyEmbeddingBag {
 
 fn tensor_to_indices(name: &str, tensor: &PyTensor) -> PyResult<Vec<usize>> {
     let backend = coeus_core::MoiraiBackend::new();
-    let contiguous = tensor.inner.tensor.to_contiguous_on(&backend);
+    let contiguous = tensor
+        .inner
+        .tensor
+        .to_contiguous_on(&backend)
+        .map_err(map_backend_error)?;
     contiguous
         .as_slice()
         .iter()
@@ -90,7 +95,8 @@ impl PyEmbedding {
                 num_embeddings,
                 embedding_dim,
             ),
-        };
+        }
+        .map_err(map_initialization_error)?;
         let weight = Py::new(
             py,
             PyTensor {
@@ -145,8 +151,8 @@ impl PyEmbedding {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()
     }
 }
 
@@ -170,7 +176,8 @@ impl PyEmbeddingBag {
             num_embeddings,
             embedding_dim,
             parsed_mode,
-        );
+        )
+        .map_err(map_initialization_error)?;
         let weight = Py::new(
             py,
             PyTensor {
@@ -252,7 +259,7 @@ impl PyEmbeddingBag {
     }
 
     /// Zero parameter gradients.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()
     }
 }

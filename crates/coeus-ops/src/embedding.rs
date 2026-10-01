@@ -1,7 +1,7 @@
 // ── Embedding lookup operations ──
 
-use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
-use coeus_tensor::Tensor;
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::{Tensor, TensorTransferError};
 
 /// Apply embedding lookup: maps integer indices to dense vectors from a weight matrix.
 ///
@@ -18,7 +18,7 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     weight: &Tensor<T, B>,
     indices: &Tensor<I, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let weight_shape = weight.shape();
     assert_eq!(
         weight_shape.len(),
@@ -33,7 +33,7 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     out_shape.push(embedding_dim);
     let out_shape = coeus_core::Shape::from(out_shape);
 
-    let mut out_tensor = Tensor::zeros_on(out_shape, backend);
+    let mut out_tensor = Tensor::zeros_on(out_shape, backend)?;
 
     let w_layout = weight.layout().clone();
     let idx_layout = indices.layout().clone();
@@ -90,13 +90,22 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         }
     } else {
         let host_backend = coeus_core::MoiraiBackend::new();
-        let w_host = weight.to_backend(&host_backend);
-        let idx_host = indices.to_backend(&host_backend);
-        let out_host = embedding(&w_host, &idx_host, &host_backend);
-        out_tensor = out_host.to_backend(backend);
+        let w_host = weight.to_backend(&host_backend).map_err(|error| match error {
+            TensorTransferError::Source(source) => source,
+            TensorTransferError::Destination(destination) => B::Error::from(destination),
+        })?;
+        let idx_host = indices.to_backend(&host_backend).map_err(|error| match error {
+            TensorTransferError::Source(source) => source,
+            TensorTransferError::Destination(destination) => B::Error::from(destination),
+        })?;
+        let out_host = embedding(&w_host, &idx_host, &host_backend)?;
+        out_tensor = out_host.to_backend(backend).map_err(|error| match error {
+            TensorTransferError::Source(source) => B::Error::from(source),
+            TensorTransferError::Destination(destination) => destination,
+        })?;
     }
 
-    out_tensor
+    Ok(out_tensor)
 }
 
 /// Compute backward pass of embedding lookup, accumulating gradients into weights.
@@ -105,7 +114,7 @@ pub fn embedding_backward<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     indices: &Tensor<I, B>,
     num_embeddings: usize,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     embedding_backward_impl(grad_out, indices, num_embeddings, None, backend)
 }
 
@@ -116,7 +125,7 @@ pub fn embedding_backward_with_padding_idx<T: Scalar, I: Scalar, B: ComputeBacke
     num_embeddings: usize,
     padding_idx: Option<usize>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     assert!(
         padding_idx.is_none_or(|idx| idx < num_embeddings),
         "embedding_backward: padding_idx {:?} out of bounds [0, {})",
@@ -138,7 +147,7 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     num_embeddings: usize,
     skip_index: Option<isize>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     let grad_shape = grad_out.shape();
     let ndim_grad = grad_shape.len();
     assert!(ndim_grad >= 2, "grad_out must have at least 2 dimensions");
@@ -151,7 +160,7 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         "grad_out shape prefix must match indices shape"
     );
 
-    let mut grad_weight = Tensor::zeros_on([num_embeddings, embedding_dim], backend);
+    let mut grad_weight = Tensor::zeros_on([num_embeddings, embedding_dim], backend)?;
 
     let go_layout = grad_out.layout().clone();
     let idx_layout = indices.layout().clone();
@@ -205,19 +214,32 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         }
     } else {
         let host_backend = coeus_core::MoiraiBackend::new();
-        let go_host = grad_out.to_backend(&host_backend);
-        let idx_host = indices.to_backend(&host_backend);
+        let go_host = grad_out
+            .to_backend(&host_backend)
+            .map_err(|error| match error {
+                TensorTransferError::Source(source) => source,
+                TensorTransferError::Destination(destination) => B::Error::from(destination),
+            })?;
+        let idx_host = indices
+            .to_backend(&host_backend)
+            .map_err(|error| match error {
+                TensorTransferError::Source(source) => source,
+                TensorTransferError::Destination(destination) => B::Error::from(destination),
+            })?;
         let gw_host = embedding_backward_impl(
             &go_host,
             &idx_host,
             num_embeddings,
             skip_index,
             &host_backend,
-        );
-        grad_weight = gw_host.to_backend(backend);
+        )?;
+        grad_weight = gw_host.to_backend(backend).map_err(|error| match error {
+            TensorTransferError::Source(source) => B::Error::from(source),
+            TensorTransferError::Destination(destination) => destination,
+        })?;
     }
 
-    grad_weight
+    Ok(grad_weight)
 }
 
 #[cfg(test)]
@@ -231,10 +253,13 @@ mod tests {
         let grad_out = Tensor::<f32, SequentialBackend>::from_slice(
             vec![3, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-        );
-        let indices = Tensor::<i32, SequentialBackend>::from_slice(vec![3], &[0, 1, 0]);
+        )
+        .expect("invariant: test backend operation succeeds");
+        let indices = Tensor::<i32, SequentialBackend>::from_slice(vec![3], &[0, 1, 0])
+            .expect("invariant: test backend operation succeeds");
 
-        let grad = embedding_backward_with_padding_idx(&grad_out, &indices, 2, Some(0), &backend);
+        let grad = embedding_backward_with_padding_idx(&grad_out, &indices, 2, Some(0), &backend)
+            .expect("invariant: test operation succeeds");
 
         assert_eq!(grad.shape(), &[2, 2]);
         assert_eq!(grad.as_slice(), &[0.0, 0.0, 3.0, 4.0]);

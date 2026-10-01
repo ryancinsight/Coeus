@@ -40,7 +40,7 @@ where
             axis,
             input,
             input_layout,
-            output.as_mut_slice(),
+            output.as_mut_slice()?,
             output_layout,
         )
     }
@@ -61,7 +61,7 @@ where
             axis,
             input,
             input_layout,
-            output.as_mut_slice(),
+            output.as_mut_slice()?,
             output_layout,
         )
     }
@@ -89,7 +89,7 @@ where
             spacing,
             input,
             input_layout,
-            output.as_mut_slice(),
+            output.as_mut_slice()?,
             output_layout,
         )
     }

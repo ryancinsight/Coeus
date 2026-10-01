@@ -5,12 +5,23 @@ use coeus_tensor::Tensor;
 #[test]
 fn keep_mask_is_not_a_differentiable_attention_input() {
     let backend = MoiraiBackend::new();
-    let constant =
-        |values: &[f64]| Var::new(Tensor::from_slice_on([1, 2, 2], values, &backend), false);
+    let constant = |values: &[f64]| {
+        Var::new(
+            Tensor::from_slice_on([1, 2, 2], values, &backend)
+                .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds")
+    };
     let query = constant(&[1.0, 0.0, 0.0, 1.0]);
     let key = constant(&[1.0, 0.0, 0.0, 1.0]);
     let value = constant(&[2.0, 3.0, 5.0, 7.0]);
-    let mask = Var::new(Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend), true);
+    let mask = Var::new(
+        Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let (output, _) =
         sdp_attention::<f64, MoiraiBackend, NullMask>(&query, &key, &value, Some(&mask), 1.0)

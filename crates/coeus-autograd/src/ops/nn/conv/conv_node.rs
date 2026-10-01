@@ -166,20 +166,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         let backend = B::default();
 
         let mut grad_input = if input_grads.first().and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend))
+            Some(Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend)?)
         } else {
             None
         };
 
         let mut grad_weight = if input_grads.get(1).and_then(|g| g.as_ref()).is_some() {
-            Some(Tensor::zeros_on(self.w_clone.shape_cloned(), &backend))
+            Some(Tensor::zeros_on(self.w_clone.shape_cloned(), &backend)?)
         } else {
             None
         };
 
         let mut grad_bias =
             if self.has_bias && input_grads.get(2).and_then(|g| g.as_ref()).is_some() {
-                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend))
+                Some(Tensor::zeros_on([self.w_clone.shape()[0]], &backend)?)
             } else {
                 None
             };
@@ -189,7 +189,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         let mut gi_storage = None;
         let mut gi_layout_val = None;
         if let Some(ref mut gi) = grad_input {
-            let (store, lay) = gi.storage_mut_and_layout();
+            let (store, lay) = gi.storage_mut_and_layout()?;
             gi_storage = Some(store);
             gi_layout_val = Some(lay);
         }
@@ -198,7 +198,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         let mut gw_storage = None;
         let mut gw_layout_val = None;
         if let Some(ref mut gw) = grad_weight {
-            let (store, lay) = gw.storage_mut_and_layout();
+            let (store, lay) = gw.storage_mut_and_layout()?;
             gw_storage = Some(store);
             gw_layout_val = Some(lay);
         }
@@ -216,7 +216,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
             gi_layout: gi_layout_ref,
             gw_storage,
             gw_layout: gw_layout_ref,
-            grad_bias: grad_bias.as_mut().map(|gb| gb.storage_mut()),
+            grad_bias: grad_bias.as_mut().map(Tensor::storage_mut).transpose()?,
             stride: self.stride,
             padding: self.padding,
             dilation: self.dilation,
@@ -237,7 +237,7 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -250,7 +250,7 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -283,9 +283,9 @@ pub(super) fn conv_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, con
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

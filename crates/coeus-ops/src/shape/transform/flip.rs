@@ -15,7 +15,7 @@ pub fn flip<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     axis: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

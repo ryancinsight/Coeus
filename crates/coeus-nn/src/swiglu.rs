@@ -65,8 +65,8 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
     }
 
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        let gated = silu(&self.linear_inner.forward(input)?);
+        let gated = silu(&self.linear_inner.forward(input)?)?;
         let outer = self.linear_outer.forward(input)?;
-        Ok(coeus_autograd::mul(&gated, &outer))
+        Ok(coeus_autograd::mul(&gated, &outer)?)
     }
 }

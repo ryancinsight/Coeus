@@ -5,7 +5,9 @@ use hephaestus_core::{ComputeDevice, HephaestusError, PoolingMode};
 use hephaestus_wgpu::{WgpuDevice, WgpuPoolingOps, WgpuWindowScalar};
 use leto::WindowParameters;
 
-impl<T> PoolingProvider<T> for WgpuBackend
+// SAFETY: `WgpuPoolingOps` initializes forward outputs and only accumulates
+// backward gradients into initialized destinations.
+unsafe impl<T> PoolingProvider<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
 {
@@ -38,7 +40,8 @@ where
     }
 }
 
-impl<T> coeus_ops::PoolOps<T> for WgpuBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::PoolOps<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
 {

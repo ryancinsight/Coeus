@@ -3,7 +3,13 @@ use coeus_core::{ComputeBackend, Scalar};
 use hephaestus_core::{ComputeDevice, DenseProductOps, HephaestusError};
 
 /// Provider-owned scalar dense-product operation marker.
-pub trait MatmulProvider<T>: HephaestusProvider
+///
+/// # Safety
+///
+/// Every successful overwrite operation selected by `Operations` must
+/// initialize every logical output element without reading the output's prior
+/// contents. A dispatch error may leave an output partially written.
+pub unsafe trait MatmulProvider<T>: HephaestusProvider
 where
     T: Scalar + leto_ops::Scalar,
 {
@@ -58,6 +64,6 @@ where
     }
 
     fn matmul_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        HephaestusBackendError::device(operation, source)
+        P::Error::from(HephaestusBackendError::device(operation, source))
     }
 }

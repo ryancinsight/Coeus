@@ -17,14 +17,18 @@ use super::{Adam, AdamW, Optimizer, Parameter, RMSProp, SequentialBackend, Tenso
 #[test]
 fn test_sgd_convergence_quadratic_50steps() {
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.0f32)
+        .expect("invariant: optimizer state allocation succeeds");
 
     for _ in 0..50 {
         let current = optimizer.params[0].tensor.as_slice()[0];
-        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
+        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current])
+            .expect("invariant: test backend operation succeeds");
         optimizer.params[0].set_grad(grad);
         optimizer.step().expect("optimizer convergence step");
     }
@@ -52,14 +56,18 @@ fn test_sgd_convergence_quadratic_50steps() {
 #[test]
 fn test_sgd_momentum_convergence_100steps() {
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[5.0f32]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[5.0f32])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.05f32, 0.9f32);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mut optimizer = SGD::new(vec![Parameter::new(x.clone(), "x")], 0.05f32, 0.9f32)
+        .expect("invariant: optimizer state allocation succeeds");
 
     for _ in 0..100 {
         let current = optimizer.params[0].tensor.as_slice()[0];
-        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
+        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current])
+            .expect("invariant: test backend operation succeeds");
         optimizer.params[0].set_grad(grad);
         optimizer.step().expect("optimizer convergence step");
     }
@@ -81,23 +89,27 @@ fn test_sgd_momentum_convergence_100steps() {
 #[test]
 fn test_adam_convergence_quadratic_200steps() {
     let p = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[3.0f32, -4.0]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[3.0f32, -4.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut optimizer = Adam::new(
         vec![Parameter::new(p.clone(), "p")],
         0.1f32,
         0.9f32,
         0.999f32,
         1e-8f32,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
 
     for _ in 0..200 {
         let vals = optimizer.params[0].tensor.as_slice().to_vec();
         let grad = Tensor::<f32, SequentialBackend>::from_slice(
             vec![2],
             &[2.0f32 * vals[0], 2.0f32 * vals[1]],
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         optimizer.params[0].set_grad(grad);
         optimizer.step().expect("optimizer convergence step");
     }
@@ -125,9 +137,11 @@ fn test_adam_convergence_quadratic_200steps() {
 #[test]
 fn test_adamw_weight_decay_shrinkage_50steps() {
     let p = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut optimizer = AdamW::new(
         vec![Parameter::new(p.clone(), "p")],
         0.1f32,
@@ -135,14 +149,15 @@ fn test_adamw_weight_decay_shrinkage_50steps() {
         0.999f32,
         1e-8f32,
         0.1f32,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
 
     for _ in 0..50 {
         // Zero gradient → only weight-decay acts.
-        optimizer.params[0].set_grad(Tensor::<f32, SequentialBackend>::from_slice(
-            vec![1],
-            &[0.0f32],
-        ));
+        optimizer.params[0].set_grad(
+            Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[0.0f32])
+                .expect("invariant: test backend operation succeeds"),
+        );
         optimizer.step().expect("optimizer convergence step");
     }
 
@@ -168,15 +183,18 @@ fn test_adamw_weight_decay_shrinkage_50steps() {
 #[test]
 fn test_rmsprop_convergence_quadratic_300steps() {
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut optimizer = RMSProp::new(
         vec![Parameter::new(x.clone(), "x")],
         0.1f32,
         0.99f32,
         1e-8f32,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
 
     let mut prev = 4.0f32.powi(2);
     for _ in 0..300 {
@@ -189,7 +207,8 @@ fn test_rmsprop_convergence_quadratic_300steps() {
             "RMSProp objective increased: {obj} > {prev}"
         );
         prev = obj;
-        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
+        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current])
+            .expect("invariant: test backend operation succeeds");
         optimizer.params[0].set_grad(grad);
         optimizer.step().expect("optimizer convergence step");
     }
@@ -211,11 +230,14 @@ fn test_rmsprop_convergence_quadratic_300steps() {
 #[test]
 fn test_adagrad_convergence_quadratic_400steps() {
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32]),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[4.0f32])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut optimizer =
-        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.5f32, 1e-6f32);
+        coeus_optim::AdaGrad::new(vec![Parameter::new(x.clone(), "x")], 0.5f32, 1e-6f32)
+            .expect("invariant: optimizer state allocation succeeds");
 
     let mut prev = 4.0f32.powi(2);
     for _ in 0..400 {
@@ -226,7 +248,8 @@ fn test_adagrad_convergence_quadratic_400steps() {
             "AdaGrad objective increased: {obj} > {prev}"
         );
         prev = obj;
-        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current]);
+        let grad = Tensor::<f32, SequentialBackend>::from_slice(vec![1], &[2.0f32 * current])
+            .expect("invariant: test backend operation succeeds");
         optimizer.params[0].set_grad(grad);
         optimizer.step().expect("optimizer convergence step");
     }

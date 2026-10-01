@@ -1,7 +1,4 @@
-use coeus_core::{
-    Backend, BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut,
-    CpuStorage, Scalar,
-};
+use coeus_core::{Backend, BackendError, ComputeBackend, CpuStorage, Scalar, SequentialBackend};
 
 /// Scalar types supported by the CUDA backend and Hephaestus fusion.
 pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
@@ -39,7 +36,9 @@ impl CudaBackend {
     }
 }
 
-impl ComputeBackend for CudaBackend {
+// SAFETY: the stub delegates safe storage operations to SequentialBackend,
+// whose CPU storage tracks initialization and full writes.
+unsafe impl ComputeBackend for CudaBackend {
     type Error = BackendError;
     type DeviceBuffer<T: Scalar> = CpuStorage<T>;
     type KernelDescriptor = ();
@@ -56,30 +55,42 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        CpuStorage::new(len)
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        // SAFETY: the CPU fallback returns the same uninitialized storage, so
+        // the caller's initialization obligation remains unchanged.
+        unsafe { SequentialBackend::new().allocate(len) }
     }
 
     #[inline]
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        let mut storage = CpuStorage::new(len);
-        self.fill_zero(&mut storage);
-        storage
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        SequentialBackend::new().allocate_zeroed(len)
     }
 
     #[inline]
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, value: T) {
-        dst.as_mut_slice().fill(value);
+    fn fill<T: Scalar>(
+        &self,
+        dst: &mut Self::DeviceBuffer<T>,
+        value: T,
+    ) -> Result<(), Self::Error> {
+        SequentialBackend::new().fill(dst, value)
     }
 
     #[inline]
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        dst.as_mut_slice().copy_from_slice(src);
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error> {
+        SequentialBackend::new().copy_to_device(src, dst)
     }
 
     #[inline]
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
-        dst.copy_from_slice(src.as_slice());
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error> {
+        SequentialBackend::new().copy_to_host(src, dst)
     }
 }
 

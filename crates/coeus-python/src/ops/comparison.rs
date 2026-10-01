@@ -1,20 +1,23 @@
-use crate::tensor::PyTensor;
+use crate::{error::map_backend_error, tensor::PyTensor};
 use coeus_autograd::Var;
+use coeus_core::BackendError;
 use pyo3::prelude::*;
 
 #[inline]
-fn comparison_dispatch<F>(a: &PyTensor, b: &PyTensor, py: Python<'_>, op: F) -> PyTensor
+fn comparison_dispatch<F>(a: &PyTensor, b: &PyTensor, py: Python<'_>, op: F) -> PyResult<PyTensor>
 where
-    F: FnOnce(&Var<f64>, &Var<f64>) -> Var<f64> + Send,
+    F: FnOnce(&Var<f64>, &Var<f64>) -> Result<Var<f64>, BackendError> + Send,
 {
     let inner = py.allow_threads(|| op(&a.inner, &b.inner));
-    PyTensor { inner }
+    inner
+        .map(|inner| PyTensor { inner })
+        .map_err(map_backend_error)
 }
 
 macro_rules! comparison_fn {
     ($name:ident, $op:path) => {
         #[pyfunction]
-        pub fn $name(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyTensor {
+        pub fn $name(a: &PyTensor, b: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
             comparison_dispatch(a, b, py, $op)
         }
     };
@@ -33,8 +36,8 @@ pub fn where_fn(
     on_true: &PyTensor,
     on_false: &PyTensor,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py
         .allow_threads(|| coeus_autograd::where_cond(&cond.inner, &on_true.inner, &on_false.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }

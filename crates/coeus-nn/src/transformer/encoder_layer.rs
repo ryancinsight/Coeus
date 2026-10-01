@@ -109,7 +109,7 @@ pub fn transformer_encoder_layer<
         params.attn_residual_dropout_p,
         params.attn_residual_training,
     )?;
-    let x = coeus_autograd::add(input, &dropped1);
+    let x = coeus_autograd::add(input, &dropped1)?;
 
     let normed2 = super::normalization::layer_norm_three_dimensional(
         MODULE,
@@ -132,7 +132,7 @@ pub fn transformer_encoder_layer<
         params.ffn_residual_dropout_p,
         params.ffn_residual_training,
     )?;
-    Ok(coeus_autograd::add(&x, &dropped2))
+    Ok(coeus_autograd::add(&x, &dropped2)?)
 }
 
 /// Single Transformer encoder layer.
@@ -185,10 +185,10 @@ impl<
         B: coeus_ops::RandomInitOps<T>,
     {
         Ok(Self {
-            norm1: LayerNorm::new(d_model, 1e-5),
+            norm1: LayerNorm::new(d_model, 1e-5)?,
             self_attn: MultiHeadAttention::new(d_model, true)?,
             dropout1: Dropout::new(dropout_p),
-            norm2: LayerNorm::new(d_model, 1e-5),
+            norm2: LayerNorm::new(d_model, 1e-5)?,
             ffn: FeedForward::new(d_model, d_ff, dropout_p)?,
             dropout2: Dropout::new(dropout_p),
         })

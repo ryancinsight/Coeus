@@ -1,6 +1,6 @@
 //! The in-process communicator: simulated ranks sharing one address space.
 
-use crate::tensor::PyTensor;
+use crate::{error::map_local_collective_error, tensor::PyTensor};
 use coeus_dist::Communicator;
 use pyo3::prelude::*;
 
@@ -25,12 +25,12 @@ impl PyLocalCommunicator {
     }
 
     /// Synchronize all ranks in the process group (blocking barrier, releasing GIL).
-    fn barrier(&self, py: Python<'_>) {
+    fn barrier(&self, py: Python<'_>) -> PyResult<()> {
         let comm = self.inner.clone();
-        py.allow_threads(move || {
-            use coeus_dist::Communicator;
-            let Ok(()) = comm.barrier();
-        });
+        match py.allow_threads(move || comm.barrier()) {
+            Ok(()) => Ok(()),
+            Err(never) => match never {},
+        }
     }
 
     /// Reduce and distribute a tensor to all processes in-place (releasing GIL).
@@ -38,12 +38,17 @@ impl PyLocalCommunicator {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let t_val = t_borrow.inner.tensor.clone();
-        let t_val = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            let Ok(()) = comm.all_reduce::<f64, _, coeus_dist::Sum>(&mut t_val, &backend);
-            t_val
-        });
+        let t_val = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.all_reduce::<f64, _, coeus_dist::Sum>(&mut t_val, &backend)?;
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<std::convert::Infallible, coeus_core::BackendError>,
+                >(t_val)
+            })
+            .map_err(map_local_collective_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -53,12 +58,17 @@ impl PyLocalCommunicator {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let t_val = t_borrow.inner.tensor.clone();
-        let t_val = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            let Ok(()) = comm.broadcast::<f64, _>(&mut t_val, root, &backend);
-            t_val
-        });
+        let t_val = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.broadcast::<f64, _>(&mut t_val, root, &backend)?;
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<std::convert::Infallible, coeus_core::BackendError>,
+                >(t_val)
+            })
+            .map_err(map_local_collective_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -86,12 +96,17 @@ impl PyLocalCommunicator {
             rust_tensors.push(item.bind(py).borrow().inner.tensor.clone());
         }
 
-        let rust_tensors = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut rust_tensors = rust_tensors;
-            let Ok(()) = comm.all_gather::<f64, _>(&input_tensor, &mut rust_tensors, &backend);
-            rust_tensors
-        });
+        let rust_tensors = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut rust_tensors = rust_tensors;
+                comm.all_gather::<f64, _>(&input_tensor, &mut rust_tensors, &backend)?;
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<std::convert::Infallible, coeus_core::BackendError>,
+                >(rust_tensors)
+            })
+            .map_err(map_local_collective_error)?;
 
         for (item, rust_t) in output.iter().zip(rust_tensors) {
             item.bind(py).borrow_mut().inner.tensor = rust_t;
@@ -105,12 +120,17 @@ impl PyLocalCommunicator {
         let mut t_borrow = tensor.try_borrow_mut()?;
         let comm = self.inner.clone();
         let t_val = t_borrow.inner.tensor.clone();
-        let t_val = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            let Ok(()) = comm.reduce::<f64, _, coeus_dist::Sum>(&mut t_val, root, &backend);
-            t_val
-        });
+        let t_val = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.reduce::<f64, _, coeus_dist::Sum>(&mut t_val, root, &backend)?;
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<std::convert::Infallible, coeus_core::BackendError>,
+                >(t_val)
+            })
+            .map_err(map_local_collective_error)?;
         t_borrow.inner.tensor = t_val;
         Ok(())
     }
@@ -140,12 +160,17 @@ impl PyLocalCommunicator {
             rust_tensors.push(item.bind(py).borrow().inner.tensor.clone());
         }
 
-        let rust_tensors = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut rust_tensors = rust_tensors;
-            let Ok(()) = comm.gather::<f64, _>(&input_tensor, &mut rust_tensors, root, &backend);
-            rust_tensors
-        });
+        let rust_tensors = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut rust_tensors = rust_tensors;
+                comm.gather::<f64, _>(&input_tensor, &mut rust_tensors, root, &backend)?;
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<std::convert::Infallible, coeus_core::BackendError>,
+                >(rust_tensors)
+            })
+            .map_err(map_local_collective_error)?;
 
         if rank == root {
             for (item, rust_t) in output.iter().zip(rust_tensors) {
@@ -182,12 +207,17 @@ impl PyLocalCommunicator {
             rust_tensors.push(item.bind(py).borrow().inner.tensor.clone());
         }
 
-        let (t_val, _rust_tensors) = py.allow_threads(move || {
-            let backend = coeus_core::MoiraiBackend::new();
-            let mut t_val = t_val;
-            let Ok(()) = comm.scatter::<f64, _>(&mut t_val, &rust_tensors, root, &backend);
-            (t_val, rust_tensors)
-        });
+        let (t_val, _rust_tensors) = py
+            .allow_threads(move || {
+                let backend = coeus_core::MoiraiBackend::new();
+                let mut t_val = t_val;
+                comm.scatter::<f64, _>(&mut t_val, &rust_tensors, root, &backend)?;
+                Ok::<
+                    _,
+                    coeus_dist::CollectiveError<std::convert::Infallible, coeus_core::BackendError>,
+                >((t_val, rust_tensors))
+            })
+            .map_err(map_local_collective_error)?;
 
         t_borrow.inner.tensor = t_val;
         Ok(())

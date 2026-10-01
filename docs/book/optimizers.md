@@ -7,38 +7,39 @@ through Hephaestus `StatefulUpdateOps` for GPU-accelerated in-place updates.
 
 ```rust,ignore
 pub trait Optimizer<T, B> {
-    fn step(&mut self, parameters: &[Parameter<T, B>]) -> Result<()>;
-    fn zero_grad(&self, parameters: &[Parameter<T, B>]);
+    fn step(&mut self) -> Result<(), B::Error>;
+    fn zero_grad(&mut self) -> Result<(), B::Error>;
+    fn set_lr(&mut self, learning_rate: T);
 }
 ```
 
 ## Built-In Optimizers
 
-| Optimizer | Parameters struct | Description |
-|-----------|-------------------|-------------|
-| SGD | `SgdParameters { lr, momentum, weight_decay, dampening, nesterov }` | Stochastic gradient descent |
-| Adam | `AdamParameters { lr, beta1, beta2, epsilon, weight_decay }` | Adaptive moment estimation |
-| AdamW | `AdamWParameters { lr, beta1, beta2, epsilon, weight_decay }` | Adam with decoupled weight decay |
-| AdaGrad | `AdaGradParameters { lr, epsilon, weight_decay }` | Adaptive per-parameter learning rate |
-| RmsProp | `RmsPropParameters { lr, alpha, epsilon, weight_decay, momentum }` | RMSProp |
+| Optimizer | Constructor parameters after `params` | Description |
+|-----------|---------------------------------------|-------------|
+| SGD | `lr, momentum` | Stochastic gradient descent |
+| Adam | `lr, beta1, beta2, eps` | Adaptive moment estimation |
+| AdamW | `lr, beta1, beta2, eps, weight_decay` | Adam with decoupled weight decay |
+| AdaGrad | `lr, eps` | Adaptive per-parameter learning rate |
+| RmsProp | `lr, alpha, eps` | RMSProp |
 
 ## Usage
 
 ```rust,ignore
-let mut opt = coeus::optim::Adam::new(model.parameters(), AdamParameters {
-    lr: 1e-3,
-    beta1: 0.9,
-    beta2: 0.999,
-    epsilon: 1e-8,
-    weight_decay: 0.0,
-});
+let mut opt = coeus::optim::Adam::new(
+    model.parameters(),
+    1e-3,
+    0.9,
+    0.999,
+    1e-8,
+)?;
 
 // Training loop
 for batch in dataloader {
-    opt.zero_grad(&model.parameters());
+    opt.zero_grad()?;
     let loss = model_forward_and_loss(&batch)?;
-    loss.backward();
-    opt.step(&model.parameters())?;
+    loss.backward()?;
+    opt.step()?;
 }
 ```
 

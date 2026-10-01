@@ -12,14 +12,28 @@ fn test_linear_parity() {
     let b_data = vec![0.2f32, -0.1];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &x_data), true);
+    let x_coeus = CoeusVar::new(
+        CoeusTensor::from_slice(vec![2, 3], &x_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut linear_coeus = CoeusLinear::<f32, SequentialBackend>::new(3, 2, true)
         .expect("invariant: the fixture's layer dimensions are non-zero");
-    linear_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2, 3], &w_data), true);
-    linear_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![2], &b_data),
+    linear_coeus.weight = CoeusVar::new(
+        CoeusTensor::from_slice(vec![2, 3], &w_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    ));
+    )
+    .expect("invariant: test backend operation succeeds");
+    linear_coeus.bias = Some(
+        CoeusVar::new(
+            CoeusTensor::from_slice(vec![2], &b_data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds"),
+    );
 
     // Coeus forward
     let out_coeus = linear_coeus.forward(&x_coeus).expect("valid Linear input");
@@ -70,10 +84,26 @@ fn test_layernorm_parity() {
     let eps = 1e-5f64;
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![2, 4], &x_data), true);
-    let mut ln_coeus = CoeusLayerNorm::<f32, SequentialBackend>::new(4, eps);
-    ln_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![4], &w_data), true);
-    ln_coeus.bias = CoeusVar::new(CoeusTensor::from_slice(vec![4], &b_data), true);
+    let x_coeus = CoeusVar::new(
+        CoeusTensor::from_slice(vec![2, 4], &x_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mut ln_coeus =
+        CoeusLayerNorm::<f32, SequentialBackend>::new(4, eps).expect("valid LayerNorm dimensions");
+    ln_coeus.weight = CoeusVar::new(
+        CoeusTensor::from_slice(vec![4], &w_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    ln_coeus.bias = CoeusVar::new(
+        CoeusTensor::from_slice(vec![4], &b_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // Coeus forward
     let out_coeus = ln_coeus.forward(&x_coeus).expect("valid LayerNorm input");

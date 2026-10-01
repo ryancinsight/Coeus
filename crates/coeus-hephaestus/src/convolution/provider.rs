@@ -59,10 +59,10 @@ where
     }
 
     fn convolution_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        crate::error::invalid_configuration_error(operation, reason)
+        P::Error::from(crate::error::invalid_configuration_error(operation, reason))
     }
 
     fn convolution_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        HephaestusBackendError::device(operation, source)
+        P::Error::from(HephaestusBackendError::device(operation, source))
     }
 }

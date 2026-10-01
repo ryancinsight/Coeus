@@ -9,7 +9,7 @@ use coeus_core::Float;
 pub fn softmax<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::softmax(input, dim)
 }
 
@@ -64,6 +64,6 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
             rank,
         })?;
 
-        Ok(softmax(input, normalized))
+        Ok(softmax(input, normalized)?)
     }
 }

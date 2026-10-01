@@ -40,7 +40,12 @@ fn zeros_var<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::zeros_on(shape.to_vec(), backend), false)
+    Var::new(
+        Tensor::zeros_on(shape.to_vec(), backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn check_lstm<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
@@ -161,7 +166,11 @@ where
     let bi = Bidirectional::new(fwd.clone(), bwd.clone());
 
     // Zero input → zeros, shape [batch, seq, 2*hidden].
-    let xz = Var::new(Tensor::zeros_on([1, 2, 2], backend), false);
+    let xz = Var::new(
+        Tensor::zeros_on([1, 2, 2], backend).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let oz = Module::<f64, B>::forward(&bi, &xz).expect("valid Bidirectional RNN input");
     assert_eq!(oz.tensor.shape(), &[1, 2, 6], "bidirectional output shape");
     assert!(
@@ -172,17 +181,22 @@ where
     // Non-zero: the concatenation must place forward output in [0:H] and the
     // re-reversed backward output in [H:2H] at every timestep.
     let x = Var::new(
-        Tensor::from_slice_on([1, 2, 2], &[1.0, 2.0, 3.0, 4.0], backend),
+        Tensor::from_slice_on([1, 2, 2], &[1.0, 2.0, 3.0, 4.0], backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let o = Module::<f64, B>::forward(&bi, &x).expect("valid Bidirectional RNN input");
     assert_eq!(o.tensor.shape(), &[1, 2, 6]);
     let o_s = o.tensor.as_slice();
 
     let f_out = Module::<f64, B>::forward(&fwd, &x).expect("valid forward RNN input");
-    let reversed = Module::<f64, B>::forward(&bwd, &coeus_autograd::flip(&x, 1))
-        .expect("valid backward RNN input");
-    let b_out = coeus_autograd::flip(&reversed, 1);
+    let reversed = Module::<f64, B>::forward(
+        &bwd,
+        &coeus_autograd::flip(&x, 1).expect("invariant: test operation succeeds"),
+    )
+    .expect("valid backward RNN input");
+    let b_out = coeus_autograd::flip(&reversed, 1).expect("invariant: test operation succeeds");
     let f_s = f_out.tensor.as_slice(); // [1,2,3]
     let b_s = b_out.tensor.as_slice(); // [1,2,3]
                                        // Layout per (batch, seq): [forward(3), backward(3)].
@@ -215,9 +229,11 @@ fn bidirectional_lstm_doubles_hidden_dim() {
     let bi = Bidirectional::new(fwd, bwd);
 
     let x = Var::new(
-        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![2, 3, 2]),
+        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![2, 3, 2])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = bi.forward(&x).expect("valid Bidirectional RNN input");
     assert_eq!(
         y.tensor.shape(),
@@ -237,9 +253,11 @@ fn bidirectional_gru_zeros_output_for_zeros_input() {
     let bi = Bidirectional::new(fwd, bwd);
 
     let x = Var::new(
-        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![1, 5, 2]),
+        coeus_tensor::Tensor::<f32, SequentialBackend>::zeros(vec![1, 5, 2])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = bi.forward(&x).expect("valid Bidirectional RNN input");
     assert_eq!(y.tensor.shape(), &[1, 5, 8]);
     // Zeros input → zeros output (analytically, same as unidirectional).
@@ -338,7 +356,8 @@ impl Module<f64, SequentialBackend> for ReshapeSequence {
         &self,
         input: &Var<f64, SequentialBackend>,
     ) -> Result<Var<f64, SequentialBackend>, ModuleError<coeus_core::BackendError>> {
-        Ok(coeus_autograd::reshape(input, self.shape.clone()))
+        Ok(coeus_autograd::reshape(input, self.shape.clone())
+            .expect("invariant: test operation succeeds"))
     }
 }
 

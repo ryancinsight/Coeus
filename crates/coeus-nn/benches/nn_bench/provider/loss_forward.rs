@@ -14,13 +14,17 @@ pub(crate) fn bench_cross_entropy_loss(c: &mut Criterion) {
 
     // Coeus: cross_entropy_loss(logits, &targets).
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![CE_N, CE_C], &logit_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![CE_N, CE_C], &logit_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![CE_N, CE_C], &logit_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![CE_N, CE_C], &logit_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — CrossEntropyLoss (128x10)");
     group.bench_function("Coeus Sequential", |b| {
@@ -54,28 +58,46 @@ pub(crate) fn bench_mse_loss(c: &mut Criterion) {
         .collect();
 
     let p_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let t_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &target_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![MSE_N, MSE_D], &target_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let p_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let t_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &target_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![MSE_N, MSE_D], &target_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — MSELoss (128x64)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(mse_loss(black_box(&p_seq), black_box(&t_seq))))
+        b.iter(|| {
+            black_box(
+                mse_loss(black_box(&p_seq), black_box(&t_seq))
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(mse_loss(black_box(&p_moirai), black_box(&t_moirai))))
+        b.iter(|| {
+            black_box(
+                mse_loss(black_box(&p_moirai), black_box(&t_moirai))
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.finish();
 }
@@ -93,21 +115,29 @@ pub(crate) fn bench_huber_loss(c: &mut Criterion) {
         .collect();
 
     let p_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &pred_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let t_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &tgt_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![H_N, H_D], &tgt_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let p_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &pred_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let t_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &tgt_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![H_N, H_D], &tgt_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — HuberLoss (128x64, delta=1.0)");
     group.bench_function("Coeus Sequential", |b| {

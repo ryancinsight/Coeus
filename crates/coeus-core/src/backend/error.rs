@@ -59,6 +59,12 @@ pub enum BackendError {
         #[source]
         source: std::collections::TryReserveError,
     },
+    /// The system allocator refused a raw allocation.
+    #[error("{operation}: allocator returned null")]
+    AllocatorExhausted {
+        /// Operation requiring storage.
+        operation: &'static str,
+    },
     /// A mutable layout maps different logical elements to the same storage.
     #[error("{operation} destination layout aliases logical elements")]
     AliasedLayout {
@@ -207,6 +213,18 @@ pub enum BackendError {
         /// Provider-reported storage detail.
         reason: String,
     },
+    /// A host transfer length differs from the allocated buffer length.
+    #[error(
+        "{operation} buffer length mismatch: source {source_len}, destination {destination_len}"
+    )]
+    BufferLengthMismatch {
+        /// Transfer operation that rejected the buffers.
+        operation: &'static str,
+        /// Number of elements in the source.
+        source_len: usize,
+        /// Number of elements in the destination.
+        destination_len: usize,
+    },
 }
 
 #[cfg(test)]
@@ -229,5 +247,15 @@ mod tests {
             .expect("invariant: allocation errors preserve their cause");
         assert_eq!(cause.to_string(), source.to_string());
         assert_eq!(cause.downcast_ref(), Some(&source));
+    }
+
+    #[test]
+    fn raw_allocator_failure_uses_fixed_data() {
+        let error = BackendError::AllocatorExhausted {
+            operation: "cpu allocation",
+        };
+
+        assert_eq!(error.to_string(), "cpu allocation: allocator returned null");
+        assert!(std::error::Error::source(&error).is_none());
     }
 }

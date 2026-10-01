@@ -22,7 +22,7 @@ where
     },
     /// A spatial interpolation operation rejected its image or coordinate grid.
     #[error(transparent)]
-    Interpolation(#[from] coeus_ops::InterpolationError),
+    Interpolation(coeus_ops::InterpolationError),
     /// The input rank violates the module contract.
     #[error("{module} expected input rank {expected}, got {actual}")]
     InvalidRank {
@@ -109,6 +109,18 @@ where
         /// Conflicting state field.
         state: &'static str,
     },
+}
+
+impl<E> From<E> for ModuleError<E>
+where
+    E: Error + 'static,
+{
+    fn from(source: E) -> Self {
+        Self::Backend {
+            module: "neural network module",
+            source,
+        }
+    }
 }
 
 /// Contract failures when loading optimizer-owned named parameters.

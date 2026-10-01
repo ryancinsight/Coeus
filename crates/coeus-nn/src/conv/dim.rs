@@ -35,7 +35,7 @@ pub trait ConvDim: private::Sealed + 'static {
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) -> coeus_autograd::Var<T, B>;
+    ) -> Result<coeus_autograd::Var<T, B>, B::Error>;
 }
 
 mod private {
@@ -159,7 +159,7 @@ impl ConvDim for Dim1D {
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) -> coeus_autograd::Var<T, B> {
+    ) -> Result<coeus_autograd::Var<T, B>, B::Error> {
         coeus_autograd::conv1d(input, weight, bias, out_tensor, stride, padding, dilation)
     }
 }
@@ -214,7 +214,7 @@ impl ConvDim for Dim2D {
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) -> coeus_autograd::Var<T, B> {
+    ) -> Result<coeus_autograd::Var<T, B>, B::Error> {
         coeus_autograd::conv2d(input, weight, bias, out_tensor, stride, padding, dilation)
     }
 }
@@ -269,7 +269,7 @@ impl ConvDim for Dim3D {
         stride: usize,
         padding: usize,
         dilation: usize,
-    ) -> coeus_autograd::Var<T, B> {
+    ) -> Result<coeus_autograd::Var<T, B>, B::Error> {
         coeus_autograd::conv3d(input, weight, bias, out_tensor, stride, padding, dilation)
     }
 }

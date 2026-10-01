@@ -15,32 +15,45 @@ pub(crate) fn bench_bmm_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.001).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_M, BMM_K], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BMM_B, BMM_K, BMM_N], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — bmm forward (32x64x128 @ 32x128x64)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::matmul(black_box(&a_seq), black_box(&b_seq))))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::matmul(black_box(&a_seq), black_box(&b_seq))
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
-            black_box(coeus_autograd::matmul(
-                black_box(&a_moirai),
-                black_box(&b_moirai),
-            ))
+            black_box(
+                coeus_autograd::matmul(black_box(&a_moirai), black_box(&b_moirai))
+                    .expect("invariant: test operation succeeds"),
+            )
         })
     });
     group.finish();
@@ -51,19 +64,33 @@ pub(crate) fn bench_pow_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.002).sin() * 2.0)
         .collect();
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut group = c.benchmark_group("Coeus - pow(3) forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::pow(black_box(&x_seq), 3.0)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::pow(black_box(&x_seq), 3.0)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(coeus_autograd::pow(black_box(&x_moirai), 3.0)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::pow(black_box(&x_moirai), 3.0)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.finish();
 }
@@ -76,27 +103,44 @@ pub(crate) fn bench_mul_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut group = c.benchmark_group("Coeus - mul forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::mul(&a_seq, &b_seq)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::mul(&a_seq, &b_seq).expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(coeus_autograd::mul(&a_moirai, &b_moirai)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::mul(&a_moirai, &b_moirai)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.finish();
 }
@@ -109,27 +153,44 @@ pub(crate) fn bench_div_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos().abs() + 0.5)
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut group = c.benchmark_group("Coeus - div forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::div(&a_seq, &b_seq)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::div(&a_seq, &b_seq).expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(coeus_autograd::div(&a_moirai, &b_moirai)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::div(&a_moirai, &b_moirai)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.finish();
 }
@@ -142,27 +203,44 @@ pub(crate) fn bench_add_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut group = c.benchmark_group("Coeus - add forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::add(&a_seq, &b_seq)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::add(&a_seq, &b_seq).expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(coeus_autograd::add(&a_moirai, &b_moirai)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::add(&a_moirai, &b_moirai)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.finish();
 }
@@ -175,27 +253,44 @@ pub(crate) fn bench_sub_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.005).cos())
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut group = c.benchmark_group("Coeus - sub forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::sub(&a_seq, &b_seq)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::sub(&a_seq, &b_seq).expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(coeus_autograd::sub(&a_moirai, &b_moirai)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::sub(&a_moirai, &b_moirai)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.finish();
 }
@@ -205,19 +300,29 @@ pub(crate) fn bench_pow2_forward(c: &mut Criterion) {
         .map(|i| (i as f32 * 0.001).sin() * 2.0)
         .collect();
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mut group = c.benchmark_group("Coeus - pow2(2.0) forward (128x256)");
     group.bench_function("Coeus Sequential", |b| {
-        b.iter(|| black_box(coeus_autograd::pow(&x_seq, 2.0)))
+        b.iter(|| {
+            black_box(coeus_autograd::pow(&x_seq, 2.0).expect("invariant: test operation succeeds"))
+        })
     });
     group.bench_function("Coeus Moirai", |b| {
-        b.iter(|| black_box(coeus_autograd::pow(&x_moirai, 2.0)))
+        b.iter(|| {
+            black_box(
+                coeus_autograd::pow(&x_moirai, 2.0).expect("invariant: test operation succeeds"),
+            )
+        })
     });
     group.finish();
 }
@@ -241,21 +346,29 @@ pub(crate) fn bench_binary(
         .map(|i| (i as f32 * 0.0027).cos() + 1.5)
         .collect();
     let a_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &a)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &b)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let a_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &a)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &b)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group(format!("Coeus — {name} forward (128x256)"));
     group.bench_function("Coeus Sequential", |bn| {
@@ -271,8 +384,8 @@ pub(crate) fn bench_maximum_forward(c: &mut Criterion) {
     bench_binary(
         c,
         "maximum",
-        coeus_autograd::maximum,
-        coeus_autograd::maximum,
+        |lhs, rhs| coeus_autograd::maximum(lhs, rhs).expect("valid benchmark inputs"),
+        |lhs, rhs| coeus_autograd::maximum(lhs, rhs).expect("valid benchmark inputs"),
     );
 }
 
@@ -280,8 +393,8 @@ pub(crate) fn bench_minimum_forward(c: &mut Criterion) {
     bench_binary(
         c,
         "minimum",
-        coeus_autograd::minimum,
-        coeus_autograd::minimum,
+        |lhs, rhs| coeus_autograd::minimum(lhs, rhs).expect("valid benchmark inputs"),
+        |lhs, rhs| coeus_autograd::minimum(lhs, rhs).expect("valid benchmark inputs"),
     );
 }
 
@@ -289,7 +402,7 @@ pub(crate) fn bench_remainder_forward(c: &mut Criterion) {
     bench_binary(
         c,
         "remainder",
-        coeus_autograd::remainder,
-        coeus_autograd::remainder,
+        |lhs, rhs| coeus_autograd::remainder(lhs, rhs).expect("valid benchmark inputs"),
+        |lhs, rhs| coeus_autograd::remainder(lhs, rhs).expect("valid benchmark inputs"),
     );
 }

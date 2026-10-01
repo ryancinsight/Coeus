@@ -16,8 +16,13 @@ fn add_case<T: GradcheckScalar>() {
     let b = tensor::<T>(&[3, 4], 0.53);
     let w = weighting::<T>(&[3, 4]);
 
-    gradcheck(&[a, b], |v| weighted(&add(&v[0], &v[1]), &w))
-        .expect("add backward must match central differences");
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &add(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("add backward must match central differences");
 }
 
 #[test]
@@ -31,8 +36,13 @@ fn sub_case<T: GradcheckScalar>() {
     let b = tensor::<T>(&[3, 4], 0.61);
     let w = weighting::<T>(&[3, 4]);
 
-    gradcheck(&[a, b], |v| weighted(&sub(&v[0], &v[1]), &w))
-        .expect("sub backward must match central differences");
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &sub(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("sub backward must match central differences");
 }
 
 #[test]
@@ -48,8 +58,13 @@ fn div_case<T: GradcheckScalar>() {
     let b = Sampler::positive(0.67).tensor::<T>(&[3, 4]);
     let w = weighting::<T>(&[3, 4]);
 
-    gradcheck(&[a, b], |v| weighted(&div(&v[0], &v[1]), &w))
-        .expect("div backward must match central differences");
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &div(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("div backward must match central differences");
 }
 
 #[test]
@@ -72,8 +87,13 @@ fn remainder_case<T: GradcheckScalar>() {
     let b = Sampler::new(0.73, 3.0, 5.0).tensor::<T>(&[3, 4]);
     let w = weighting::<T>(&[3, 4]);
 
-    gradcheck(&[a, b], |v| weighted(&remainder(&v[0], &v[1]), &w))
-        .expect("remainder backward must match central differences");
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &remainder(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("remainder backward must match central differences");
 }
 
 #[test]
@@ -90,8 +110,13 @@ fn maximum_case<T: GradcheckScalar>() {
     let b = tensor::<T>(&[3, 4], 0.79);
     let w = weighting::<T>(&[3, 4]);
 
-    gradcheck(&[a, b], |v| weighted(&maximum(&v[0], &v[1]), &w))
-        .expect("maximum backward must match central differences");
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &maximum(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("maximum backward must match central differences");
 }
 
 #[test]
@@ -105,8 +130,13 @@ fn minimum_case<T: GradcheckScalar>() {
     let b = tensor::<T>(&[3, 4], 0.83);
     let w = weighting::<T>(&[3, 4]);
 
-    gradcheck(&[a, b], |v| weighted(&minimum(&v[0], &v[1]), &w))
-        .expect("minimum backward must match central differences");
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &minimum(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("minimum backward must match central differences");
 }
 
 #[test]
@@ -119,8 +149,10 @@ fn neg_case<T: GradcheckScalar>() {
     let a = tensor::<T>(&[3, 4], 0.43);
     let w = weighting::<T>(&[3, 4]);
 
-    gradcheck(&[a], |v| weighted(&neg(&v[0]), &w))
-        .expect("neg backward must match central differences");
+    gradcheck(&[a], |v| {
+        weighted(&neg(&v[0]).expect("invariant: test operation succeeds"), &w)
+    })
+    .expect("neg backward must match central differences");
 }
 
 #[test]

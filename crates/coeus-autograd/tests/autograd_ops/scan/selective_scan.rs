@@ -31,9 +31,19 @@ fn value_matches_hand_unrolled_recurrence() {
     let u_data = [1.0, -1.0, 2.0, 0.5, -0.5, 1.5];
     let expected = [1.0f32, -1.0, 2.8, 0.3, 0.34, 1.77];
 
-    let a_bar = Var::new(Tensor::from_slice_on([1, 3, 2], &a_data, &backend), false);
-    let u = Var::new(Tensor::from_slice_on([1, 3, 2], &u_data, &backend), false);
-    let h = selective_scan(&a_bar, &u);
+    let a_bar = Var::new(
+        Tensor::from_slice_on([1, 3, 2], &a_data, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let u = Var::new(
+        Tensor::from_slice_on([1, 3, 2], &u_data, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let h = selective_scan(&a_bar, &u).expect("invariant: test operation succeeds");
 
     let got = h.tensor.as_slice();
     for (i, (&value, &want)) in got.iter().zip(expected.iter()).enumerate() {
@@ -56,19 +66,40 @@ const U_DATA: [f32; 12] = [
 /// Scalar loss `sum(selective_scan(a_bar, u))` with grad tracking off.
 fn loss(a_data: &[f32], u_data: &[f32]) -> f64 {
     let backend = MoiraiBackend;
-    let a_bar = Var::new(Tensor::from_slice_on(SHAPE, a_data, &backend), false);
-    let u = Var::new(Tensor::from_slice_on(SHAPE, u_data, &backend), false);
-    let h = selective_scan(&a_bar, &u);
+    let a_bar = Var::new(
+        Tensor::from_slice_on(SHAPE, a_data, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let u = Var::new(
+        Tensor::from_slice_on(SHAPE, u_data, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let h = selective_scan(&a_bar, &u).expect("invariant: test operation succeeds");
     h.tensor.as_slice().iter().map(|&v| f64::from(v)).sum()
 }
 
 #[test]
 fn a_bar_gradient_matches_central_difference() {
     let backend = MoiraiBackend;
-    let a_bar = Var::new(Tensor::from_slice_on(SHAPE, &A_DATA, &backend), true);
-    let u = Var::new(Tensor::from_slice_on(SHAPE, &U_DATA, &backend), true);
-    let h = selective_scan(&a_bar, &u);
+    let a_bar = Var::new(
+        Tensor::from_slice_on(SHAPE, &A_DATA, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let u = Var::new(
+        Tensor::from_slice_on(SHAPE, &U_DATA, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let h = selective_scan(&a_bar, &u).expect("invariant: test operation succeeds");
     sum(&h)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic = a_bar.grad().expect("tracked a_bar gradient");
@@ -92,10 +123,21 @@ fn a_bar_gradient_matches_central_difference() {
 #[test]
 fn u_gradient_matches_central_difference() {
     let backend = MoiraiBackend;
-    let a_bar = Var::new(Tensor::from_slice_on(SHAPE, &A_DATA, &backend), true);
-    let u = Var::new(Tensor::from_slice_on(SHAPE, &U_DATA, &backend), true);
-    let h = selective_scan(&a_bar, &u);
+    let a_bar = Var::new(
+        Tensor::from_slice_on(SHAPE, &A_DATA, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let u = Var::new(
+        Tensor::from_slice_on(SHAPE, &U_DATA, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let h = selective_scan(&a_bar, &u).expect("invariant: test operation succeeds");
     sum(&h)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic = u.grad().expect("tracked u gradient");

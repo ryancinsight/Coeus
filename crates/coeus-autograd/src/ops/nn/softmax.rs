@@ -66,9 +66,9 @@ where
     B: coeus_ops::BackendOps<T> + Default,
 {
     let backend = B::default();
-    let gy = coeus_ops::mul(grad_out, y, &backend);
+    let gy = coeus_ops::mul(grad_out, y, &backend)?;
     let sum_gy = coeus_ops::sum_axis(&gy, dim_u, &backend)?;
-    let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend);
+    let mut dx = coeus_ops::sub(grad_out, &sum_gy, &backend)?;
     coeus_ops::mul_assign(&mut dx, y, &backend)?;
     let gl = g_in.write();
     coeus_ops::add_assign(gl, &dx, &backend)?;
@@ -79,7 +79,7 @@ where
 pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let ndim = input.tensor.ndim();
     let dim_u = if dim < 0 {
         (ndim as isize + dim) as usize
@@ -92,20 +92,18 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     );
     let backend = B::default();
 
-    let max_t = coeus_ops::max_axis(&input.tensor, dim_u, &backend)
-        .expect("invariant: softmax axis is validated");
-    let shift_x = coeus_ops::sub(&input.tensor, &max_t, &backend);
-    let exp_x_t = coeus_ops::exp(&shift_x, &backend);
-    let sum_t = coeus_ops::sum_axis(&exp_x_t, dim_u, &backend)
-        .expect("invariant: softmax axis is validated");
-    let y_t = coeus_ops::div(&exp_x_t, &sum_t, &backend);
+    let max_t = coeus_ops::max_axis(&input.tensor, dim_u, &backend)?;
+    let shift_x = coeus_ops::sub(&input.tensor, &max_t, &backend)?;
+    let exp_x_t = coeus_ops::exp(&shift_x, &backend)?;
+    let sum_t = coeus_ops::sum_axis(&exp_x_t, dim_u, &backend)?;
+    let y_t = coeus_ops::div(&exp_x_t, &sum_t, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             y_t.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -126,22 +124,21 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: y_t,
         grad,
         creator,
-    }
+    })
 }
 
 /// Tracked Softmin over `dim` — `softmax(-input)` (`torch.nn.functional.softmin`).
 ///
 /// Differentiable via composition of the tracked `neg` and [`softmax`].
-#[must_use]
 pub fn softmin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
-) -> Var<T, B> {
-    softmax(&crate::ops::neg(input), dim)
+) -> Result<Var<T, B>, B::Error> {
+    softmax(&crate::ops::neg(input)?, dim)
 }
 
 #[cfg(test)]
@@ -151,12 +148,21 @@ mod tests {
 
     #[test]
     fn softmin_equals_softmax_of_negation() {
-        let x = Var::<f64, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
-        let out = softmin(&x, 0);
+        let x = Var::<f64, MoiraiBackend>::new(
+            Tensor::from_slice([3], &[1.0, 2.0, 3.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let out = softmin(&x, 0).expect("invariant: test operation succeeds");
 
-        let neg =
-            Var::<f64, MoiraiBackend>::new(Tensor::from_slice([3], &[-1.0, -2.0, -3.0]), false);
-        let reference = softmax(&neg, 0);
+        let neg = Var::<f64, MoiraiBackend>::new(
+            Tensor::from_slice([3], &[-1.0, -2.0, -3.0])
+                .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let reference = softmax(&neg, 0).expect("invariant: test operation succeeds");
         for (i, (&a, &b)) in out
             .tensor
             .as_slice()
@@ -187,14 +193,22 @@ mod tests {
         // uniformity so real Jacobian entries are compared; without it the
         // helper rejects the check as vacuous rather than passing it.
         let backend = MoiraiBackend::new();
-        let x = Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, 2.0, 3.0], &backend);
+        let x = Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, 2.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds");
         let weighting = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, -2.0, 0.5], &backend),
+            Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, -2.0, 0.5], &backend)
+                .expect("invariant: test backend operation succeeds"),
             false,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
 
         crate::gradcheck::gradcheck(&[x], |v| {
-            crate::ops::sum(&crate::ops::mul(&softmin(&v[0], 0), &weighting))
+            let product = crate::ops::mul(
+                &softmin(&v[0], 0).expect("invariant: test operation succeeds"),
+                &weighting,
+            )
+            .expect("invariant: test operation succeeds");
+            crate::ops::sum(&product).expect("invariant: test operation succeeds")
         })
         .expect("softmin backward must match central differences");
     }

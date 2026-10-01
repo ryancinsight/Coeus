@@ -59,14 +59,21 @@ mod benches {
 
         // Warmup
         for _ in 0..5 {
-            let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
+            let x = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice([3], &[1.0, 2.0, 3.0])
+                    .expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds");
             let y = (0..GRAPH_SIZE).fold(x.clone(), |acc, _| {
-                let tmp = add(&acc, &x);
-                mul(&tmp, &x)
+                let tmp = add(&acc, &x).expect("invariant: test operation succeeds");
+                mul(&tmp, &x).expect("invariant: test operation succeeds")
             });
-            let loss = sum(&y);
-            let _ = loss.backward();
-            x.zero_grad();
+            let loss = sum(&y).expect("invariant: test operation succeeds");
+            loss.backward()
+                .expect("invariant: valid autograd fixture completes backward");
+            x.zero_grad()
+                .expect("invariant: test backend operation succeeds");
         }
 
         // Remove warmup entries so iteration 0 is a real cache miss.
@@ -77,15 +84,21 @@ mod benches {
         for iter in 0..ITERATIONS {
             reset_backward_cache_stats();
 
-            let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
+            let x = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice([3], &[1.0, 2.0, 3.0])
+                    .expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds");
 
             let start = Instant::now();
             let y = (0..GRAPH_SIZE).fold(x.clone(), |acc, _| {
-                let tmp = add(&acc, &x);
-                mul(&tmp, &x)
+                let tmp = add(&acc, &x).expect("invariant: test operation succeeds");
+                mul(&tmp, &x).expect("invariant: test operation succeeds")
             });
-            let loss = sum(&y);
-            let _ = loss.backward();
+            let loss = sum(&y).expect("invariant: test operation succeeds");
+            loss.backward()
+                .expect("invariant: valid autograd fixture completes backward");
             let elapsed = start.elapsed();
 
             times_with_cache.push(elapsed);
@@ -102,7 +115,8 @@ mod benches {
                 println!("  Hit rate: {:.1}%", stats.hit_rate());
             }
 
-            x.zero_grad();
+            x.zero_grad()
+                .expect("invariant: test backend operation succeeds");
         }
 
         // Print statistics
@@ -147,17 +161,21 @@ mod benches {
         // Warmup
         for _ in 0..3 {
             let x = Var::<f32, MoiraiBackend>::new(
-                Tensor::from_slice([4], &[0.1, 0.2, 0.3, 0.4]),
+                Tensor::from_slice([4], &[0.1, 0.2, 0.3, 0.4])
+                    .expect("invariant: test backend operation succeeds"),
                 true,
-            );
+            )
+            .expect("invariant: test backend operation succeeds");
             let mut y = x.clone();
             for _ in 0..DEPTH {
-                y = mul(&y, &x);
-                y = add(&y, &x);
+                y = mul(&y, &x).expect("invariant: test operation succeeds");
+                y = add(&y, &x).expect("invariant: test operation succeeds");
             }
-            let loss = sum(&y);
-            let _ = loss.backward();
-            x.zero_grad();
+            let loss = sum(&y).expect("invariant: test operation succeeds");
+            loss.backward()
+                .expect("invariant: valid autograd fixture completes backward");
+            x.zero_grad()
+                .expect("invariant: test backend operation succeeds");
         }
 
         let mut times = Vec::new();
@@ -165,18 +183,21 @@ mod benches {
         // Benchmark
         for iter in 0..ITERATIONS {
             let x = Var::<f32, MoiraiBackend>::new(
-                Tensor::from_slice([4], &[0.1, 0.2, 0.3, 0.4]),
+                Tensor::from_slice([4], &[0.1, 0.2, 0.3, 0.4])
+                    .expect("invariant: test backend operation succeeds"),
                 true,
-            );
+            )
+            .expect("invariant: test backend operation succeeds");
 
             let start = Instant::now();
             let mut y = x.clone();
             for _ in 0..DEPTH {
-                y = mul(&y, &x);
-                y = add(&y, &x);
+                y = mul(&y, &x).expect("invariant: test operation succeeds");
+                y = add(&y, &x).expect("invariant: test operation succeeds");
             }
-            let loss = sum(&y);
-            let _ = loss.backward();
+            let loss = sum(&y).expect("invariant: test operation succeeds");
+            loss.backward()
+                .expect("invariant: valid autograd fixture completes backward");
             let elapsed = start.elapsed();
 
             times.push(elapsed);
@@ -187,7 +208,8 @@ mod benches {
                 println!("Iteration {}: With cache (expected hit)", iter);
             }
 
-            x.zero_grad();
+            x.zero_grad()
+                .expect("invariant: test backend operation succeeds");
         }
 
         // Print statistics
@@ -240,14 +262,21 @@ mod benches {
             let data: Vec<f32> = (0..shape.iter().product())
                 .map(|i| i as f32 * 0.1)
                 .collect();
-            let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice(&shape[..], &data), true);
+            let x = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice(&shape[..], &data)
+                    .expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds");
 
             // Repeated iterations to generate cache hits within shape
             for _ in 0..10 {
-                let y = mul(&x, &x);
-                let loss = sum(&y);
-                let _ = loss.backward();
-                x.zero_grad();
+                let y = mul(&x, &x).expect("invariant: test operation succeeds");
+                let loss = sum(&y).expect("invariant: test operation succeeds");
+                loss.backward()
+                    .expect("invariant: valid autograd fixture completes backward");
+                x.zero_grad()
+                    .expect("invariant: test backend operation succeeds");
             }
 
             cache_sizes.push(cache.size());
@@ -299,7 +328,8 @@ mod benches {
             let start = Instant::now();
             loss.backward().expect("benchmark backward must succeed");
             times.push(start.elapsed());
-            leaf.zero_grad();
+            leaf.zero_grad()
+                .expect("invariant: test backend operation succeeds");
         }
 
         let stats = cache.stats();
@@ -418,9 +448,14 @@ mod benches {
         let cache = get_backward_cache();
         cache.clear();
 
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
-        let y = mul(&x, &x);
-        let loss = sum(&y);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([3], &[1.0, 2.0, 3.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let y = mul(&x, &x).expect("invariant: test operation succeeds");
+        let loss = sum(&y).expect("invariant: test operation succeeds");
         measure_same_graph_plan("Small", &loss, &x, ITERATIONS, 1, false);
     }
 
@@ -435,14 +470,22 @@ mod benches {
         let cache = get_backward_cache();
         cache.clear();
 
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[0.1; 4]), true);
-        let one = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[1.0; 4]), false);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([4], &[0.1; 4]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let one = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([4], &[1.0; 4]).expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
         let mut y = x.clone();
         for _ in 0..DEPTH {
-            y = add(&y, &x);
-            y = mul(&y, &one);
+            y = add(&y, &x).expect("invariant: test operation succeeds");
+            y = mul(&y, &one).expect("invariant: test operation succeeds");
         }
-        let loss = sum(&y);
+        let loss = sum(&y).expect("invariant: test operation succeeds");
         measure_same_graph_plan("Deep", &loss, &x, ITERATIONS, 1, false);
     }
 
@@ -458,18 +501,26 @@ mod benches {
         let cache = get_backward_cache();
         cache.clear();
 
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[0.1; 4]), true);
-        let one = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[1.0; 4]), false);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([4], &[0.1; 4]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let one = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([4], &[1.0; 4]).expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
         let mut state = x.clone();
         for _ in 0..LAYERS {
-            let mut merged = mul(&state, &one);
+            let mut merged = mul(&state, &one).expect("invariant: test operation succeeds");
             for _ in 1..BRANCHES {
-                let branch = mul(&state, &one);
-                merged = add(&merged, &branch);
+                let branch = mul(&state, &one).expect("invariant: test operation succeeds");
+                merged = add(&merged, &branch).expect("invariant: test operation succeeds");
             }
             state = merged;
         }
-        let loss = sum(&state);
+        let loss = sum(&state).expect("invariant: test operation succeeds");
         measure_same_graph_plan("Large", &loss, &x, ITERATIONS, 1, false);
     }
 
@@ -505,14 +556,24 @@ mod benches {
             Vec::with_capacity(TABLE_SIZE);
         let mut hot: Option<(Var<f32, MoiraiBackend>, Var<f32, MoiraiBackend>)> = None;
         for i in 0..TABLE_SIZE {
-            let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[0.1; 4]), true);
-            let one = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[1.0; 4]), false);
+            let x = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice([4], &[0.1; 4])
+                    .expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds");
+            let one = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice([4], &[1.0; 4])
+                    .expect("invariant: test backend operation succeeds"),
+                false,
+            )
+            .expect("invariant: test backend operation succeeds");
             let mut y = x.clone();
             for _ in 0..((i % 4) + 1) {
-                y = add(&y, &x);
-                y = mul(&y, &one);
+                y = add(&y, &x).expect("invariant: test operation succeeds");
+                y = mul(&y, &one).expect("invariant: test operation succeeds");
             }
-            let loss = sum(&y);
+            let loss = sum(&y).expect("invariant: test operation succeeds");
             let creator = loss
                 .creator
                 .as_ref()
@@ -541,9 +602,14 @@ mod benches {
         let mut roots: Vec<Arc<dyn BackwardNode<f32, MoiraiBackend>>> =
             Vec::with_capacity(table_size);
         for _ in 0..table_size {
-            let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[0.1; 4]), true);
-            let y = mul(&x, &x);
-            let loss = sum(&y);
+            let x = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice([4], &[0.1; 4])
+                    .expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds");
+            let y = mul(&x, &x).expect("invariant: test operation succeeds");
+            let loss = sum(&y).expect("invariant: test operation succeeds");
             let creator = loss
                 .creator
                 .as_ref()
@@ -616,11 +682,18 @@ mod benches {
 
         // Generate deterministic workload
         for _ in 0..5 {
-            let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
-            let y = add(&x, &x);
-            let loss = sum(&y);
-            let _ = loss.backward();
-            x.zero_grad();
+            let x = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice([2], &[1.0, 2.0])
+                    .expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds");
+            let y = add(&x, &x).expect("invariant: test operation succeeds");
+            let loss = sum(&y).expect("invariant: test operation succeeds");
+            loss.backward()
+                .expect("invariant: valid autograd fixture completes backward");
+            x.zero_grad()
+                .expect("invariant: test backend operation succeeds");
         }
 
         let stats = cache.stats();

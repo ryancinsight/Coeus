@@ -39,11 +39,13 @@ fn assert_silu_grads(label: &str, got: &[f64], input: &[f64]) {
 fn test_silu_functional_cpu() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let output = silu(&input);
+    let output = silu(&input).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[5]);
 
     // Value parity checks: x * sigmoid(x)
@@ -66,9 +68,11 @@ fn test_silu_module_cpu() {
     let silu_mod = SiLU;
     let input_data = [-1.0f64, 0.0, 1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = silu_mod.forward(&input).expect("valid SiLU input");
     assert_eq!(output.tensor.shape(), &[2, 2]);
@@ -85,12 +89,13 @@ fn test_silu_module_cpu() {
 #[test]
 fn test_silu_non_contiguous_cpu() {
     let input_raw =
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[-2.0f64, -1.0, 0.0, 1.0, 2.0, 3.0]);
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[-2.0f64, -1.0, 0.0, 1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
     let input_t = input_raw.transpose(); // shape [3, 2], non-contiguous
     let logical_input = [-2.0f64, 1.0, -1.0, 2.0, 0.0, 3.0];
-    let input = Var::new(input_t, true);
+    let input = Var::new(input_t, true).expect("invariant: test backend operation succeeds");
 
-    let output = silu(&input);
+    let output = silu(&input).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[3, 2]);
     assert_silu_values(
         "non_contiguous_forward",

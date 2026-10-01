@@ -3,7 +3,8 @@ use super::super::CpuBackend;
 use crate::backend_ops::traits::PoolOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> PoolOps<T> for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> PoolOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -29,7 +30,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -59,7 +60,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -85,7 +86,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -111,7 +112,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -137,7 +138,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -167,7 +168,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -193,7 +194,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -219,7 +220,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -247,7 +248,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -277,7 +278,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -303,7 +304,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -329,7 +330,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
+        )?;
         Ok(())
     }
 }

@@ -21,13 +21,16 @@ unary_autograd!(
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, -1.0]), true);
-    /// let y = coeus_autograd::relu(&x);
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[2.0, -1.0]).expect("invariant: example shape matches data"),
+    ///     true,
+    /// ).expect("invariant: example gradient buffer allocation succeeds");
+    /// let y = coeus_autograd::relu(&x).expect("invariant: example activation succeeds");
     /// assert!((y.tensor.as_slice()[0] - 2.0).abs() < 1e-5);
     /// assert!((y.tensor.as_slice()[1] - 0.0).abs() < 1e-5);
-    /// let loss = coeus_autograd::sum(&y);
+    /// let loss = coeus_autograd::sum(&y).expect("invariant: example reduction succeeds");
     /// loss.backward().expect("invariant: valid autograd fixture completes backward");
-    /// let grad = x.grad().unwrap();
+    /// let grad = x.grad().expect("invariant: backward populates the tracked leaf gradient");
     /// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5); // x > 0
     /// assert!((grad.as_slice()[1] - 0.0).abs() < 1e-5); // x < 0
     /// ```
@@ -67,7 +70,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
                 &self.input_tensor,
                 &backend,
                 coeus_ops::UnaryOp::LeakyReluGrad(self.negative_slope),
-            );
+            )?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &mask, &backend)?;
         }
@@ -76,22 +79,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lea
 }
 
 /// Tracked Leaky ReLU activation.
-#[must_use]
 #[inline]
 pub fn leaky_relu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     negative_slope: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let slope_bits = f64::to_bits(negative_slope);
-    let out_tensor = coeus_ops::leaky_relu(&a.tensor, &backend, negative_slope);
+    let out_tensor = coeus_ops::leaky_relu(&a.tensor, &backend, negative_slope)?;
     let requires_grad = crate::grad_mode::should_track_var(a);
 
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -107,11 +109,11 @@ pub fn leaky_relu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 unary_autograd!(EluOp, "elu", elu, |g, x, _y, b| {
@@ -131,14 +133,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "selu";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
-        let cond = coeus_ops::relu(x, backend);
-        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend);
-        let alpha_scale = Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend);
-        let pos = coeus_ops::mul(x, &scale, backend);
-        let neg_base = coeus_ops::expm1(x, backend);
-        let neg = coeus_ops::mul(&neg_base, &alpha_scale, backend);
-        coeus_ops::where_cond(&cond, &pos, &neg, backend).expect("where_cond")
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
+        let cond = coeus_ops::relu(x, backend)?;
+        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend)?;
+        let alpha_scale =
+            Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend)?;
+        let pos = coeus_ops::mul(x, &scale, backend)?;
+        let neg_base = coeus_ops::expm1(x, backend)?;
+        let neg = coeus_ops::mul(&neg_base, &alpha_scale, backend)?;
+        coeus_ops::where_cond(&cond, &pos, &neg, backend)
     }
 
     #[inline(always)]
@@ -147,20 +150,22 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let cond = coeus_ops::relu(x, backend);
-        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend);
-        let alpha_scale = Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend);
-        let neg = coeus_ops::mul(&coeus_ops::exp(x, backend), &alpha_scale, backend);
-        let deriv = coeus_ops::where_cond(&cond, &scale, &neg, backend).expect("where_cond");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let cond = coeus_ops::relu(x, backend)?;
+        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend)?;
+        let alpha_scale =
+            Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend)?;
+        let neg = coeus_ops::mul(&coeus_ops::exp(x, backend)?, &alpha_scale, backend)?;
+        let deriv = coeus_ops::where_cond(&cond, &scale, &neg, backend)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
 
 /// Tracked SELU activation.
-#[must_use]
 #[inline]
-pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SeluOp>(a)
 }
 
@@ -197,11 +202,10 @@ pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 /// # Panics
 /// Panics (via the underlying broadcast) if `weight`'s channel count is
 /// neither `1` nor `x`'s size along dim `1`.
-#[must_use]
 pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     weight: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -211,9 +215,11 @@ where
     let w = if channels > 1 && input_rank > 2 {
         let mut shape = vec![1usize; input_rank];
         shape[1] = channels;
-        reshape(weight, shape)
+        reshape(weight, shape)?
     } else {
         weight.clone()
     };
-    where_cond(&relu(x), x, &mul(&w, x))
+    let positive = relu(x)?;
+    let negative = mul(&w, x)?;
+    where_cond(&positive, x, &negative)
 }

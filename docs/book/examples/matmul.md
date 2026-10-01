@@ -23,10 +23,11 @@ all matmul assertions passed
 
 ## What to notice
 
-- `Tensor::from_slice([2, 3], &data)` is shorthand for `from_slice_on` with
-  `B::default()` as the backend.
+- `Tensor::from_slice([2, 3], &data)` is the fallible shorthand for
+  `from_slice_on` with `B::default()` as the backend.
 
-- `matmul(&a, &b, &backend)` is generic over any `BackendOps<T> + Default`.
+- `matmul(&a, &b, &backend)` returns the selected backend's typed error and is
+  generic over any `BackendOps<T> + Default`.
   The `SequentialBackend` runs the kernel synchronously; `MoiraiBackend` may
   dispatch to idle worker threads.
 

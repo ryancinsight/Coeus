@@ -3,22 +3,30 @@
 
 use super::super::super::support::loopback_meshes;
 use super::super::super::support::single_rank_tcp_mesh;
-use coeus_core::SequentialBackend;
-use coeus_dist::Communicator;
+use coeus_core::{BackendError, SequentialBackend};
 use coeus_dist::Sum;
 use coeus_dist::TcpCommunicator;
 use coeus_dist::TcpMeshError;
+use coeus_dist::{CollectiveError, Communicator};
 use coeus_tensor::Tensor;
 use std::thread;
 
 /// One rank's collective result and the result of its next barrier.
-type RankOutcome = (Result<(), TcpMeshError>, Result<(), TcpMeshError>);
+type RankOutcome = (
+    Result<(), CollectiveError<TcpMeshError, BackendError>>,
+    Result<(), TcpMeshError>,
+);
 
 /// Run `collective` on both ranks of a two-rank loopback cluster, then a
 /// barrier on each, and return each rank's pair of results.
 fn on_two_ranks<F>(collective: F) -> Vec<RankOutcome>
 where
-    F: Fn(usize, &TcpCommunicator, &SequentialBackend) -> Result<(), TcpMeshError> + Sync,
+    F: Fn(
+            usize,
+            &TcpCommunicator,
+            &SequentialBackend,
+        ) -> Result<(), CollectiveError<TcpMeshError, BackendError>>
+        + Sync,
 {
     let collective = &collective;
     thread::scope(|scope| {
@@ -53,20 +61,24 @@ fn assert_poisoned(rank: usize, next: &Result<(), TcpMeshError>) {
 fn assert_rooted_mismatch(outcomes: &[RankOutcome], root: usize, numels: [u64; 2]) {
     let other = 1 - root;
     match &outcomes[root].0 {
-        Err(TcpMeshError::NumelMismatch {
+        Err(CollectiveError::Communicator(TcpMeshError::NumelMismatch {
             rank,
             peer,
             expected,
             received,
             ..
-        }) => assert_eq!(
+        })) => assert_eq!(
             (*rank, *peer, *expected, *received),
             (root, other, numels[root], numels[other])
         ),
         result => panic!("root {root}: expected NumelMismatch, got {result:?}"),
     }
     match &outcomes[other].0 {
-        Err(TcpMeshError::PeerReportedMismatch { rank, peer, .. }) => {
+        Err(CollectiveError::Communicator(TcpMeshError::PeerReportedMismatch {
+            rank,
+            peer,
+            ..
+        })) => {
             assert_eq!((*rank, *peer), (other, root));
         }
         result => panic!("rank {other}: expected PeerReportedMismatch, got {result:?}"),
@@ -82,13 +94,13 @@ fn assert_pairwise_mismatch(outcomes: &[RankOutcome], numels: [u64; 2]) {
     for (rank, (outcome, next)) in outcomes.iter().enumerate() {
         let other = 1 - rank;
         match outcome {
-            Err(TcpMeshError::NumelMismatch {
+            Err(CollectiveError::Communicator(TcpMeshError::NumelMismatch {
                 rank: reporting,
                 peer,
                 expected,
                 received,
                 ..
-            }) => assert_eq!(
+            })) => assert_eq!(
                 (*reporting, *peer, *expected, *received),
                 (rank, other, numels[rank], numels[other])
             ),
@@ -104,7 +116,7 @@ fn per_rank(
     lens: [usize; 2],
     backend: &SequentialBackend,
 ) -> Tensor<f32, SequentialBackend> {
-    Tensor::zeros_on([lens[rank]], backend)
+    Tensor::zeros_on([lens[rank]], backend).expect("invariant: test backend operation succeeds")
 }
 
 #[test]
@@ -224,8 +236,10 @@ fn test_tcp_all_gather_mismatched_output_numel_panics() {
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
-    let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend);
-    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mut output =
+        vec![Tensor::zeros_on([1], &backend).expect("invariant: test backend operation succeeds")];
     comm.all_gather(&tensor, &mut output, &backend).unwrap();
 }
 
@@ -236,7 +250,8 @@ fn test_tcp_all_gather_zero_numel_output_len_mismatch_panics() {
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
-    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend)
+        .expect("invariant: test backend operation succeeds");
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
     comm.all_gather(&tensor, &mut output, &backend).unwrap();
 }
@@ -248,8 +263,10 @@ fn test_tcp_all_gather_zero_numel_output_numel_mismatch_panics() {
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
-    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
-    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mut output =
+        vec![Tensor::zeros_on([1], &backend).expect("invariant: test backend operation succeeds")];
     comm.all_gather(&tensor, &mut output, &backend).unwrap();
 }
 
@@ -260,8 +277,10 @@ fn test_tcp_scatter_mismatched_input_numel_panics() {
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
 
-    let mut tensor = Tensor::zeros_on([2], &backend);
-    let input = vec![Tensor::from_slice_on([1], &[3.0f32], &backend)];
+    let mut tensor =
+        Tensor::zeros_on([2], &backend).expect("invariant: test backend operation succeeds");
+    let input = vec![Tensor::from_slice_on([1], &[3.0f32], &backend)
+        .expect("invariant: test backend operation succeeds")];
     comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
 }
 
@@ -271,7 +290,8 @@ fn test_tcp_broadcast_root_out_of_bounds_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
+    let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend)
+        .expect("invariant: test backend operation succeeds");
     comm.broadcast(&mut tensor, 1, &backend).unwrap();
 }
 
@@ -281,7 +301,8 @@ fn test_tcp_reduce_root_out_of_bounds_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
+    let mut tensor = Tensor::from_slice_on([1], &[1.0f32], &backend)
+        .expect("invariant: test backend operation succeeds");
     comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend)
         .unwrap();
 }
@@ -292,8 +313,10 @@ fn test_tcp_gather_root_out_of_bounds_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let tensor = Tensor::from_slice_on([1], &[1.0f32], &backend);
-    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    let tensor = Tensor::from_slice_on([1], &[1.0f32], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mut output =
+        vec![Tensor::zeros_on([1], &backend).expect("invariant: test backend operation succeeds")];
     comm.gather(&tensor, &mut output, 1, &backend).unwrap();
 }
 
@@ -303,8 +326,10 @@ fn test_tcp_scatter_root_out_of_bounds_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let mut tensor = Tensor::zeros_on([1], &backend);
-    let input = vec![Tensor::from_slice_on([1], &[1.0f32], &backend)];
+    let mut tensor =
+        Tensor::zeros_on([1], &backend).expect("invariant: test backend operation succeeds");
+    let input = vec![Tensor::from_slice_on([1], &[1.0f32], &backend)
+        .expect("invariant: test backend operation succeeds")];
     comm.scatter(&mut tensor, &input, 1, &backend).unwrap();
 }
 
@@ -314,7 +339,8 @@ fn test_tcp_gather_zero_numel_output_len_mismatch_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend)
+        .expect("invariant: test backend operation succeeds");
     let mut output: Vec<Tensor<f32, SequentialBackend>> = vec![];
     comm.gather(&tensor, &mut output, 0, &backend).unwrap();
 }
@@ -325,8 +351,10 @@ fn test_tcp_gather_mismatched_output_numel_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend);
-    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    let tensor = Tensor::from_slice_on([2], &[1.0f32, 2.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mut output =
+        vec![Tensor::zeros_on([1], &backend).expect("invariant: test backend operation succeeds")];
     comm.gather(&tensor, &mut output, 0, &backend).unwrap();
 }
 
@@ -336,8 +364,10 @@ fn test_tcp_gather_zero_numel_output_numel_mismatch_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let tensor = Tensor::<f32, _>::zeros_on([0], &backend);
-    let mut output = vec![Tensor::zeros_on([1], &backend)];
+    let tensor = Tensor::<f32, _>::zeros_on([0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let mut output =
+        vec![Tensor::zeros_on([1], &backend).expect("invariant: test backend operation succeeds")];
     comm.gather(&tensor, &mut output, 0, &backend).unwrap();
 }
 
@@ -347,7 +377,8 @@ fn test_tcp_scatter_zero_numel_input_len_mismatch_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
+    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend)
+        .expect("invariant: test backend operation succeeds");
     let input: Vec<Tensor<f32, SequentialBackend>> = vec![];
     comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
 }
@@ -358,7 +389,9 @@ fn test_tcp_scatter_zero_numel_input_numel_mismatch_panics() {
     let mesh = single_rank_tcp_mesh();
     let comm = TcpCommunicator::new(mesh);
     let backend = SequentialBackend::new();
-    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend);
-    let input = vec![Tensor::zeros_on([1], &backend)];
+    let mut tensor = Tensor::<f32, _>::zeros_on([0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let input =
+        vec![Tensor::zeros_on([1], &backend).expect("invariant: test backend operation succeeds")];
     comm.scatter(&mut tensor, &input, 0, &backend).unwrap();
 }

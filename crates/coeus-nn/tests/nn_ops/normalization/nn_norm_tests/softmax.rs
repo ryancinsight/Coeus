@@ -5,18 +5,25 @@ use coeus_tensor::Tensor;
 #[test]
 fn test_softmax_forward_shapes() {
     let input: Var<f64> = Var::new(
-        Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let output = softmax(&input, -1);
+    let output = softmax(&input, -1).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[2, 3]);
 }
 
 #[test]
 fn test_softmax_sums_to_one() {
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[1.0, 2.0, 3.0]), true);
-    let output = softmax(&input, -1);
+    let input: Var<f64> = Var::new(
+        Tensor::from_slice(vec![1, 3], &[1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = softmax(&input, -1).expect("invariant: test operation succeeds");
 
     let s = output.tensor.as_slice();
     let sum: f64 = s.iter().sum();
@@ -27,8 +34,13 @@ fn test_softmax_sums_to_one() {
 
 #[test]
 fn test_softmax_backward_uniform_seed() {
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[1.0, 2.0, 3.0]), true);
-    let output = softmax(&input, -1);
+    let input: Var<f64> = Var::new(
+        Tensor::from_slice(vec![1, 3], &[1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = softmax(&input, -1).expect("invariant: test operation succeeds");
 
     output
         .backward()
@@ -44,10 +56,16 @@ fn test_softmax_backward_uniform_seed() {
 
 #[test]
 fn test_softmax_backward_nonuniform_seed() {
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[1.0, 2.0, 3.0]), true);
-    let output = softmax(&input, -1);
+    let input: Var<f64> = Var::new(
+        Tensor::from_slice(vec![1, 3], &[1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = softmax(&input, -1).expect("invariant: test operation succeeds");
 
-    let seed = Tensor::from_slice(vec![1, 3], &[1.0, 0.0, 0.0]);
+    let seed = Tensor::from_slice(vec![1, 3], &[1.0, 0.0, 0.0])
+        .expect("invariant: test backend operation succeeds");
     output
         .backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
@@ -74,9 +92,11 @@ fn test_softmax_backward_nonuniform_seed() {
 fn test_softmax_module() {
     let sm = Softmax::new(-1);
     let input: Var<f64> = Var::new(
-        Tensor::from_slice(vec![2, 4], &[1.0, 2.0, 3.0, 4.0, 1.0, 1.0, 1.0, 1.0]),
+        Tensor::from_slice(vec![2, 4], &[1.0, 2.0, 3.0, 4.0, 1.0, 1.0, 1.0, 1.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = sm.forward(&input).expect("valid Softmax input");
     assert_eq!(output.tensor.shape(), &[2, 4]);
@@ -92,7 +112,12 @@ fn test_softmax_module() {
 #[test]
 fn test_softmax_stability() {
     let sm = Softmax::new(-1);
-    let input: Var<f64> = Var::new(Tensor::from_slice(vec![1, 3], &[800.0, 801.0, 802.0]), true);
+    let input: Var<f64> = Var::new(
+        Tensor::from_slice(vec![1, 3], &[800.0, 801.0, 802.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = sm.forward(&input).expect("valid Softmax input");
     let s = output.tensor.as_slice();
@@ -111,7 +136,12 @@ fn test_softmax_stability() {
 
 #[test]
 fn softmax_rejects_axes_outside_rank() {
-    let input: Var<f64> = Var::new(Tensor::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]), false);
+    let input: Var<f64> = Var::new(
+        Tensor::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     for dim in [2, -3] {
         let error = Softmax::new(dim)

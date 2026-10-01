@@ -22,7 +22,7 @@ pub fn matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>(
     c_layout: &Layout,
 ) -> Result<(), B::Error> {
     let temp_len = c_layout.shape().iter().product();
-    let mut temp = backend.allocate_zeroed::<T>(temp_len);
+    let mut temp = backend.allocate_zeroed::<T>(temp_len)?;
     let temp_layout =
         Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
     backend.matmul(a, a_layout, b, b_layout, &mut temp, &temp_layout)?;
@@ -121,7 +121,7 @@ pub fn batched_matmul_accumulate<T: Scalar, B: MatmulOps<T> + ElementwiseOps<T>>
     c_layout: &Layout,
 ) -> Result<(), B::Error> {
     let temp_len = c_layout.shape().iter().product();
-    let mut temp = backend.allocate_zeroed::<T>(temp_len);
+    let mut temp = backend.allocate_zeroed::<T>(temp_len)?;
     let temp_layout =
         Layout::from_shape_strides(c_layout.shape_cloned(), c_layout.strides_cloned(), 0);
     batched_matmul(backend, a, a_layout, b, b_layout, &mut temp, &temp_layout)?;

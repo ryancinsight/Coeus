@@ -1,5 +1,6 @@
 use crate::{
     error::map_module_error,
+    init::map_initialization_error,
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;
@@ -49,7 +50,8 @@ impl PyGroupNorm {
             coeus_nn::normalization::groupnorm::GroupNorm::<f64, coeus_core::MoiraiBackend, 1>::new(
                 num_channels,
                 eps,
-            );
+            )
+            .map_err(map_initialization_error)?;
         let weight = Py::new(py, PyTensor { inner: gn.weight })?;
         let bias = Py::new(py, PyTensor { inner: gn.bias })?;
         Ok(Self {
@@ -81,22 +83,23 @@ impl PyGroupNorm {
                         $($g => {
                             let mut gn = coeus_nn::normalization::groupnorm::GroupNorm::<
                                 f64, coeus_core::MoiraiBackend, $g,
-                            >::new(num_features, eps);
+                            >::new(num_features, eps)
+                            .map_err(map_initialization_error)?;
                             gn.weight = w_var;
                             gn.bias   = b_var;
-                            gn.forward(&input_var)
+                            gn.forward(&input_var).map_err(map_module_error)
                         },)*
-                        _ => Err(coeus_nn::ModuleError::InvalidGroupCount {
+                        _ => Err(map_module_error(coeus_nn::ModuleError::InvalidGroupCount {
                             module: "GroupNorm",
                             groups: num_groups,
                             channels: num_features,
-                        }),
+                        })),
                     }
                 }
             }
             dispatch_gn!(1, 2, 4, 8, 16, 32, 64)
         });
-        inner.map(PyTensor::from_var).map_err(map_module_error)
+        inner.map(PyTensor::from_var)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -122,8 +125,8 @@ impl PyGroupNorm {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
-        self.bias.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
+        self.bias.bind(py).borrow().zero_grad()
     }
 }

@@ -47,15 +47,19 @@ fn image_data() -> Vec<f32> {
 fn samples_exact_voxel_center() {
     let backend = MoiraiBackend;
     let image = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     // align_corners: pixel = (coord+1)/2*(extent-1); coord 0 -> pixel 1 (center).
     let grid = Var::new(
-        Tensor::from_slice_on([1, 1, 1, 1, 3], &[0.0, 0.0, 0.0], &backend),
+        Tensor::from_slice_on([1, 1, 1, 1, 3], &[0.0, 0.0, 0.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let out = grid_sample_3d(&image, &grid);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out = grid_sample_3d(&image, &grid).expect("invariant: test operation succeeds");
     // Output (N, C, 1, 1, 1): each channel returns image[c, 1, 1, 1] exactly.
     let got = out.tensor.as_slice();
     for (c, &value) in got.iter().take(C).enumerate() {
@@ -71,15 +75,19 @@ fn samples_exact_voxel_center() {
 fn samples_corner_block_midpoint_as_mean() {
     let backend = MoiraiBackend;
     let image = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_data(), &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     // coord -0.5 -> pixel 0.5 in each axis: midpoint of the {0,1}^3 voxel block.
     let grid = Var::new(
-        Tensor::from_slice_on([1, 1, 1, 1, 3], &[-0.5, -0.5, -0.5], &backend),
+        Tensor::from_slice_on([1, 1, 1, 1, 3], &[-0.5, -0.5, -0.5], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let out = grid_sample_3d(&image, &grid);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out = grid_sample_3d(&image, &grid).expect("invariant: test operation succeeds");
     let got = out.tensor.as_slice();
     for (c, &value) in got.iter().take(C).enumerate() {
         let mut mean = 0.0f32;
@@ -109,11 +117,18 @@ const GRID_SHAPE: [usize; 5] = [1, 1, 1, 2, 3];
 fn loss(image: &[f32], grid: &[f32]) -> f64 {
     let backend = MoiraiBackend;
     let input = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], image, &backend),
+        Tensor::from_slice_on([1, C, D, H, W], image, &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let g = Var::new(Tensor::from_slice_on(GRID_SHAPE, grid, &backend), false);
-    let out = grid_sample_3d(&input, &g);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let g = Var::new(
+        Tensor::from_slice_on(GRID_SHAPE, grid, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out = grid_sample_3d(&input, &g).expect("invariant: test operation succeeds");
     out.tensor.as_slice().iter().map(|&v| f64::from(v)).sum()
 }
 
@@ -122,12 +137,20 @@ fn input_gradient_matches_central_difference() {
     let backend = MoiraiBackend;
     let image_vec = image_data();
     let input = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend), true);
-    let out = grid_sample_3d(&input, &grid);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let grid = Var::new(
+        Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out = grid_sample_3d(&input, &grid).expect("invariant: test operation succeeds");
     sum(&out)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic = input.grad().expect("tracked input gradient");
@@ -153,12 +176,20 @@ fn grid_gradient_matches_central_difference() {
     let backend = MoiraiBackend;
     let image_vec = image_data();
     let input = Var::new(
-        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend),
+        Tensor::from_slice_on([1, C, D, H, W], &image_vec, &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let grid = Var::new(Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend), true);
-    let out = grid_sample_3d(&input, &grid);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let grid = Var::new(
+        Tensor::from_slice_on(GRID_SHAPE, &GRID, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let out = grid_sample_3d(&input, &grid).expect("invariant: test operation succeeds");
     sum(&out)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let analytic = grid.grad().expect("tracked grid gradient");

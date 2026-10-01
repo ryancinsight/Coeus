@@ -57,13 +57,17 @@ pub(crate) fn bench_sequential_composition_forward(c: &mut Criterion) {
         .map(|index| (index as f32 * 0.0013).sin())
         .collect();
     let input_sequential = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let input_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let dynamic_sequential_output = dynamic_sequential
         .forward(&input_sequential)
@@ -156,13 +160,17 @@ pub(crate) fn bench_lstm_forward(c: &mut Criterion) {
         Tensor::<f32, SequentialBackend>::from_slice(
             vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN],
             &input_data,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![LSTM_BATCH, LSTM_SEQ, LSTM_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — LSTM forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
@@ -206,13 +214,17 @@ pub(crate) fn bench_gru_forward(c: &mut Criterion) {
     let gru_moirai = CoeusGru::<f32, MoiraiBackend>::new(GRU_IN, GRU_H)
         .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![GRU_BATCH, GRU_SEQ, GRU_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — GRU forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
@@ -251,13 +263,17 @@ pub(crate) fn bench_rnn_forward(c: &mut Criterion) {
     let rnn_moirai = Rnn::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
         .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — vanilla RNN forward (4x32 seq, in=64 hidden=128)");
     group.bench_function("Coeus Sequential", |b| {
@@ -298,21 +314,29 @@ pub(crate) fn bench_rnn_cell_forward(c: &mut Criterion) {
     let cell_moirai = RNNCell::<f32, MoiraiBackend>::new(RNN_IN, RNN_H, RnnNonlinearity::Tanh)
         .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let h_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let h_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_H], &hidden_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group =
         c.benchmark_group("Coeus — vanilla RNNCell forward (batch=4, in=64 hidden=128)");
@@ -347,13 +371,17 @@ pub(crate) fn bench_bidirectional_rnn_forward(c: &mut Criterion) {
             .expect("invariant: the fixture's layer dimensions are non-zero"),
     );
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![RNN_BATCH, RNN_SEQ, RNN_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group =
         c.benchmark_group("Coeus — bidirectional RNN forward (4x32 seq, in=64 hidden=128)");
@@ -396,13 +424,17 @@ pub(crate) fn bench_swiglu_forward(c: &mut Criterion) {
     let sg_moirai = SwiGlu::<f32, MoiraiBackend>::new(SG_IN, SG_OUT, false)
         .expect("invariant: the fixture's layer dimensions are non-zero");
     let x_seq = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data),
+        Tensor::<f32, SequentialBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let x_moirai = Var::new(
-        Tensor::<f32, MoiraiBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data),
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![SG_BATCH, SG_IN], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Coeus — SwiGLU forward (32 batch, in=256 out=512)");
     group.bench_function("Coeus Sequential", |b| {

@@ -13,12 +13,16 @@ fn test_embedding_parity() {
     let indices_data = vec![1.0f32, 2.0, 0.0, 4.0, 3.0, 1.0]; // shape [2, 3]
 
     // Coeus setup
-    let mut emb_coeus = coeus_nn::Embedding::<f32, SequentialBackend>::new(5, 4);
+    let mut emb_coeus = coeus_nn::Embedding::<f32, SequentialBackend>::new(5, 4)
+        .expect("invariant: test operation succeeds");
     emb_coeus.weight = CoeusVar::new(
-        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![5, 4], &w_data),
+        CoeusTensor::<f32, SequentialBackend>::from_slice(vec![5, 4], &w_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let x_coeus = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &indices_data);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x_coeus = CoeusTensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &indices_data)
+        .expect("invariant: test backend operation succeeds");
     let out_coeus = emb_coeus
         .forward_indices(&x_coeus)
         .expect("valid Embedding indices");
@@ -53,7 +57,7 @@ fn test_embedding_parity() {
     assert_tensor_eq_data(&out_coeus.tensor, &expected_embedding_out, 1e-4);
 
     // Backward pass
-    let loss_coeus = coeus_autograd::sum(&out_coeus);
+    let loss_coeus = coeus_autograd::sum(&out_coeus).expect("invariant: test operation succeeds");
     loss_coeus
         .backward()
         .expect("invariant: valid autograd fixture completes backward");

@@ -120,11 +120,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> ConvTran
         let backend = B::default();
         // Weight: [C_in, C_out, k...] — transposed convention.
         let w_shape = weight_shape::<DIM>(in_channels, out_channels, kernel_size);
-        let w_tensor = Tensor::ones_on(w_shape, &backend);
-        let mut weight = Var::new(w_tensor, true);
+        let w_tensor = Tensor::ones_on(w_shape, &backend)?;
+        let mut weight = Var::new(w_tensor, true)?;
         crate::init::kaiming_uniform(&mut weight, in_channels)?;
         let bias_var = if bias {
-            Some(Var::new(Tensor::zeros_on([out_channels], &backend), true))
+            Some(Var::new(Tensor::zeros_on([out_channels], &backend)?, true)?)
         } else {
             None
         };
@@ -271,8 +271,8 @@ where
         out_shape.push(self.out_channels);
         out_shape.extend_from_slice(&out_spatial);
 
-        let mut out_tensor = Tensor::zeros_on(out_shape, &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::zeros_on(out_shape, &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
         let dispatch = match DIM {
             1 => backend.conv_transpose1d(
                 input.tensor.storage(),
@@ -327,7 +327,7 @@ where
                 self.padding,
                 self.output_padding,
                 self.dilation,
-            ),
+            )?,
             2 => coeus_autograd::conv_transpose2d(
                 input,
                 &self.weight,
@@ -337,7 +337,7 @@ where
                 self.padding,
                 self.output_padding,
                 self.dilation,
-            ),
+            )?,
             3 => coeus_autograd::conv_transpose3d(
                 input,
                 &self.weight,
@@ -347,7 +347,7 @@ where
                 self.padding,
                 self.output_padding,
                 self.dilation,
-            ),
+            )?,
             _ => panic!("ConvTranspose: unsupported DIM {DIM}"),
         })
     }

@@ -3,9 +3,9 @@ use pyo3::prelude::*;
 
 /// Mean Squared Error loss.
 #[pyfunction]
-pub fn mse_loss(pred: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn mse_loss(pred: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::mse_loss(&pred.inner, &target.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Cross-entropy loss.
@@ -27,17 +27,17 @@ pub fn binary_cross_entropy(
     target: &PyTensor,
     eps: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner =
         py.allow_threads(|| coeus_nn::loss::binary_cross_entropy(&pred.inner, &target.inner, eps));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Negative Log-Likelihood Loss.
 #[pyfunction]
-pub fn nll_loss(log_probs: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> PyTensor {
+pub fn nll_loss(log_probs: &PyTensor, targets: Vec<usize>, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::nll_loss(&log_probs.inner, &targets));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Huber Loss.
@@ -55,9 +55,9 @@ pub fn huber_loss(
 
 /// KL divergence loss.
 #[pyfunction]
-pub fn kl_divergence(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn kl_divergence(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::kl_divergence(&input.inner, &target.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Margin ranking loss.
@@ -69,11 +69,11 @@ pub fn margin_ranking_loss(
     target: Vec<f64>,
     margin: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| {
         coeus_nn::loss::margin_ranking_loss(&input1.inner, &input2.inner, &target, margin)
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Cosine Embedding Loss.
@@ -85,39 +85,39 @@ pub fn cosine_embedding_loss(
     y: Vec<f64>,
     margin: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py
         .allow_threads(|| coeus_nn::loss::cosine_embedding_loss(&x1.inner, &x2.inner, &y, margin));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// L1 (mean absolute error) loss: `mean(|pred - target|)`.
 #[pyfunction]
-pub fn l1_loss(pred: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn l1_loss(pred: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::l1_loss(&pred.inner, &target.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Binary cross-entropy with logits (numerically stable). Mirrors PyTorch
 /// `BCEWithLogitsLoss(reduction="mean")`.
 #[pyfunction]
-pub fn bce_with_logits(logits: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn bce_with_logits(logits: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::bce_with_logits(&logits.inner, &target.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Poisson NLL loss (log-input): `mean(exp(input) - target * input)`.
 #[pyfunction]
-pub fn poisson_nll(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn poisson_nll(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::poisson_nll(&input.inner, &target.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Soft-margin (logistic) loss: `mean(log(1 + exp(-target * input)))`.
 #[pyfunction]
-pub fn soft_margin(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn soft_margin(input: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::soft_margin(&input.inner, &target.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Row-wise p-norm pairwise distance: `[N,D] -> [N]`.
@@ -129,10 +129,10 @@ pub fn pairwise_distance(
     p: f64,
     eps: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner =
         py.allow_threads(|| coeus_nn::loss::pairwise_distance(&x1.inner, &x2.inner, p, eps));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Triplet-margin loss: `mean max(0, d(a,p) - d(a,n) + margin)`.
@@ -146,7 +146,7 @@ pub fn triplet_margin_loss(
     p: f64,
     eps: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| {
         coeus_nn::loss::triplet_margin_loss(
             &anchor.inner,
@@ -157,7 +157,7 @@ pub fn triplet_margin_loss(
             eps,
         )
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Multi-class margin loss over scores `[N, C]` with class-index targets.
@@ -169,18 +169,23 @@ pub fn multi_margin(
     p: f64,
     margin: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::multi_margin(&x.inner, &targets, p, margin));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Smooth L1 (Huber-β) loss: `mean(loss_smooth(pred - target, beta))`.
 #[pyfunction]
 #[pyo3(signature = (pred, target, beta = 1.0))]
-pub fn smooth_l1_loss(pred: &PyTensor, target: &PyTensor, beta: f64, py: Python<'_>) -> PyTensor {
+pub fn smooth_l1_loss(
+    pred: &PyTensor,
+    target: &PyTensor,
+    beta: f64,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner =
         py.allow_threads(|| coeus_nn::loss::smooth_l1_loss(&pred.inner, &target.inner, beta));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Row-wise cosine similarity along `dim=1`.
@@ -192,10 +197,10 @@ pub fn cosine_similarity(
     dim: usize,
     eps: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner =
         py.allow_threads(|| coeus_nn::loss::cosine_similarity(&x1.inner, &x2.inner, dim, eps));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Hinge embedding loss: targets in {-1, +1}, margin threshold.
@@ -206,25 +211,33 @@ pub fn hinge_embedding_loss(
     target: Vec<f64>,
     margin: f64,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner =
         py.allow_threads(|| coeus_nn::loss::hinge_embedding_loss(&x.inner, &target, margin));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Multi-label margin loss (hinge-based multi-label ranking).
 #[pyfunction]
-pub fn multi_label_margin_loss(x: &PyTensor, target: Vec<isize>, py: Python<'_>) -> PyTensor {
+pub fn multi_label_margin_loss(
+    x: &PyTensor,
+    target: Vec<isize>,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::loss::multi_label_margin_loss(&x.inner, &target));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Multi-label soft-margin loss (sigmoid + BCE per label).
 #[pyfunction]
-pub fn multi_label_soft_margin_loss(x: &PyTensor, target: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn multi_label_soft_margin_loss(
+    x: &PyTensor,
+    target: &PyTensor,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner =
         py.allow_threads(|| coeus_nn::loss::multi_label_soft_margin_loss(&x.inner, &target.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Gaussian negative-log-likelihood loss.
@@ -236,11 +249,11 @@ pub fn gaussian_nll_loss(
     var: &PyTensor,
     full: bool,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| {
         coeus_nn::loss::gaussian_nll_loss(&input.inner, &target.inner, &var.inner, full)
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// CTC (Connectionist Temporal Classification) loss.
@@ -278,14 +291,14 @@ pub fn ctc_loss(
 
 /// Sum of all finite elements, treating NaN as zero (`torch.nansum`).
 #[pyfunction]
-pub fn nansum(x: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn nansum(x: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::nansum(&x.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Mean of all finite elements, treating NaN as missing (`torch.nanmean`).
 #[pyfunction]
-pub fn nanmean(x: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn nanmean(x: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_nn::nanmean(&x.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }

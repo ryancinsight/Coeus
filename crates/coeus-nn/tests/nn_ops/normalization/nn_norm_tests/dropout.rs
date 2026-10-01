@@ -5,7 +5,11 @@ use coeus_tensor::Tensor;
 #[test]
 fn test_dropout() {
     let mut do_layer = Dropout::new(0.5);
-    let input: Var<f64> = Var::new(Tensor::ones(vec![100]), true);
+    let input: Var<f64> = Var::new(
+        Tensor::ones(vec![100]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // Evaluation mode: no dropout, output should be identical
     do_layer.set_training(false);

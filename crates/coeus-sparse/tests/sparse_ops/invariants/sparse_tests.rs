@@ -25,8 +25,10 @@ fn shape2(r: usize, c: usize) -> Shape {
 
 fn coo_2x3() -> CooTensor<f32, Seq> {
     // indices [rank=2, nnz=3] row-major: rows then cols.
-    let indices = Tensor::<i64, Seq>::from_slice(vec![2, 3], &[0, 0, 1, 0, 2, 1]);
-    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
+    let indices = Tensor::<i64, Seq>::from_slice(vec![2, 3], &[0, 0, 1, 0, 2, 1])
+        .expect("invariant: test backend operation succeeds");
+    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
     CooTensor::new(shape2(2, 3), indices, values)
 }
 
@@ -52,8 +54,10 @@ fn coo_clone_preserves_values() {
 #[test]
 #[should_panic(expected = "Indices tensor must be 2D")]
 fn coo_rejects_non_2d_indices() {
-    let indices = Tensor::<i64, Seq>::from_slice(vec![6], &[0, 0, 1, 0, 2, 1]);
-    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
+    let indices = Tensor::<i64, Seq>::from_slice(vec![6], &[0, 0, 1, 0, 2, 1])
+        .expect("invariant: test backend operation succeeds");
+    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
     CooTensor::new(shape2(2, 3), indices, values);
 }
 
@@ -61,8 +65,10 @@ fn coo_rejects_non_2d_indices() {
 #[should_panic(expected = "Indices row count must match tensor rank")]
 fn coo_rejects_rank_mismatch() {
     // rank-2 shape but indices declare 3 coordinate rows.
-    let indices = Tensor::<i64, Seq>::from_slice(vec![3, 3], &[0; 9]);
-    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
+    let indices = Tensor::<i64, Seq>::from_slice(vec![3, 3], &[0; 9])
+        .expect("invariant: test backend operation succeeds");
+    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
     CooTensor::new(shape2(2, 3), indices, values);
 }
 
@@ -70,17 +76,22 @@ fn coo_rejects_rank_mismatch() {
 #[should_panic(expected = "Indices col count must match number of values")]
 fn coo_rejects_nnz_mismatch() {
     // indices declare 3 nnz but only 2 values supplied.
-    let indices = Tensor::<i64, Seq>::from_slice(vec![2, 3], &[0, 0, 1, 0, 2, 1]);
-    let values = Tensor::<f32, Seq>::from_slice(vec![2], &[1.0, 2.0]);
+    let indices = Tensor::<i64, Seq>::from_slice(vec![2, 3], &[0, 0, 1, 0, 2, 1])
+        .expect("invariant: test backend operation succeeds");
+    let values = Tensor::<f32, Seq>::from_slice(vec![2], &[1.0, 2.0])
+        .expect("invariant: test backend operation succeeds");
     CooTensor::new(shape2(2, 3), indices, values);
 }
 
 // ── CSR ───────────────────────────────────────────────────────────────────
 
 fn csr_2x3() -> CsrTensor<f32, Seq> {
-    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
-    let col_indices = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 1]);
-    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 3]);
+    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let col_indices = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 1])
+        .expect("invariant: test backend operation succeeds");
+    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 3])
+        .expect("invariant: test backend operation succeeds");
     CsrTensor::new(shape2(2, 3), values, col_indices, row_offsets)
 }
 
@@ -112,27 +123,36 @@ fn csr_clone_preserves_structure() {
 #[test]
 #[should_panic(expected = "CSR format is restricted to 2D matrices")]
 fn csr_rejects_non_2d_shape() {
-    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
-    let col_indices = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 1]);
-    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 3]);
+    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let col_indices = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 1])
+        .expect("invariant: test backend operation succeeds");
+    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 3])
+        .expect("invariant: test backend operation succeeds");
     CsrTensor::new(Shape::from(vec![2, 2, 3]), values, col_indices, row_offsets);
 }
 
 #[test]
 #[should_panic(expected = "col_indices length must match values count")]
 fn csr_rejects_col_indices_mismatch() {
-    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
-    let col_indices = Tensor::<i64, Seq>::from_slice(vec![2], &[0, 2]);
-    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 3]);
+    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let col_indices = Tensor::<i64, Seq>::from_slice(vec![2], &[0, 2])
+        .expect("invariant: test backend operation succeeds");
+    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 3])
+        .expect("invariant: test backend operation succeeds");
     CsrTensor::new(shape2(2, 3), values, col_indices, row_offsets);
 }
 
 #[test]
 #[should_panic(expected = "row_offsets length must equal rows + 1")]
 fn csr_rejects_row_offsets_mismatch() {
-    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
-    let col_indices = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 1]);
+    let values = Tensor::<f32, Seq>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let col_indices = Tensor::<i64, Seq>::from_slice(vec![3], &[0, 2, 1])
+        .expect("invariant: test backend operation succeeds");
     // 2 rows requires row_offsets length 3; supply 2.
-    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![2], &[0, 3]);
+    let row_offsets = Tensor::<i64, Seq>::from_slice(vec![2], &[0, 3])
+        .expect("invariant: test backend operation succeeds");
     CsrTensor::new(shape2(2, 3), values, col_indices, row_offsets);
 }

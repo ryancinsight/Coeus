@@ -82,18 +82,20 @@ where
         ));
     }
     let backend = B::default();
-    let w = weight.cloned().unwrap_or_else(|| {
-        Var::new(
-            Tensor::ones_on(normalized_shape.as_slice(), &backend),
+    let w = match weight {
+        Some(weight) => weight.clone(),
+        None => Var::new(
+            Tensor::ones_on(normalized_shape.as_slice(), &backend)?,
             false,
-        )
-    });
-    let b = bias.cloned().unwrap_or_else(|| {
-        Var::new(
-            Tensor::zeros_on(normalized_shape.as_slice(), &backend),
+        )?,
+    };
+    let b = match bias {
+        Some(bias) => bias.clone(),
+        None => Var::new(
+            Tensor::zeros_on(normalized_shape.as_slice(), &backend)?,
             false,
-        )
-    });
+        )?,
+    };
     for (parameter, actual) in [("weight", w.tensor.shape()), ("bias", b.tensor.shape())] {
         if actual != normalized_shape.as_slice() {
             return Err(validation::shape_mismatch(
@@ -104,8 +106,7 @@ where
             ));
         }
     }
-    let layer = LayerNorm::from_parts(w, b, eps);
-    layer.forward(input)
+    LayerNorm::from_parts(w, b, eps)?.forward(input)
 }
 
 /// Layer Normalization module.
@@ -130,52 +131,61 @@ pub struct LayerNorm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBac
 
 impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     /// Create a new LayerNorm layer for a single feature dimension.
-    pub fn new(normalized_shape: usize, eps: f64) -> Self {
-        Self::from_shape(normalized_shape, eps)
+    pub fn new(
+        normalized_shape: usize,
+        eps: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
+        Ok(Self::from_shape(normalized_shape, eps)?)
     }
 
     /// Create a LayerNorm layer for one or more trailing dimensions.
-    pub fn from_shape(normalized_shape: impl Into<NormalizedShape>, eps: f64) -> Self {
+    pub fn from_shape(
+        normalized_shape: impl Into<NormalizedShape>,
+        eps: f64,
+    ) -> Result<Self, B::Error> {
         let normalized_shape = normalized_shape.into();
         let backend = B::default();
-        let weight = Var::new(Tensor::ones_on(normalized_shape.as_slice(), &backend), true);
-        let bias = Var::new(
-            Tensor::zeros_on(normalized_shape.as_slice(), &backend),
+        let weight = Var::new(
+            Tensor::ones_on(normalized_shape.as_slice(), &backend)?,
             true,
-        );
-        let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
+        )?;
+        let bias = Var::new(
+            Tensor::zeros_on(normalized_shape.as_slice(), &backend)?,
+            true,
+        )?;
+        let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend)?;
         let d_const = Tensor::full_on(
             [1],
             coeus_core::FloatElement::from_f64(weight.tensor.numel() as f64),
             &backend,
-        );
-        Self {
+        )?;
+        Ok(Self {
             weight,
             bias,
             eps,
             eps_t,
             d_const,
             ones_cache: RefCell::new(None),
-        }
+        })
     }
 
     /// Create a LayerNorm layer from existing affine parameters.
-    pub fn from_parts(weight: Var<T, B>, bias: Var<T, B>, eps: f64) -> Self {
+    pub fn from_parts(weight: Var<T, B>, bias: Var<T, B>, eps: f64) -> Result<Self, B::Error> {
         let backend = B::default();
-        let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
+        let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend)?;
         let d_const = Tensor::full_on(
             [1],
             coeus_core::FloatElement::from_f64(weight.tensor.numel() as f64),
             &backend,
-        );
-        Self {
+        )?;
+        Ok(Self {
             weight,
             bias,
             eps,
             eps_t,
             d_const,
             ones_cache: RefCell::new(None),
-        }
+        })
     }
 
     fn normalize_flat(
@@ -192,8 +202,8 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
 
         let mean_t = coeus_ops::mean_axis(&input.tensor, 1, &backend)
             .map_err(|source| validation::backend(MODULE, source))?;
-        let xmu = coeus_ops::sub(&input.tensor, &mean_t, &backend);
-        let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
+        let xmu = coeus_ops::sub(&input.tensor, &mean_t, &backend)?;
+        let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend)?;
         let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
             .map_err(|source| validation::backend(MODULE, source))?;
 
@@ -211,12 +221,12 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
                 if cached_batch == batch {
                     cached_ones.clone()
                 } else {
-                    let ones = Tensor::ones_on([batch, 1], &backend);
+                    let ones = Tensor::ones_on([batch, 1], &backend)?;
                     *cache = Some((batch, ones.clone()));
                     ones
                 }
             } else {
-                let ones = Tensor::ones_on([batch, 1], &backend);
+                let ones = Tensor::ones_on([batch, 1], &backend)?;
                 *cache = Some((batch, ones.clone()));
                 ones
             }
@@ -225,10 +235,10 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
         coeus_ops::div_assign(&mut istdev, &stdev, &backend)
             .map_err(|source| validation::backend(MODULE, source))?;
 
-        let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
+        let x_hat = coeus_ops::mul(&xmu, &istdev, &backend)?;
         let w_reshaped = self.weight.tensor.reshape([1, normalized_size]);
         let b_reshaped = self.bias.tensor.reshape([1, normalized_size]);
-        let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
+        let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend)?;
         coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)
             .map_err(|source| validation::backend(MODULE, source))?;
 
@@ -240,7 +250,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
             x_hat,
             istdev,
             self.d_const.clone(),
-        ))
+        )?)
     }
 }
 
@@ -350,8 +360,8 @@ impl<
             return self.normalize_flat(input, normalized_size);
         }
 
-        let flat = coeus_autograd::reshape(input, [batch, normalized_size]);
+        let flat = coeus_autograd::reshape(input, [batch, normalized_size])?;
         let normalized = self.normalize_flat(&flat, normalized_size)?;
-        Ok(coeus_autograd::reshape(&normalized, input_shape))
+        Ok(coeus_autograd::reshape(&normalized, input_shape)?)
     }
 }

@@ -29,7 +29,7 @@ where
         b_layout,
         b.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("elementwise binary", error))
 }
@@ -48,7 +48,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::elementwise_binary_assign(op, a_layout, a.as_mut_slice(), b_layout, b.as_slice())
+    coeus_leto::elementwise_binary_assign(op, a_layout, a.as_mut_slice()?, b_layout, b.as_slice())
         .map_err(|error| map_leto_error("elementwise binary assign", error))
 }
 
@@ -66,7 +66,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::elementwise_unary_into(op, a_layout, a.as_slice(), c_layout, c.as_mut_slice())
+    coeus_leto::elementwise_unary_into(op, a_layout, a.as_slice(), c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("elementwise unary", error))
 }
 
@@ -89,7 +89,7 @@ where
         a_layout,
         a.as_slice(),
         c_layout,
-        c.as_mut_slice(),
+        c.as_mut_slice()?,
     )
     .map_err(|error| map_leto_error("elementwise scalar power", error))
 }

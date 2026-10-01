@@ -28,6 +28,14 @@ impl HephaestusBackendError {
     }
 }
 
+/// Route a layout rejection through the integration boundary's error type, so
+/// a provider error type that normalizes `HephaestusBackendError` categories
+/// observes layout rejections the same way it observes dispatch failures.
+#[inline]
+pub(crate) fn layout_error<P: crate::HephaestusProvider>(error: BackendError) -> P::Error {
+    P::Error::from(HephaestusBackendError::Backend(error))
+}
+
 #[inline]
 pub(crate) fn invalid_configuration_error(
     operation: &'static str,

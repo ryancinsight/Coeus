@@ -35,19 +35,19 @@ use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
 fn solver_iteration(x: &Var<f32, MoiraiBackend>) -> Result<(), Box<dyn std::error::Error>> {
-    let y = add(x, x);
-    let z = mul(&y, x);
-    let loss = sum(&z);
+    let y = add(x, x)?;
+    let z = mul(&y, x)?;
+    let loss = sum(&z)?;
     loss.backward()?;
-    x.zero_grad();
+    x.zero_grad()?;
     Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = Var::<f32, MoiraiBackend>::new(
-        Tensor::from_slice([3], &[1.0, 2.0, 3.0]),
+        Tensor::from_slice([3], &[1.0, 2.0, 3.0])?,
         true
-    );
+    )?;
     
     // Each rebuilt loss has a new root: metadata is reusable, but its live
     // topology plan is intentionally not shared across graph instances.
@@ -90,22 +90,25 @@ use coeus_autograd::{Var, mul, add, sub, sum, get_backward_cache};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 
-fn compute_residual(x: &Var<f32, MoiraiBackend>) -> Var<f32, MoiraiBackend> {
+fn compute_residual(
+    x: &Var<f32, MoiraiBackend>,
+) -> Result<Var<f32, MoiraiBackend>, coeus_core::BackendError> {
     // f(x) = x^2 - 2 (finding sqrt(2))
-    let x2 = mul(x, x);
-    sub(&x2, &Var::new(Tensor::from_slice([1], &[2.0]), false))
+    let x2 = mul(x, x)?;
+    let two = Var::new(Tensor::from_slice([1], &[2.0])?, false)?;
+    sub(&x2, &two)
 }
 
 fn newton_solver(x0: f32, max_iters: usize, tol: f32) -> Result<(), Box<dyn std::error::Error>> {
     let x = Var::<f32, MoiraiBackend>::new(
-        Tensor::from_slice([1], &[x0]),
+        Tensor::from_slice([1], &[x0])?,
         true
-    );
+    )?;
     
     for iter in 0..max_iters {
         // Forward
-        let residual = compute_residual(&x);
-        let loss = sum(&residual);
+        let residual = compute_residual(&x)?;
+        let loss = sum(&residual)?;
         
         // Backward; this rebuilt graph can share metadata, but not a live
         // topology plan with the previous iteration.
@@ -123,7 +126,7 @@ fn newton_solver(x0: f32, max_iters: usize, tol: f32) -> Result<(), Box<dyn std:
             );
         }
         
-        x.zero_grad();
+        x.zero_grad()?;
     }
     
     Ok(())
