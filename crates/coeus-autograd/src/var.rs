@@ -35,10 +35,14 @@ pub fn reset_backward_cache_stats() {
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
-/// let y = coeus_autograd::mul(&x, &x); // y = x * x
+/// let x = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([2], &[3.0, 4.0]).expect("invariant: example shape matches data"),
+///     true,
+/// ).expect("invariant: example gradient buffer allocation succeeds");
+/// let y = coeus_autograd::mul(&x, &x)
+///     .expect("invariant: equal-shaped example operands multiply"); // y = x * x
 /// y.backward().expect("invariant: valid autograd fixture completes backward");
-/// let grad = x.grad().unwrap();
+/// let grad = x.grad().expect("invariant: backward populates the tracked leaf gradient");
 /// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
 /// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
 /// ```
@@ -55,8 +59,11 @@ pub struct Var<T: Scalar, B: ComputeBackend + Default = MoiraiBackend> {
 impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// Allocate a zeroed gradient buffer for an operation result shape.
     #[inline(always)]
-    pub(crate) fn grad_buffer(shape: Shape, backend: &B) -> Arc<GradBuffer<T, B>> {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(shape, backend)))
+    pub(crate) fn grad_buffer(
+        shape: Shape,
+        backend: &B,
+    ) -> Result<Arc<GradBuffer<T, B>>, B::Error> {
+        Ok(Arc::new(GradBuffer::new(Tensor::zeros_on(shape, backend)?)))
     }
 
     /// Build an operation result, attaching gradient state and creator only
@@ -67,26 +74,26 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
         requires_grad: bool,
         backend: &B,
         build_node: F,
-    ) -> Self
+    ) -> Result<Self, B::Error>
     where
         N: BackwardNode<T, B> + 'static,
         F: FnOnce(Arc<GradBuffer<T, B>>) -> N,
     {
         if !requires_grad {
-            return Self {
+            return Ok(Self {
                 tensor,
                 grad: None,
                 creator: None,
-            };
+            });
         }
 
-        let output_grad = Self::grad_buffer(tensor.shape_cloned(), backend);
+        let output_grad = Self::grad_buffer(tensor.shape_cloned(), backend)?;
         let creator = Arc::new(build_node(Arc::clone(&output_grad))) as Arc<dyn BackwardNode<T, B>>;
-        Self {
+        Ok(Self {
             tensor,
             grad: Some(output_grad),
             creator: Some(creator),
-        }
+        })
     }
 
     /// Create a new leaf variable.
@@ -105,25 +112,31 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
-    /// let c = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[10.0, 20.0]), false);
-    /// let y = coeus_autograd::add(&x, &c);
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[1.0, 2.0]).expect("invariant: example shape matches data"),
+    ///     true,
+    /// ).expect("invariant: example gradient buffer allocation succeeds");
+    /// let c = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[10.0, 20.0]).expect("invariant: example shape matches data"),
+    ///     false,
+    /// ).expect("invariant: constant example variable needs no gradient buffer");
+    /// let y = coeus_autograd::add(&x, &c).expect("invariant: equal-shaped example operands add");
     /// y.backward().expect("invariant: valid autograd fixture completes backward");
     /// assert!(x.grad().is_some()); // tracked leaf: gradient present
     /// assert!(c.grad().is_none()); // constant leaf: no gradient state
     /// ```
     #[inline]
-    pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Self {
+    pub fn new(tensor: Tensor<T, B>, requires_grad: bool) -> Result<Self, B::Error> {
         let grad = if requires_grad {
-            Some(Self::grad_buffer(tensor.shape_cloned(), &B::default()))
+            Some(Self::grad_buffer(tensor.shape_cloned(), &B::default())?)
         } else {
             None
         };
-        Self {
+        Ok(Self {
             tensor,
             grad,
             creator: None,
-        }
+        })
     }
 
     /// Create an intermediate variable (result of an op).
@@ -155,12 +168,18 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
-    /// let one = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0; 3]), false);
-    /// let y = coeus_autograd::add(&x, &one);
-    /// let loss = coeus_autograd::sum(&y);
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([3], &[1.0, 2.0, 3.0]).expect("invariant: example shape matches data"),
+    ///     true,
+    /// ).expect("invariant: example gradient buffer allocation succeeds");
+    /// let one = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([3], &[1.0; 3]).expect("invariant: example shape matches data"),
+    ///     false,
+    /// ).expect("invariant: constant example variable needs no gradient buffer");
+    /// let y = coeus_autograd::add(&x, &one).expect("invariant: equal-shaped example operands add");
+    /// let loss = coeus_autograd::sum(&y).expect("invariant: example reduction succeeds");
     /// loss.backward().expect("invariant: valid autograd fixture completes backward");
-    /// let grad = x.grad().unwrap();
+    /// let grad = x.grad().expect("invariant: backward populates the tracked leaf gradient");
     /// assert!((grad.as_slice()[0] - 1.0).abs() < 1e-5);
     /// assert!((grad.as_slice()[1] - 1.0).abs() < 1e-5);
     /// assert!((grad.as_slice()[2] - 1.0).abs() < 1e-5);
@@ -194,22 +213,27 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, 3.0]), true);
-    /// let y = coeus_autograd::sum(&x);
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[2.0, 3.0]).expect("invariant: example shape matches data"),
+    ///     true,
+    /// ).expect("invariant: example gradient buffer allocation succeeds");
+    /// let y = coeus_autograd::sum(&x).expect("invariant: example reduction succeeds");
     ///
     /// y.backward().expect("invariant: valid autograd fixture completes backward");
-    /// let g1 = x.grad().unwrap();
+    /// let g1 = x.grad().expect("invariant: backward populates the tracked leaf gradient");
     /// assert!((g1.as_slice()[0] - 1.0).abs() < 1e-5);
     ///
     /// // Second backward would accumulate; zero first.
-    /// x.zero_grad();
-    /// assert!((x.grad().unwrap().as_slice()[0] - 0.0).abs() < 1e-5);
+    /// x.zero_grad().expect("invariant: example gradient buffer is writable");
+    /// assert!((x.grad().expect("invariant: tracked leaf retains its gradient buffer").as_slice()[0]
+    ///     - 0.0).abs() < 1e-5);
     /// ```
     #[inline]
-    pub fn zero_grad(&self) {
+    pub fn zero_grad(&self) -> Result<(), B::Error> {
         if let Some(ref g) = self.grad {
-            B::default().fill(g.write().storage_mut(), T::zero());
+            B::default().fill(g.write().storage_mut()?, T::zero())?;
         }
+        Ok(())
     }
 
     /// Run reverse-mode autodiff from this variable, seeding with `Tensor::ones`.
@@ -226,11 +250,15 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// use coeus_core::MoiraiBackend;
     /// use coeus_tensor::Tensor;
     ///
-    /// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
-    /// let y = coeus_autograd::mul(&x, &x);
-    /// let loss = coeus_autograd::sum(&y); // scalar: y_0 + y_1
+    /// let x = Var::<f32, MoiraiBackend>::new(
+    ///     Tensor::from_slice([2], &[3.0, 4.0]).expect("invariant: example shape matches data"),
+    ///     true,
+    /// ).expect("invariant: example gradient buffer allocation succeeds");
+    /// let y = coeus_autograd::mul(&x, &x)
+    ///     .expect("invariant: equal-shaped example operands multiply");
+    /// let loss = coeus_autograd::sum(&y).expect("invariant: example reduction succeeds");
     /// loss.backward().expect("invariant: valid autograd fixture completes backward");
-    /// let grad = x.grad().unwrap();
+    /// let grad = x.grad().expect("invariant: backward populates the tracked leaf gradient");
     /// assert!((grad.as_slice()[0] - 6.0).abs() < 1e-5); // 2 * 3
     /// assert!((grad.as_slice()[1] - 8.0).abs() < 1e-5); // 2 * 4
     /// ```
@@ -241,7 +269,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     /// Returns the backend error when gradient computation or accumulation
     /// cannot complete.
     pub fn backward(&self) -> Result<(), B::Error> {
-        let seed = Tensor::ones_on(self.tensor.shape(), &B::default());
+        let seed = Tensor::ones_on(self.tensor.shape(), &B::default())?;
         self.backward_with_seed(seed)
     }
 
@@ -331,8 +359,11 @@ mod tests {
 
     #[test]
     fn backward_returns_the_exact_node_error() {
-        let tensor = Tensor::from_slice([1], &[1.0]);
-        let output_grad = Arc::new(GradBuffer::new(Tensor::zeros([1])));
+        let tensor =
+            Tensor::from_slice([1], &[1.0]).expect("invariant: test backend operation succeeds");
+        let output_grad = Arc::new(GradBuffer::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+        ));
         let node = Arc::new(FailingNode {
             output_grad: Arc::clone(&output_grad),
             inputs: Vec::new(),

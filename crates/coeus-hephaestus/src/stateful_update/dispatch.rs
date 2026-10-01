@@ -110,8 +110,8 @@ where
         state,
         state_layout,
     )?;
-    parameter.make_unique();
-    state.make_unique();
+    parameter.make_unique()?;
+    state.make_unique()?;
     dispatch::<B, Rule>(
         Request {
             operation,
@@ -156,9 +156,9 @@ where
         second,
         second_layout,
     )?;
-    parameter.make_unique();
-    first.make_unique();
-    second.make_unique();
+    parameter.make_unique()?;
+    first.make_unique()?;
+    second.make_unique()?;
     dispatch::<B, Rule>(
         Request {
             operation,

@@ -51,15 +51,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
             // d/dx_ij = grad_unit_ij - mask_ij * rowsum(grad_unit)
             // (the target column receives the negation of every active
             // sibling coefficient). All on-provider.
-            let rowsum = coeus_ops::sum_axis(&self.grad_unit, 1, &backend)
-                .expect("invariant: validated [N, C] multi-margin row reduction");
+            let rowsum = coeus_ops::sum_axis(&self.grad_unit, 1, &backend)?;
             let target_term = coeus_ops::mul(
                 &self.target_mask,
                 &rowsum.broadcast([self.n, self.c]),
                 &backend,
-            );
-            let d_x = coeus_ops::sub(&self.grad_unit, &target_term, &backend);
-            let d_x = coeus_ops::mul(&d_x, &grad_out.broadcast([self.n, self.c]), &backend);
+            )?;
+            let d_x = coeus_ops::sub(&self.grad_unit, &target_term, &backend)?;
+            let d_x = coeus_ops::mul(&d_x, &grad_out.broadcast([self.n, self.c]), &backend)?;
             coeus_ops::add_assign(g.write(), &d_x, &backend)?;
         }
         Ok(())
@@ -84,7 +83,7 @@ pub fn multi_margin<
     targets: &[usize],
     p: T,
     margin: T,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -102,63 +101,64 @@ where
     // set to every row, yielding [N, N], which reshapes cleanly only when
     // N == 1. m = margin - x[i,y_i] + x[i,j] (all j).
     let target_f: Vec<T> = targets.iter().map(|&i| T::from_usize(i)).collect();
-    let target_tensor = Tensor::from_slice_on([n], &target_f, &backend);
-    let target_column = Tensor::from_slice_on([n, 1], &target_f, &backend);
-    let x_target = coeus_ops::gather(&x.tensor, 1, &target_column, &backend);
-    let margin_tensor = Tensor::full_on([n, 1], margin, &backend);
+    let target_tensor = Tensor::from_slice_on([n], &target_f, &backend)?;
+    let target_column = Tensor::from_slice_on([n, 1], &target_f, &backend)?;
+    let x_target = coeus_ops::gather(&x.tensor, 1, &target_column, &backend)?;
+    let margin_tensor = Tensor::full_on([n, 1], margin, &backend)?;
     let m = coeus_ops::add(
-        &coeus_ops::sub(&margin_tensor, &x_target, &backend),
+        &coeus_ops::sub(&margin_tensor, &x_target, &backend)?,
         &x.tensor,
         &backend,
-    );
-    let hinge = coeus_ops::relu(&m, &backend);
+    )?;
+    let hinge = coeus_ops::relu(&m, &backend)?;
 
     // loss = sum over all j of hinge^p, minus the j == y term (hinge[y] =
     // margin, a constant that must be excluded). All on-provider.
-    let powered = coeus_ops::pow_scalar(&hinge, p, &backend);
-    let row_sum = coeus_ops::sum_axis(&powered, 1, &backend)
-        .expect("invariant: validated [N, C] multi-margin row reduction");
-    let margin_p = coeus_ops::pow_scalar(&margin_tensor, p, &backend);
+    let powered = coeus_ops::pow_scalar(&hinge, p, &backend)?;
+    let row_sum = coeus_ops::sum_axis(&powered, 1, &backend)?;
+    let margin_p = coeus_ops::pow_scalar(&margin_tensor, p, &backend)?;
     // `row_sum` keeps the reduced axis, so it is [N, 1]. Flattening `margin_p`
     // to [N] here would broadcast the subtraction to [N, N] instead of
     // subtracting element-wise — again invisible at N == 1.
-    let row_net = coeus_ops::sub(&row_sum, &margin_p, &backend);
+    let row_net = coeus_ops::sub(&row_sum, &margin_p, &backend)?;
     // loss = sum_i row_net_i / (N * C). `mean_axis` divides by N, so scale
     // the mean by 1/C.
     let inv_c = T::one() / T::from_f64(c as f64);
-    let mean_loss = coeus_ops::mean_axis(&row_net.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty multi-margin reduction has axis zero");
-    let loss = coeus_ops::mul(&mean_loss, &Tensor::full_on([1], inv_c, &backend), &backend);
+    let mean_loss = coeus_ops::mean_axis(&row_net.reshape([n]), 0, &backend)?;
+    let loss = coeus_ops::mul(
+        &mean_loss,
+        &Tensor::full_on([1], inv_c, &backend)?,
+        &backend,
+    )?;
 
     // grad_unit = p * relu(m)^(p-1) / (N*C), all j including j == y, but
     // zeroed where the hinge is inactive (m <= 0) so `0^(p-1)` (which is 1
     // for p == 1) never activates a dead sibling.
     let p_minus_one = p - T::one();
     let raw_coef = coeus_ops::mul(
-        &coeus_ops::pow_scalar(&hinge, p_minus_one, &backend),
-        &Tensor::full_on(shape.to_vec(), p, &backend),
+        &coeus_ops::pow_scalar(&hinge, p_minus_one, &backend)?,
+        &Tensor::full_on(shape.to_vec(), p, &backend)?,
         &backend,
-    );
-    let active = coeus_ops::gt(&m, &Tensor::zeros_on(shape.to_vec(), &backend), &backend);
+    )?;
+    let active = coeus_ops::gt(&m, &Tensor::zeros_on(shape.to_vec(), &backend)?, &backend)?;
     let coef = coeus_ops::where_cond(
         &active,
         &raw_coef,
-        &Tensor::zeros_on(shape.to_vec(), &backend),
+        &Tensor::zeros_on(shape.to_vec(), &backend)?,
         &backend,
-    )
-    .expect("multi_margin: active-hinge mask");
+    )?;
     let inv_nc = T::one() / T::from_f64((n * c) as f64);
     let grad_unit = coeus_ops::mul(
         &coef,
-        &Tensor::full_on(shape.to_vec(), inv_nc, &backend),
+        &Tensor::full_on(shape.to_vec(), inv_nc, &backend)?,
         &backend,
-    );
-    let target_mask = coeus_ops::one_hot(&target_tensor, c, &backend);
+    )?;
+    let target_mask = coeus_ops::one_hot(&target_tensor, c, &backend)?;
 
     let out_tensor = loss.reshape([1]);
     let requires_grad = crate::grad_mode::should_track_var(x);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
@@ -173,11 +173,11 @@ where
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -191,11 +191,14 @@ mod tests {
         //   m_j = 1 - x[0] + x[j] = [1, 2, 3]; hinge relu = [1, 2, 3].
         //   sum_j≠0 = 2 + 3 = 5; loss = 5 / (1*3) = 5/3.
         let x = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [0usize];
-        let loss = multi_margin(&x, &targets, 1.0, 1.0);
+        let loss =
+            multi_margin(&x, &targets, 1.0, 1.0).expect("invariant: test operation succeeds");
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - 5.0 / 3.0).abs() < 1e-12);
     }
@@ -214,11 +217,14 @@ mod tests {
         //   row 1: m = [-1.6, ·, 0.2] → 0.2 / 3
         //   mean  = 1/12
         let x = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[1.4, 1.2, -0.6, -0.2, 1.9, 1.6]),
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[1.4, 1.2, -0.6, -0.2, 1.9, 1.6])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [0usize, 1];
-        let loss = multi_margin(&x, &targets, 1.0, 0.5);
+        let loss =
+            multi_margin(&x, &targets, 1.0, 0.5).expect("invariant: test operation succeeds");
         assert_eq!(loss.tensor.shape(), &[1]);
         let expected = 1.0 / 12.0;
         let actual = loss.tensor.as_slice()[0];
@@ -234,11 +240,14 @@ mod tests {
         //   coef_j = relu(m)^0 = 1 for all j; grad_unit = 1/3.
         //   d/dx_j = grad_unit - mask_j * rowsum = [1/3 - 1, 1/3, 1/3].
         let x = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [0usize];
-        let loss = multi_margin(&x, &targets, 1.0, 1.0);
+        let loss =
+            multi_margin(&x, &targets, 1.0, 1.0).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let grad = x.grad().expect("x must receive a gradient");
         let expected = [1.0 / 3.0 - 1.0, 1.0 / 3.0, 1.0 / 3.0];
@@ -266,11 +275,14 @@ mod tests {
         //   coef = p*hinge^(p-1) = [0, 1]; grad_unit = [0, 1/2].
         //   rowsum = 0.5; d/dx = [0 - 0, 0.5 - 0.5] = [0, 0].
         let x = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 1.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 1.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [1usize];
-        let loss = multi_margin(&x, &targets, 2.0, 0.5);
+        let loss =
+            multi_margin(&x, &targets, 2.0, 0.5).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let grad = x.grad().expect("x must receive a gradient");
         for (i, &g) in grad.as_slice().iter().enumerate() {
@@ -289,21 +301,26 @@ mod tests {
         // outside the `~6e-6` perturbation, so every evaluation stays on one
         // smooth piece. p = 2 makes that piece `hinge²`, whose gradient is
         // non-zero here — so unlike the test above, this one discriminates.
-        let x = Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.2, 0.4, 0.9]);
+        let x = Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.2, 0.4, 0.9])
+            .expect("invariant: test backend operation succeeds");
         let targets = [1usize];
 
-        crate::gradcheck::gradcheck(&[x], |v| multi_margin(&v[0], &targets, 2.0, 0.5))
-            .expect("multi_margin p=2 backward must match central differences");
+        crate::gradcheck::gradcheck(&[x], |v| {
+            multi_margin(&v[0], &targets, 2.0, 0.5).expect("invariant: test operation succeeds")
+        })
+        .expect("multi_margin p=2 backward must match central differences");
     }
 
     #[test]
     #[should_panic(expected = "targets length must match batch size")]
     fn multi_margin_rejects_target_mismatch() {
         let x = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[1.0, 2.0, 3.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let targets = [0usize, 1usize];
-        let _ = multi_margin(&x, &targets, 1.0, 1.0);
+        let _ = multi_margin(&x, &targets, 1.0, 1.0).expect("invariant: test operation succeeds");
     }
 }

@@ -63,10 +63,11 @@ impl PyModule {
     }
 
     /// Zero the gradients of all parameters returned by `parameters()`.
-    pub fn zero_grad(&self, py: Python<'_>) {
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
         for p in self.parameters(py) {
-            p.bind(py).borrow().zero_grad();
+            p.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 
     /// Set the module to training mode.

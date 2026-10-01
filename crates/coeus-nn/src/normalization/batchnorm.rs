@@ -45,7 +45,7 @@ const fn rank_str<const DIM: usize>() -> &'static str {
 fn permute_to_nhwc<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     tensor: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     match DIM {
         1 => tensor.permute(&[0, 2, 1]).to_contiguous_on(backend),
         2 => tensor.permute(&[0, 2, 3, 1]).to_contiguous_on(backend),
@@ -58,7 +58,7 @@ fn permute_to_nhwc<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: 
 fn permute_from_nhwc<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     tensor: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     match DIM {
         1 => tensor.permute(&[0, 2, 1]).to_contiguous_on(backend),
         2 => tensor.permute(&[0, 3, 1, 2]).to_contiguous_on(backend),
@@ -73,11 +73,11 @@ fn reshape_from_flat<T: Scalar, B: coeus_ops::BackendOps<T>, const DIM: usize>(
     n: usize,
     spatial: &[usize],
     c: usize,
-) -> Tensor<T, B> {
+) -> Result<Tensor<T, B>, B::Error> {
     match DIM {
-        1 => tensor.reshape([n, spatial[0], c]),
-        2 => tensor.reshape([n, spatial[0], spatial[1], c]),
-        3 => tensor.reshape([n, spatial[0], spatial[1], spatial[2], c]),
+        1 => Ok(tensor.reshape([n, spatial[0], c])),
+        2 => Ok(tensor.reshape([n, spatial[0], spatial[1], c])),
+        3 => Ok(tensor.reshape([n, spatial[0], spatial[1], spatial[2], c])),
         _ => panic!("BatchNorm reshape_from_flat: unsupported DIM {DIM}"),
     }
 }
@@ -135,16 +135,20 @@ pub struct BatchNorm<
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
     /// Create with ones weight, zeros bias, and initialized running stats.
-    pub fn new(num_features: usize, eps: f64, momentum: f64) -> Self {
+    pub fn new(
+        num_features: usize,
+        eps: f64,
+        momentum: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         let backend = B::default();
         Self::from_parts(
             num_features,
-            Var::new(Tensor::ones_on([num_features], &backend), true),
-            Var::new(Tensor::zeros_on([num_features], &backend), true),
+            Var::new(Tensor::ones_on([num_features], &backend)?, true)?,
+            Var::new(Tensor::zeros_on([num_features], &backend)?, true)?,
             eps,
             momentum,
-            Tensor::zeros_on([num_features], &backend),
-            Tensor::ones_on([num_features], &backend),
+            Tensor::zeros_on([num_features], &backend)?,
+            Tensor::ones_on([num_features], &backend)?,
         )
     }
 
@@ -157,15 +161,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
         momentum: f64,
         running_mean: Tensor<T, B>,
         running_var: Tensor<T, B>,
-    ) -> Self {
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         let backend = B::default();
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let mom_t = Tensor::full_on([1], T::from_f64(momentum), &backend);
-        let one_minus_mom_t = Tensor::full_on([1], T::from_f64(1.0 - momentum), &backend);
-        let minus_half = Tensor::full_on([1], T::from_f64(-0.5), &backend);
-        let two_const = Tensor::full_on([1], T::from_f64(2.0), &backend);
-        let ones_c = Tensor::ones_on([1, num_features], &backend);
-        Self {
+        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend)?;
+        let mom_t = Tensor::full_on([1], T::from_f64(momentum), &backend)?;
+        let one_minus_mom_t = Tensor::full_on([1], T::from_f64(1.0 - momentum), &backend)?;
+        let minus_half = Tensor::full_on([1], T::from_f64(-0.5), &backend)?;
+        let two_const = Tensor::full_on([1], T::from_f64(2.0), &backend)?;
+        let ones_c = Tensor::ones_on([1, num_features], &backend)?;
+        Ok(Self {
             num_features,
             weight,
             bias,
@@ -181,7 +185,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
             two_const,
             ones_c,
             m_cache: RefCell::new(None),
-        }
+        })
     }
 
     /// Set training/eval mode.
@@ -205,13 +209,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
                 return Ok((cached_m_const.clone(), cached_corr_t.clone()));
             }
         }
-        let m_const = Tensor::full_on([1], T::from_f64(m as f64), backend);
+        let m_const = Tensor::full_on([1], T::from_f64(m as f64), backend)?;
         let correction = if m > 1 {
             m as f64 / (m - 1) as f64
         } else {
             1.0
         };
-        let corr_t = Tensor::full_on([1], T::from_f64(correction), backend);
+        let corr_t = Tensor::full_on([1], T::from_f64(correction), backend)?;
         *cache = Some((m, m_const.clone(), corr_t.clone()));
         Ok((m_const, corr_t))
     }
@@ -269,7 +273,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T
             let n = shape[0];
             let c = shape[1];
             // [N, C] -> [N, C, 1]; preserve grad-creator by going through `reshape`.
-            coeus_autograd::reshape(input, vec![n, c, 1])
+            coeus_autograd::reshape(input, vec![n, c, 1])?
         } else {
             input.clone()
         };
@@ -278,7 +282,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T
             let n = shape[0];
             let c = shape[1];
             // [N, C, 1] -> [N, C]; preserve grad-creator.
-            Ok(coeus_autograd::reshape(&out, vec![n, c]))
+            Ok(coeus_autograd::reshape(&out, vec![n, c])?)
         } else {
             Ok(out)
         }
@@ -324,7 +328,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
             }
             // Normalize using running stats: (x - running_mean) / sqrt(running_var + eps)
             let nhwc = permute_to_nhwc::<T, B, DIM>(&input.tensor, &backend);
-            let flat = nhwc.reshape([m, c]);
+            let flat = nhwc?.reshape([m, c]);
             let rm_row = rm.reshape([1, c]);
             let rv_row = rv.reshape([1, c]);
             let mut istdev = rv_row.clone();
@@ -332,20 +336,20 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
                 .map_err(|source| validation::backend(module, source))?;
             coeus_ops::sqrt_assign(&mut istdev, &backend)
                 .map_err(|source| validation::backend(module, source))?;
-            let ones = Tensor::ones_on([1, c], &backend);
+            let ones = Tensor::ones_on([1, c], &backend)?;
             let mut istdev_inv = ones;
             coeus_ops::div_assign(&mut istdev_inv, &istdev, &backend)
                 .map_err(|source| validation::backend(module, source))?;
-            let xmu = coeus_ops::sub(&flat, &rm_row, &backend);
-            let x_hat = coeus_ops::mul(&xmu, &istdev_inv, &backend);
+            let xmu = coeus_ops::sub(&flat, &rm_row, &backend)?;
+            let x_hat = coeus_ops::mul(&xmu, &istdev_inv, &backend)?;
             let w_r = self.weight.tensor.reshape([1, c]);
             let b_r = self.bias.tensor.reshape([1, c]);
-            let mut y = coeus_ops::mul(&x_hat, &w_r, &backend);
+            let mut y = coeus_ops::mul(&x_hat, &w_r, &backend)?;
             coeus_ops::add_assign(&mut y, &b_r, &backend)
                 .map_err(|source| validation::backend(module, source))?;
-            let y_nhwc = reshape_from_flat::<T, B, DIM>(y, n, &spatial, c);
-            let out_tensor = permute_from_nhwc::<T, B, DIM>(&y_nhwc, &backend);
-            return Ok(Var::new(out_tensor, false));
+            let y_nhwc = reshape_from_flat::<T, B, DIM>(y, n, &spatial, c)?;
+            let out_tensor = permute_from_nhwc::<T, B, DIM>(&y_nhwc, &backend)?;
+            return Ok(Var::new(out_tensor, false)?);
         }
 
         if m < 2 {
@@ -356,17 +360,17 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
 
         // ── View as [M, C] via NCHW... → NHWC... → [M, C] ──
         let nhwc = permute_to_nhwc::<T, B, DIM>(&input.tensor, &backend);
-        let flat = nhwc.reshape([m, c]); // [M, C]
+        let flat = nhwc?.reshape([m, c]); // [M, C]
 
         // ── Per-channel mean [1, C] ──
         let mean_t = coeus_ops::mean_axis(&flat, 0, &backend)
             .map_err(|source| validation::backend(module, source))?; // [1, C]
 
         // ── Centered: x - mu [M, C] ──
-        let xmu = coeus_ops::sub(&flat, &mean_t, &backend);
+        let xmu = coeus_ops::sub(&flat, &mean_t, &backend)?;
 
         // ── Per-channel variance [1, C] ──
-        let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
+        let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend)?;
         let var_t = coeus_ops::mean_axis(&xmu_sq, 0, &backend)
             .map_err(|source| validation::backend(module, source))?; // [1, C]
 
@@ -382,18 +386,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
             .map_err(|source| validation::backend(module, source))?; // [1, C]
 
         // ── x_hat = xmu * istdev [M, C] ──
-        let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
+        let x_hat = coeus_ops::mul(&xmu, &istdev, &backend)?;
 
         // ── y = gamma * x_hat + beta ──
         let w_reshaped = self.weight.tensor.reshape([1, c]);
         let b_reshaped = self.bias.tensor.reshape([1, c]);
-        let mut y_flat = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
+        let mut y_flat = coeus_ops::mul(&x_hat, &w_reshaped, &backend)?;
         coeus_ops::add_assign(&mut y_flat, &b_reshaped, &backend)
             .map_err(|source| validation::backend(module, source))?;
 
         // ── Output: [M, C] → [N, ..., C] → permute → [N, C, ...] ──
-        let y_nhwc = reshape_from_flat::<T, B, DIM>(y_flat, n, &spatial, c);
-        let out_tensor = permute_from_nhwc::<T, B, DIM>(&y_nhwc, &backend);
+        let y_nhwc = reshape_from_flat::<T, B, DIM>(y_flat, n, &spatial, c)?;
+        let out_tensor = permute_from_nhwc::<T, B, DIM>(&y_nhwc, &backend)?;
 
         // ── Update running stats (exponential moving average) ──
         let mut next_mean = self
@@ -423,13 +427,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
         let var_c = var_t.reshape([c]);
         coeus_ops::mul_assign(&mut next_mean, &self.one_minus_mom_t, &backend)
             .map_err(|source| validation::backend(module, source))?;
-        let term_mean = coeus_ops::mul(&mean_c, &self.mom_t, &backend);
+        let term_mean = coeus_ops::mul(&mean_c, &self.mom_t, &backend)?;
         coeus_ops::add_assign(&mut next_mean, &term_mean, &backend)
             .map_err(|source| validation::backend(module, source))?;
         coeus_ops::mul_assign(&mut next_var, &self.one_minus_mom_t, &backend)
             .map_err(|source| validation::backend(module, source))?;
-        let var_corrected = coeus_ops::mul(&var_c, &corr_t, &backend);
-        let term_var = coeus_ops::mul(&var_corrected, &self.mom_t, &backend);
+        let var_corrected = coeus_ops::mul(&var_c, &corr_t, &backend)?;
+        let term_var = coeus_ops::mul(&var_corrected, &self.mom_t, &backend)?;
         coeus_ops::add_assign(&mut next_var, &term_var, &backend)
             .map_err(|source| validation::backend(module, source))?;
         let mut running_mean = self
@@ -460,6 +464,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
                 spatial,
                 m,
             },
-        ))
+        )?)
     }
 }

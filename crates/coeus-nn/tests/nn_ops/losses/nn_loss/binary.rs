@@ -15,15 +15,20 @@ fn test_binary_cross_entropy() {
     let target_data = vec![0.0f64, 1.0, 1.0, 0.0];
 
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &target_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = binary_cross_entropy(&pred, &target, 1e-7);
+    let loss =
+        binary_cross_entropy(&pred, &target, 1e-7).expect("valid binary cross entropy inputs");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let loss_val = loss.tensor.as_slice()[0];
@@ -50,15 +55,20 @@ fn test_binary_cross_entropy_clamping() {
     let target_data = vec![0.0f64, 1.0];
 
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = binary_cross_entropy(&pred, &target, 1e-7);
+    let loss =
+        binary_cross_entropy(&pred, &target, 1e-7).expect("valid binary cross entropy inputs");
     assert_eq!(loss.tensor.shape(), &[1]);
     let loss_val = loss.tensor.as_slice()[0];
     assert!(!loss_val.is_nan());
@@ -75,13 +85,17 @@ fn test_huber_loss() {
     let target_data = vec![1.5f64, 2.0, -1.0];
 
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let delta = 1.0;
     let loss = huber_loss(&pred, &target, delta)
@@ -109,15 +123,19 @@ fn test_l1_loss() {
     // forward: mean(|diff|) = (3 + 1 + 0.5 + 0) / 4 = 1.125 exactly.
     // backward: d/d_pred = sign(diff)/n = [1/4, -1/4, 1/4, 0].
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[3.0, -1.0, 0.5, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[3.0, -1.0, 0.5, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 0.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[0.0, 0.0, 0.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = l1_loss(&pred, &target);
+    let loss = l1_loss(&pred, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     let loss_val = loss.tensor.as_slice()[0];
     let expected = (3.0 + 1.0 + 0.5) / 4.0;
@@ -163,13 +181,17 @@ fn test_l1_loss() {
 fn test_l1_loss_transposed_provider_layout() {
     // A transposed view must remain logical-order correct without host staging.
     let pred_base =
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[3.0, -1.0, 0.5, 4.0, 2.0, -2.0]);
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[3.0, -1.0, 0.5, 4.0, 2.0, -2.0])
+            .expect("invariant: test backend operation succeeds");
     let target_base =
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[0.0, 0.0, 0.0, 1.0, 1.0, -1.0]);
-    let pred = Var::new(pred_base.permute(&[1, 0]), true);
-    let target = Var::new(target_base.permute(&[1, 0]), true);
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[0.0, 0.0, 0.0, 1.0, 1.0, -1.0])
+            .expect("invariant: test backend operation succeeds");
+    let pred = Var::new(pred_base.permute(&[1, 0]), true)
+        .expect("invariant: test backend operation succeeds");
+    let target = Var::new(target_base.permute(&[1, 0]), true)
+        .expect("invariant: test backend operation succeeds");
 
-    let loss = l1_loss(&pred, &target);
+    let loss = l1_loss(&pred, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     // Logical differences are [3, 3, -1, 1, 0.5, -1], so mean abs = 9.5 / 6.
     assert!((loss.tensor.as_slice()[0] - (9.5 / 6.0)).abs() < 1e-12);
@@ -212,10 +234,20 @@ fn test_bce_with_logits() {
     let ys = [1.0_f64, 0.0, 1.0];
     let n = zs.len() as f64;
 
-    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs), true);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+    let logits = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &zs)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &ys)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = bce_with_logits(&logits, &target);
+    let loss = bce_with_logits(&logits, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     // Reference forward via sigmoid + BCE.
@@ -267,13 +299,34 @@ fn test_bce_with_logits_matches_bce_of_sigmoid() {
     // well inside (0,1) so clamping is inert).
     let zs = [0.5_f64, -0.7, 1.3, -2.0];
     let ys = [1.0_f64, 0.0, 1.0, 0.0];
-    let logits = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &zs), false);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &ys), false);
-    let stable = bce_with_logits(&logits, &target).tensor.as_slice()[0];
+    let logits = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &zs)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &ys)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let stable = bce_with_logits(&logits, &target)
+        .expect("invariant: test operation succeeds")
+        .tensor
+        .as_slice()[0];
 
     let probs: Vec<f64> = zs.iter().map(|z| 1.0 / (1.0 + (-z).exp())).collect();
-    let pv = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([4], &probs), false);
-    let composed = binary_cross_entropy(&pv, &target, 1e-12).tensor.as_slice()[0];
+    let pv = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &probs)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let composed = binary_cross_entropy(&pv, &target, 1e-12)
+        .expect("valid binary cross entropy inputs")
+        .tensor
+        .as_slice()[0];
     assert!(
         (stable - composed).abs() <= 1e-12,
         "bce_with_logits {stable:.17} != bce(sigmoid) {composed:.17}"
@@ -283,14 +336,18 @@ fn test_bce_with_logits_matches_bce_of_sigmoid() {
 #[test]
 fn test_bce_with_logits_large_logits_stay_finite() {
     let logits = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[100.0, -100.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[100.0, -100.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let loss = bce_with_logits(&logits, &target);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let loss = bce_with_logits(&logits, &target).expect("invariant: test operation succeeds");
     let expected = 0.5
         * ((100.0_f64.max(0.0) - 100.0 + (-100.0_f64.abs()).exp().ln_1p())
             + ((-100.0_f64).max(0.0) + (-(-100.0_f64).abs()).exp().ln_1p()));
@@ -314,14 +371,18 @@ fn test_bce_with_logits_large_logits_stay_finite() {
 fn test_l1_loss_zero_when_equal() {
     // l1_loss(x, x) = 0 exactly (all diffs zero).
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let loss = l1_loss(&pred, &target);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let loss = l1_loss(&pred, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.as_slice(), &[0.0_f64], "l1_loss(x, x) = 0");
 }
 
@@ -334,15 +395,19 @@ fn test_smooth_l1_loss() {
     let pred_data = vec![0.5_f64, 2.0, -3.0];
     let target_data = vec![0.0_f64, 0.0, 0.0];
     let pred = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = smooth_l1_loss(&pred, &target, 1.0);
+    let loss = smooth_l1_loss(&pred, &target, 1.0).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     let expected = (0.125 + 1.5 + 2.5) / 3.0;
     assert!(

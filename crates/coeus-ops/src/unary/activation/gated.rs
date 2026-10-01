@@ -30,7 +30,7 @@ where
         "glu: dim {dim} size {dim_size} must be even"
     );
     let half = dim_size / 2;
-    let mut parts = crate::shape::split(input, half, dim);
+    let mut parts = crate::shape::split(input, half, dim)?;
     assert_eq!(parts.len(), 2);
     let b_part = parts
         .pop()
@@ -39,5 +39,5 @@ where
         .pop()
         .expect("invariant: split into 2 parts asserted above, first part present");
     let gate = elementwise_unary(&b_part, backend, UnaryOp::Sigmoid)?;
-    Ok(crate::binary::mul(&a_part, &gate, backend))
+    crate::binary::mul(&a_part, &gate, backend)
 }

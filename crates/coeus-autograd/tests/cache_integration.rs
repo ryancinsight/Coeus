@@ -22,8 +22,12 @@ mod cache_integration {
         reset_backward_cache_stats();
 
         // y = x^2 at x=3
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([1], &[3.0]), true);
-        let y = mul(&x, &x);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([1], &[3.0]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let y = mul(&x, &x).expect("invariant: test operation succeeds");
         y.backward().expect("backward failed");
 
         let grad = x.grad().expect("grad is None");
@@ -45,14 +49,20 @@ mod cache_integration {
         cache.clear();
 
         const ITERATIONS: usize = 5;
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([2], &[1.0, 2.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
 
         for iter in 0..ITERATIONS {
-            let y = add(&x, &x);
-            let z = mul(&y, &x);
-            let loss = sum(&z);
+            let y = add(&x, &x).expect("invariant: test operation succeeds");
+            let z = mul(&y, &x).expect("invariant: test operation succeeds");
+            let loss = sum(&z).expect("invariant: test operation succeeds");
             loss.backward().expect("backward failed");
-            x.zero_grad();
+            x.zero_grad()
+                .expect("invariant: test backend operation succeeds");
 
             let stats = cache.stats();
             if iter > 0 {
@@ -82,11 +92,17 @@ mod cache_integration {
         cache.clear();
 
         // Shape 1: [2]
-        let x1 = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
-        let y1 = mul(&x1, &x1);
-        let loss1 = sum(&y1);
+        let x1 = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([2], &[1.0, 2.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let y1 = mul(&x1, &x1).expect("invariant: test operation succeeds");
+        let loss1 = sum(&y1).expect("invariant: test operation succeeds");
         loss1.backward().expect("backward 1 failed");
-        x1.zero_grad();
+        x1.zero_grad()
+            .expect("invariant: test backend operation succeeds");
 
         let stats_after_first = cache.stats();
         assert_eq!(
@@ -95,11 +111,17 @@ mod cache_integration {
         );
 
         // Shape 2: [3]
-        let x2 = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([3], &[1.0, 2.0, 3.0]), true);
-        let y2 = mul(&x2, &x2);
-        let loss2 = sum(&y2);
+        let x2 = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([3], &[1.0, 2.0, 3.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let y2 = mul(&x2, &x2).expect("invariant: test operation succeeds");
+        let loss2 = sum(&y2).expect("invariant: test operation succeeds");
         loss2.backward().expect("backward 2 failed");
-        x2.zero_grad();
+        x2.zero_grad()
+            .expect("invariant: test backend operation succeeds");
 
         let stats_after_second = cache.stats();
         assert_eq!(
@@ -109,11 +131,17 @@ mod cache_integration {
         );
 
         // Back to shape 1: should hit cache
-        let x3 = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[3.0, 4.0]), true);
-        let y3 = mul(&x3, &x3);
-        let loss3 = sum(&y3);
+        let x3 = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([2], &[3.0, 4.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let y3 = mul(&x3, &x3).expect("invariant: test operation succeeds");
+        let loss3 = sum(&y3).expect("invariant: test operation succeeds");
         loss3.backward().expect("backward 3 failed");
-        x3.zero_grad();
+        x3.zero_grad()
+            .expect("invariant: test backend operation succeeds");
 
         let stats_after_third = cache.stats();
         assert!(
@@ -132,12 +160,25 @@ mod cache_integration {
         // dy/dx = (2x + 1)(x - 1) + (x^2 + x) = 3x^2 - 1
         // At x=2: dy/dx = 3(4) - 1 = 11
 
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([1], &[2.0]), true);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([1], &[2.0]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
 
-        let x2 = mul(&x, &x);
-        let x2_plus_x = add(&x2, &x);
-        let x_minus_1 = sub(&x, &Var::new(Tensor::from_slice([1], &[1.0]), false));
-        let y = mul(&x2_plus_x, &x_minus_1);
+        let x2 = mul(&x, &x).expect("invariant: test operation succeeds");
+        let x2_plus_x = add(&x2, &x).expect("invariant: test operation succeeds");
+        let x_minus_1 = sub(
+            &x,
+            &Var::new(
+                Tensor::from_slice([1], &[1.0])
+                    .expect("invariant: test backend operation succeeds"),
+                false,
+            )
+            .expect("invariant: test backend operation succeeds"),
+        )
+        .expect("invariant: test operation succeeds");
+        let y = mul(&x2_plus_x, &x_minus_1).expect("invariant: test operation succeeds");
 
         y.backward().expect("backward failed");
 
@@ -162,8 +203,13 @@ mod cache_integration {
             let cache1 = get_backward_cache();
             cache1.clear();
 
-            let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([1], &[1.0]), true);
-            let y = mul(&x, &x);
+            let x = Var::<f32, MoiraiBackend>::new(
+                Tensor::from_slice([1], &[1.0])
+                    .expect("invariant: test backend operation succeeds"),
+                true,
+            )
+            .expect("invariant: test backend operation succeeds");
+            let y = mul(&x, &x).expect("invariant: test operation succeeds");
             y.backward().expect("backward failed");
 
             let stats1 = cache1.stats();
@@ -175,11 +221,17 @@ mod cache_integration {
             cache2.clear();
 
             for _ in 0..10 {
-                let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[2.0, 3.0]), true);
-                let y = add(&x, &x);
-                let loss = sum(&y);
+                let x = Var::<f32, MoiraiBackend>::new(
+                    Tensor::from_slice([2], &[2.0, 3.0])
+                        .expect("invariant: test backend operation succeeds"),
+                    true,
+                )
+                .expect("invariant: test backend operation succeeds");
+                let y = add(&x, &x).expect("invariant: test operation succeeds");
+                let loss = sum(&y).expect("invariant: test operation succeeds");
                 loss.backward().expect("backward failed");
-                x.zero_grad();
+                x.zero_grad()
+                    .expect("invariant: test backend operation succeeds");
             }
 
             let stats2 = cache2.stats();
@@ -199,9 +251,14 @@ mod cache_integration {
         let cache = get_backward_cache();
         cache.clear();
 
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
-        let y = mul(&x, &x);
-        let loss = sum(&y);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([2], &[1.0, 2.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let y = mul(&x, &x).expect("invariant: test operation succeeds");
+        let loss = sum(&y).expect("invariant: test operation succeeds");
         loss.backward().expect("backward failed");
 
         let snapshot: coeus_autograd::CacheSnapshot = cache.snapshot();
@@ -231,12 +288,17 @@ mod cache_integration {
         let cache = get_backward_cache();
         cache.clear();
 
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([1], &[1.0]), true);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([1], &[1.0]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
 
         // Iteration 1: miss
-        let y1 = mul(&x, &x);
+        let y1 = mul(&x, &x).expect("invariant: test operation succeeds");
         y1.backward().expect("backward 1 failed");
-        x.zero_grad();
+        x.zero_grad()
+            .expect("invariant: test backend operation succeeds");
 
         let stats1 = cache.stats();
         assert_eq!(stats1.misses, 1, "Expected 1 miss");
@@ -244,9 +306,10 @@ mod cache_integration {
         assert_eq!(stats1.total_ops(), 1);
 
         // Iteration 2: hit
-        let y2 = mul(&x, &x);
+        let y2 = mul(&x, &x).expect("invariant: test operation succeeds");
         y2.backward().expect("backward 2 failed");
-        x.zero_grad();
+        x.zero_grad()
+            .expect("invariant: test backend operation succeeds");
 
         let stats2 = cache.stats();
         assert!(stats2.hits > 0, "Expected cache hit");
@@ -288,11 +351,13 @@ mod cache_integration {
         let roots: Vec<Arc<dyn coeus_autograd::BackwardNode<f32, MoiraiBackend>>> = (0..THREADS)
             .map(|_| {
                 let x = Var::<f32, MoiraiBackend>::new(
-                    Tensor::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+                    Tensor::from_slice([4], &[1.0, 2.0, 3.0, 4.0])
+                        .expect("invariant: test backend operation succeeds"),
                     true,
-                );
-                let y = mul(&x, &x);
-                let loss = sum(&y);
+                )
+                .expect("invariant: test backend operation succeeds");
+                let y = mul(&x, &x).expect("invariant: test operation succeeds");
+                let loss = sum(&y).expect("invariant: test operation succeeds");
                 loss.creator
                     .as_ref()
                     .expect("loss must have a creator")
@@ -372,9 +437,13 @@ mod cache_integration {
         const LOOKUPS: usize = THREADS * ITERATIONS;
 
         let cache = ComputeGraphCache::new();
-        let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([4], &[1.0; 4]), true);
-        let y = mul(&x, &x);
-        let loss = sum(&y);
+        let x = Var::<f32, MoiraiBackend>::new(
+            Tensor::from_slice([4], &[1.0; 4]).expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let y = mul(&x, &x).expect("invariant: test operation succeeds");
+        let loss = sum(&y).expect("invariant: test operation succeeds");
         let creator = loss
             .creator
             .as_ref()

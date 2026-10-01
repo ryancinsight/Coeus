@@ -99,9 +99,21 @@ impl<
             return Ok(());
         }
 
-        let mut grad_q = need_gq.then(|| Tensor::zeros_on(self.q_clone.shape_cloned(), &backend));
-        let mut grad_k = need_gk.then(|| Tensor::zeros_on(self.k_clone.shape_cloned(), &backend));
-        let mut grad_v = need_gv.then(|| Tensor::zeros_on(self.v_clone.shape_cloned(), &backend));
+        let mut grad_q = if need_gq {
+            Some(Tensor::zeros_on(self.q_clone.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_k = if need_gk {
+            Some(Tensor::zeros_on(self.k_clone.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_v = if need_gv {
+            Some(Tensor::zeros_on(self.v_clone.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
 
         // All six borrow paths handled in coeus_ops::scaled_dot_product_attention_backward.
         coeus_ops::scaled_dot_product_attention_backward(
@@ -180,7 +192,7 @@ pub fn sdp_attention<
         || crate::grad_mode::should_track_var(value);
 
     if !requires_grad {
-        return Ok((Var::new(out_tensor, false), attn_weights));
+        return Ok((Var::new(out_tensor, false)?, attn_weights));
     }
 
     let out_var = Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
@@ -194,6 +206,6 @@ pub fn sdp_attention<
             scale,
             _mask: std::marker::PhantomData,
         }
-    });
+    })?;
     Ok((out_var, attn_weights))
 }

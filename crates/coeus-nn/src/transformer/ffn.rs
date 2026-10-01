@@ -43,19 +43,19 @@ pub(super) fn feed_forward_with_training<T: Float, B: coeus_ops::BackendOps<T> +
         .expect("invariant: feed-forward rank was validated as at least two");
     super::validation::feed_forward("FeedForward", d_model, w1, b1, w2, b2)?;
 
-    let x = linear_from_parts(input, w1, b1);
-    let x = coeus_autograd::gelu(&x);
+    let x = linear_from_parts(input, w1, b1)?;
+    let x = coeus_autograd::gelu(&x)?;
     let mut dropout = Dropout::new(dropout_p);
     dropout.set_training(is_training);
     let x = dropout.forward(&x)?;
-    Ok(linear_from_parts(&x, w2, b2))
+    Ok(linear_from_parts(&x, w2, b2)?)
 }
 
 fn linear_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: Option<&Var<T, B>>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let input_shape = input.tensor.shape();
     let in_features = weight.tensor.shape()[1];
     let out_features = weight.tensor.shape()[0];
@@ -63,11 +63,11 @@ fn linear_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         .iter()
         .copied()
         .product::<usize>();
-    let flattened = coeus_autograd::reshape(input, [rows, in_features]);
-    let weight_transposed = coeus_autograd::transpose_2d(weight);
-    let projected = coeus_autograd::matmul(&flattened, &weight_transposed);
+    let flattened = coeus_autograd::reshape(input, [rows, in_features])?;
+    let weight_transposed = coeus_autograd::transpose_2d(weight)?;
+    let projected = coeus_autograd::matmul(&flattened, &weight_transposed)?;
     let projected = match bias {
-        Some(bias) => coeus_autograd::add(&projected, bias),
+        Some(bias) => coeus_autograd::add(&projected, bias)?,
         None => projected,
     };
 

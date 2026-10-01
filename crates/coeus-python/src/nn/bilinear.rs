@@ -93,7 +93,9 @@ impl PyBilinear {
         let inner = py.allow_threads(move || {
             coeus_nn::bilinear::bilinear(&x1_v, &x2_v, &w_var, b_var.as_ref())
         });
-        Ok(PyTensor::from_var(inner))
+        inner
+            .map(PyTensor::from_var)
+            .map_err(crate::error::map_backend_error)
     }
 
     /// Return a StateDict containing the layer weights.
@@ -129,10 +131,11 @@ impl PyBilinear {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
         if let Some(ref b) = self.bias {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 }

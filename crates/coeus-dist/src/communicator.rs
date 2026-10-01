@@ -2,6 +2,18 @@ use crate::ops::ReduceOpTag;
 use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;
 
+/// Failure of a tensor collective.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum CollectiveError<C, B> {
+    /// Communication with a peer failed.
+    #[error("collective communication failed")]
+    Communicator(#[source] C),
+    /// Moving tensor storage between the backend and host failed.
+    #[error("collective backend transfer failed")]
+    Backend(#[source] B),
+}
+
 /// Abstract interface for distributed process communication.
 ///
 /// Implementations mediate synchronization, broadcasting, scattering, and reduction.
@@ -35,8 +47,10 @@ use coeus_tensor::Tensor;
 ///         let rank = comm.rank() as f32;
 ///         // rank 0 -> [1.0, 2.0], rank 1 -> [2.0, 3.0]
 ///         let mut tensor =
-///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         let Ok(()) = comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend)
+///                 .expect("invariant: example shape matches rank-local data");
+///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend)
+///             .expect("invariant: all simulated ranks enter the example collective");
 ///         // sum across ranks: [1+2, 2+3] = [3, 5]
 ///         let data = tensor.as_slice();
 ///         assert_eq!(data[0], 3.0);
@@ -76,19 +90,19 @@ pub trait Communicator: Send + Sync + 'static {
         &self,
         tensor: &mut Tensor<T, B>,
         backend: &B,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), CollectiveError<Self::Error, B::Error>>;
 
     /// Broadcast a tensor from the root process rank to all other processes in-place.
     ///
     /// # Errors
     ///
-    /// Returns [`Self::Error`] when a peer cannot be reached.
+    /// Returns [`CollectiveError`] when communication or a backend transfer fails.
     fn broadcast<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), CollectiveError<Self::Error, B::Error>>;
 
     /// Gather tensors from all processes into a slice of tensors.
     ///
@@ -96,49 +110,49 @@ pub trait Communicator: Send + Sync + 'static {
     ///
     /// # Errors
     ///
-    /// Returns [`Self::Error`] when a peer cannot be reached.
+    /// Returns [`CollectiveError`] when communication or a backend transfer fails.
     fn all_gather<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &Tensor<T, B>,
         output: &mut [Tensor<T, B>],
         backend: &B,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), CollectiveError<Self::Error, B::Error>>;
 
     /// Reduce a tensor from all processes to a single root process.
     ///
     /// # Errors
     ///
-    /// Returns [`Self::Error`] when a peer cannot be reached.
+    /// Returns [`CollectiveError`] when communication or a backend transfer fails.
     fn reduce<T: Scalar, B: ComputeBackend, Op: ReduceOpTag>(
         &self,
         tensor: &mut Tensor<T, B>,
         root: usize,
         backend: &B,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), CollectiveError<Self::Error, B::Error>>;
 
     /// Gather tensors from all processes into a single slice on the root process.
     ///
     /// # Errors
     ///
-    /// Returns [`Self::Error`] when a peer cannot be reached.
+    /// Returns [`CollectiveError`] when communication or a backend transfer fails.
     fn gather<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &Tensor<T, B>,
         output: &mut [Tensor<T, B>],
         root: usize,
         backend: &B,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), CollectiveError<Self::Error, B::Error>>;
 
     /// Scatter a slice of tensors from the root process to all processes in-place.
     ///
     /// # Errors
     ///
-    /// Returns [`Self::Error`] when a peer cannot be reached.
+    /// Returns [`CollectiveError`] when communication or a backend transfer fails.
     fn scatter<T: Scalar, B: ComputeBackend>(
         &self,
         tensor: &mut Tensor<T, B>,
         input: &[Tensor<T, B>],
         root: usize,
         backend: &B,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), CollectiveError<Self::Error, B::Error>>;
 }

@@ -10,30 +10,36 @@ impl ParameterizedElementwiseProvider for CudaBackend {
     type Operations = CudaParameterizedUnaryOps;
 }
 
-impl ElementwiseProvider<f32> for CudaBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<f32> for CudaBackend {
     type Operations = CudaElementwiseOps;
     type UnaryOperations = ActivationUnaryOperations;
 }
 
-impl ElementwiseProvider<f64> for CudaBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<f64> for CudaBackend {
     type Operations = CudaElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ElementwiseProvider<i32> for CudaBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<i32> for CudaBackend {
     type Operations = CudaElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ScalarPowerProvider<f32> for CudaBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ScalarPowerProvider<f32> for CudaBackend {
     type Operations = CudaElementwiseOps;
 }
 
-impl ScalarPowerProvider<f64> for CudaBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ScalarPowerProvider<f64> for CudaBackend {
     type Operations = CudaElementwiseOps;
 }
 
-impl<T> coeus_ops::ElementwiseOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::ElementwiseOps<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC> + bytemuck::Pod,
     CudaBackend: ElementwiseProvider<T>,
@@ -69,7 +75,8 @@ where
     }
 }
 
-impl<T> coeus_ops::ScalarPowerOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::ScalarPowerOps<T> for CudaBackend
 where
     T: Float + CudaScalar + DialectScalar<CudaC> + bytemuck::Pod,
     CudaBackend: ScalarPowerProvider<T>,

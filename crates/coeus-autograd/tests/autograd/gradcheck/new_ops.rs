@@ -21,8 +21,13 @@ use coeus_tensor::Tensor;
 fn transpose_2d_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[3, 4], 0.11);
     let w = weighting::<T>(&[4, 3]);
-    gradcheck(&[x], |v| weighted(&transpose_2d(&v[0]), &w))
-        .expect("transpose_2d backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &transpose_2d(&v[0]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("transpose_2d backward must match central differences");
 }
 
 #[test]
@@ -65,13 +70,18 @@ fn index_put_case<T: GradcheckScalar>() {
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
     let indices = Var::new(
-        Tensor::<T, MoiraiBackend>::from_slice_on([2], &index_values, &backend),
+        Tensor::<T, MoiraiBackend>::from_slice_on([2], &index_values, &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let values = tensor::<T>(&[2], 0.19);
     let w = weighting::<T>(&[4]);
     gradcheck(&[x, values], |v| {
-        weighted(&index_put(&v[0], &indices, &v[1], false), &w)
+        weighted(
+            &index_put(&v[0], &indices, &v[1], false).expect("invariant: test operation succeeds"),
+            &w,
+        )
     })
     .expect("index_put backward must match central differences");
 }
@@ -90,8 +100,13 @@ fn dropout_case<T: GradcheckScalar>() {
     // non-reproducible and the comparison meaningless.
     let x = tensor::<T>(&[8], 0.23);
     let w = weighting::<T>(&[8]);
-    gradcheck(&[x], |v| weighted(&dropout(&v[0], 0.3, true, 7), &w))
-        .expect("dropout backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &dropout(&v[0], 0.3, true, 7).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("dropout backward must match central differences");
 }
 
 #[test]
@@ -112,8 +127,10 @@ where
         .into_iter()
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
-    let a_dense = Tensor::<T, MoiraiBackend>::from_slice_on(vec![3, 4], &a_data, &backend);
-    let csr = coeus_ops::dense_to_csr(&a_dense, &backend);
+    let a_dense = Tensor::<T, MoiraiBackend>::from_slice_on(vec![3, 4], &a_data, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let csr =
+        coeus_ops::dense_to_csr(&a_dense, &backend).expect("invariant: test operation succeeds");
     let a_values = csr.values().clone();
     let col_indices = csr.col_indices().clone();
     let row_offsets = csr.row_offsets().clone();
@@ -129,7 +146,8 @@ where
                 &row_offsets,
                 coeus_core::Shape::from(vec![3, 4]),
                 &v[1],
-            ),
+            )
+            .expect("invariant: test operation succeeds"),
             &w,
         )
     })
@@ -151,8 +169,10 @@ where
         .into_iter()
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
-    let a_dense = Tensor::<T, MoiraiBackend>::from_slice_on(vec![3, 4], &a_data, &backend);
-    let coo = coeus_ops::dense_to_coo(&a_dense, &backend);
+    let a_dense = Tensor::<T, MoiraiBackend>::from_slice_on(vec![3, 4], &a_data, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let coo =
+        coeus_ops::dense_to_coo(&a_dense, &backend).expect("invariant: test operation succeeds");
     let a_values = coo.values().clone();
     let indices = coo.indices().clone();
     let shape = coo.shape().clone();
@@ -162,7 +182,8 @@ where
 
     gradcheck(&[a_values, b], |v| {
         weighted(
-            &sparse_matmul_coo(&v[0], &indices, shape.clone(), &v[1]),
+            &sparse_matmul_coo(&v[0], &indices, shape.clone(), &v[1])
+                .expect("invariant: test operation succeeds"),
             &w,
         )
     })
@@ -196,7 +217,7 @@ where
     let w = weighting::<T>(&[1]);
 
     gradcheck(&[logits], |v| {
-        let log_probs = log_softmax(&v[0], 2);
+        let log_probs = log_softmax(&v[0], 2).expect("invariant: test operation succeeds");
         let loss = ctc_loss(&log_probs, &targets, &input_lengths, &target_lengths, blank)
             .expect("invariant: valid ctc fixture completes forward");
         weighted(&loss, &w)
@@ -222,8 +243,10 @@ fn linear_interpolation_case() {
         .into_iter()
         .map(|value| value as f32)
         .collect();
-    let image = Tensor::from_slice_on([1, 1, 4, 4], &image_values, &backend);
-    let grid = Tensor::from_slice_on([1, 2, 2, 1], &[0.37_f32, 2.63, 1.19, 1.81], &backend);
+    let image = Tensor::from_slice_on([1, 1, 4, 4], &image_values, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let grid = Tensor::from_slice_on([1, 2, 2, 1], &[0.37_f32, 2.63, 1.19, 1.81], &backend)
+        .expect("invariant: test backend operation succeeds");
     // Only the image is differentiated here: the grid's own gradient is
     // covered by the analytical checks in `autograd_ops::interpolation`, and
     // gradcheck perturbs every input it is given, so mixing a coordinate
@@ -232,9 +255,12 @@ fn linear_interpolation_case() {
     let w = weighting::<f32>(&[1, 1, 2, 1]);
 
     gradcheck(&[image], |v| {
-        let sampled =
-            linear_interpolation::<2, _, _>(&v[0], &Var::new(grid.clone(), false), Replicate)
-                .expect("invariant: valid interpolation fixture completes forward");
+        let sampled = linear_interpolation::<2, _, _>(
+            &v[0],
+            &Var::new(grid.clone(), false).expect("invariant: test backend operation succeeds"),
+            Replicate,
+        )
+        .expect("invariant: valid interpolation fixture completes forward");
         weighted(&sampled, &w)
     })
     .expect("linear_interpolation backward must match central differences");

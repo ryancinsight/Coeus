@@ -9,7 +9,7 @@ Date: 2026-08-26
 `Linear::new` sets every weight to `1.0` and every bias to `0.0`:
 
 ```rust
-let w_tensor = Tensor::ones_on(w_shape, &backend);
+let w_tensor = Tensor::ones_on(w_shape, &backend)?;
 ```
 
 A layer built this way has identical rows, so every unit in it computes the

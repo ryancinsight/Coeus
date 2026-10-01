@@ -12,9 +12,12 @@ fn cross_entropy_dispatches_with_cuda_value_and_gradient_parity() {
             1.5_f32, 0.5, -0.5, 0.25, -1.0, 2.0, 0.0, 0.75, 3.0, -2.0, 1.0, 0.0,
         ],
         &cpu,
-    );
-    let cpu_logits = Var::new(logits.clone(), true);
-    let cuda_logits = Var::new(to_gpu(&logits, &cpu, &cuda), true);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let cpu_logits =
+        Var::new(logits.clone(), true).expect("invariant: test backend operation succeeds");
+    let cuda_logits = Var::new(to_gpu(&logits, &cpu, &cuda), true)
+        .expect("invariant: test backend operation succeeds");
     let targets = [0_usize, 1, 2];
 
     let invalid_target = coeus_nn::cross_entropy_loss(&cuda_logits, &[0, 1, 4]);

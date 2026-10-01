@@ -1,12 +1,17 @@
-use crate::tensor::PyTensor;
+use crate::{error::map_backend_error, tensor::PyTensor};
 use coeus_core::MoiraiBackend;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pyfunction]
-pub fn gather(input: &PyTensor, dim: usize, index: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn gather(
+    input: &PyTensor,
+    dim: usize,
+    index: &PyTensor,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::gather(&input.inner, dim, &index.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -16,25 +21,31 @@ pub fn scatter_add(
     index: &PyTensor,
     src: &PyTensor,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let x = input.inner.clone();
     let idx = index.inner.clone();
     let s = src.inner.clone();
     // Tracked so gradients flow to both the destination and the scattered
     // source (torch scatter_add autograd contract).
     let inner = py.allow_threads(move || coeus_autograd::scatter_add(&x, dim, &idx, &s));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn repeat_interleave(input: &PyTensor, repeats: usize, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn repeat_interleave(
+    input: &PyTensor,
+    repeats: usize,
+    dim: usize,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let backend = MoiraiBackend::new();
     let t = py.allow_threads(|| {
         coeus_ops::repeat_interleave(&input.inner.tensor, repeats, dim, &backend)
     });
-    PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    }
+    let t = t.map_err(map_backend_error)?;
+    coeus_autograd::Var::new(t, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -57,17 +68,18 @@ pub fn index_select(
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::index_select(&input.inner, dim, &index.inner));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn nonzero(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn nonzero(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let backend = MoiraiBackend::new();
     let t = py
         .allow_threads(|| coeus_ops::nonzero::<f64, MoiraiBackend>(&input.inner.tensor, &backend));
-    PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    }
+    let t = t.map_err(map_backend_error)?;
+    coeus_autograd::Var::new(t, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -85,7 +97,7 @@ pub fn masked_fill(
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::masked_fill(&input.inner, &mask.inner, value));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -94,10 +106,10 @@ pub fn where_cond(
     on_true: &PyTensor,
     on_false: &PyTensor,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let inner = py
         .allow_threads(|| coeus_autograd::where_cond(&cond.inner, &on_true.inner, &on_false.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -110,7 +122,7 @@ pub fn tril(input: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::tril(&input.inner, k as isize));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -123,7 +135,7 @@ pub fn triu(input: &PyTensor, k: i64, py: Python<'_>) -> PyResult<PyTensor> {
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::triu(&input.inner, k as isize));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -150,13 +162,20 @@ pub fn roll(
     }
     let shifts_isize: Vec<isize> = shifts.iter().map(|&s| s as isize).collect();
     let inner = py.allow_threads(move || coeus_autograd::roll(&input.inner, &shifts_isize, &dims));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn split(input: &PyTensor, chunk_size: usize, dim: usize, py: Python<'_>) -> Vec<PyTensor> {
+pub fn split(
+    input: &PyTensor,
+    chunk_size: usize,
+    dim: usize,
+    py: Python<'_>,
+) -> PyResult<Vec<PyTensor>> {
     let inner_chunks = py.allow_threads(|| coeus_autograd::split(&input.inner, chunk_size, dim));
-    inner_chunks.into_iter().map(PyTensor::from_var).collect()
+    inner_chunks
+        .map(|chunks| chunks.into_iter().map(PyTensor::from_var).collect())
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -184,7 +203,9 @@ pub fn chunk(
     }
     let chunk_size = dim_size.div_ceil(chunks);
     let inner_chunks = py.allow_threads(|| coeus_autograd::split(&input.inner, chunk_size, dim));
-    Ok(inner_chunks.into_iter().map(PyTensor::from_var).collect())
+    inner_chunks
+        .map(|chunks| chunks.into_iter().map(PyTensor::from_var).collect())
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -195,7 +216,11 @@ pub fn one_hot(input: &PyTensor, num_classes: usize, py: Python<'_>) -> PyResult
             input.inner.tensor.ndim()
         )));
     }
-    let indices = input.inner.tensor.to_contiguous();
+    let indices = input
+        .inner
+        .tensor
+        .to_contiguous()
+        .map_err(map_backend_error)?;
     for &value in indices.as_slice() {
         if !value.is_finite() || value < 0.0 || value.fract() != 0.0 {
             return Err(PyValueError::new_err(format!(
@@ -213,7 +238,10 @@ pub fn one_hot(input: &PyTensor, num_classes: usize, py: Python<'_>) -> PyResult
     let tensor = py.allow_threads(|| {
         coeus_ops::one_hot::<f64, MoiraiBackend>(&input.inner.tensor, num_classes, &backend)
     });
-    Ok(PyTensor::from_var(coeus_autograd::Var::new(tensor, false)))
+    let tensor = tensor.map_err(map_backend_error)?;
+    coeus_autograd::Var::new(tensor, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -233,11 +261,14 @@ pub fn masked_select(input: &PyTensor, mask: &PyTensor, py: Python<'_>) -> PyRes
             &backend,
         )
     });
-    Ok(PyTensor::from_var(coeus_autograd::Var::new(tensor, false)))
+    let tensor = tensor.map_err(map_backend_error)?;
+    coeus_autograd::Var::new(tensor, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn cat(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn cat(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let rust_inputs: Vec<coeus_autograd::Var<f64>> = inputs
         .iter()
         .map(|t| t.bind(py).borrow().inner.clone())
@@ -246,11 +277,11 @@ pub fn cat(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyTen
         let ref_inputs: Vec<&coeus_autograd::Var<f64>> = rust_inputs.iter().collect();
         coeus_autograd::cat(&ref_inputs, dim)
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn stack(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn stack(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let rust_inputs: Vec<coeus_autograd::Var<f64>> = inputs
         .iter()
         .map(|t| t.bind(py).borrow().inner.clone())
@@ -259,7 +290,7 @@ pub fn stack(inputs: Vec<pyo3::Py<PyTensor>>, dim: usize, py: Python<'_>) -> PyT
         let ref_inputs: Vec<&coeus_autograd::Var<f64>> = rust_inputs.iter().collect();
         coeus_autograd::stack(&ref_inputs, dim)
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Scatter-assign `values` into `input` at row indices given by `indices`.
@@ -286,5 +317,5 @@ pub fn index_put(
     // Tracked so gradients flow to both the destination and the inserted
     // values (torch index_put autograd contract).
     let inner = py.allow_threads(move || coeus_autograd::index_put(&x, &idx, &vals, accumulate));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }

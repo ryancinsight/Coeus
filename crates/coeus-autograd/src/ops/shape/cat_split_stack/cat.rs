@@ -91,7 +91,7 @@ where
 pub fn cat<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     inputs: &[&Var<T, B>],
     dim: usize,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -101,7 +101,7 @@ where
 
     let split_sizes: Vec<usize> = inputs.iter().map(|v| v.tensor.shape()[dim]).collect();
     let tensors: Vec<&Tensor<T, B>> = inputs.iter().map(|v| &v.tensor).collect();
-    let out_tensor = coeus_ops::cat(&tensors, dim);
+    let out_tensor = coeus_ops::cat(&tensors, dim)?;
 
     let requires_grad = inputs.iter().any(|v| crate::grad_mode::should_track_var(v));
     if !requires_grad {
@@ -112,7 +112,7 @@ where
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_shape.clone(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = CatNode {
@@ -124,9 +124,9 @@ where
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

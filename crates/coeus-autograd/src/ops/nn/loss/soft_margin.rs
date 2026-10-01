@@ -44,25 +44,25 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
         let backend = B::default();
         // d/d_input = -target * sigmoid(-m) / n
         // d/d_target = -input * sigmoid(-m) / n
-        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
-        let neg_margin = coeus_ops::neg(&self.margin, &backend);
-        let sig = coeus_ops::sigmoid(&neg_margin, &backend);
-        let scaled_sig = coeus_ops::mul(&sig, &scale, &backend);
+        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
+        let neg_margin = coeus_ops::neg(&self.margin, &backend)?;
+        let sig = coeus_ops::sigmoid(&neg_margin, &backend)?;
+        let scaled_sig = coeus_ops::mul(&sig, &scale, &backend)?;
 
         if let Some(Some(ref g)) = input_grads.first() {
             let d_input = coeus_ops::mul(
-                &coeus_ops::neg(&self.inputs[1].tensor, &backend),
+                &coeus_ops::neg(&self.inputs[1].tensor, &backend)?,
                 &scaled_sig,
                 &backend,
-            );
+            )?;
             coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
             let d_target = coeus_ops::mul(
-                &coeus_ops::neg(&self.inputs[0].tensor, &backend),
+                &coeus_ops::neg(&self.inputs[0].tensor, &backend)?,
                 &scaled_sig,
                 &backend,
-            );
+            )?;
             coeus_ops::add_assign(g.write(), &d_target, &backend)?;
         }
         Ok(())
@@ -79,7 +79,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
 pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         input.tensor.shape(),
@@ -91,19 +91,19 @@ pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let shape = input.tensor.shape_cloned();
 
     // m = target * input; loss = softplus(-m), all on-provider.
-    let margin = coeus_ops::mul(&target.tensor, &input.tensor, &backend);
-    let neg_margin = coeus_ops::neg(&margin, &backend);
-    let per_elem = coeus_ops::softplus(&neg_margin, &backend);
-    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty soft-margin reduction has axis zero");
+    let margin = coeus_ops::mul(&target.tensor, &input.tensor, &backend)?;
+    let neg_margin = coeus_ops::neg(&margin, &backend)?;
+    let per_elem = coeus_ops::softplus(&neg_margin, &backend)?;
+    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
+    let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
     let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = SoftMarginNode {
             output_grad,
@@ -111,15 +111,15 @@ pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             margin,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale,
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -129,9 +129,11 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     fn stable_softplus(x: f64) -> f64 {
@@ -148,7 +150,7 @@ mod tests {
         //   m = [1, 2, 0.5]; loss = mean(softplus(-m)).
         let input = var_from(&[1.0, -2.0, 0.5]);
         let target = var_from(&[1.0, -1.0, 1.0]);
-        let loss = soft_margin(&input, &target);
+        let loss = soft_margin(&input, &target).expect("invariant: test operation succeeds");
         let expected =
             (stable_softplus(-1.0) + stable_softplus(-2.0) + stable_softplus(-0.5)) / 3.0;
         assert_eq!(loss.tensor.shape(), &[1]);
@@ -161,7 +163,7 @@ mod tests {
         // d/dtarget = -input*sigmoid(-m)/n.
         let input = var_from(&[1.0, -2.0, 0.5]);
         let target = var_from(&[1.0, -1.0, 1.0]);
-        let loss = soft_margin(&input, &target);
+        let loss = soft_margin(&input, &target).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let input_grad = input.grad().expect("input must receive a gradient");
         let target_grad = target.grad().expect("target must receive a gradient");
@@ -211,6 +213,6 @@ mod tests {
     fn soft_margin_rejects_shape_mismatch() {
         let input = var_from(&[1.0, 2.0]);
         let target = var_from(&[1.0]);
-        let _ = soft_margin(&input, &target);
+        let _ = soft_margin(&input, &target).expect("invariant: test operation succeeds");
     }
 }

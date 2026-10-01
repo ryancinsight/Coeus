@@ -22,7 +22,8 @@ fn test_tcp_all_reduce() {
             let backend = SequentialBackend::new();
 
             let mut tensor =
-                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend);
+                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend)
+                    .expect("invariant: test backend operation succeeds");
             comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend)
                 .unwrap();
 
@@ -53,8 +54,9 @@ fn test_tcp_broadcast() {
 
             let mut tensor = if rank == 0 {
                 Tensor::from_slice_on([2], &[10.0f32, 20.0], &backend)
+                    .expect("invariant: test backend operation succeeds")
             } else {
-                Tensor::zeros_on([2], &backend)
+                Tensor::zeros_on([2], &backend).expect("invariant: test backend operation succeeds")
             };
 
             comm.broadcast(&mut tensor, 0, &backend).unwrap();
@@ -84,10 +86,13 @@ fn test_tcp_all_gather() {
             let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
-            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend);
+            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend)
+                .expect("invariant: test backend operation succeeds");
             let mut output = vec![
-                Tensor::zeros_on([1], &backend),
-                Tensor::zeros_on([1], &backend),
+                Tensor::zeros_on([1], &backend)
+                    .expect("invariant: test backend operation succeeds"),
+                Tensor::zeros_on([1], &backend)
+                    .expect("invariant: test backend operation succeeds"),
             ];
 
             comm.all_gather(&tensor, &mut output, &backend).unwrap();
@@ -139,7 +144,8 @@ fn test_tcp_reduce() {
             let backend = SequentialBackend::new();
 
             let mut tensor =
-                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend);
+                Tensor::from_slice_on([2], &[(rank + 1) as f32, (rank + 2) as f32], &backend)
+                    .expect("invariant: test backend operation succeeds");
             comm.reduce::<f32, _, Sum>(&mut tensor, 1, &backend)
                 .unwrap();
 
@@ -173,7 +179,8 @@ fn test_tcp_reduce_sum_wraps_on_integer_overflow_from_a_peer() {
             let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
             let local = if rank == 0 { 1_i32 } else { i32::MAX };
-            let mut tensor = Tensor::from_slice_on([1], &[local], &backend);
+            let mut tensor = Tensor::from_slice_on([1], &[local], &backend)
+                .expect("invariant: test backend operation succeeds");
             comm.reduce::<i32, _, Sum>(&mut tensor, 0, &backend)
                 .unwrap();
             if rank == 0 {
@@ -200,7 +207,8 @@ fn test_tcp_reduce_product_wraps_on_integer_overflow_from_a_peer() {
             let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
             let local = if rank == 0 { 2_i32 } else { i32::MAX };
-            let mut tensor = Tensor::from_slice_on([1], &[local], &backend);
+            let mut tensor = Tensor::from_slice_on([1], &[local], &backend)
+                .expect("invariant: test backend operation succeeds");
             comm.reduce::<i32, _, Product>(&mut tensor, 0, &backend)
                 .unwrap();
             if rank == 0 {
@@ -226,11 +234,14 @@ fn test_tcp_gather() {
             let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
-            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend);
+            let tensor = Tensor::from_slice_on([1], &[(rank * 100) as f32], &backend)
+                .expect("invariant: test backend operation succeeds");
             let mut output = if rank == 1 {
                 vec![
-                    Tensor::zeros_on([1], &backend),
-                    Tensor::zeros_on([1], &backend),
+                    Tensor::zeros_on([1], &backend)
+                        .expect("invariant: test backend operation succeeds"),
+                    Tensor::zeros_on([1], &backend)
+                        .expect("invariant: test backend operation succeeds"),
                 ]
             } else {
                 vec![]
@@ -264,11 +275,14 @@ fn test_tcp_scatter() {
             let mut comm = TcpCommunicator::new(mesh);
             let backend = SequentialBackend::new();
 
-            let mut tensor = Tensor::zeros_on([1], &backend);
+            let mut tensor = Tensor::zeros_on([1], &backend)
+                .expect("invariant: test backend operation succeeds");
             let input = if rank == 0 {
                 vec![
-                    Tensor::from_slice_on([1], &[100.0], &backend),
-                    Tensor::from_slice_on([1], &[200.0], &backend),
+                    Tensor::from_slice_on([1], &[100.0], &backend)
+                        .expect("invariant: test backend operation succeeds"),
+                    Tensor::from_slice_on([1], &[200.0], &backend)
+                        .expect("invariant: test backend operation succeeds"),
                 ]
             } else {
                 vec![]

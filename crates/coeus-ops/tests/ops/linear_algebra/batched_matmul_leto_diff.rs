@@ -41,6 +41,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
@@ -67,7 +68,8 @@ where
 
     let a_tensor = tensor_from_slice::<T, B>(&[2, 2, 3], &a, backend);
     let b_tensor = tensor_from_slice::<T, B>(&[2, 3, 2], &b, backend);
-    let got = coeus_ops::matmul(&a_tensor, &b_tensor, backend);
+    let got = coeus_ops::matmul(&a_tensor, &b_tensor, backend)
+        .expect("invariant: test operation succeeds");
     let expected = batched_reference(&a, 2, 2, 3, &b, 2, 2);
 
     assert_eq!(got.shape(), &[2, 2, 2]);
@@ -88,7 +90,8 @@ where
 
     let a_tensor = tensor_from_slice::<T, B>(&[2, 2, 3], &a, backend);
     let b_tensor = tensor_from_slice::<T, B>(&[3, 2], &b, backend);
-    let got = coeus_ops::matmul(&a_tensor, &b_tensor, backend);
+    let got = coeus_ops::matmul(&a_tensor, &b_tensor, backend)
+        .expect("invariant: test operation succeeds");
     let expected = batched_reference(&a, 2, 2, 3, &b, 2, 1);
 
     assert_eq!(got.shape(), &[2, 2, 2]);

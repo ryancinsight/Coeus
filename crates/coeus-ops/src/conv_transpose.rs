@@ -80,8 +80,8 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
     let k = weight.shape()[2];
     let l_out = conv_transpose1d_output_len(l, k, stride, padding, output_padding, dilation);
 
-    let mut output = Tensor::zeros_on([n, c_out, l_out], backend);
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
+    let mut output = Tensor::zeros_on([n, c_out, l_out], backend)?;
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
     backend.conv_transpose1d(
         input.storage(),
         input.layout(),
@@ -134,8 +134,8 @@ pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
     let (h_out, w_out) =
         conv_transpose2d_output_dims(h, w, kh, kw, stride, padding, output_padding, dilation);
 
-    let mut output = Tensor::zeros_on([n, c_out, h_out, w_out], backend);
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
+    let mut output = Tensor::zeros_on([n, c_out, h_out, w_out], backend)?;
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
     backend.conv_transpose2d(
         input.storage(),
         input.layout(),
@@ -229,8 +229,8 @@ pub fn conv_transpose3d<T: Float, B: BackendOps<T> + Default>(
         dilation,
     );
 
-    let mut output = Tensor::zeros_on([n, c_out, d_out, h_out, w_out], backend);
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
+    let mut output = Tensor::zeros_on([n, c_out, d_out, h_out, w_out], backend)?;
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
     backend.conv_transpose3d(
         input.storage(),
         input.layout(),
@@ -257,9 +257,11 @@ mod tests {
     fn conv_transpose1d_identity_kernel() {
         // stride=1, padding=0, dilation=1, kernel=[1]: output = input
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![1, 1, 4], &[1.0f32, 2.0, 3.0, 4.0]);
+        let input = Tensor::from_slice(vec![1, 1, 4], &[1.0f32, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
         // weight [C_in=1, C_out=1, K=1] = [[[1]]]
-        let weight = Tensor::from_slice(vec![1, 1, 1], &[1.0f32]);
+        let weight = Tensor::from_slice(vec![1, 1, 1], &[1.0f32])
+            .expect("invariant: test backend operation succeeds");
         let out = conv_transpose1d(&input, &weight, None, 1, 0, 0, 1, &b)
             .expect("identity transposed convolution must succeed");
         assert_eq!(out.shape(), &[1, 1, 4]);
@@ -271,8 +273,10 @@ mod tests {
         // stride=2: each input position emits to alternating output positions.
         // input [1,1,3]=[1,2,3], weight [1,1,1]=[1] → output [1,1,5]=[1,0,2,0,3]
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![1, 1, 3], &[1.0f32, 2.0, 3.0]);
-        let weight = Tensor::from_slice(vec![1, 1, 1], &[1.0f32]);
+        let input = Tensor::from_slice(vec![1, 1, 3], &[1.0f32, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let weight = Tensor::from_slice(vec![1, 1, 1], &[1.0f32])
+            .expect("invariant: test backend operation succeeds");
         let out = conv_transpose1d(&input, &weight, None, 2, 0, 0, 1, &b)
             .expect("strided transposed convolution must succeed");
         assert_eq!(out.shape(), &[1, 1, 5]);
@@ -282,8 +286,10 @@ mod tests {
     #[test]
     fn conv_transpose2d_identity_kernel() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![1, 1, 2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
-        let weight = Tensor::from_slice(vec![1, 1, 1, 1], &[1.0f32]);
+        let input = Tensor::from_slice(vec![1, 1, 2, 2], &[1.0f32, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let weight = Tensor::from_slice(vec![1, 1, 1, 1], &[1.0f32])
+            .expect("invariant: test backend operation succeeds");
         let out = conv_transpose2d(&input, &weight, None, 1, 0, 0, 1, &b)
             .expect("identity transposed convolution must succeed");
         assert_eq!(out.shape(), &[1, 1, 2, 2]);

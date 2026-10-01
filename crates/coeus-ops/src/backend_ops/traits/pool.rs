@@ -11,8 +11,17 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 /// [`BackendOps`].  Backends implement `PoolOps` directly; the
 /// blanket impl provides `BackendOps` automatically.
 ///
+/// # Safety
+///
+/// On `Ok(())`, each forward method (`max_pool1d`, `avg_pool1d`,
+/// `max_pool2d`, `avg_pool2d`, `max_pool3d`, and `avg_pool3d`) must write every
+/// logical output element described by its output layout without reading
+/// prior output contents. Backward methods require initialized gradient
+/// destinations. An error may leave destinations partially written; callers
+/// must discard uninitialized destinations on error.
+///
 /// [`BackendOps`]: super::super::BackendOps
-pub trait PoolOps<T: Scalar>: ComputeBackend {
+pub unsafe trait PoolOps<T: Scalar>: ComputeBackend {
     /// 1D Max Pooling over `[N, C, L]` input.
     /// # Errors
     ///

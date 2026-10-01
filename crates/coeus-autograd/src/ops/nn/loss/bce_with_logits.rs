@@ -39,19 +39,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let scale = coeus_ops::mul(grad_out, &self.scale, &backend);
+        let scale = coeus_ops::mul(grad_out, &self.scale, &backend)?;
 
         // d/d_logit = (sigmoid(z) - y) / n, with all arithmetic on the
         // selected provider.
         if let Some(Some(gradient)) = input_grads.first() {
-            let grad_logits = coeus_ops::mul(&self.sig_minus_target, &scale, &backend);
+            let grad_logits = coeus_ops::mul(&self.sig_minus_target, &scale, &backend)?;
             coeus_ops::add_assign(gradient.write(), &grad_logits, &backend)?;
         }
 
         // d/d_target = -z / n, with the logits retained as a provider tensor.
         if let Some(Some(gradient)) = input_grads.get(1) {
-            let neg_logits = coeus_ops::neg(&self.logits, &backend);
-            let grad_target = coeus_ops::mul(&neg_logits, &scale, &backend);
+            let neg_logits = coeus_ops::neg(&self.logits, &backend)?;
+            let grad_target = coeus_ops::mul(&neg_logits, &scale, &backend)?;
             coeus_ops::add_assign(gradient.write(), &grad_target, &backend)?;
         }
 
@@ -68,7 +68,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         logits.tensor.shape(),
@@ -81,28 +81,27 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     // Stable BCE-with-logits expression. Each operation remains in the
     // backend's provider implementation: Leto for CPU and Hephaestus for
     // accelerator backends.
-    let positive_logits = coeus_ops::relu(&logits.tensor, &backend);
-    let absolute_logits = coeus_ops::abs(&logits.tensor, &backend);
-    let negative_absolute_logits = coeus_ops::neg(&absolute_logits, &backend);
-    let exponential_tail = coeus_ops::exp(&negative_absolute_logits, &backend);
-    let log_tail = coeus_ops::log1p(&exponential_tail, &backend);
-    let weighted_target = coeus_ops::mul(&logits.tensor, &target.tensor, &backend);
-    let signed_terms = coeus_ops::sub(&positive_logits, &weighted_target, &backend);
-    let loss_terms = coeus_ops::add(&signed_terms, &log_tail, &backend);
-    let loss = coeus_ops::mean_axis(&loss_terms.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty BCE reduction has axis zero");
+    let positive_logits = coeus_ops::relu(&logits.tensor, &backend)?;
+    let absolute_logits = coeus_ops::abs(&logits.tensor, &backend)?;
+    let negative_absolute_logits = coeus_ops::neg(&absolute_logits, &backend)?;
+    let exponential_tail = coeus_ops::exp(&negative_absolute_logits, &backend)?;
+    let log_tail = coeus_ops::log1p(&exponential_tail, &backend)?;
+    let weighted_target = coeus_ops::mul(&logits.tensor, &target.tensor, &backend)?;
+    let signed_terms = coeus_ops::sub(&positive_logits, &weighted_target, &backend)?;
+    let loss_terms = coeus_ops::add(&signed_terms, &log_tail, &backend)?;
+    let loss = coeus_ops::mean_axis(&loss_terms.reshape([n]), 0, &backend)?;
 
     let sig_minus_target = coeus_ops::sub(
-        &coeus_ops::sigmoid(&logits.tensor, &backend),
+        &coeus_ops::sigmoid(&logits.tensor, &backend)?,
         &target.tensor,
         &backend,
-    );
+    )?;
     let mean_scale = T::one() / T::from_f64(n as f64);
-    let scale = Tensor::full_on([1], mean_scale, &backend);
+    let scale = Tensor::full_on([1], mean_scale, &backend)?;
     let requires_grad =
         crate::grad_mode::should_track_var(logits) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
@@ -122,9 +121,9 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }

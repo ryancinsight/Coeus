@@ -155,8 +155,13 @@ impl SchedulerStrategy for WarmupCosine {
 /// use coeus_optim::{Optimizer, SGD};
 /// use coeus_tensor::Tensor;
 ///
-/// let p: Var<f32> = Var::new(Tensor::from_slice(vec![1], &[1.0f32]), true);
-/// let opt = SGD::new(vec![coeus_autograd::Parameter::new(p, "weight")], 1e-3f32, 0.0f32);
+/// let p: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![1], &[1.0f32]).expect("example tensor allocation succeeds"),
+///     true,
+/// )
+/// .expect("example variable allocation succeeds");
+/// let opt = SGD::new(vec![coeus_autograd::Parameter::new(p, "weight")], 1e-3f32, 0.0f32)
+///     .expect("example optimizer allocation succeeds");
 /// let mut scheduler = LrScheduler::new(opt, StepDecay { step_size: 2, gamma: 0.5 }, 1e-3);
 ///
 /// assert!((scheduler.current_lr() - 1e-3).abs() < 1e-7); // step 0
@@ -223,8 +228,8 @@ where
 
     /// Zero gradients on the underlying optimizer.
     #[inline]
-    pub fn zero_grad(&mut self) {
-        self.optimizer.zero_grad();
+    pub fn zero_grad(&mut self) -> Result<(), B::Error> {
+        self.optimizer.zero_grad()
     }
 
     /// Current learning rate as `f64` (before any optimizer step).

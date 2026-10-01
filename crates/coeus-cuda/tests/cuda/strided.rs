@@ -13,21 +13,31 @@ fn test_cuda_strided_ops() {
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let b_data = vec![10.0f32, 20.0, 30.0];
 
-    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a_data);
-    let b_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 1], &b_data);
+    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &a_data)
+        .expect("invariant: test backend operation succeeds");
+    let b_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 1], &b_data)
+        .expect("invariant: test backend operation succeeds");
 
     let a_seq_t = a_seq.transpose();
 
-    let a_cuda_t = a_seq_t.to_backend_on(&seq, &cuda_b);
-    let b_cuda = b_seq.to_backend_on(&seq, &cuda_b);
+    let a_cuda_t = a_seq_t
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let b_cuda = b_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(a_cuda_t.shape(), &[3, 2]);
     assert_eq!(b_cuda.shape(), &[3, 1]);
 
-    let c_cuda = coeus_ops::add(&a_cuda_t, &b_cuda, &cuda_b);
-    let c_seq = c_cuda.to_backend_on(&cuda_b, &seq);
+    let c_cuda =
+        coeus_ops::add(&a_cuda_t, &b_cuda, &cuda_b).expect("invariant: test operation succeeds");
+    let c_seq = c_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
-    let c_expected = coeus_ops::add(&a_seq_t, &b_seq, &seq);
+    let c_expected =
+        coeus_ops::add(&a_seq_t, &b_seq, &seq).expect("invariant: test operation succeeds");
 
     for (i, (&res, &exp)) in c_seq
         .as_slice()
@@ -44,9 +54,11 @@ fn test_cuda_strided_ops() {
         );
     }
 
-    let u_cuda = coeus_ops::relu(&a_cuda_t, &cuda_b);
-    let u_seq = u_cuda.to_backend_on(&cuda_b, &seq);
-    let u_expected = coeus_ops::relu(&a_seq_t, &seq);
+    let u_cuda = coeus_ops::relu(&a_cuda_t, &cuda_b).expect("invariant: test operation succeeds");
+    let u_seq = u_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
+    let u_expected = coeus_ops::relu(&a_seq_t, &seq).expect("invariant: test operation succeeds");
 
     for (i, (&res, &exp)) in u_seq
         .as_slice()
@@ -75,9 +87,13 @@ fn test_cuda_strided_activation_tail_matches_cpu() {
     let data = [
         -2.0_f32, -1.5, -1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0,
     ];
-    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data).transpose();
-    let gpu_base =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data).to_backend_on(&seq, &cuda);
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data)
+        .expect("invariant: test backend operation succeeds")
+        .transpose();
+    let gpu_base = Tensor::<f32, SequentialBackend>::from_slice(vec![3, 4], &data)
+        .expect("invariant: test backend operation succeeds")
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
     let gpu = gpu_base.transpose();
 
     for operation in [
@@ -90,7 +106,8 @@ fn test_cuda_strided_activation_tail_matches_cpu() {
             .expect("valid CPU strided activation-tail input");
         let actual = coeus_ops::elementwise_unary(&gpu, &cuda, operation)
             .expect("valid CUDA strided activation-tail input")
-            .to_backend_on(&cuda, &seq);
+            .to_backend_on(&cuda, &seq)
+            .expect("invariant: test backend transfer succeeds");
 
         for (index, (&reference, &candidate)) in expected
             .as_slice()
@@ -117,44 +134,54 @@ fn test_cuda_f64_comparisons_match_cpu() {
     let cuda = CudaBackend::new();
     let lhs_values = [-2.0_f64, -0.5, 0.0, 0.5, 2.0, 3.0];
     let rhs_values = [-1.0_f64, -0.5, 0.25, 0.5, 4.0, 3.0];
-    let lhs = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &lhs_values).transpose();
-    let rhs = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &rhs_values).transpose();
-    let lhs_cuda = lhs.to_backend_on(&sequential, &cuda);
-    let rhs_cuda = rhs.to_backend_on(&sequential, &cuda);
+    let lhs = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &lhs_values)
+        .expect("invariant: test backend operation succeeds")
+        .transpose();
+    let rhs = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &rhs_values)
+        .expect("invariant: test backend operation succeeds")
+        .transpose();
+    let lhs_cuda = lhs
+        .to_backend_on(&sequential, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let rhs_cuda = rhs
+        .to_backend_on(&sequential, &cuda)
+        .expect("invariant: test backend transfer succeeds");
 
     for (operation, cpu, gpu) in [
         (
             "eq",
-            coeus_ops::eq(&lhs, &rhs, &sequential),
-            coeus_ops::eq(&lhs_cuda, &rhs_cuda, &cuda),
+            coeus_ops::eq(&lhs, &rhs, &sequential).expect("invariant: test operation succeeds"),
+            coeus_ops::eq(&lhs_cuda, &rhs_cuda, &cuda).expect("invariant: test operation succeeds"),
         ),
         (
             "ne",
-            coeus_ops::ne(&lhs, &rhs, &sequential),
-            coeus_ops::ne(&lhs_cuda, &rhs_cuda, &cuda),
+            coeus_ops::ne(&lhs, &rhs, &sequential).expect("invariant: test operation succeeds"),
+            coeus_ops::ne(&lhs_cuda, &rhs_cuda, &cuda).expect("invariant: test operation succeeds"),
         ),
         (
             "lt",
-            coeus_ops::lt(&lhs, &rhs, &sequential),
-            coeus_ops::lt(&lhs_cuda, &rhs_cuda, &cuda),
+            coeus_ops::lt(&lhs, &rhs, &sequential).expect("invariant: test operation succeeds"),
+            coeus_ops::lt(&lhs_cuda, &rhs_cuda, &cuda).expect("invariant: test operation succeeds"),
         ),
         (
             "gt",
-            coeus_ops::gt(&lhs, &rhs, &sequential),
-            coeus_ops::gt(&lhs_cuda, &rhs_cuda, &cuda),
+            coeus_ops::gt(&lhs, &rhs, &sequential).expect("invariant: test operation succeeds"),
+            coeus_ops::gt(&lhs_cuda, &rhs_cuda, &cuda).expect("invariant: test operation succeeds"),
         ),
         (
             "le",
-            coeus_ops::le(&lhs, &rhs, &sequential),
-            coeus_ops::le(&lhs_cuda, &rhs_cuda, &cuda),
+            coeus_ops::le(&lhs, &rhs, &sequential).expect("invariant: test operation succeeds"),
+            coeus_ops::le(&lhs_cuda, &rhs_cuda, &cuda).expect("invariant: test operation succeeds"),
         ),
         (
             "ge",
-            coeus_ops::ge(&lhs, &rhs, &sequential),
-            coeus_ops::ge(&lhs_cuda, &rhs_cuda, &cuda),
+            coeus_ops::ge(&lhs, &rhs, &sequential).expect("invariant: test operation succeeds"),
+            coeus_ops::ge(&lhs_cuda, &rhs_cuda, &cuda).expect("invariant: test operation succeeds"),
         ),
     ] {
-        let gpu = gpu.to_backend_on(&cuda, &sequential);
+        let gpu = gpu
+            .to_backend_on(&cuda, &sequential)
+            .expect("invariant: test backend transfer succeeds");
         assert_eq!(
             gpu.as_slice(),
             cpu.as_slice(),
@@ -171,9 +198,13 @@ fn test_cuda_strided_parameterized_activations_match_cpu() {
     let sequential = SequentialBackend::new();
     let backend = CudaBackend::new();
     let values = [-2.0_f32, -1.0, -0.5, 0.0, 0.25, 0.5, 1.0, 2.0];
-    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &values).transpose();
+    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &values)
+        .expect("invariant: test backend operation succeeds")
+        .transpose();
     let device_input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &values)
+        .expect("invariant: test backend operation succeeds")
         .to_backend_on(&sequential, &backend)
+        .expect("invariant: test backend transfer succeeds")
         .transpose();
     let hardtanh = u64::from((-1.0_f32).to_bits()) | (u64::from(1.0_f32.to_bits()) << 32);
     let threshold = u64::from(0.25_f32.to_bits()) | (u64::from((-0.5_f32).to_bits()) << 32);
@@ -188,7 +219,8 @@ fn test_cuda_strided_parameterized_activations_match_cpu() {
             .expect("valid CPU strided parameterized activation");
         let actual = coeus_ops::elementwise_unary(&device_input, &backend, operation)
             .expect("valid CUDA strided parameterized activation")
-            .to_backend_on(&backend, &sequential);
+            .to_backend_on(&backend, &sequential)
+            .expect("invariant: test backend transfer succeeds");
 
         assert_eq!(actual.as_slice(), expected.as_slice(), "{operation:?}");
     }

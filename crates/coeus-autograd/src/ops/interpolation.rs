@@ -3,7 +3,7 @@
 use crate::{grad_buffer::GradBuffer, node::BackwardNode, var::Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_ops::{
-    linear_interpolation_backward, BoundaryPolicy, Dimension, InterpolationError, Replicate,
+    linear_interpolation_backward, BoundaryPolicy, Dimension, InterpolationFailure, Replicate,
     SupportedDimension,
 };
 use coeus_tensor::Tensor;
@@ -85,7 +85,7 @@ pub fn linear_interpolation<const D: usize, B, P>(
     image: &Var<f32, B>,
     grid: &Var<f32, B>,
     policy: P,
-) -> Result<Var<f32, B>, InterpolationError>
+) -> Result<Var<f32, B>, InterpolationFailure<B::Error>>
 where
     B: Backend + coeus_ops::BackendOps<f32> + Default,
     P: BoundaryPolicy + Send + Sync + 'static,
@@ -96,22 +96,20 @@ where
     let requires_grad =
         crate::grad_mode::should_track_var(image) || crate::grad_mode::should_track_var(grid);
     if !requires_grad {
-        return Ok(Var::new(output, false));
+        return Var::new(output, false).map_err(InterpolationFailure::Backend);
     }
 
     let backend = B::default();
-    Ok(Var::from_tracked_op(
-        output,
-        requires_grad,
-        &backend,
-        |output_grad| LinearInterpolationNode::<D, B, P> {
+    Var::from_tracked_op(output, requires_grad, &backend, |output_grad| {
+        LinearInterpolationNode::<D, B, P> {
             output_grad,
             inputs: vec![image.clone(), grid.clone()],
             image: image.tensor.clone(),
             grid: grid.tensor.clone(),
             policy: PhantomData,
-        },
-    ))
+        }
+    })
+    .map_err(InterpolationFailure::Backend)
 }
 
 // ── 3-D grid-sample (trilinear warp), PyTorch `grid_sample` semantics ──
@@ -258,14 +256,17 @@ fn sample_zeros(
     input[volume_offset(vol, n, c, iz as usize, iy as usize, ix as usize)]
 }
 
-fn grid_sample_3d_forward<B>(input: &Tensor<f32, B>, grid: &Tensor<f32, B>) -> Tensor<f32, B>
+fn grid_sample_3d_forward<B>(
+    input: &Tensor<f32, B>,
+    grid: &Tensor<f32, B>,
+) -> Result<Tensor<f32, B>, B::Error>
 where
     B: Backend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     let (vol, out) = parse_shapes(input.shape(), grid.shape());
-    let input = input.to_contiguous();
-    let grid = grid.to_contiguous();
+    let input = input.to_contiguous()?;
+    let grid = grid.to_contiguous()?;
     let image = input.as_slice();
     let coords = grid.as_slice();
 
@@ -319,19 +320,23 @@ where
 }
 
 /// Reverse mode for [`grid_sample_3d`]: gradients for `(input, grid)`.
+#[expect(
+    clippy::type_complexity,
+    reason = "the reverse pass returns gradients for both differentiable inputs"
+)]
 fn grid_sample_3d_backward<B>(
     input: &Tensor<f32, B>,
     grid: &Tensor<f32, B>,
     grad_output: &Tensor<f32, B>,
-) -> (Tensor<f32, B>, Tensor<f32, B>)
+) -> Result<(Tensor<f32, B>, Tensor<f32, B>), B::Error>
 where
     B: Backend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     let (vol, out) = parse_shapes(input.shape(), grid.shape());
-    let input = input.to_contiguous();
-    let grid = grid.to_contiguous();
-    let grad_output = grad_output.to_contiguous();
+    let input = input.to_contiguous()?;
+    let grid = grid.to_contiguous()?;
+    let grad_output = grad_output.to_contiguous()?;
     let image = input.as_slice();
     let coords = grid.as_slice();
     let upstream = grad_output.as_slice();
@@ -429,10 +434,10 @@ where
     }
 
     let backend = B::default();
-    (
-        Tensor::from_slice_on(input.shape().to_vec(), &input_grad, &backend),
-        Tensor::from_slice_on(grid.shape().to_vec(), &grid_grad, &backend),
-    )
+    Ok((
+        Tensor::from_slice_on(input.shape().to_vec(), &input_grad, &backend)?,
+        Tensor::from_slice_on(grid.shape().to_vec(), &grid_grad, &backend)?,
+    ))
 }
 
 /// Reverse-mode node for [`grid_sample_3d`].
@@ -468,7 +473,7 @@ where
         grad_out: &Tensor<f32, B>,
         input_grads: &[Option<Arc<GradBuffer<f32, B>>>],
     ) -> Result<(), B::Error> {
-        let (input_grad, grid_grad) = grid_sample_3d_backward(&self.input, &self.grid, grad_out);
+        let (input_grad, grid_grad) = grid_sample_3d_backward(&self.input, &self.grid, grad_out)?;
         let backend = B::default();
         if let Some(Some(gradient)) = input_grads.first() {
             coeus_ops::add_assign(gradient.write(), &input_grad, &backend)?;
@@ -509,13 +514,12 @@ where
 /// # Panics
 /// If `input` is not rank-5, `grid` is not rank-5 with last dim 3, the batch
 /// extents differ, or an `input` spatial extent is zero.
-#[must_use]
-pub fn grid_sample_3d<B>(input: &Var<f32, B>, grid: &Var<f32, B>) -> Var<f32, B>
+pub fn grid_sample_3d<B>(input: &Var<f32, B>, grid: &Var<f32, B>) -> Result<Var<f32, B>, B::Error>
 where
     B: Backend + coeus_ops::BackendOps<f32> + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
-    let output = grid_sample_3d_forward(&input.tensor, &grid.tensor);
+    let output = grid_sample_3d_forward(&input.tensor, &grid.tensor)?;
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(grid);
     if !requires_grad {

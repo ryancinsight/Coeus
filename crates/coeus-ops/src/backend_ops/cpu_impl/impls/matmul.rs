@@ -3,7 +3,8 @@ use super::super::CpuBackend;
 use crate::backend_ops::traits::MatmulOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> MatmulOps<T> for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> MatmulOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

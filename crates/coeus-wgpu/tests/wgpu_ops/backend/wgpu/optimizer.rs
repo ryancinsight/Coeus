@@ -36,8 +36,11 @@ fn pair<const N: usize>(
     wgpu: &WgpuBackend,
     data: &[f32; N],
 ) -> (Tensor<f32, SequentialBackend>, Tensor<f32, WgpuBackend>) {
-    let cpu = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), data);
-    let gpu = cpu.to_backend_on(seq, wgpu);
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), data)
+        .expect("invariant: test backend operation succeeds");
+    let gpu = cpu
+        .to_backend_on(seq, wgpu)
+        .expect("invariant: test backend operation succeeds");
     (cpu, gpu)
 }
 
@@ -51,25 +54,30 @@ fn test_wgpu_sgd_step() {
     let (lr, momentum) = (0.05f32, 0.9f32);
 
     {
-        let (p, pl) = p_c.storage_mut_and_layout();
-        let (vel, vl) = vel_c.storage_mut_and_layout();
+        let (p, pl) = p_c.storage_mut_and_layout()?;
+        let (vel, vl) = vel_c.storage_mut_and_layout()?;
         seq.sgd_step(p, pl, g_c.storage(), g_c.layout(), vel, vl, lr, momentum)
             .expect("CPU SGD step");
     }
     {
-        let (p, pl) = p_g.storage_mut_and_layout();
-        let (vel, vl) = vel_g.storage_mut_and_layout();
+        let (p, pl) = p_g.storage_mut_and_layout()?;
+        let (vel, vl) = vel_g.storage_mut_and_layout()?;
         wgpu.sgd_step(p, pl, g_g.storage(), g_g.layout(), vel, vl, lr, momentum)
             .expect("WGPU SGD step");
     }
     assert_close(
         "sgd_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "sgd_velocity",
-        vel_g.to_backend_on(&wgpu, &seq).as_slice(),
+        vel_g
+            .to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         vel_c.as_slice(),
     );
 }
@@ -80,33 +88,42 @@ fn test_wgpu_sgd_ranks_zero_through_eight() {
     let wgpu = WgpuBackend::new();
     for rank in 0..=8 {
         let shape = vec![1; rank];
-        let mut p_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[2.0]);
-        let g_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[1.0]);
-        let mut v_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[0.0]);
-        let mut p_g = p_c.to_backend_on(&seq, &wgpu);
-        let g_g = g_c.to_backend_on(&seq, &wgpu);
-        let mut v_g = v_c.to_backend_on(&seq, &wgpu);
+        let mut p_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[2.0])
+            .expect("invariant: test backend operation succeeds");
+        let g_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[1.0])
+            .expect("invariant: test backend operation succeeds");
+        let mut v_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[0.0])
+            .expect("invariant: test backend operation succeeds");
+        let mut p_g = p_c
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let g_g = g_c
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let mut v_g = v_c
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
         let pl = p_c.layout().clone();
         let gl = g_c.layout().clone();
         let vl = v_c.layout().clone();
 
         seq.sgd_step(
-            p_c.storage_mut(),
+            p_c.storage_mut()?,
             &pl,
             g_c.storage(),
             &gl,
-            v_c.storage_mut(),
+            v_c.storage_mut()?,
             &vl,
             0.1,
             0.0,
         )
         .unwrap_or_else(|error| panic!("rank-{rank} CPU SGD failed: {error}"));
         wgpu.sgd_step(
-            p_g.storage_mut(),
+            p_g.storage_mut()?,
             &pl,
             g_g.storage(),
             &gl,
-            v_g.storage_mut(),
+            v_g.storage_mut()?,
             &vl,
             0.1,
             0.0,
@@ -115,12 +132,16 @@ fn test_wgpu_sgd_ranks_zero_through_eight() {
 
         assert_close(
             &format!("rank-{rank} parameter"),
-            p_g.to_backend_on(&wgpu, &seq).as_slice(),
+            p_g.to_backend_on(&wgpu, &seq)
+                .expect("invariant: test backend operation succeeds")
+                .as_slice(),
             p_c.as_slice(),
         );
         assert_close(
             &format!("rank-{rank} velocity"),
-            v_g.to_backend_on(&wgpu, &seq).as_slice(),
+            v_g.to_backend_on(&wgpu, &seq)
+                .expect("invariant: test backend operation succeeds")
+                .as_slice(),
             v_c.as_slice(),
         );
     }
@@ -137,9 +158,9 @@ fn test_wgpu_adam_step() {
     let (lr, beta1, beta2, eps, t) = (0.05f32, 0.9f32, 0.99f32, 1e-6f32, 3usize);
 
     {
-        let (p, pl) = p_c.storage_mut_and_layout();
-        let (m, ml) = m_c.storage_mut_and_layout();
-        let (v, vl) = v_c.storage_mut_and_layout();
+        let (p, pl) = p_c.storage_mut_and_layout()?;
+        let (m, ml) = m_c.storage_mut_and_layout()?;
+        let (v, vl) = v_c.storage_mut_and_layout()?;
         seq.adam_step(
             p,
             pl,
@@ -158,9 +179,9 @@ fn test_wgpu_adam_step() {
         .expect("CPU Adam step");
     }
     {
-        let (p, pl) = p_g.storage_mut_and_layout();
-        let (m, ml) = m_g.storage_mut_and_layout();
-        let (v, vl) = v_g.storage_mut_and_layout();
+        let (p, pl) = p_g.storage_mut_and_layout()?;
+        let (m, ml) = m_g.storage_mut_and_layout()?;
+        let (v, vl) = v_g.storage_mut_and_layout()?;
         wgpu.adam_step(
             p,
             pl,
@@ -180,17 +201,23 @@ fn test_wgpu_adam_step() {
     }
     assert_close(
         "adam_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "adam_m",
-        m_g.to_backend_on(&wgpu, &seq).as_slice(),
+        m_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         m_c.as_slice(),
     );
     assert_close(
         "adam_v",
-        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         v_c.as_slice(),
     );
 }
@@ -205,25 +232,29 @@ fn test_wgpu_rmsprop_step() {
     let (lr, alpha, eps) = (0.05f32, 0.99f32, 1e-6f32);
 
     {
-        let (p, pl) = p_c.storage_mut_and_layout();
-        let (v, vl) = v_c.storage_mut_and_layout();
+        let (p, pl) = p_c.storage_mut_and_layout()?;
+        let (v, vl) = v_c.storage_mut_and_layout()?;
         seq.rmsprop_step(p, pl, g_c.storage(), g_c.layout(), v, vl, lr, alpha, eps)
             .expect("CPU RMSProp step");
     }
     {
-        let (p, pl) = p_g.storage_mut_and_layout();
-        let (v, vl) = v_g.storage_mut_and_layout();
+        let (p, pl) = p_g.storage_mut_and_layout()?;
+        let (v, vl) = v_g.storage_mut_and_layout()?;
         wgpu.rmsprop_step(p, pl, g_g.storage(), g_g.layout(), v, vl, lr, alpha, eps)
             .expect("WGPU RMSProp step");
     }
     assert_close(
         "rmsprop_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "rmsprop_v",
-        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         v_c.as_slice(),
     );
 }
@@ -238,25 +269,29 @@ fn test_wgpu_adagrad_step() {
     let (lr, eps) = (0.05f32, 1e-6f32);
 
     {
-        let (p, pl) = p_c.storage_mut_and_layout();
-        let (h, hl) = h_c.storage_mut_and_layout();
+        let (p, pl) = p_c.storage_mut_and_layout()?;
+        let (h, hl) = h_c.storage_mut_and_layout()?;
         seq.adagrad_step(p, pl, g_c.storage(), g_c.layout(), h, hl, lr, eps)
             .expect("CPU AdaGrad step");
     }
     {
-        let (p, pl) = p_g.storage_mut_and_layout();
-        let (h, hl) = h_g.storage_mut_and_layout();
+        let (p, pl) = p_g.storage_mut_and_layout()?;
+        let (h, hl) = h_g.storage_mut_and_layout()?;
         wgpu.adagrad_step(p, pl, g_g.storage(), g_g.layout(), h, hl, lr, eps)
             .expect("WGPU AdaGrad step");
     }
     assert_close(
         "adagrad_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "adagrad_history",
-        h_g.to_backend_on(&wgpu, &seq).as_slice(),
+        h_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         h_c.as_slice(),
     );
 }
@@ -272,9 +307,9 @@ fn test_wgpu_adamw_step() {
     let (lr, beta1, beta2, eps, wd, t) = (0.05f32, 0.9f32, 0.99f32, 1e-6f32, 0.02f32, 3usize);
 
     {
-        let (p, pl) = p_c.storage_mut_and_layout();
-        let (m, ml) = m_c.storage_mut_and_layout();
-        let (v, vl) = v_c.storage_mut_and_layout();
+        let (p, pl) = p_c.storage_mut_and_layout()?;
+        let (m, ml) = m_c.storage_mut_and_layout()?;
+        let (v, vl) = v_c.storage_mut_and_layout()?;
         seq.adamw_step(
             p,
             pl,
@@ -294,9 +329,9 @@ fn test_wgpu_adamw_step() {
         .expect("CPU AdamW step");
     }
     {
-        let (p, pl) = p_g.storage_mut_and_layout();
-        let (m, ml) = m_g.storage_mut_and_layout();
-        let (v, vl) = v_g.storage_mut_and_layout();
+        let (p, pl) = p_g.storage_mut_and_layout()?;
+        let (m, ml) = m_g.storage_mut_and_layout()?;
+        let (v, vl) = v_g.storage_mut_and_layout()?;
         wgpu.adamw_step(
             p,
             pl,
@@ -317,17 +352,23 @@ fn test_wgpu_adamw_step() {
     }
     assert_close(
         "adamw_p",
-        p_g.to_backend_on(&wgpu, &seq).as_slice(),
+        p_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         p_c.as_slice(),
     );
     assert_close(
         "adamw_m",
-        m_g.to_backend_on(&wgpu, &seq).as_slice(),
+        m_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         m_c.as_slice(),
     );
     assert_close(
         "adamw_v",
-        v_g.to_backend_on(&wgpu, &seq).as_slice(),
+        v_g.to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds")
+            .as_slice(),
         v_c.as_slice(),
     );
 }

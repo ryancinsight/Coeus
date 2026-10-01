@@ -3,7 +3,14 @@ use coeus_core::{ComputeBackend, Scalar};
 use hephaestus_core::{ComputeDevice, HephaestusError, SlidingWindowOps};
 
 /// Provider-owned sliding-window operation marker.
-pub trait UnfoldFoldProvider<T>: HephaestusProvider
+///
+/// # Safety
+///
+/// Successful unfold operations selected by `Operations` must initialize
+/// every logical column output without reading prior contents. Fold operations
+/// must zero their spatial output before accumulating. A dispatch error may
+/// leave an output partially written.
+pub unsafe trait UnfoldFoldProvider<T>: HephaestusProvider
 where
     T: Scalar + leto_ops::Scalar,
 {
@@ -55,10 +62,10 @@ where
     }
 
     fn unfold_fold_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        crate::error::invalid_configuration_error(operation, reason)
+        P::Error::from(crate::error::invalid_configuration_error(operation, reason))
     }
 
     fn unfold_fold_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        HephaestusBackendError::device(operation, source)
+        P::Error::from(HephaestusBackendError::device(operation, source))
     }
 }

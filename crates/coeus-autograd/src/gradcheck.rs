@@ -283,14 +283,19 @@ impl Default for GradcheckConfig {
 /// use coeus_tensor::Tensor;
 ///
 /// let backend = MoiraiBackend::new();
-/// let x = Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[0.5, -1.25, 2.0], &backend);
+/// let x = Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[0.5, -1.25, 2.0], &backend)
+///     .expect("invariant: example shape matches data");
 /// // A non-uniform weighting keeps the probed gradient away from zero.
 /// let w = Var::new(
-///     Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, -2.0, 0.5], &backend),
+///     Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, -2.0, 0.5], &backend)
+///         .expect("invariant: example shape matches data"),
 ///     false,
-/// );
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 ///
-/// gradcheck(&[x], |v| sum(&mul(&v[0], &w))).expect("weighted sum is differentiable");
+/// gradcheck(&[x], |v| {
+///     let product = mul(&v[0], &w).expect("invariant: equal-shaped example operands multiply");
+///     sum(&product).expect("invariant: example reduction succeeds")
+/// }).expect("invariant: weighted sum is differentiable");
 /// ```
 pub fn gradcheck<T, B, F>(inputs: &[Tensor<T, B>], loss_fn: F) -> Result<(), GradcheckError>
 where
@@ -329,7 +334,8 @@ where
     let tracked: Vec<Var<T, B>> = inputs
         .iter()
         .map(|tensor| Var::new(tensor.clone(), true))
-        .collect();
+        .collect::<Result<_, _>>()
+        .map_err(|error: B::Error| GradcheckError::Backward(error.to_string()))?;
     let loss = loss_fn(&tracked);
     if loss.tensor.numel() != 1 {
         return Err(GradcheckError::NonScalarLoss {
@@ -373,8 +379,12 @@ where
             let center = widen(perturber.base[element]);
             let step = step_factor * center.abs().max(1.0);
 
-            let plus = perturber.evaluate(element, center + step);
-            let minus = perturber.evaluate(element, center - step);
+            let plus = perturber
+                .evaluate(element, center + step)
+                .map_err(|error| GradcheckError::Backward(error.to_string()))?;
+            let minus = perturber
+                .evaluate(element, center - step)
+                .map_err(|error| GradcheckError::Backward(error.to_string()))?;
 
             // Realized denominator: `center ± step` was rounded into `T`, so the
             // step actually taken differs from `2·step` by a representation
@@ -477,11 +487,11 @@ where
     ///
     /// Gradient tracking is off: only the forward value is needed, so no tape
     /// is built for the `2 · numel` perturbation evaluations.
-    fn evaluate(&self, element: usize, value: f64) -> Perturbed {
+    fn evaluate(&self, element: usize, value: f64) -> Result<Perturbed, B::Error> {
         let mut data = self.base.clone();
         data[element] = narrow::<T>(value);
         let perturbed = widen(data[element]);
-        let replaced = Tensor::from_slice_on(self.shape.clone(), &data, self.backend);
+        let replaced = Tensor::from_slice_on(self.shape.clone(), &data, self.backend)?;
 
         let vars: Vec<Var<T, B>> = self
             .inputs
@@ -495,12 +505,12 @@ where
                 };
                 Var::new(source, false)
             })
-            .collect();
+            .collect::<Result<_, _>>()?;
 
-        Perturbed {
+        Ok(Perturbed {
             loss: widen((self.loss_fn)(&vars).tensor.as_slice()[0]),
             perturbed,
-        }
+        })
     }
 }
 
@@ -512,25 +522,32 @@ mod tests {
 
     fn vector(values: &[f64]) -> Tensor<f64, MoiraiBackend> {
         Tensor::from_slice_on([values.len()], values, &MoiraiBackend::new())
+            .expect("invariant: test backend operation succeeds")
     }
 
     fn weights(values: &[f64]) -> Var<f64, MoiraiBackend> {
-        Var::new(vector(values), false)
+        Var::new(vector(values), false).expect("invariant: test backend operation succeeds")
     }
 
     #[test]
     fn accepts_a_correct_gradient() {
         let w = weights(&[1.0, -2.0, 0.5]);
-        gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| sum(&mul(&v[0], &w)))
-            .expect("d/dx sum(w·x) = w is exact");
+        gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| {
+            sum(&mul(&v[0], &w).expect("invariant: test operation succeeds"))
+                .expect("invariant: test operation succeeds")
+        })
+        .expect("d/dx sum(w·x) = w is exact");
     }
 
     #[test]
     fn rejects_a_vacuous_all_zero_comparison() {
         // sum(softmax(x)) is identically 1, so every gradient component is
         // exactly zero and the comparison discriminates nothing.
-        let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| sum(&softmax(&v[0], 0)))
-            .expect_err("a zero-vs-zero comparison must be rejected");
+        let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| {
+            sum(&softmax(&v[0], 0).expect("invariant: test operation succeeds"))
+                .expect("invariant: test operation succeeds")
+        })
+        .expect_err("a zero-vs-zero comparison must be rejected");
         assert!(
             matches!(error, GradcheckError::TriviallyZero { .. }),
             "expected TriviallyZero, got {error:?}"
@@ -540,8 +557,10 @@ mod tests {
     #[test]
     fn rejects_a_non_scalar_loss() {
         let w = weights(&[1.0, -2.0, 0.5]);
-        let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| mul(&v[0], &w))
-            .expect_err("a vector loss must be rejected");
+        let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| {
+            mul(&v[0], &w).expect("invariant: test operation succeeds")
+        })
+        .expect_err("a vector loss must be rejected");
         assert!(
             matches!(error, GradcheckError::NonScalarLoss { ref shape } if shape == &[3]),
             "expected NonScalarLoss([3]), got {error:?}"
@@ -559,9 +578,12 @@ mod tests {
             // call and the perturbed calls disagree, which is exactly the shape
             // of an implementation/derivation divergence.
             if v[0].grad.is_some() {
-                sum(&mul(&v[0], &truthful))
+                sum(&mul(&v[0], &truthful).expect("invariant: test operation succeeds"))
+                    .expect("invariant: test operation succeeds")
             } else {
-                sum(&mul(&v[0], &weights(&[1.0, -2.0, 1.5])))
+                sum(&mul(&v[0], &weights(&[1.0, -2.0, 1.5]))
+                    .expect("invariant: test operation succeeds"))
+                .expect("invariant: test operation succeeds")
             }
         });
         let error = analytic_only.expect_err("a divergent forward must be detected");

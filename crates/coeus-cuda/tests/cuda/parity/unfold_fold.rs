@@ -8,7 +8,8 @@ fn test_cuda_unfold_fold_matches_cpu_reference() {
     let host = Tensor::<f32, SequentialBackend>::from_slice(
         [1, 1, 3, 3],
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let device = to_gpu(&host, &sequential, &cuda);
     let cpu_unfold = coeus_ops::unfold2d(&host, 2, 2, 1, 1, 0, 0, 1, 1, &sequential)
         .expect("valid CPU unfold dispatch");
@@ -37,8 +38,10 @@ macro_rules! binary_parity {
             let Some((s, c)) = backends() else {
                 return;
             };
-            let a = Tensor::from_slice(vec![4, 4], &$a);
-            let b = Tensor::from_slice(vec![4, 4], &$b);
+            let a = Tensor::from_slice(vec![4, 4], &$a)
+                .expect("invariant: test backend operation succeeds");
+            let b = Tensor::from_slice(vec![4, 4], &$b)
+                .expect("invariant: test backend operation succeeds");
             let cpu = $op(&a, &b, &s);
             let gpu = to_cpu(&$op(&to_gpu(&a, &s, &c), &to_gpu(&b, &s, &c), &c), &c, &s);
             assert_parity_tol(stringify!($name), cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
@@ -81,7 +84,8 @@ macro_rules! unary_parity {
                 return;
             };
             let data: Vec<f32> = $data;
-            let x = Tensor::from_slice(vec![data.len()], &data);
+            let x = Tensor::from_slice(vec![data.len()], &data)
+                .expect("invariant: test backend operation succeeds");
             let cpu = $op(&x, &s);
             let gpu = to_cpu(&$op(&to_gpu(&x, &s, &c), &c), &c, &s);
             assert_parity_tol(stringify!($name), cpu.as_slice(), gpu.as_slice(), CUDA_TOL);
@@ -194,7 +198,8 @@ macro_rules! unary_grad_parity {
                 return;
             };
             let data: Vec<f32> = $data;
-            let x = Tensor::from_slice(vec![data.len()], &data);
+            let x = Tensor::from_slice(vec![data.len()], &data)
+                .expect("invariant: test backend operation succeeds");
             let cpu = coeus_ops::elementwise_unary(&x, &s, $op).expect("valid CPU unary dispatch");
             let gpu = to_cpu(
                 &coeus_ops::elementwise_unary(&to_gpu(&x, &s, &c), &c, $op)
@@ -262,7 +267,8 @@ fn assert_strided_elu_parity(op: coeus_ops::UnaryOp, operation: &'static str) {
     let data = [
         -3.0f32, -2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 3.0, -0.5, 0.5, 1.5,
     ];
-    let host = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &data);
+    let host = Tensor::<f32, SequentialBackend>::from_slice([3, 4], &data)
+        .expect("invariant: test backend operation succeeds");
     let host_transposed = host.t();
     let cpu = coeus_ops::elementwise_unary(&host_transposed, &sequential, op)
         .expect("valid CPU strided ELU dispatch");

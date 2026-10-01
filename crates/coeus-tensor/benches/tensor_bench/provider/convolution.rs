@@ -22,22 +22,27 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_input =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input)
+            .expect("invariant: test backend operation succeeds");
     let sequential_weights = Tensor::<f32, SequentialBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL],
         &weights,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let moirai_input =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, LENGTH], &input)
+            .expect("invariant: test backend operation succeeds");
     let moirai_weights = Tensor::<f32, MoiraiBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL],
         &weights,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Conv1d (2x8x128, kernel=3)");
     group.bench_function("Coeus Sequential", |bencher| {
         let mut output =
-            Tensor::<f32, SequentialBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
+            Tensor::<f32, SequentialBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH])
+                .expect("invariant: test backend operation succeeds");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             sequential_backend
@@ -50,7 +55,7 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("sequential conv1d benchmark dispatch");
@@ -59,7 +64,8 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
-            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH]);
+            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_LENGTH])
+                .expect("invariant: test backend operation succeeds");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             moirai_backend
@@ -72,7 +78,7 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("Moirai conv1d benchmark dispatch");
@@ -99,17 +105,21 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_input =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input)
+            .expect("invariant: test backend operation succeeds");
     let sequential_weights = Tensor::<f32, SequentialBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let moirai_input =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input)
+            .expect("invariant: test backend operation succeeds");
     let moirai_weights = Tensor::<f32, MoiraiBackend>::from_slice(
         [OUTPUT_CHANNELS, INPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("Conv2d (1x4x16x16, kernel=3)");
     group.bench_function("Coeus Sequential", |bencher| {
@@ -118,7 +128,8 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
             OUTPUT_CHANNELS,
             OUTPUT_SIDE,
             OUTPUT_SIDE,
-        ]);
+        ])
+        .expect("invariant: test backend operation succeeds");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             sequential_backend
@@ -131,7 +142,7 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("sequential conv2d benchmark dispatch");
@@ -140,7 +151,8 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
     });
     group.bench_function("Coeus Moirai", |bencher| {
         let mut output =
-            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE]);
+            Tensor::<f32, MoiraiBackend>::zeros([BATCH, OUTPUT_CHANNELS, OUTPUT_SIDE, OUTPUT_SIDE])
+                .expect("invariant: test backend operation succeeds");
         let output_layout = output.layout().clone();
         bencher.iter(|| {
             moirai_backend
@@ -153,7 +165,7 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("Moirai conv2d benchmark dispatch");
@@ -183,47 +195,55 @@ pub(crate) fn bench_conv_transpose2d(c: &mut Criterion) {
     let sequential_backend = SequentialBackend::new();
     let moirai_backend = MoiraiBackend::new();
     let sequential_input =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input)
+            .expect("invariant: test backend operation succeeds");
     let sequential_weights = Tensor::<f32, SequentialBackend>::from_slice(
         [INPUT_CHANNELS, OUTPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let moirai_input =
-        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input);
+        Tensor::<f32, MoiraiBackend>::from_slice([BATCH, INPUT_CHANNELS, SIDE, SIDE], &input)
+            .expect("invariant: test backend operation succeeds");
     let moirai_weights = Tensor::<f32, MoiraiBackend>::from_slice(
         [INPUT_CHANNELS, OUTPUT_CHANNELS, KERNEL, KERNEL],
         &weights,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let mut group = c.benchmark_group("ConvTranspose2d (1x4x16x16, kernel=3, stride=2)");
     group.bench_function("Coeus Sequential", |bencher| {
         bencher.iter(|| {
-            black_box(coeus_ops::conv_transpose2d(
-                black_box(&sequential_input),
-                black_box(&sequential_weights),
-                None,
-                STRIDE,
-                PADDING,
-                OUTPUT_PADDING,
-                DILATION,
-                black_box(&sequential_backend),
-            ))
-            .expect("sequential transposed convolution benchmark dispatch")
+            black_box(
+                coeus_ops::conv_transpose2d(
+                    black_box(&sequential_input),
+                    black_box(&sequential_weights),
+                    None,
+                    STRIDE,
+                    PADDING,
+                    OUTPUT_PADDING,
+                    DILATION,
+                    black_box(&sequential_backend),
+                )
+                .expect("invariant: test operation succeeds"),
+            )
         })
     });
     group.bench_function("Coeus Moirai", |bencher| {
         bencher.iter(|| {
-            black_box(coeus_ops::conv_transpose2d(
-                black_box(&moirai_input),
-                black_box(&moirai_weights),
-                None,
-                STRIDE,
-                PADDING,
-                OUTPUT_PADDING,
-                DILATION,
-                black_box(&moirai_backend),
-            ))
-            .expect("Moirai transposed convolution benchmark dispatch")
+            black_box(
+                coeus_ops::conv_transpose2d(
+                    black_box(&moirai_input),
+                    black_box(&moirai_weights),
+                    None,
+                    STRIDE,
+                    PADDING,
+                    OUTPUT_PADDING,
+                    DILATION,
+                    black_box(&moirai_backend),
+                )
+                .expect("invariant: test operation succeeds"),
+            )
         })
     });
     group.finish();

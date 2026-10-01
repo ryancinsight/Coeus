@@ -1,5 +1,6 @@
+use super::validation::{readable_storage, validate_backward, validate_forward, PoolParameters};
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{Backend, CpuAddressableStorageMut, Layout, Scalar, Storage};
 
 #[inline]
 pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
@@ -12,19 +13,31 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let n = input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let out_numel = validate_forward::<2>(
+        "avg_pool2d",
+        input_layout,
+        input.len(),
+        output_layout,
+        output.len(),
+        parameters,
+    )?;
     let c = input_layout.shape()[1];
     let h = input_layout.shape()[2];
     let w = input_layout.shape()[3];
     let h_out = output_layout.shape()[2];
     let w_out = output_layout.shape()[3];
-    let out_numel = n * c * h_out * w_out;
-
-    let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let input_slice = readable_storage("avg_pool2d", input)?;
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -75,6 +88,7 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, mean);
         }
     });
+    Ok(())
 }
 
 #[inline]
@@ -88,19 +102,34 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let n = grad_input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let counts = validate_backward::<2>(
+        "avg_pool2d_backward",
+        grad_input_layout,
+        grad_input.len(),
+        grad_out_layout,
+        grad_out.len(),
+        grad_input_layout,
+        grad_input.len(),
+        parameters,
+    )?;
+    let numel_in = counts.input;
     let c = grad_input_layout.shape()[1];
     let h = grad_input_layout.shape()[2];
     let w = grad_input_layout.shape()[3];
     let h_out = grad_out_layout.shape()[2];
     let w_out = grad_out_layout.shape()[3];
-    let numel_in = n * c * h * w;
-
-    let go_slice = grad_out.as_slice();
-    let gi_slice = grad_input.as_mut_slice();
+    let go_slice = readable_storage("avg_pool2d_backward", grad_out)?;
+    let gi_slice = grad_input.as_mut_slice()?;
 
     let go_ptr = Ptr(go_slice.as_ptr());
     let gi_ptr = MutPtr(gi_slice.as_mut_ptr());
@@ -166,6 +195,7 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
             gi_ptr.write(gi_idx, old + sum);
         }
     });
+    Ok(())
 }
 
 #[inline]
@@ -179,10 +209,24 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let n = input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let out_numel = validate_forward::<3>(
+        "avg_pool3d",
+        input_layout,
+        input.len(),
+        output_layout,
+        output.len(),
+        parameters,
+    )?;
     let c = input_layout.shape()[1];
     let d = input_layout.shape()[2];
     let h = input_layout.shape()[3];
@@ -190,10 +234,8 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
     let d_out = output_layout.shape()[2];
     let h_out = output_layout.shape()[3];
     let w_out = output_layout.shape()[4];
-    let out_numel = n * c * d_out * h_out * w_out;
-
-    let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let input_slice = readable_storage("avg_pool3d", input)?;
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -256,6 +298,7 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, mean);
         }
     });
+    Ok(())
 }
 
 #[inline]
@@ -269,10 +312,27 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let n = grad_input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let counts = validate_backward::<3>(
+        "avg_pool3d_backward",
+        grad_input_layout,
+        grad_input.len(),
+        grad_out_layout,
+        grad_out.len(),
+        grad_input_layout,
+        grad_input.len(),
+        parameters,
+    )?;
+    let numel_in = counts.input;
     let c = grad_input_layout.shape()[1];
     let d = grad_input_layout.shape()[2];
     let h = grad_input_layout.shape()[3];
@@ -280,10 +340,8 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
     let d_out = grad_out_layout.shape()[2];
     let h_out = grad_out_layout.shape()[3];
     let w_out = grad_out_layout.shape()[4];
-    let numel_in = n * c * d * h * w;
-
-    let go_slice = grad_out.as_slice();
-    let gi_slice = grad_input.as_mut_slice();
+    let go_slice = readable_storage("avg_pool3d_backward", grad_out)?;
+    let gi_slice = grad_input.as_mut_slice()?;
 
     let go_ptr = Ptr(go_slice.as_ptr());
     let gi_ptr = MutPtr(gi_slice.as_mut_ptr());
@@ -369,4 +427,5 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
             gi_ptr.write(gi_idx, old + sum);
         }
     });
+    Ok(())
 }

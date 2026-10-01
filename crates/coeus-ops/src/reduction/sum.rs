@@ -14,7 +14,8 @@ use coeus_tensor::Tensor;
 /// use coeus_ops::sum;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+///     .expect("example tensor allocation succeeds");
 /// let result = sum(&a, &backend).expect("valid sum inputs");
 /// assert!((result - 21.0).abs() < 1e-5);
 /// ```
@@ -29,12 +30,12 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
     let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([a.numel()])
     } else {
-        let contiguous = a.to_contiguous_on(backend);
+        let contiguous = a.to_contiguous_on(backend)?;
         contiguous.reshape([a.numel()])
     };
     let reduced = sum_axis(&reshaped, 0, backend)?;
     let mut host_scalar = [T::zero()];
-    backend.copy_to_host(reduced.storage(), &mut host_scalar);
+    backend.copy_to_host(reduced.storage(), &mut host_scalar)?;
     Ok(host_scalar[0])
 }
 
@@ -48,7 +49,8 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
 /// use coeus_ops::sum_axis;
 ///
 /// let backend = SequentialBackend::new();
-/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let a = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+///     .expect("example tensor allocation succeeds");
 /// let result = sum_axis(&a, 1, &backend).expect("valid reduction axis");
 /// assert_eq!(result.shape(), &[2, 1]);
 /// assert_eq!(result.as_slice(), &[6.0, 15.0]);
@@ -70,9 +72,10 @@ pub fn sum_axis<T: Scalar, B: ReductionOps<T> + Default>(
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(out_shape, backend) }?;
 
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.reduce(
         ReductionOp::Sum,
         a.storage(),
@@ -103,9 +106,10 @@ pub fn max_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(out_shape, backend) }?;
 
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.reduce(
         ReductionOp::Max,
         a.storage(),
@@ -136,9 +140,10 @@ pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(out_shape, backend) }?;
 
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.reduce(
         ReductionOp::Min,
         a.storage(),
@@ -168,11 +173,11 @@ pub fn amax<T: Scalar, B: BackendOps<T> + Default>(
     let flat = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([a.numel()])
     } else {
-        a.to_contiguous_on(backend).reshape([a.numel()])
+        a.to_contiguous_on(backend)?.reshape([a.numel()])
     };
     let reduced = max_axis(&flat, 0, backend)?;
     let mut host = [T::zero()];
-    backend.copy_to_host(reduced.storage(), &mut host);
+    backend.copy_to_host(reduced.storage(), &mut host)?;
     Ok(host[0])
 }
 
@@ -193,10 +198,10 @@ pub fn amin<T: Scalar, B: BackendOps<T> + Default>(
     let flat = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([a.numel()])
     } else {
-        a.to_contiguous_on(backend).reshape([a.numel()])
+        a.to_contiguous_on(backend)?.reshape([a.numel()])
     };
     let reduced = min_axis(&flat, 0, backend)?;
     let mut host = [T::zero()];
-    backend.copy_to_host(reduced.storage(), &mut host);
+    backend.copy_to_host(reduced.storage(), &mut host)?;
     Ok(host[0])
 }

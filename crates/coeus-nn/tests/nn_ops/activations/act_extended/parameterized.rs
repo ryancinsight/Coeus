@@ -38,14 +38,18 @@ fn prelu_forward_and_backward() {
         .collect();
 
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let weight = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1], &[alpha]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1], &[alpha])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = prelu(&input, &weight);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = prelu(&input, &weight).expect("invariant: test operation succeeds");
     assert_close_slice("prelu_forward", output.tensor.as_slice(), &expected, 1e-12);
     output
         .backward()
@@ -64,18 +68,23 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
     // place, detached (copy-on-write) from the clone taken via parameters(),
     // so without PReLU::load_parameters writing the update back into
     // module.weight, the module's own field would silently stay unchanged.
-    let mut module = PReLU::<f64, MoiraiBackend>::new(1, 0.25);
+    let mut module =
+        PReLU::<f64, MoiraiBackend>::new(1, 0.25).expect("invariant: test operation succeeds");
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = module.forward(&x).expect("valid PReLU input"); // prelu([-2,3], w=0.25) = [-0.5, 3.0]
     coeus_autograd::sum(&output)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
 
     let lr = 0.1;
-    let mut opt = SGD::new(module.named_parameters(), lr, 0.0);
+    let mut opt =
+        SGD::new(module.named_parameters(), lr, 0.0).expect("invariant: test operation succeeds");
     opt.step().expect("optimizer step");
     module
         .load_named_parameters(&opt.params)
@@ -88,9 +97,11 @@ fn prelu_module_weight_learns_via_optimizer_round_trip() {
     // The updated weight must actually be used on the next forward pass:
     // prelu([-2,3], w=0.45) = [-0.9, 3.0].
     let x2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[-2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let output2 = module.forward(&x2).expect("valid PReLU input");
     assert_close_slice(
         "prelu_after_sgd_step",
@@ -111,10 +122,12 @@ fn leaky_relu_kink_at_zero_returns_slope() {
     let data = vec![0.0_f64];
     let slope = 0.01_f64;
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = coeus_nn::leaky_relu(&input, slope);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = coeus_nn::leaky_relu(&input, slope).expect("valid leaky ReLU input");
     assert_close_slice(
         "leaky_relu_kink_out",
         output.tensor.as_slice(),
@@ -140,10 +153,12 @@ fn clamp_kink_at_boundary_returns_one() {
     let hi = 2.0_f64;
     let data = vec![-1.0_f64, 2.0_f64]; // exact min and exact max
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data),
+        Tensor::<f64, MoiraiBackend>::from_slice([data.len()], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let output = coeus_autograd::clamp(&input, lo, hi);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let output = coeus_autograd::clamp(&input, lo, hi).expect("invariant: test operation succeeds");
     // Forward at the boundary is unchanged (clamp(x, x, x) = x).
     assert_close_slice("clamp_kink_out", output.tensor.as_slice(), &data, 1e-12);
     output

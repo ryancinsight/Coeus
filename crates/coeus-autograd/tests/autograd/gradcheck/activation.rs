@@ -32,7 +32,7 @@ use coeus_autograd::{
     log, log10, log1p, log2, mish, pow, prelu, recip, relu, selu, sigmoid, silu, sin, sinh,
     softplus, softshrink, softsign, sqrt, tan, tanh, threshold, Var,
 };
-use coeus_core::MoiraiBackend;
+use coeus_core::{BackendError, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// Shape every element-wise check uses.
@@ -44,12 +44,15 @@ const SHAPE: [usize; 2] = [3, 4];
 /// module documentation of the parent module.
 fn check<T: GradcheckScalar>(
     sampler: &Sampler,
-    op: impl Fn(&Var<T, MoiraiBackend>) -> Var<T, MoiraiBackend>,
+    op: impl Fn(&Var<T, MoiraiBackend>) -> Result<Var<T, MoiraiBackend>, BackendError>,
 ) {
     let x = sampler.tensor::<T>(&SHAPE);
     let w = weighting::<T>(&SHAPE);
-    gradcheck(&[x], |v| weighted(&op(&v[0]), &w))
-        .expect("activation backward must match central differences");
+    gradcheck(&[x], |v| {
+        let output = op(&v[0]).expect("invariant: gradcheck backend operation succeeds");
+        weighted(&output, &w)
+    })
+    .expect("activation backward must match central differences");
 }
 
 /// Samples in `(-0.9, 0.9)`, for ops smooth across the origin.
@@ -429,11 +432,14 @@ fn relu_negative_branch_zero_case<T: GradcheckScalar>() {
     // comparison as vacuous. The claim is therefore asserted directly — the
     // gradient must be exactly zero, not merely small.
     let x = Sampler::new(0.54, -1.8, -0.2).tensor::<T>(&SHAPE);
-    let tracked = Var::new(x, true);
+    let tracked = Var::new(x, true).expect("invariant: test backend operation succeeds");
     let w = weighting::<T>(&SHAPE);
-    weighted(&relu(&tracked), &w)
-        .backward()
-        .expect("relu backward completes");
+    weighted(
+        &relu(&tracked).expect("invariant: test operation succeeds"),
+        &w,
+    )
+    .backward()
+    .expect("relu backward completes");
     let grad = tracked.grad().expect("input must receive a gradient");
     let zero = <T as coeus_core::Scalar>::from_f64(0.0);
     for (index, &component) in grad.as_slice().iter().enumerate() {
@@ -631,11 +637,17 @@ fn prelu_below_kink_case<T: GradcheckScalar>() {
         [1],
         &[<T as coeus_core::Scalar>::from_f64(0.25)],
         &MoiraiBackend::new(),
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let w = weighting::<T>(&SHAPE);
 
-    gradcheck(&[x, slope], |v| weighted(&prelu(&v[0], &v[1]), &w))
-        .expect("prelu backward must match central differences");
+    gradcheck(&[x, slope], |v| {
+        weighted(
+            &prelu(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("prelu backward must match central differences");
 }
 
 #[test]

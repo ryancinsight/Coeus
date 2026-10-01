@@ -122,7 +122,7 @@ pub fn transformer_decoder_layer<
         params.self_attn_residual_dropout_p,
         params.self_attn_residual_training,
     )?;
-    let x = coeus_autograd::add(tgt, &dropped1);
+    let x = coeus_autograd::add(tgt, &dropped1)?;
 
     let normed2 = super::normalization::layer_norm_three_dimensional(
         MODULE,
@@ -143,7 +143,7 @@ pub fn transformer_decoder_layer<
         params.cross_attn_residual_dropout_p,
         params.cross_attn_residual_training,
     )?;
-    let x = coeus_autograd::add(&x, &dropped2);
+    let x = coeus_autograd::add(&x, &dropped2)?;
 
     let normed3 = super::normalization::layer_norm_three_dimensional(
         MODULE,
@@ -166,7 +166,7 @@ pub fn transformer_decoder_layer<
         params.ffn_residual_dropout_p,
         params.ffn_residual_training,
     )?;
-    Ok(coeus_autograd::add(&x, &dropped3))
+    Ok(coeus_autograd::add(&x, &dropped3)?)
 }
 
 /// Single Transformer decoder layer.
@@ -228,13 +228,13 @@ impl<
         B: coeus_ops::RandomInitOps<T>,
     {
         Ok(Self {
-            norm1: LayerNorm::new(d_model, 1e-5),
+            norm1: LayerNorm::new(d_model, 1e-5)?,
             self_attn: MultiHeadAttention::new(d_model, true)?,
             dropout1: Dropout::new(dropout_p),
-            norm2: LayerNorm::new(d_model, 1e-5),
+            norm2: LayerNorm::new(d_model, 1e-5)?,
             cross_attn: MultiHeadAttention::new(d_model, true)?,
             dropout2: Dropout::new(dropout_p),
-            norm3: LayerNorm::new(d_model, 1e-5),
+            norm3: LayerNorm::new(d_model, 1e-5)?,
             ffn: FeedForward::new(d_model, d_ff, dropout_p)?,
             dropout3: Dropout::new(dropout_p),
         })

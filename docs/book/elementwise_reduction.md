@@ -6,11 +6,11 @@ Elementwise ops apply a function independently to each element.
 In autograd, they register a backward node that computes the gradient.
 
 ```rust,ignore
-let c = &a + &b;        // AddOp
-let d = &a * &b;        // MulOp
-let e = a.relu();       // ReluOp
-let f = a.gelu();       // GeluOp
-let g = a.sigmoid();    // SigmoidOp
+let c = (&a + &b)?;                       // AddOp
+let d = (&a * &b)?;                       // MulOp
+let e = coeus::autograd::relu(&a)?;       // ReluOp
+let f = coeus::autograd::gelu(&a)?;       // GeluOp
+let g = coeus::autograd::sigmoid(&a)?;    // SigmoidOp
 ```
 
 All arithmetic operators (`+`, `-`, `*`, `/`) are overloaded on
@@ -21,7 +21,7 @@ All arithmetic operators (`+`, `-`, `*`, `/`) are overloaded on
 Reductions collapse one or more axes:
 
 ```rust,ignore
-let total = a.sum();              // scalar sum over all elements
+let total = a.sum()?;             // scalar sum over all elements
 let row_sums = a.sum_axis(1)?;   // sum along axis 1 -> shape [M]
 let mean     = a.mean_axis(0)?;  // mean along axis 0 -> shape [N]
 let max_val  = a.max_axis(2)?;   // max along axis 2
@@ -42,6 +42,6 @@ let cumsum = a.scan_sum(0)?;   // cumulative sum along axis 0
 ## Norm Operations
 
 ```rust,ignore
-let l2 = a.norm2();               // Euclidean norm (scalar)
-let frobenius = a.norm_frobenius(); // Frobenius norm
+let l2 = a.norm2()?;                 // Euclidean norm (scalar)
+let frobenius = a.norm_frobenius()?; // Frobenius norm
 ```

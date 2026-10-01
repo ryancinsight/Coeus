@@ -58,13 +58,16 @@ fn sdpa_forward_shape_null_mask() {
     let d_k = 8;
     let d_v = 8;
 
-    let q = Tensor::<f32, B>::ones_on([batch, seq_q, d_k], &backend);
-    let k = Tensor::<f32, B>::ones_on([batch, seq_k, d_k], &backend);
-    let v = Tensor::<f32, B>::ones_on([batch, seq_k, d_v], &backend);
+    let q = Tensor::<f32, B>::ones_on([batch, seq_q, d_k], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let k = Tensor::<f32, B>::ones_on([batch, seq_k, d_k], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let v = Tensor::<f32, B>::ones_on([batch, seq_k, d_v], &backend)
+        .expect("invariant: test backend operation succeeds");
 
-    let q_var = Var::new(q, true);
-    let k_var = Var::new(k, true);
-    let v_var = Var::new(v, true);
+    let q_var = Var::new(q, true).expect("invariant: test backend operation succeeds");
+    let k_var = Var::new(k, true).expect("invariant: test backend operation succeeds");
+    let v_var = Var::new(v, true).expect("invariant: test backend operation succeeds");
 
     let scale = 1.0_f32 / (d_k as f32).sqrt();
     let (out, _aw) =
@@ -85,9 +88,12 @@ fn sdpa_causal_mask_upper_triangle_zero() {
     let seq = 4;
     let d = 4;
 
-    let q = Tensor::<f32, B>::ones_on([batch, seq, d], &backend);
-    let k = Tensor::<f32, B>::ones_on([batch, seq, d], &backend);
-    let v = Tensor::<f32, B>::ones_on([batch, seq, d], &backend);
+    let q = Tensor::<f32, B>::ones_on([batch, seq, d], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let k = Tensor::<f32, B>::ones_on([batch, seq, d], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let v = Tensor::<f32, B>::ones_on([batch, seq, d], &backend)
+        .expect("invariant: test backend operation succeeds");
 
     let (attn_out, attn_weights) = coeus_ops::scaled_dot_product_attention(
         &q,
@@ -141,20 +147,23 @@ fn sdpa_gradient_flow_qkv() {
         .map(|x| x as f32 * 0.05)
         .collect();
 
-    let q_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &q_data, &backend);
-    let k_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &k_data, &backend);
-    let v_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &v_data, &backend);
+    let q_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &q_data, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let k_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &k_data, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let v_t = Tensor::<f32, B>::from_slice_on([batch, seq, d], &v_data, &backend)
+        .expect("invariant: test backend operation succeeds");
 
-    let q = Var::new(q_t, true);
-    let k = Var::new(k_t, true);
-    let v = Var::new(v_t, true);
+    let q = Var::new(q_t, true).expect("invariant: test backend operation succeeds");
+    let k = Var::new(k_t, true).expect("invariant: test backend operation succeeds");
+    let v = Var::new(v_t, true).expect("invariant: test backend operation succeeds");
 
     let scale = 1.0_f32 / (d as f32).sqrt();
     let (out, _) = coeus_autograd::sdp_attention::<f32, B, NullMask>(&q, &k, &v, None, scale)
         .expect("valid attention fixture");
 
     // Sum-reduce to scalar loss and backprop
-    let loss = coeus_autograd::sum(&out);
+    let loss = coeus_autograd::sum(&out).expect("invariant: test operation succeeds");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -188,8 +197,9 @@ fn mha_output_shape() {
     let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true)
         .expect("valid attention shape fixture");
     let backend = B::default();
-    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-    let x_var = Var::new(x, false);
+    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, false).expect("invariant: test backend operation succeeds");
 
     let out = mha.forward(&x_var).expect("valid MultiHeadAttention input");
     assert_eq!(
@@ -211,11 +221,12 @@ fn mha_gradient_flow_params() {
     let mha = MultiHeadAttention::<f32, B, H, NullMask>::new(d_model, true)
         .expect("valid attention gradient fixture");
     let backend = B::default();
-    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend);
-    let x_var = Var::new(x, false);
+    let x = Tensor::<f32, B>::ones_on([batch, seq, d_model], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, false).expect("invariant: test backend operation succeeds");
 
     let out = mha.forward(&x_var).expect("valid MultiHeadAttention input");
-    let loss = coeus_autograd::sum(&out);
+    let loss = coeus_autograd::sum(&out).expect("invariant: test operation succeeds");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -230,7 +241,8 @@ fn mha_gradient_flow_params() {
 fn sinusoidal_encoding_shape_and_values() {
     let max_len = 16;
     let d_model = 8;
-    let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model);
+    let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model)
+        .expect("invariant: test operation succeeds");
 
     assert_eq!(pe.table.shape(), &[max_len, d_model]);
 
@@ -248,13 +260,15 @@ fn sinusoidal_encoding_shape_and_values() {
 fn sinusoidal_encoding_forward_shape() {
     let max_len = 16;
     let d_model = 8;
-    let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model);
+    let pe = SinusoidalEncoding::<f32, B>::new(max_len, d_model)
+        .expect("invariant: test operation succeeds");
 
     let backend = B::default();
     let batch = 2;
     let seq = 6;
-    let x = Tensor::<f32, B>::zeros_on([batch, seq, d_model], &backend);
-    let x_var = Var::new(x, false);
+    let x = Tensor::<f32, B>::zeros_on([batch, seq, d_model], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x_var = Var::new(x, false).expect("invariant: test backend operation succeeds");
 
     let out = pe.forward(&x_var).expect("valid SinusoidalEncoding input");
     assert_eq!(out.tensor.shape(), &[batch, seq, d_model]);

@@ -46,12 +46,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
             // d(loss)/d(input_i) = -target_i / N * grad_out
-            let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
+            let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
             let d_input = coeus_ops::mul(
-                &coeus_ops::neg(&self.target_saved, &backend),
+                &coeus_ops::neg(&self.target_saved, &backend)?,
                 &scale,
                 &backend,
-            );
+            )?;
             coeus_ops::add_assign(g.write(), &d_input, &backend)?;
         }
         Ok(())
@@ -70,7 +70,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
 pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let n = input.tensor.numel();
     let input_shape = input.tensor.shape().to_vec();
@@ -89,23 +89,22 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     // taken as 0 by convention. All on-provider. `log(target)` is evaluated
     // on a safe copy (0 → 1) so no -inf lane exists; the original target
     // (0 at those positions) zeroes the term, avoiding `0 * -inf = NaN`.
-    let ones = Tensor::full_on(target.tensor.shape_cloned(), T::one(), &backend);
-    let zeros = Tensor::zeros_on(target.tensor.shape_cloned(), &backend);
-    let zero_mask = coeus_ops::eq(&target.tensor, &zeros, &backend);
-    let safe_target = coeus_ops::where_cond(&zero_mask, &ones, &target.tensor, &backend)
-        .expect("kl_divergence: provider safe-target mask");
-    let log_target = coeus_ops::log(&safe_target, &backend);
-    let diff = coeus_ops::sub(&log_target, &input.tensor, &backend);
-    let term = coeus_ops::mul(&target.tensor, &diff, &backend);
-    let loss = coeus_ops::mean_axis(&term.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty KL divergence reduction has axis zero");
+    let ones = Tensor::full_on(target.tensor.shape_cloned(), T::one(), &backend)?;
+    let zeros = Tensor::zeros_on(target.tensor.shape_cloned(), &backend)?;
+    let zero_mask = coeus_ops::eq(&target.tensor, &zeros, &backend)?;
+    let safe_target = coeus_ops::where_cond(&zero_mask, &ones, &target.tensor, &backend)?;
+    let log_target = coeus_ops::log(&safe_target, &backend)?;
+    let diff = coeus_ops::sub(&log_target, &input.tensor, &backend)?;
+    let term = coeus_ops::mul(&target.tensor, &diff, &backend)?;
+    let loss = coeus_ops::mean_axis(&term.reshape([n]), 0, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
+    let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
     let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = KlDivLossNode {
             output_grad,
@@ -113,15 +112,15 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             target_saved: target.tensor.clone(),
             input_shape,
             n,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale,
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -131,9 +130,11 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
@@ -144,7 +145,7 @@ mod tests {
         //   term2 = 0.25 * (log(0.25) - (-2))
         let target = var_from(&[0.5, 0.0, 0.25]);
         let input = var_from(&[-1.0, 0.0, -2.0]);
-        let loss = kl_divergence(&input, &target);
+        let loss = kl_divergence(&input, &target).expect("invariant: test operation succeeds");
         let expected = (0.5 * (0.5_f64.ln() + 1.0) + 0.25 * (0.25_f64.ln() + 2.0)) / 3.0;
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-12);
@@ -155,7 +156,7 @@ mod tests {
         // d/dinput = -target / n.
         let target = var_from(&[0.5, 0.0, 0.25]);
         let input = var_from(&[-1.0, 0.0, -2.0]);
-        let loss = kl_divergence(&input, &target);
+        let loss = kl_divergence(&input, &target).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let grad = input.grad().expect("input must receive a gradient");
         let expected = [-0.5 / 3.0, 0.0 / 3.0, -0.25 / 3.0];
@@ -172,6 +173,6 @@ mod tests {
     fn kl_div_rejects_element_mismatch() {
         let target = var_from(&[0.5, 0.5]);
         let input = var_from(&[-1.0]);
-        let _ = kl_divergence(&input, &target);
+        let _ = kl_divergence(&input, &target).expect("invariant: test operation succeeds");
     }
 }

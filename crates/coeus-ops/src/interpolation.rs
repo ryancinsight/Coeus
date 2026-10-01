@@ -116,6 +116,17 @@ pub enum InterpolationError {
     },
 }
 
+/// Interpolation contract or storage failure.
+#[derive(Debug, thiserror::Error)]
+pub enum InterpolationFailure<E> {
+    /// The interpolation contract was violated.
+    #[error(transparent)]
+    Contract(#[from] InterpolationError),
+    /// The selected backend rejected a storage operation.
+    #[error("interpolation backend failure: {0}")]
+    Backend(E),
+}
+
 struct Contract {
     batch: usize,
     channels: usize,
@@ -213,7 +224,7 @@ pub fn linear_interpolation<const D: usize, B, P>(
     image: &Tensor<f32, B>,
     grid: &Tensor<f32, B>,
     _policy: P,
-) -> Result<Tensor<f32, B>, InterpolationError>
+) -> Result<Tensor<f32, B>, InterpolationFailure<B::Error>>
 where
     B: Backend + Default,
     P: BoundaryPolicy,
@@ -221,8 +232,12 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let contract = validate::<D>(image.shape(), grid.shape())?;
-    let image = image.to_contiguous();
-    let grid = grid.to_contiguous();
+    let image = image
+        .to_contiguous()
+        .map_err(InterpolationFailure::Backend)?;
+    let grid = grid
+        .to_contiguous()
+        .map_err(InterpolationFailure::Backend)?;
     let image_values = image.as_slice();
     let grid_values = grid.as_slice();
     let output_len = checked_product(&contract.output_shape)?;
@@ -235,7 +250,7 @@ where
             for (axis, entry) in neighbours.iter_mut().enumerate() {
                 let coordinate = grid_values[(batch * D + axis) * contract.output_points + point];
                 if !coordinate.is_finite() {
-                    return Err(InterpolationError::NonFiniteCoordinate { axis, point });
+                    return Err(InterpolationError::NonFiniteCoordinate { axis, point }.into());
                 }
                 *entry = P::neighbours(coordinate, contract.input_spatial[axis]);
             }
@@ -265,11 +280,8 @@ where
         }
     }
 
-    Ok(Tensor::from_slice_on(
-        contract.output_shape,
-        &output,
-        &B::default(),
-    ))
+    Tensor::from_slice_on(contract.output_shape, &output, &B::default())
+        .map_err(InterpolationFailure::Backend)
 }
 
 /// Backpropagate through [`linear_interpolation`].
@@ -289,7 +301,7 @@ pub fn linear_interpolation_backward<const D: usize, B, P>(
     grid: &Tensor<f32, B>,
     grad_output: &Tensor<f32, B>,
     _policy: P,
-) -> Result<InterpolationGradients<B>, InterpolationError>
+) -> Result<InterpolationGradients<B>, InterpolationFailure<B::Error>>
 where
     B: Backend + Default,
     P: BoundaryPolicy,
@@ -301,11 +313,18 @@ where
         return Err(InterpolationError::GradientShape {
             expected: contract.output_shape,
             actual: grad_output.shape().to_vec(),
-        });
+        }
+        .into());
     }
-    let image = image.to_contiguous();
-    let grid = grid.to_contiguous();
-    let grad_output = grad_output.to_contiguous();
+    let image = image
+        .to_contiguous()
+        .map_err(InterpolationFailure::Backend)?;
+    let grid = grid
+        .to_contiguous()
+        .map_err(InterpolationFailure::Backend)?;
+    let grad_output = grad_output
+        .to_contiguous()
+        .map_err(InterpolationFailure::Backend)?;
     let image_values = image.as_slice();
     let grid_values = grid.as_slice();
     let upstream = grad_output.as_slice();
@@ -319,7 +338,7 @@ where
             for (axis, entry) in neighbours.iter_mut().enumerate() {
                 let coordinate = grid_values[(batch * D + axis) * contract.output_points + point];
                 if !coordinate.is_finite() {
-                    return Err(InterpolationError::NonFiniteCoordinate { axis, point });
+                    return Err(InterpolationError::NonFiniteCoordinate { axis, point }.into());
                 }
                 *entry = P::neighbours(coordinate, contract.input_spatial[axis]);
             }
@@ -376,7 +395,9 @@ where
         .chain(contract.output_spatial)
         .collect::<Vec<_>>();
     Ok(InterpolationGradients {
-        image: Tensor::from_slice_on(image_shape, &image_gradient, &backend),
-        grid: Tensor::from_slice_on(grid_shape, &grid_gradient, &backend),
+        image: Tensor::from_slice_on(image_shape, &image_gradient, &backend)
+            .map_err(InterpolationFailure::Backend)?,
+        grid: Tensor::from_slice_on(grid_shape, &grid_gradient, &backend)
+            .map_err(InterpolationFailure::Backend)?,
     })
 }

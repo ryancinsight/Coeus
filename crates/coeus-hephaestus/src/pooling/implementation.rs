@@ -4,7 +4,8 @@ use coeus_core::{Layout, Scalar};
 use coeus_ops::PoolOps;
 use hephaestus_core::PoolingMode;
 
-impl<P, T> PoolOps<T> for HephaestusBackend<P>
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<P, T> PoolOps<T> for HephaestusBackend<P>
 where
     P: PoolingProvider<T>,
     T: Scalar + leto_ops::Scalar,

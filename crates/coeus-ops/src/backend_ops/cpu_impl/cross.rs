@@ -15,13 +15,13 @@ where
         b: &Self::DeviceBuffer<T>,
         dim: usize,
     ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        let mut output = self.allocate_zeroed(a_layout.numel());
+        let mut output = self.allocate_zeroed(a_layout.numel())?;
         cross_fold(
             a.as_slice(),
             b.as_slice(),
             a_layout,
             dim,
-            output.as_mut_slice(),
+            output.as_mut_slice()?,
         );
         Ok(output)
     }

@@ -62,13 +62,22 @@ fn run_forward_case(is_causal: bool, label: &str) {
     let (q, k, v, _) = inputs();
     let scale = 0.5f32;
 
-    let q_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &q);
-    let k_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &k);
-    let v_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &v);
+    let q_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &q)
+        .expect("invariant: test backend operation succeeds");
+    let k_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &k)
+        .expect("invariant: test backend operation succeeds");
+    let v_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &v)
+        .expect("invariant: test backend operation succeeds");
 
-    let q_g = q_cpu.to_backend_on(&seq, &cuda);
-    let k_g = k_cpu.to_backend_on(&seq, &cuda);
-    let v_g = v_cpu.to_backend_on(&seq, &cuda);
+    let q_g = q_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let k_g = k_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let v_g = v_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
 
     let (out_cpu, aw_cpu) =
         scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, None, is_causal, scale, &seq)
@@ -77,8 +86,12 @@ fn run_forward_case(is_causal: bool, label: &str) {
         scaled_dot_product_attention(&q_g, &k_g, &v_g, None, is_causal, scale, &cuda)
             .expect("CUDA attention forward must succeed");
 
-    let out_g = out_g.to_backend_on(&cuda, &seq);
-    let aw_g = aw_g.to_backend_on(&cuda, &seq);
+    let out_g = out_g
+        .to_backend_on(&cuda, &seq)
+        .expect("invariant: test backend transfer succeeds");
+    let aw_g = aw_g
+        .to_backend_on(&cuda, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(out_g.shape(), out_cpu.shape());
     assert_eq!(aw_g.shape(), aw_cpu.shape());
@@ -109,25 +122,36 @@ fn test_cuda_attention_forward_preserves_native_f64() {
     let Some((seq, cuda)) = backends() else {
         return;
     };
-    let query = Tensor::<f64, SequentialBackend>::from_slice([1, 2, 2], &[0.25, -0.5, 0.75, 0.125]);
+    let query = Tensor::<f64, SequentialBackend>::from_slice([1, 2, 2], &[0.25, -0.5, 0.75, 0.125])
+        .expect("invariant: test backend operation succeeds");
     let key = Tensor::<f64, SequentialBackend>::from_slice(
         [1, 3, 2],
         &[0.5, 0.25, -0.75, 1.0, 0.125, -0.25],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let value = Tensor::<f64, SequentialBackend>::from_slice(
         [1, 3, 2],
         &[1.0, -1.0, 0.5, 0.25, -0.75, 0.125],
-    );
-    let query_cuda = query.to_backend_on(&seq, &cuda);
-    let key_cuda = key.to_backend_on(&seq, &cuda);
-    let value_cuda = value.to_backend_on(&seq, &cuda);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let query_cuda = query
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let key_cuda = key
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let value_cuda = value
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
 
     let (expected, _) = scaled_dot_product_attention(&query, &key, &value, None, false, 0.5, &seq)
         .expect("CPU f64 attention forward must succeed");
     let (actual, _) =
         scaled_dot_product_attention(&query_cuda, &key_cuda, &value_cuda, None, false, 0.5, &cuda)
             .expect("CUDA f64 attention forward must succeed");
-    let actual = actual.to_backend_on(&cuda, &seq);
+    let actual = actual
+        .to_backend_on(&cuda, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     for (index, (&got, &want)) in actual
         .as_slice()
@@ -153,15 +177,27 @@ fn run_masked_case(is_causal: bool, label: &str) {
     let mask = vec![1.0f32, 1.0, 0.0, 1.0];
     let scale = 0.5f32;
 
-    let q_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &q);
-    let k_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &k);
-    let v_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &v);
-    let m_cpu = Tensor::<f32, SequentialBackend>::from_slice([1, SEQ_K], &mask);
+    let q_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &q)
+        .expect("invariant: test backend operation succeeds");
+    let k_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &k)
+        .expect("invariant: test backend operation succeeds");
+    let v_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &v)
+        .expect("invariant: test backend operation succeeds");
+    let m_cpu = Tensor::<f32, SequentialBackend>::from_slice([1, SEQ_K], &mask)
+        .expect("invariant: test backend operation succeeds");
 
-    let q_g = q_cpu.to_backend_on(&seq, &cuda);
-    let k_g = k_cpu.to_backend_on(&seq, &cuda);
-    let v_g = v_cpu.to_backend_on(&seq, &cuda);
-    let m_g = m_cpu.to_backend_on(&seq, &cuda);
+    let q_g = q_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let k_g = k_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let v_g = v_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let m_g = m_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
 
     let (out_cpu, aw_cpu) =
         scaled_dot_product_attention(&q_cpu, &k_cpu, &v_cpu, Some(&m_cpu), is_causal, scale, &seq)
@@ -170,8 +206,12 @@ fn run_masked_case(is_causal: bool, label: &str) {
         scaled_dot_product_attention(&q_g, &k_g, &v_g, Some(&m_g), is_causal, scale, &cuda)
             .expect("CUDA masked attention forward must succeed");
 
-    let out_g = out_g.to_backend_on(&cuda, &seq);
-    let aw_g = aw_g.to_backend_on(&cuda, &seq);
+    let out_g = out_g
+        .to_backend_on(&cuda, &seq)
+        .expect("invariant: test backend transfer succeeds");
+    let aw_g = aw_g
+        .to_backend_on(&cuda, &seq)
+        .expect("invariant: test backend transfer succeeds");
     assert_close(
         &format!("{label}_out"),
         out_g.as_slice(),
@@ -202,15 +242,27 @@ fn test_cuda_attention_backward() {
     let (q, k, v, go) = inputs();
     let scale = 0.25f32;
 
-    let q_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &q);
-    let k_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &k);
-    let v_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &v);
-    let go_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_V], &go);
+    let q_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &q)
+        .expect("invariant: test backend operation succeeds");
+    let k_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &k)
+        .expect("invariant: test backend operation succeeds");
+    let v_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &v)
+        .expect("invariant: test backend operation succeeds");
+    let go_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_V], &go)
+        .expect("invariant: test backend operation succeeds");
 
-    let q_g = q_cpu.to_backend_on(&seq, &cuda);
-    let k_g = k_cpu.to_backend_on(&seq, &cuda);
-    let v_g = v_cpu.to_backend_on(&seq, &cuda);
-    let go_g = go_cpu.to_backend_on(&seq, &cuda);
+    let q_g = q_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let k_g = k_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let v_g = v_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
+    let go_g = go_cpu
+        .to_backend_on(&seq, &cuda)
+        .expect("invariant: test backend transfer succeeds");
 
     // Stored attention weights from the forward pass feed the backward.
     let (_, aw_cpu) =
@@ -219,9 +271,12 @@ fn test_cuda_attention_backward() {
     let (_, aw_g) = scaled_dot_product_attention(&q_g, &k_g, &v_g, None, false, scale, &cuda)
         .expect("CUDA attention forward must succeed");
 
-    let mut gq_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_Q, D_K], &seq);
-    let mut gk_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_K], &seq);
-    let mut gv_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_V], &seq);
+    let mut gq_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_Q, D_K], &seq)
+        .expect("invariant: test backend operation succeeds");
+    let mut gk_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_K], &seq)
+        .expect("invariant: test backend operation succeeds");
+    let mut gv_cpu = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_V], &seq)
+        .expect("invariant: test backend operation succeeds");
     scaled_dot_product_attention_backward(
         &go_cpu,
         &q_cpu,
@@ -236,9 +291,12 @@ fn test_cuda_attention_backward() {
     )
     .expect("CPU attention backward must succeed");
 
-    let mut gq_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_Q, D_K], &cuda);
-    let mut gk_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_K, D_K], &cuda);
-    let mut gv_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_K, D_V], &cuda);
+    let mut gq_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_Q, D_K], &cuda)
+        .expect("invariant: test backend operation succeeds");
+    let mut gk_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_K, D_K], &cuda)
+        .expect("invariant: test backend operation succeeds");
+    let mut gv_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_K, D_V], &cuda)
+        .expect("invariant: test backend operation succeeds");
     scaled_dot_product_attention_backward(
         &go_g,
         &q_g,
@@ -255,17 +313,23 @@ fn test_cuda_attention_backward() {
 
     assert_close(
         "attn_bwd_grad_q",
-        gq_g.to_backend_on(&cuda, &seq).as_slice(),
+        gq_g.to_backend_on(&cuda, &seq)
+            .expect("invariant: test backend transfer succeeds")
+            .as_slice(),
         gq_cpu.as_slice(),
     );
     assert_close(
         "attn_bwd_grad_k",
-        gk_g.to_backend_on(&cuda, &seq).as_slice(),
+        gk_g.to_backend_on(&cuda, &seq)
+            .expect("invariant: test backend transfer succeeds")
+            .as_slice(),
         gk_cpu.as_slice(),
     );
     assert_close(
         "attn_bwd_grad_v",
-        gv_g.to_backend_on(&cuda, &seq).as_slice(),
+        gv_g.to_backend_on(&cuda, &seq)
+            .expect("invariant: test backend transfer succeeds")
+            .as_slice(),
         gv_cpu.as_slice(),
     );
 }

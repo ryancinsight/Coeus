@@ -57,5 +57,5 @@ pub use shape::{
     broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, diff, einsum, einsum3, flatten,
     flip, gather, index_put, index_select, masked_fill, movedim, pad, permute, reshape, roll,
     rotate_half, scatter_add, slice, split, squeeze, stack, swapaxes, tile, transpose, tril, triu,
-    unsqueeze, where_cond, EinsumError,
+    unsqueeze, where_cond, EinsumFailure,
 };

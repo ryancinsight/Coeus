@@ -24,7 +24,10 @@ fn sum_case<T: GradcheckScalar>() {
     // The gradient is all-ones, which a broken backward reproduces easily —
     // but a wrong *shape* or a missing broadcast does not.
     let x = tensor::<T>(&SHAPE, 0.11);
-    gradcheck(&[x], |v| sum(&v[0])).expect("sum backward must match central differences");
+    gradcheck(&[x], |v| {
+        sum(&v[0]).expect("invariant: test operation succeeds")
+    })
+    .expect("sum backward must match central differences");
 }
 
 #[test]
@@ -37,7 +40,10 @@ fn mean_case<T: GradcheckScalar>() {
     // 1/N everywhere; the check is that N is the element count and not an axis
     // length.
     let x = tensor::<T>(&SHAPE, 0.13);
-    gradcheck(&[x], |v| mean(&v[0])).expect("mean backward must match central differences");
+    gradcheck(&[x], |v| {
+        mean(&v[0]).expect("invariant: test operation succeeds")
+    })
+    .expect("mean backward must match central differences");
 }
 
 #[test]
@@ -49,8 +55,13 @@ fn mean_backward_matches_finite_differences() {
 fn sum_axis_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&SHAPE, 0.17);
     let w = weighting::<T>(&[3, 1]);
-    gradcheck(&[x], |v| weighted(&sum_axis(&v[0], 1), &w))
-        .expect("sum_axis backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &sum_axis(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("sum_axis backward must match central differences");
 }
 
 #[test]
@@ -64,8 +75,13 @@ fn mean_axis_case<T: GradcheckScalar>() {
     // catches a backward that assumed the trailing axis.
     let x = tensor::<T>(&SHAPE, 0.19);
     let w = weighting::<T>(&[1, 4]);
-    gradcheck(&[x], |v| weighted(&mean_axis(&v[0], 0), &w))
-        .expect("mean_axis backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &mean_axis(&v[0], 0).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("mean_axis backward must match central differences");
 }
 
 #[test]
@@ -78,7 +94,10 @@ fn norm_case<T: GradcheckScalar>() {
     // d||x||₂/dx = x/||x||₂. Sampled away from the origin, where the L2 norm is
     // not differentiable.
     let x = Sampler::positive(0.23).tensor::<T>(&SHAPE);
-    gradcheck(&[x], |v| norm(&v[0])).expect("norm backward must match central differences");
+    gradcheck(&[x], |v| {
+        norm(&v[0]).expect("invariant: test operation succeeds")
+    })
+    .expect("norm backward must match central differences");
 }
 
 #[test]
@@ -94,6 +113,7 @@ fn norm_p_four_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&SHAPE, 0.29);
     gradcheck(&[x], |v| {
         norm_p(&v[0], <T as coeus_core::Scalar>::from_f64(4.0))
+            .expect("invariant: test operation succeeds")
     })
     .expect("norm_p p=4 backward must match central differences");
 }
@@ -112,7 +132,8 @@ fn norm_p_axis_case<T: GradcheckScalar>() {
     let w = weighting::<T>(&[3, 1]);
     gradcheck(&[x], |v| {
         weighted(
-            &norm_p_axis(&v[0], <T as coeus_core::Scalar>::from_f64(3.0), 1),
+            &norm_p_axis(&v[0], <T as coeus_core::Scalar>::from_f64(3.0), 1)
+                .expect("invariant: test operation succeeds"),
             &w,
         )
     })
@@ -131,8 +152,13 @@ fn log_sum_exp_case<T: GradcheckScalar>() {
     // off by the partition function.
     let x = tensor::<T>(&SHAPE, 0.37);
     let w = weighting::<T>(&[3, 1]);
-    gradcheck(&[x], |v| weighted(&log_sum_exp(&v[0], 1), &w))
-        .expect("log_sum_exp backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &log_sum_exp(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("log_sum_exp backward must match central differences");
 }
 
 #[test]
@@ -146,7 +172,10 @@ fn prod_case<T: GradcheckScalar>() {
     // while no element is zero — the sampler's interval excludes it, and the
     // magnitudes stay near 1 so the product does not underflow.
     let x = Sampler::new(0.41, 0.5, 1.6).tensor::<T>(&[6]);
-    gradcheck(&[x], |v| prod(&v[0])).expect("prod backward must match central differences");
+    gradcheck(&[x], |v| {
+        prod(&v[0]).expect("invariant: test operation succeeds")
+    })
+    .expect("prod backward must match central differences");
 }
 
 #[test]
@@ -160,10 +189,14 @@ fn variance_case<T: GradcheckScalar>() {
     // 2(x - x̄)/N rather than 2x/N. Unbiased and biased differ by N/(N-1);
     // both are checked.
     let x = tensor::<T>(&[6], 0.43);
-    gradcheck(std::slice::from_ref(&x), |v| var(&v[0], false))
-        .expect("biased variance backward must match central differences");
-    gradcheck(&[x], |v| var(&v[0], true))
-        .expect("unbiased variance backward must match central differences");
+    gradcheck(std::slice::from_ref(&x), |v| {
+        var(&v[0], false).expect("invariant: test operation succeeds")
+    })
+    .expect("biased variance backward must match central differences");
+    gradcheck(&[x], |v| {
+        var(&v[0], true).expect("invariant: test operation succeeds")
+    })
+    .expect("unbiased variance backward must match central differences");
 }
 
 #[test]
@@ -176,8 +209,10 @@ fn std_dev_case<T: GradcheckScalar>() {
     // One more chain step than the variance: the 1/(2σ) factor is the part an
     // implementation omits when it reuses the variance backward directly.
     let x = tensor::<T>(&[6], 0.47);
-    gradcheck(&[x], |v| std_dev(&v[0], true))
-        .expect("std_dev backward must match central differences");
+    gradcheck(&[x], |v| {
+        std_dev(&v[0], true).expect("invariant: test operation succeeds")
+    })
+    .expect("std_dev backward must match central differences");
 }
 
 #[test]
@@ -189,8 +224,13 @@ fn std_dev_backward_matches_finite_differences() {
 fn var_axis_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&SHAPE, 0.53);
     let w = weighting::<T>(&[3, 1]);
-    gradcheck(&[x], |v| weighted(&var_axis(&v[0], 1, true), &w))
-        .expect("var_axis backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &var_axis(&v[0], 1, true).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("var_axis backward must match central differences");
 }
 
 #[test]
@@ -202,8 +242,13 @@ fn var_axis_backward_matches_finite_differences() {
 fn std_dev_axis_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&SHAPE, 0.59);
     let w = weighting::<T>(&[3, 1]);
-    gradcheck(&[x], |v| weighted(&std_dev_axis(&v[0], 1, true), &w))
-        .expect("std_dev_axis backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &std_dev_axis(&v[0], 1, true).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("std_dev_axis backward must match central differences");
 }
 
 #[test]
@@ -219,8 +264,13 @@ fn max_axis_case<T: GradcheckScalar>() {
     // wrong index, disagrees immediately.
     let x = tensor::<T>(&SHAPE, 0.61);
     let w = weighting::<T>(&[3, 1]);
-    gradcheck(&[x], |v| weighted(&max_axis(&v[0], 1), &w))
-        .expect("max_axis backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &max_axis(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("max_axis backward must match central differences");
 }
 
 #[test]
@@ -232,8 +282,13 @@ fn max_axis_backward_matches_finite_differences() {
 fn min_axis_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&SHAPE, 0.67);
     let w = weighting::<T>(&[3, 1]);
-    gradcheck(&[x], |v| weighted(&min_axis(&v[0], 1), &w))
-        .expect("min_axis backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &min_axis(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("min_axis backward must match central differences");
 }
 
 #[test]
@@ -249,8 +304,15 @@ fn sort_case<T: GradcheckScalar>() {
     // let an incorrect inverse pass.
     let x = tensor::<T>(&SHAPE, 0.71);
     let w = weighting::<T>(&SHAPE);
-    gradcheck(&[x], |v| weighted(&sort(&v[0], 1, false).0, &w))
-        .expect("sort backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &sort(&v[0], 1, false)
+                .expect("invariant: test operation succeeds")
+                .0,
+            &w,
+        )
+    })
+    .expect("sort backward must match central differences");
 }
 
 #[test]
@@ -264,8 +326,15 @@ fn topk_case<T: GradcheckScalar>() {
     // rest receive none. Distinct samples keep the selection stable.
     let x = tensor::<T>(&SHAPE, 0.73);
     let w = weighting::<T>(&[3, 2]);
-    gradcheck(&[x], |v| weighted(&topk(&v[0], 2, 1, true).0, &w))
-        .expect("topk backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &topk(&v[0], 2, 1, true)
+                .expect("invariant: test operation succeeds")
+                .0,
+            &w,
+        )
+    })
+    .expect("topk backward must match central differences");
 }
 
 #[test]
@@ -281,8 +350,13 @@ fn cumsum_case<T: GradcheckScalar>() {
     // first and last elements.
     let x = tensor::<T>(&SHAPE, 0.79);
     let w = weighting::<T>(&SHAPE);
-    gradcheck(&[x], |v| weighted(&cumsum(&v[0], 1), &w))
-        .expect("cumsum backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &cumsum(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("cumsum backward must match central differences");
 }
 
 #[test]
@@ -297,8 +371,13 @@ fn cumprod_case<T: GradcheckScalar>() {
     // where the division-based form of that rule breaks down.
     let x = Sampler::new(0.83, 0.5, 1.6).tensor::<T>(&[2, 4]);
     let w = weighting::<T>(&[2, 4]);
-    gradcheck(&[x], |v| weighted(&cumprod(&v[0], 1), &w))
-        .expect("cumprod backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &cumprod(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("cumprod backward must match central differences");
 }
 
 #[test]

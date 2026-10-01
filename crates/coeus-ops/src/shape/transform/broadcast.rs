@@ -20,7 +20,7 @@ pub fn broadcast_to<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     target_shape: &[usize],
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -64,8 +64,9 @@ mod tests {
     #[test]
     fn broadcast_1d_repeats_singleton_value() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![1], &[3.5f32]);
-        let out = broadcast_to(&input, &[4], &b);
+        let input = Tensor::from_slice(vec![1], &[3.5f32])
+            .expect("invariant: test backend operation succeeds");
+        let out = broadcast_to(&input, &[4], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[4]);
         assert_eq!(out.as_slice(), &[3.5, 3.5, 3.5, 3.5]);
     }
@@ -73,8 +74,9 @@ mod tests {
     #[test]
     fn broadcast_2d_repeats_along_first_axis() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![1, 3], &[1.0f32, 2.0, 3.0]);
-        let out = broadcast_to(&input, &[2, 3], &b);
+        let input = Tensor::from_slice(vec![1, 3], &[1.0f32, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = broadcast_to(&input, &[2, 3], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 3]);
         assert_eq!(out.as_slice(), &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
     }
@@ -82,8 +84,9 @@ mod tests {
     #[test]
     fn broadcast_identity_returns_same_values() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
-        let out = broadcast_to(&input, &[2, 2], &b);
+        let input = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = broadcast_to(&input, &[2, 2], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 2]);
         assert_eq!(out.as_slice(), input.as_slice());
     }
@@ -92,7 +95,8 @@ mod tests {
     #[should_panic(expected = "broadcast_to")]
     fn broadcast_incompatible_shape_panics() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![2], &[1.0f32, 2.0]);
-        let _ = broadcast_to(&input, &[3], &b);
+        let input = Tensor::from_slice(vec![2], &[1.0f32, 2.0])
+            .expect("invariant: test backend operation succeeds");
+        let _ = broadcast_to(&input, &[3], &b).expect("invariant: test operation succeeds");
     }
 }

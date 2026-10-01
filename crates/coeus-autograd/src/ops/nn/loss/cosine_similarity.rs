@@ -48,9 +48,10 @@ fn broadcast_rows<T: Scalar, B: coeus_ops::BackendOps<T>>(
     rows: &Tensor<T, B>,
     row_count: usize,
     feature_count: usize,
-) -> Tensor<T, B> {
-    rows.reshape([row_count, 1])
-        .broadcast([row_count, feature_count])
+) -> Result<Tensor<T, B>, B::Error> {
+    Ok(rows
+        .reshape([row_count, 1])
+        .broadcast([row_count, feature_count]))
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
@@ -80,45 +81,45 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         }
 
         let backend = B::default();
-        let grad = broadcast_rows(grad_out, self.rows, self.features);
-        let denominator = broadcast_rows(&self.denominator, self.rows, self.features);
-        let cosine = broadcast_rows(&self.cosine, self.rows, self.features);
-        let active = broadcast_rows(&self.norm_derivative_mask, self.rows, self.features);
-        let inactive = broadcast_rows(&self.clamped_mask, self.rows, self.features);
+        let grad = broadcast_rows(grad_out, self.rows, self.features)?;
+        let denominator = broadcast_rows(&self.denominator, self.rows, self.features)?;
+        let cosine = broadcast_rows(&self.cosine, self.rows, self.features)?;
+        let active = broadcast_rows(&self.norm_derivative_mask, self.rows, self.features)?;
+        let inactive = broadcast_rows(&self.clamped_mask, self.rows, self.features)?;
 
         if let Some(Some(buffer)) = input_grads.first() {
-            let norm_squared = broadcast_rows(&self.x1_norm_squared, self.rows, self.features);
-            let safe_norm_squared = coeus_ops::add(&norm_squared, &inactive, &backend);
-            let direct = coeus_ops::div(&self.x2, &denominator, &backend);
+            let norm_squared = broadcast_rows(&self.x1_norm_squared, self.rows, self.features)?;
+            let safe_norm_squared = coeus_ops::add(&norm_squared, &inactive, &backend)?;
+            let direct = coeus_ops::div(&self.x2, &denominator, &backend)?;
             let radial = coeus_ops::div(
-                &coeus_ops::mul(&cosine, &self.x1, &backend),
+                &coeus_ops::mul(&cosine, &self.x1, &backend)?,
                 &safe_norm_squared,
                 &backend,
-            );
+            )?;
             let derivative = coeus_ops::sub(
                 &direct,
-                &coeus_ops::mul(&active, &radial, &backend),
+                &coeus_ops::mul(&active, &radial, &backend)?,
                 &backend,
-            );
-            let gradient = coeus_ops::mul(&grad, &derivative, &backend);
+            )?;
+            let gradient = coeus_ops::mul(&grad, &derivative, &backend)?;
             coeus_ops::add_assign(buffer.write(), &gradient, &backend)?;
         }
 
         if let Some(Some(buffer)) = input_grads.get(1) {
-            let norm_squared = broadcast_rows(&self.x2_norm_squared, self.rows, self.features);
-            let safe_norm_squared = coeus_ops::add(&norm_squared, &inactive, &backend);
-            let direct = coeus_ops::div(&self.x1, &denominator, &backend);
+            let norm_squared = broadcast_rows(&self.x2_norm_squared, self.rows, self.features)?;
+            let safe_norm_squared = coeus_ops::add(&norm_squared, &inactive, &backend)?;
+            let direct = coeus_ops::div(&self.x1, &denominator, &backend)?;
             let radial = coeus_ops::div(
-                &coeus_ops::mul(&cosine, &self.x2, &backend),
+                &coeus_ops::mul(&cosine, &self.x2, &backend)?,
                 &safe_norm_squared,
                 &backend,
-            );
+            )?;
             let derivative = coeus_ops::sub(
                 &direct,
-                &coeus_ops::mul(&active, &radial, &backend),
+                &coeus_ops::mul(&active, &radial, &backend)?,
                 &backend,
-            );
-            let gradient = coeus_ops::mul(&grad, &derivative, &backend);
+            )?;
+            let gradient = coeus_ops::mul(&grad, &derivative, &backend)?;
             coeus_ops::add_assign(buffer.write(), &gradient, &backend)?;
         }
 
@@ -138,13 +139,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 ///
 /// Panics when the inputs do not share a two-dimensional non-empty shape,
 /// `dim` is not one, or `eps` is not finite and strictly positive.
-#[must_use]
 pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     dim: usize,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     assert_eq!(
         x1.tensor.shape(),
         x2.tensor.shape(),
@@ -173,62 +173,60 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let backend = B::default();
     let dot = coeus_ops::sum_axis(
-        &coeus_ops::mul(&x1.tensor, &x2.tensor, &backend),
+        &coeus_ops::mul(&x1.tensor, &x2.tensor, &backend)?,
         dim,
         &backend,
-    )
-    .expect("invariant: cosine similarity validates the reduction axis")
+    )?
     .reshape([rows]);
     let x1_norm_squared = coeus_ops::sum_axis(
-        &coeus_ops::mul(&x1.tensor, &x1.tensor, &backend),
+        &coeus_ops::mul(&x1.tensor, &x1.tensor, &backend)?,
         dim,
         &backend,
-    )
-    .expect("invariant: cosine similarity validates the reduction axis")
+    )?
     .reshape([rows]);
     let x2_norm_squared = coeus_ops::sum_axis(
-        &coeus_ops::mul(&x2.tensor, &x2.tensor, &backend),
+        &coeus_ops::mul(&x2.tensor, &x2.tensor, &backend)?,
         dim,
         &backend,
-    )
-    .expect("invariant: cosine similarity validates the reduction axis")
+    )?
     .reshape([rows]);
     let norm_product = coeus_ops::mul(
-        &coeus_ops::sqrt(&x1_norm_squared, &backend),
-        &coeus_ops::sqrt(&x2_norm_squared, &backend),
+        &coeus_ops::sqrt(&x1_norm_squared, &backend)?,
+        &coeus_ops::sqrt(&x2_norm_squared, &backend)?,
         &backend,
-    );
+    )?;
     // Transfer the runtime scalar once, then broadcast it as a zero-copy view.
     // Materializing `[rows]` through `fill` would stage a host vector whose
     // transfer scales with the batch size on accelerator backends.
-    let epsilon = Tensor::from_slice_on([1], &[eps], &backend).broadcast([rows]);
-    let ones = coeus_ops::div(&epsilon, &epsilon, &backend);
+    let epsilon = Tensor::from_slice_on([1], &[eps], &backend)?.broadcast([rows]);
+    let ones = coeus_ops::div(&epsilon, &epsilon, &backend)?;
     // `1 - ReluGrad(eps - norm_product)` is one for norm_product >= eps and
     // zero below it. This keeps the inclusive clamp convention while routing
     // through the backend-portable unary provider seam; accelerator providers
     // do not all expose comparison opcodes.
     let inactive = coeus_ops::elementwise_unary(
-        &coeus_ops::sub(&epsilon, &norm_product, &backend),
+        &coeus_ops::sub(&epsilon, &norm_product, &backend)?,
         &backend,
         coeus_ops::UnaryOp::ReluGrad,
-    )
-    .expect("invariant: cosine similarity uses a supported scalar unary operation");
-    let norm_derivative_mask = coeus_ops::sub(&ones, &inactive, &backend);
+    )?;
+    let norm_derivative_mask = coeus_ops::sub(&ones, &inactive, &backend)?;
     let denominator = coeus_ops::add(
-        &coeus_ops::mul(&norm_derivative_mask, &norm_product, &backend),
-        &coeus_ops::mul(&inactive, &epsilon, &backend),
+        &coeus_ops::mul(&norm_derivative_mask, &norm_product, &backend)?,
+        &coeus_ops::mul(&inactive, &epsilon, &backend)?,
         &backend,
-    );
-    let cosine = coeus_ops::div(&dot, &denominator, &backend);
+    )?;
+    let cosine = coeus_ops::div(&dot, &denominator, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(x1) || crate::grad_mode::should_track_var(x2);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             cosine.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|output_grad| {
         Arc::new(CosineSimilarityNode {
             output_grad: Arc::clone(output_grad),
@@ -246,9 +244,9 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         }) as Arc<dyn BackwardNode<T, B>>
     });
 
-    Var {
+    Ok(Var {
         tensor: cosine,
         grad,
         creator,
-    }
+    })
 }

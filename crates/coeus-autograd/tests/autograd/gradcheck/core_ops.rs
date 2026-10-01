@@ -17,8 +17,13 @@ fn matmul_case<T: GradcheckScalar>() {
     let b = tensor::<T>(&[3, 4], 0.53);
     let w = weighting::<T>(&[2, 4]);
 
-    gradcheck(&[a, b], |v| weighted(&matmul(&v[0], &v[1]), &w))
-        .expect("matmul backward must match central differences");
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &matmul(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("matmul backward must match central differences");
 }
 
 #[test]
@@ -34,8 +39,13 @@ fn softmax_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[3, 5], 0.29);
     let w = weighting::<T>(&[3, 5]);
 
-    gradcheck(&[x], |v| weighted(&softmax(&v[0], 1), &w))
-        .expect("softmax backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &softmax(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("softmax backward must match central differences");
 }
 
 #[test]
@@ -50,8 +60,13 @@ fn softmax_negative_dim_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[2, 4], 0.71);
     let w = weighting::<T>(&[2, 4]);
 
-    gradcheck(&[x], |v| weighted(&softmax(&v[0], -1), &w))
-        .expect("softmax over dim -1 must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &softmax(&v[0], -1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("softmax over dim -1 must match central differences");
 }
 
 #[test]
@@ -76,30 +91,36 @@ fn layernorm_case<T: GradcheckScalar>() {
 
     gradcheck(&[x, weight, bias], |v| {
         let backend = MoiraiBackend::new();
-        let flattened = reshape(&v[0], [ROWS, WIDTH]);
+        let flattened = reshape(&v[0], [ROWS, WIDTH]).expect("invariant: test operation succeeds");
 
         // `layernorm` attaches a node to an already-computed forward, so the
         // closure reproduces the statistics the node saves.
         let mean = coeus_ops::mean_axis(&flattened.tensor, 1, &backend).expect("row mean");
-        let centered = coeus_ops::sub(&flattened.tensor, &mean, &backend);
-        let centered_squared = coeus_ops::mul(&centered, &centered, &backend);
+        let centered = coeus_ops::sub(&flattened.tensor, &mean, &backend)
+            .expect("invariant: test operation succeeds");
+        let centered_squared = coeus_ops::mul(&centered, &centered, &backend)
+            .expect("invariant: test operation succeeds");
         let mut deviation =
             coeus_ops::mean_axis(&centered_squared, 1, &backend).expect("row variance");
         let epsilon = Tensor::<T, MoiraiBackend>::full_on(
             [1],
             <T as coeus_core::Scalar>::from_f64(EPS),
             &backend,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         coeus_ops::add_assign(&mut deviation, &epsilon, &backend).expect("variance + eps");
         coeus_ops::sqrt_assign(&mut deviation, &backend).expect("stddev");
 
-        let mut istdev = Tensor::<T, MoiraiBackend>::ones_on([ROWS, 1], &backend);
+        let mut istdev = Tensor::<T, MoiraiBackend>::ones_on([ROWS, 1], &backend)
+            .expect("invariant: test backend operation succeeds");
         coeus_ops::div_assign(&mut istdev, &deviation, &backend).expect("inverse stddev");
-        let x_hat = coeus_ops::mul(&centered, &istdev, &backend);
+        let x_hat = coeus_ops::mul(&centered, &istdev, &backend)
+            .expect("invariant: test operation succeeds");
 
         let weight_row = v[1].tensor.reshape([1, WIDTH]);
         let bias_row = v[2].tensor.reshape([1, WIDTH]);
-        let mut output = coeus_ops::mul(&x_hat, &weight_row, &backend);
+        let mut output = coeus_ops::mul(&x_hat, &weight_row, &backend)
+            .expect("invariant: test operation succeeds");
         coeus_ops::add_assign(&mut output, &bias_row, &backend).expect("affine shift");
 
         let normalized = layernorm(
@@ -113,8 +134,10 @@ fn layernorm_case<T: GradcheckScalar>() {
                 [1],
                 <T as coeus_core::Scalar>::from_f64(WIDTH as f64),
                 &backend,
-            ),
-        );
+            )
+            .expect("invariant: test backend operation succeeds"),
+        )
+        .expect("invariant: test operation succeeds");
         weighted(&normalized, &w)
     })
     .expect("layernorm backward must match central differences");
@@ -138,13 +161,20 @@ fn gather_repeated_indices_case<T: GradcheckScalar>() {
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
     let index = Var::new(
-        Tensor::<T, MoiraiBackend>::from_slice_on([2, 3], &index_values, &backend),
+        Tensor::<T, MoiraiBackend>::from_slice_on([2, 3], &index_values, &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let w = weighting::<T>(&[2, 3]);
 
-    gradcheck(&[x], |v| weighted(&gather(&v[0], 1, &index), &w))
-        .expect("gather backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &gather(&v[0], 1, &index).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("gather backward must match central differences");
 }
 
 #[test]
@@ -165,20 +195,30 @@ fn gather_unselected_columns_case<T: GradcheckScalar>() {
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
     let index = Var::new(
-        Tensor::<T, MoiraiBackend>::from_slice_on([2, 2], &index_values, &backend),
+        Tensor::<T, MoiraiBackend>::from_slice_on([2, 2], &index_values, &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let w = weighting::<T>(&[2, 2]);
 
     gradcheck(std::slice::from_ref(&x), |v| {
-        weighted(&gather(&v[0], 1, &index), &w)
+        weighted(
+            &gather(&v[0], 1, &index).expect("invariant: test operation succeeds"),
+            &w,
+        )
     })
     .expect("gather backward must match central differences");
 
-    let tracked = Var::new(x, true);
-    sum(&mul(&gather(&tracked, 1, &index), &w))
-        .backward()
-        .expect("invariant: valid autograd fixture completes backward");
+    let tracked = Var::new(x, true).expect("invariant: test backend operation succeeds");
+    sum(&mul(
+        &gather(&tracked, 1, &index).expect("invariant: test operation succeeds"),
+        &w,
+    )
+    .expect("invariant: test operation succeeds"))
+    .expect("invariant: test operation succeeds")
+    .backward()
+    .expect("invariant: valid autograd fixture completes backward");
     let grad = tracked.grad().expect("input must receive a gradient");
     let slice = grad.as_slice();
     let zero = <T as coeus_core::Scalar>::from_f64(0.0);

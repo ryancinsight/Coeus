@@ -4,14 +4,16 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_layernorm() {
-    let mut ln = LayerNorm::<f64>::new(4, 1e-5);
-    init::constant(&mut ln.weight, 1.0);
-    init::constant(&mut ln.bias, 0.0);
+    let mut ln = LayerNorm::<f64>::new(4, 1e-5).expect("invariant: test operation succeeds");
+    init::constant(&mut ln.weight, 1.0).expect("invariant: test operation succeeds");
+    init::constant(&mut ln.bias, 0.0).expect("invariant: test operation succeeds");
 
     let input = Var::new(
-        Tensor::from_slice(vec![2, 4], &[1.0f64, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]),
+        Tensor::from_slice(vec![2, 4], &[1.0f64, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = ln.forward(&input).expect("valid LayerNorm input");
     let output_fn = layer_norm(&input, 4, Some(&ln.weight), Some(&ln.bias), 1e-5)
@@ -53,8 +55,12 @@ fn test_layernorm() {
 
 #[test]
 fn layernorm_rejects_invalid_rank_with_typed_error() {
-    let layer = LayerNorm::<f64>::new(4, 1e-5);
-    let input = Var::new(Tensor::zeros(vec![4]), false);
+    let layer = LayerNorm::<f64>::new(4, 1e-5).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::zeros(vec![4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let error = match layer.forward(&input) {
         Ok(_) => panic!("rank-one LayerNorm input must fail"),
@@ -73,11 +79,13 @@ fn layernorm_rejects_invalid_rank_with_typed_error() {
 
 #[test]
 fn layernorm_module_normalizes_rank_three_trailing_dimension() {
-    let layer = LayerNorm::<f64>::new(4, 1e-5);
+    let layer = LayerNorm::<f64>::new(4, 1e-5).expect("invariant: test operation succeeds");
     let input = Var::new(
-        Tensor::from_slice([2, 1, 4], &[1.0_f64, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0]),
+        Tensor::from_slice([2, 1, 4], &[1.0_f64, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = layer
         .forward(&input)
@@ -104,16 +112,19 @@ fn layernorm_module_normalizes_rank_three_trailing_dimension() {
 
 #[test]
 fn layernorm_normalizes_multiple_trailing_dimensions_and_restores_gradients() {
-    let layer = LayerNorm::<f64>::from_shape([2, 3], 1e-5);
+    let layer =
+        LayerNorm::<f64>::from_shape([2, 3], 1e-5).expect("invariant: test operation succeeds");
     let input = Var::new(
         Tensor::from_slice(
             [2, 2, 3],
             &[
                 1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0,
             ],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = layer
         .forward(&input)
@@ -153,8 +164,13 @@ fn layernorm_normalizes_multiple_trailing_dimensions_and_restores_gradients() {
 
 #[test]
 fn layernorm_rejects_mismatched_trailing_shape() {
-    let layer = LayerNorm::<f64>::from_shape([2, 3], 1e-5);
-    let input = Var::new(Tensor::zeros([2, 3, 4]), false);
+    let layer =
+        LayerNorm::<f64>::from_shape([2, 3], 1e-5).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::zeros([2, 3, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let error = match layer.forward(&input) {
         Ok(_) => panic!("input trailing dimensions must match normalized_shape"),
@@ -171,10 +187,15 @@ fn layernorm_rejects_mismatched_trailing_shape() {
 
 #[test]
 fn test_rmsnorm() {
-    let mut rms = RMSNorm::<f64>::new(3, 1e-5);
-    init::constant(&mut rms.weight, 1.0);
+    let mut rms = RMSNorm::<f64>::new(3, 1e-5).expect("invariant: test operation succeeds");
+    init::constant(&mut rms.weight, 1.0).expect("invariant: test operation succeeds");
 
-    let input = Var::new(Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0]), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 3], &[1.0f64, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = rms.forward(&input).expect("valid RMSNorm input");
     let output_fn =
         rms_norm(&input, Some(&rms.weight), 1e-5).expect("valid functional RMSNorm input");
@@ -202,8 +223,12 @@ fn test_rmsnorm() {
 
 #[test]
 fn rmsnorm_rejects_invalid_rank_with_typed_error() {
-    let layer = RMSNorm::<f64>::new(4, 1e-5);
-    let input = Var::new(Tensor::zeros(vec![4]), false);
+    let layer = RMSNorm::<f64>::new(4, 1e-5).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::zeros(vec![4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let error = match layer.forward(&input) {
         Ok(_) => panic!("rank-one RMSNorm input must fail"),
@@ -225,15 +250,20 @@ fn test_layernorm_various_shapes() {
     let shapes: Vec<(usize, usize)> = vec![(1, 8), (3, 16), (8, 4), (16, 32)];
 
     for &(batch, dim) in &shapes {
-        let mut ln = LayerNorm::<f64>::new(dim, 1e-5);
-        init::constant(&mut ln.weight, 1.0);
-        init::constant(&mut ln.bias, 0.0);
+        let mut ln = LayerNorm::<f64>::new(dim, 1e-5).expect("invariant: test operation succeeds");
+        init::constant(&mut ln.weight, 1.0).expect("invariant: test operation succeeds");
+        init::constant(&mut ln.bias, 0.0).expect("invariant: test operation succeeds");
 
         let mut data = Vec::with_capacity(batch * dim);
         for i in 0..(batch * dim) {
             data.push((i + 1) as f64);
         }
-        let input = Var::new(Tensor::from_slice(vec![batch, dim], &data), true);
+        let input = Var::new(
+            Tensor::from_slice(vec![batch, dim], &data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
 
         let output = ln.forward(&input).expect("valid LayerNorm input");
         assert_eq!(output.tensor.shape(), &[batch, dim]);
@@ -261,11 +291,16 @@ fn test_layernorm_various_shapes() {
 
 #[test]
 fn test_layernorm_single_element() {
-    let mut ln = LayerNorm::<f64>::new(1, 1e-5);
-    init::constant(&mut ln.weight, 2.0);
-    init::constant(&mut ln.bias, 1.0);
+    let mut ln = LayerNorm::<f64>::new(1, 1e-5).expect("invariant: test operation succeeds");
+    init::constant(&mut ln.weight, 2.0).expect("invariant: test operation succeeds");
+    init::constant(&mut ln.bias, 1.0).expect("invariant: test operation succeeds");
 
-    let input = Var::new(Tensor::from_slice(vec![2, 1], &[3.0f64, 5.0]), true);
+    let input = Var::new(
+        Tensor::from_slice(vec![2, 1], &[3.0f64, 5.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = ln.forward(&input).expect("valid LayerNorm input");
 
     assert_eq!(output.tensor.shape(), &[2, 1]);

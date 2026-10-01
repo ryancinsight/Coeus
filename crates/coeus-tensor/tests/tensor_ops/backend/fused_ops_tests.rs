@@ -6,8 +6,10 @@ use coeus_tensor::Tensor;
 #[test]
 fn fused_expression_rejects_incompatible_broadcast_shapes() {
     let backend = SequentialBackend::new();
-    let left = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0, 2.0]);
-    let right = Tensor::<f32, SequentialBackend>::from_slice(vec![3], &[3.0, 4.0, 5.0]);
+    let left = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0, 2.0])
+        .expect("invariant: test backend operation succeeds");
+    let right = Tensor::<f32, SequentialBackend>::from_slice(vec![3], &[3.0, 4.0, 5.0])
+        .expect("invariant: test backend operation succeeds");
     let expression = left.expr() + right.expr();
 
     let error = match evaluate_fused_cpu(&expression, &backend) {
@@ -36,8 +38,10 @@ fn fused_expression_borrows_inputs_through_parallel_dispatch() {
         })
         .collect::<Vec<_>>();
     let right_values = vec![1.0f32; ELEMENT_COUNT];
-    let left = Tensor::<f32, MoiraiBackend>::from_slice(vec![ELEMENT_COUNT], &left_values);
-    let right = Tensor::<f32, MoiraiBackend>::from_slice(vec![ELEMENT_COUNT], &right_values);
+    let left = Tensor::<f32, MoiraiBackend>::from_slice(vec![ELEMENT_COUNT], &left_values)
+        .expect("invariant: test backend operation succeeds");
+    let right = Tensor::<f32, MoiraiBackend>::from_slice(vec![ELEMENT_COUNT], &right_values)
+        .expect("invariant: test backend operation succeeds");
     let expression = left.expr() * 2.0 + right.expr();
 
     let output = evaluate_fused_cpu(&expression, &backend)
@@ -53,7 +57,8 @@ fn fused_expression_borrows_inputs_through_parallel_dispatch() {
 #[test]
 fn fused_empty_axis_uses_identities_and_rejects_undefined_reductions() {
     let backend = SequentialBackend::new();
-    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 0], &[]);
+    let input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 0], &[])
+        .expect("invariant: test backend operation succeeds");
     let expression = input.expr();
 
     let sum = evaluate_fused_reduce_cpu(&expression, ReductionOp::Sum, 1, &backend)
@@ -87,17 +92,20 @@ fn test_cpu_fusion_basic() {
         &[
             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let b = Tensor::<f32, SequentialBackend>::from_slice(
         shape.clone(),
         &[2.0, 0.5, 1.5, 2.5, 3.0, 1.0, -1.0, 0.0, 0.5, 2.0, -3.0, 4.0],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let c = Tensor::<f32, SequentialBackend>::from_slice(
         shape.clone(),
         &[
             -5.0, 1.0, 2.0, 3.0, 1.5, 2.5, 0.5, 10.0, 1.0, -1.0, 5.0, 6.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // Expression: (a.expr() * b.expr() + c.expr()).relu()
     let expr = (a.expr() * b.expr() + c.expr()).relu();
@@ -123,8 +131,10 @@ fn test_cpu_fusion_broadcasting() {
     let backend = SequentialBackend::new();
 
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 3], &[10.0, 20.0, 30.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds");
+    let b = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 3], &[10.0, 20.0, 30.0])
+        .expect("invariant: test backend operation succeeds");
 
     // Expression: a + b
     let expr = a.expr() + b.expr();
@@ -140,7 +150,8 @@ fn test_cpu_fusion_silu() {
     let backend = SequentialBackend::new();
     let shape = vec![5];
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
 
     // Expression: a.expr().silu()
     let expr = a.expr().silu();
@@ -164,7 +175,8 @@ fn test_cpu_fusion_gelu() {
     let backend = SequentialBackend::new();
     let shape = vec![5];
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
 
     let expr = a.expr().gelu();
     let fused_out = evaluate_fused_cpu(&expr, &backend).expect("fused expression should evaluate");
@@ -184,7 +196,8 @@ fn test_cpu_fusion_gelu_grad() {
     let backend = SequentialBackend::new();
     let shape = vec![5];
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[-2.0, -1.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
 
     let expr = a.expr().gelu_grad();
     let fused_out = evaluate_fused_cpu(&expr, &backend).expect("fused expression should evaluate");
@@ -209,11 +222,13 @@ fn test_cpu_fusion_gelu_grad() {
 fn test_cpu_fusion_reduce_ops() {
     let backend = SequentialBackend::new();
     let a =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, -2.0, 3.0, 4.0, 5.0, -6.0]);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[1.0, -2.0, 3.0, 4.0, 5.0, -6.0])
+            .expect("invariant: test backend operation succeeds");
     let b = Tensor::<f32, SequentialBackend>::from_slice(
         vec![2, 3],
         &[10.0, 20.0, -30.0, 1.5, -2.0, 0.5],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let expr = a.expr() + b.expr();
 

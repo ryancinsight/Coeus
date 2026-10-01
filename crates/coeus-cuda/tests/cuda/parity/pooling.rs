@@ -5,9 +5,12 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
     let Some((sequential, cuda)) = backends() else {
         return;
     };
-    let input = Tensor::from_slice([1, 1, 5], &[1.0, 4.0, 2.0, 5.0, 3.0]);
-    let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0]);
-    let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let input = Tensor::from_slice([1, 1, 5], &[1.0, 4.0, 2.0, 5.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0])
+        .expect("invariant: test backend operation succeeds");
+    let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5])
+        .expect("invariant: test backend operation succeeds");
     let expected_layout = expected.layout().clone();
     sequential
         .max_pool1d(
@@ -17,11 +20,12 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected.storage_mut(),
+            expected.storage_mut()?,
             &expected_layout,
         )
         .expect("sequential max_pool1d dispatch");
-    let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5])
+        .expect("invariant: test backend operation succeeds");
     let expected_gradient_layout = expected_gradient.layout().clone();
     sequential
         .max_pool1d_backward(
@@ -33,14 +37,15 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected_gradient.storage_mut(),
+            expected_gradient.storage_mut()?,
             &expected_gradient_layout,
         )
         .expect("sequential max_pool1d backward dispatch");
 
     let device_input = to_gpu(&input, &sequential, &cuda);
     let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
-    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda)
+        .expect("invariant: test backend operation succeeds");
     let actual_layout = actual.layout().clone();
     cuda.max_pool1d(
         device_input.storage(),
@@ -49,11 +54,12 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual.storage_mut(),
+        actual.storage_mut()?,
         &actual_layout,
     )
     .expect("CUDA max_pool1d dispatch");
-    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda)
+        .expect("invariant: test backend operation succeeds");
     let actual_gradient_layout = actual_gradient.layout().clone();
     cuda.max_pool1d_backward(
         device_grad_out.storage(),
@@ -64,7 +70,7 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual_gradient.storage_mut(),
+        actual_gradient.storage_mut()?,
         &actual_gradient_layout,
     )
     .expect("CUDA max_pool1d backward dispatch");
@@ -89,9 +95,12 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
     let Some((sequential, cuda)) = backends() else {
         return;
     };
-    let input = Tensor::from_slice([1, 1, 5], &[1.0, 4.0, 2.0, 5.0, 3.0]);
-    let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0]);
-    let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let input = Tensor::from_slice([1, 1, 5], &[1.0, 4.0, 2.0, 5.0, 3.0])
+        .expect("invariant: test backend operation succeeds");
+    let grad_out = Tensor::from_slice([1, 1, 5], &[1.0, 2.0, 3.0, 4.0, 5.0])
+        .expect("invariant: test backend operation succeeds");
+    let mut expected = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5])
+        .expect("invariant: test backend operation succeeds");
     let expected_layout = expected.layout().clone();
     sequential
         .avg_pool1d(
@@ -101,11 +110,12 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected.storage_mut(),
+            expected.storage_mut()?,
             &expected_layout,
         )
         .expect("sequential avg_pool1d dispatch");
-    let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5]);
+    let mut expected_gradient = Tensor::<f32, SequentialBackend>::zeros([1, 1, 5])
+        .expect("invariant: test backend operation succeeds");
     let expected_gradient_layout = expected_gradient.layout().clone();
     sequential
         .avg_pool1d_backward(
@@ -115,14 +125,15 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected_gradient.storage_mut(),
+            expected_gradient.storage_mut()?,
             &expected_gradient_layout,
         )
         .expect("sequential avg_pool1d backward dispatch");
 
     let device_input = to_gpu(&input, &sequential, &cuda);
     let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
-    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda)
+        .expect("invariant: test backend operation succeeds");
     let actual_layout = actual.layout().clone();
     cuda.avg_pool1d(
         device_input.storage(),
@@ -131,11 +142,12 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual.storage_mut(),
+        actual.storage_mut()?,
         &actual_layout,
     )
     .expect("CUDA avg_pool1d dispatch");
-    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda)
+        .expect("invariant: test backend operation succeeds");
     let actual_gradient_layout = actual_gradient.layout().clone();
     cuda.avg_pool1d_backward(
         device_grad_out.storage(),
@@ -144,7 +156,7 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual_gradient.storage_mut(),
+        actual_gradient.storage_mut()?,
         &actual_gradient_layout,
     )
     .expect("CUDA avg_pool1d backward dispatch");
@@ -169,9 +181,11 @@ fn test_cuda_parity_max_pool2d() {
         return;
     };
     let data: Vec<f32> = (0..2 * 2 * 4 * 4).map(|x| x as f32 * 0.1).collect();
-    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data);
+    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.max_pool2d(
         x.storage(),
@@ -180,13 +194,14 @@ fn test_cuda_parity_max_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c);
+    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     c.max_pool2d(
         xg.storage(),
@@ -195,7 +210,7 @@ fn test_cuda_parity_max_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("invariant: validated CUDA max_pool2d dispatch must succeed");
@@ -214,9 +229,11 @@ fn test_cuda_parity_avg_pool2d() {
         return;
     };
     let data: Vec<f32> = (0..2 * 2 * 4 * 4).map(|x| x as f32 * 0.1).collect();
-    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data);
+    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.avg_pool2d(
         x.storage(),
@@ -225,13 +242,14 @@ fn test_cuda_parity_avg_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c);
+    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     c.avg_pool2d(
         xg.storage(),
@@ -240,7 +258,7 @@ fn test_cuda_parity_avg_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("invariant: validated CUDA avg_pool2d dispatch must succeed");
@@ -262,11 +280,14 @@ fn test_cuda_parity_max_pool2d_backward() {
     let data: Vec<f32> = (0..2 * 2 * 4 * 4)
         .map(|i| ((i * 7 + 3) % 13) as f32)
         .collect();
-    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data);
+    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data)
+        .expect("invariant: test backend operation succeeds");
     let grad_out: Vec<f32> = (0..2 * 2 * 2 * 2).map(|i| i as f32 * 0.5 + 1.0).collect();
-    let go = Tensor::from_slice(vec![2, 2, 2, 2], &grad_out);
+    let go = Tensor::from_slice(vec![2, 2, 2, 2], &grad_out)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 4, 4]);
+    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 4, 4])
+        .expect("invariant: test backend operation succeeds");
     let gi_l = gi_c.layout().clone();
     s.max_pool2d_backward(
         go.storage(),
@@ -277,14 +298,15 @@ fn test_cuda_parity_max_pool2d_backward() {
         2,
         0,
         1,
-        gi_c.storage_mut(),
+        gi_c.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CPU max_pool2d backward dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
     let gog = to_gpu(&go, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 4, 4], &c);
+    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 4, 4], &c)
+        .expect("invariant: test backend operation succeeds");
     c.max_pool2d_backward(
         gog.storage(),
         gog.layout(),
@@ -294,7 +316,7 @@ fn test_cuda_parity_max_pool2d_backward() {
         2,
         0,
         1,
-        gi_g.storage_mut(),
+        gi_g.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CUDA max_pool2d backward dispatch must succeed");
@@ -315,9 +337,11 @@ fn test_cuda_parity_avg_pool2d_backward() {
     // avg-pool backward distributes grad_out uniformly over each window and
     // needs no input values, so only grad_out is supplied.
     let grad_out: Vec<f32> = (0..2 * 2 * 2 * 2).map(|i| i as f32 * 0.5 + 1.0).collect();
-    let go = Tensor::from_slice(vec![2, 2, 2, 2], &grad_out);
+    let go = Tensor::from_slice(vec![2, 2, 2, 2], &grad_out)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 4, 4]);
+    let mut gi_c = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 4, 4])
+        .expect("invariant: test backend operation succeeds");
     let gi_l = gi_c.layout().clone();
     s.avg_pool2d_backward(
         go.storage(),
@@ -326,13 +350,14 @@ fn test_cuda_parity_avg_pool2d_backward() {
         2,
         0,
         1,
-        gi_c.storage_mut(),
+        gi_c.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CPU avg_pool2d backward dispatch must succeed");
 
     let gog = to_gpu(&go, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 4, 4], &c);
+    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 4, 4], &c)
+        .expect("invariant: test backend operation succeeds");
     c.avg_pool2d_backward(
         gog.storage(),
         gog.layout(),
@@ -340,7 +365,7 @@ fn test_cuda_parity_avg_pool2d_backward() {
         2,
         0,
         1,
-        gi_g.storage_mut(),
+        gi_g.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CUDA avg_pool2d backward dispatch must succeed");

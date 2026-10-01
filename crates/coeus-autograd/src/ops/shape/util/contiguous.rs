@@ -43,12 +43,14 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Co
 
 /// Tracked contiguous operation. Forces a copy to contiguous layout.
 #[inline]
-pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B>) -> Var<T, B> {
+pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    x: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     if x.tensor.is_contiguous() {
-        return x.clone();
+        return Ok(x.clone());
     }
     let backend = B::default();
-    let out_tensor = x.tensor.to_contiguous();
+    let out_tensor = x.tensor.to_contiguous()?;
 
     let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {

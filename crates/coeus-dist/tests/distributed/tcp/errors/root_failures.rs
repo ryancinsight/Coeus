@@ -2,8 +2,10 @@
 //! rank 0 and speaks the broadcast protocol by hand, so each failure is
 //! placed at an exact byte.
 
-use coeus_core::SequentialBackend;
-use coeus_dist::{Communicator, MeshDeadlines, TcpCommunicator, TcpMesh, TcpMeshError};
+use coeus_core::{BackendError, SequentialBackend};
+use coeus_dist::{
+    CollectiveError, Communicator, MeshDeadlines, TcpCommunicator, TcpMesh, TcpMeshError,
+};
 use coeus_tensor::Tensor;
 use std::io::ErrorKind;
 use std::net::Ipv4Addr;
@@ -34,11 +36,12 @@ fn hand_driven_root() -> (TcpMesh, TcpCommunicator) {
 fn broadcast_against(
     rank_1: &TcpCommunicator,
     root: impl FnOnce() + Send,
-) -> Result<(), TcpMeshError> {
+) -> Result<(), CollectiveError<TcpMeshError, BackendError>> {
     thread::scope(|scope| {
         let pending = scope.spawn(|| {
             let backend = SequentialBackend::new();
-            let mut tensor = Tensor::<f32, _>::zeros_on([ELEMENTS], &backend);
+            let mut tensor = Tensor::<f32, _>::zeros_on([ELEMENTS], &backend)
+                .expect("invariant: test backend operation succeeds");
             rank_1.broadcast(&mut tensor, 0, &backend)
         });
         root();
@@ -63,12 +66,12 @@ fn an_invalid_handshake_status_is_a_typed_error_that_poisons_the_links() {
         root.send(1, &[STATUS]).unwrap();
     });
     match outcome {
-        Err(TcpMeshError::InvalidStatus {
+        Err(CollectiveError::Communicator(TcpMeshError::InvalidStatus {
             rank,
             peer,
             address,
             status,
-        }) => {
+        })) => {
             assert_eq!((rank, peer, status), (1, 0, STATUS));
             // Rank 1 accepted rank 0, so this is rank 0's outgoing endpoint.
             assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
@@ -107,9 +110,9 @@ fn a_root_lost_mid_payload_is_a_typed_error_on_the_receiver() {
         root.shutdown();
     });
     match outcome {
-        Err(TcpMeshError::Recv {
+        Err(CollectiveError::Communicator(TcpMeshError::Recv {
             rank, peer, source, ..
-        }) => {
+        })) => {
             assert_eq!((rank, peer), (1, 0));
             assert_eq!(source.kind(), ErrorKind::UnexpectedEof);
         }
@@ -131,11 +134,11 @@ fn a_root_reported_mismatch_is_a_typed_error_that_poisons_the_links() {
         root.send(1, &[0]).unwrap();
     });
     match outcome {
-        Err(TcpMeshError::PeerReportedMismatch {
+        Err(CollectiveError::Communicator(TcpMeshError::PeerReportedMismatch {
             rank,
             peer,
             address,
-        }) => {
+        })) => {
             assert_eq!((rank, peer), (1, 0));
             assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
         }

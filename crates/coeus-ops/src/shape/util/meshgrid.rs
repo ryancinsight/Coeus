@@ -27,7 +27,7 @@ pub fn meshgrid<T: Scalar, B: BackendOps<T> + Default>(
     tensors: &[&Tensor<T, B>],
     indexing: &str,
     _backend: &B,
-) -> Vec<Tensor<T, B>>
+) -> Result<Vec<Tensor<T, B>>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -68,7 +68,7 @@ where
     (0..n)
         .map(|g| {
             let src_dim = ij_to_grid(g);
-            let src_cont = tensors[g].to_contiguous();
+            let src_cont = tensors[g].to_contiguous()?;
             let src_s = src_cont.as_slice();
 
             // Compute row-major strides for the output shape.
@@ -96,7 +96,7 @@ where
 
             Tensor::from_slice(out_shape, &data)
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()
 }
 
 #[cfg(test)]
@@ -108,9 +108,11 @@ mod tests {
     #[test]
     fn meshgrid_ij_2d_creates_correct_grids() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0]);
-        let y = Tensor::from_slice(vec![2], &[10.0f32, 20.0]);
-        let grids = meshgrid(&[&x, &y], "ij", &b);
+        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
+        let y = Tensor::from_slice(vec![2], &[10.0f32, 20.0])
+            .expect("invariant: test backend operation succeeds");
+        let grids = meshgrid(&[&x, &y], "ij", &b).expect("invariant: test operation succeeds");
         assert_eq!(grids.len(), 2);
         // x-grid [3,2]: each row is [0,0], [1,1], [2,2]
         assert_eq!(grids[0].shape(), &[3, 2]);
@@ -123,8 +125,9 @@ mod tests {
     #[test]
     fn meshgrid_ij_1d_is_identity() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0]);
-        let grids = meshgrid(&[&x], "ij", &b);
+        let x = Tensor::from_slice(vec![4], &[1.0f32, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let grids = meshgrid(&[&x], "ij", &b).expect("invariant: test operation succeeds");
         assert_eq!(grids.len(), 1);
         assert_eq!(grids[0].as_slice(), x.as_slice());
     }
@@ -134,9 +137,11 @@ mod tests {
         // For (x=[0,1,2], y=[0,1]):
         // ij indexing: grid_x varies along axis 0, grid_y along axis 1.
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0]);
-        let y = Tensor::from_slice(vec![2], &[0.0f32, 1.0]);
-        let grids = meshgrid(&[&x, &y], "ij", &b);
+        let x = Tensor::from_slice(vec![3], &[0.0f32, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
+        let y = Tensor::from_slice(vec![2], &[0.0f32, 1.0])
+            .expect("invariant: test backend operation succeeds");
+        let grids = meshgrid(&[&x, &y], "ij", &b).expect("invariant: test operation succeeds");
         // grid_x[i,j] = x[i]
         for row in 0..3 {
             for col in 0..2 {

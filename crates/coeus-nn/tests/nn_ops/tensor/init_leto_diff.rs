@@ -27,7 +27,12 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let shape = [2usize, 3];
-    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend), true);
+    let mut weight = Var::new(
+        Tensor::<T, B>::zeros_on(shape, backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     coeus_nn::init::uniform_with_seed(&mut weight, -2.0, 5.0, 42)
         .expect("valid seeded uniform initializer fixture");
@@ -76,7 +81,12 @@ where
     let fan_in = 4usize;
     let seed = 37u64;
 
-    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend), true);
+    let mut weight = Var::new(
+        Tensor::<T, B>::zeros_on(shape, backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     coeus_nn::init::kaiming_uniform_with_seed(&mut weight, fan_in, seed)
         .expect("valid seeded Kaiming uniform fixture");
 
@@ -126,7 +136,12 @@ where
     let fan_out = 4usize;
     let seed = 53u64;
 
-    let mut weight = Var::new(Tensor::<T, B>::zeros_on(shape, backend), true);
+    let mut weight = Var::new(
+        Tensor::<T, B>::zeros_on(shape, backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     coeus_nn::init::xavier_uniform_with_seed(&mut weight, fan_in, fan_out, seed)
         .expect("valid seeded Xavier uniform fixture");
 
@@ -190,7 +205,12 @@ fn assert_unchanged(
 fn initializer_rejects_unsupported_ranks_without_mutation() {
     for shape in [vec![], vec![1, 1, 1, 1, 1, 1, 1]] {
         let rank = shape.len();
-        let mut weight = Var::new(Tensor::<f32, SequentialBackend>::ones(shape.clone()), true);
+        let mut weight = Var::new(
+            Tensor::<f32, SequentialBackend>::ones(shape.clone())
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
         let original = weight.tensor.as_slice().to_vec();
 
         let error = coeus_nn::init::uniform_with_seed(&mut weight, -1.0, 1.0, 7)
@@ -222,9 +242,11 @@ fn initializer_rejects_invalid_distribution_parameters_without_mutation() {
 
     for (low, high, expected_parameter, expected_value) in cases {
         let mut weight = Var::new(
-            Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]),
+            Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let error = coeus_nn::init::uniform_with_seed(&mut weight, low, high, 7)
             .expect_err("non-finite uniform parameter must be rejected");
         match error {
@@ -242,9 +264,11 @@ fn initializer_rejects_invalid_distribution_parameters_without_mutation() {
     }
 
     let mut weight = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]),
+        Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let error = coeus_nn::init::uniform_with_seed(&mut weight, 2.0, -2.0, 7)
         .expect_err("reversed uniform bounds must be rejected");
     match error {
@@ -288,9 +312,11 @@ fn initializer_rejects_invalid_distribution_parameters_without_mutation() {
 #[test]
 fn initializer_rejects_invalid_fans_without_mutation() {
     let mut weight = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0]),
+        Tensor::<f32, SequentialBackend>::from_slice([2], &[3.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let error = coeus_nn::init::kaiming_uniform_with_seed(&mut weight, 0, 7)
         .expect_err("zero Kaiming fan must be rejected");
@@ -383,8 +409,18 @@ fn default_initializers_match_explicit_seed_42() {
     ];
 
     for (initialize_default, initialize_seeded) in initializers {
-        let mut default = Var::new(Tensor::<f32, SequentialBackend>::zeros([2, 3]), true);
-        let mut seeded = Var::new(Tensor::<f32, SequentialBackend>::zeros([2, 3]), true);
+        let mut default = Var::new(
+            Tensor::<f32, SequentialBackend>::zeros([2, 3])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let mut seeded = Var::new(
+            Tensor::<f32, SequentialBackend>::zeros([2, 3])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
         initialize_default(&mut default);
         initialize_seeded(&mut seeded);
         assert_eq!(default.tensor.as_slice(), seeded.tensor.as_slice());

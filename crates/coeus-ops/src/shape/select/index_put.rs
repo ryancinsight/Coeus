@@ -28,7 +28,7 @@ pub fn index_put<T: Scalar, B: BackendOps<T> + Default>(
     values: &Tensor<T, B>,
     accumulate: bool,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -55,10 +55,10 @@ where
     // Copy input to host, apply updates, copy back.
     let numel = input.numel();
     let mut host = vec![T::zero(); numel];
-    backend.copy_to_host(input.storage(), &mut host);
+    backend.copy_to_host(input.storage(), &mut host)?;
 
-    let idx_cont = indices.to_contiguous();
-    let val_cont = values.to_contiguous();
+    let idx_cont = indices.to_contiguous()?;
+    let val_cont = values.to_contiguous()?;
     let idx_s = idx_cont.as_slice();
     let val_s = val_cont.as_slice();
 
@@ -92,20 +92,27 @@ mod tests {
     #[test]
     fn index_put_replace() {
         let b = SequentialBackend::new();
-        let x = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 2.0, 3.0, 4.0]);
-        let idx = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0, 3.0]);
-        let vals = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[10.0, 20.0]);
-        let out = index_put(&x, &idx, &vals, false, &b);
+        let x = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let vals = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[10.0, 20.0])
+            .expect("invariant: test backend operation succeeds");
+        let out =
+            index_put(&x, &idx, &vals, false, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.as_slice(), &[1.0, 10.0, 3.0, 20.0]);
     }
 
     #[test]
     fn index_put_accumulate() {
         let b = SequentialBackend::new();
-        let x = Tensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0, 2.0, 3.0]);
-        let idx = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.0, 0.0]);
-        let vals = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[5.0, 3.0]);
-        let out = index_put(&x, &idx, &vals, true, &b);
+        let x = Tensor::<f32, SequentialBackend>::from_slice(vec![3], &[1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[0.0, 0.0])
+            .expect("invariant: test backend operation succeeds");
+        let vals = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[5.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = index_put(&x, &idx, &vals, true, &b).expect("invariant: test operation succeeds");
         // 1.0 + 5.0 + 3.0 = 9.0
         assert!((out.as_slice()[0] - 9.0).abs() < 1e-6);
     }

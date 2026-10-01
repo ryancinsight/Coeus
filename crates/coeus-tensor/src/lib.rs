@@ -24,5 +24,5 @@ pub mod views;
 pub mod checkpoint;
 
 pub use checkpoint::{ArchivedTensor, StateArchive, StateDict, StateLimits};
-pub use tensor::Tensor;
+pub use tensor::{Tensor, TensorTransferError};
 pub use views::Transpose;

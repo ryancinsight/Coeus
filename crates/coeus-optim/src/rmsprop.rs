@@ -13,10 +13,18 @@ use coeus_tensor::Tensor;
 /// use coeus_optim::{Optimizer, RMSProp};
 /// use coeus_tensor::Tensor;
 ///
-/// let x: Var<f32> = Var::new(Tensor::from_slice(vec![2], &[2.0f32, 3.0]), true);
-/// x.set_grad(Tensor::from_slice(vec![2], &[1.0f32, -2.0]));
+/// let x: Var<f32> = Var::new(
+///     Tensor::from_slice(vec![2], &[2.0f32, 3.0]).expect("example tensor allocation succeeds"),
+///     true,
+/// )
+/// .expect("example variable allocation succeeds");
+/// x.set_grad(
+///     Tensor::from_slice(vec![2], &[1.0f32, -2.0])
+///         .expect("example gradient allocation succeeds"),
+/// );
 ///
-/// let mut opt = RMSProp::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.99f32, 1e-8f32);
+/// let mut opt = RMSProp::new(vec![Parameter::new(x.clone(), "x")], 0.1f32, 0.99f32, 1e-8f32)
+///     .expect("example optimizer allocation succeeds");
 /// opt.step().unwrap();
 /// // v = (1-alpha) * grad^2 = 0.01 * [1.0, 4.0] = [0.01, 0.04]
 /// // update = lr * grad / (sqrt(v) + eps) = 0.1 * [1.0, -2.0] / [0.1, 0.2] = [1.0, -1.0]
@@ -40,20 +48,20 @@ pub struct RMSProp<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RMSProp<T, B> {
     /// Create a new RMSProp optimizer.
-    pub fn new(params: Vec<Parameter<T, B>>, lr: T, alpha: T, eps: T) -> Self {
+    pub fn new(params: Vec<Parameter<T, B>>, lr: T, alpha: T, eps: T) -> Result<Self, B::Error> {
         let backend = B::default();
         let mut v = Vec::with_capacity(params.len());
         for param in &params {
-            v.push(Tensor::zeros_on(param.var.tensor.shape(), &backend));
+            v.push(Tensor::zeros_on(param.var.tensor.shape(), &backend)?);
         }
 
-        Self {
+        Ok(Self {
             params,
             lr,
             alpha,
             eps,
             v,
-        }
+        })
     }
 }
 
@@ -84,8 +92,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
                 let grad_tensor = g.read();
                 let v_tensor = &mut self.v[i];
 
-                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout();
-                let (v_storage, v_layout) = v_tensor.storage_mut_and_layout();
+                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout()?;
+                let (v_storage, v_layout) = v_tensor.storage_mut_and_layout()?;
 
                 backend.rmsprop_step(
                     param_storage,
@@ -103,17 +111,18 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
         Ok(())
     }
 
-    fn zero_grad(&mut self) {
+    fn zero_grad(&mut self) -> Result<(), B::Error> {
         for p in &self.params {
-            p.var.zero_grad();
+            p.var.zero_grad()?;
         }
+        Ok(())
     }
 
     fn set_lr(&mut self, lr: T) {
         self.lr = lr;
     }
 
-    fn clip_grad_norm(&mut self, max_norm: T) -> T
+    fn clip_grad_norm(&mut self, max_norm: T) -> Result<T, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

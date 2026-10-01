@@ -16,10 +16,12 @@ fn test_nll_loss() {
     let targets = vec![0, 1, 2];
 
     let log_probs = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3, 3], &log_probs_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([3, 3], &log_probs_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let loss = nll_loss(&log_probs, &targets);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let loss = nll_loss(&log_probs, &targets).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let loss_val = loss.tensor.as_slice()[0];
@@ -50,10 +52,20 @@ fn test_soft_margin() {
     let ys = [1.0_f64, -1.0, 1.0];
     let n = xs.len() as f64;
 
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &xs), true);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &xs)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &ys)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = soft_margin(&input, &target);
+    let loss = soft_margin(&input, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let mut expected = 0.0;
@@ -103,10 +115,12 @@ fn test_multi_margin() {
     // j=1: m=1-0.5+0.8=1.3>0 (active); j=2: m=1-0.5-0.6=-0.1<0 (inactive).
     // loss = 1.3 / (N*C) = 1.3/3.  grads: x[0,1]=1/3, x[0,2]=0, x[0,0]=-1/3.
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[0.5, 0.8, -0.6])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let loss = multi_margin(&x, &[0], 1.0, 1.0);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let loss = multi_margin(&x, &[0], 1.0, 1.0).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(
         (loss.tensor.as_slice()[0] - 1.3 / 3.0).abs() <= 1e-12,
@@ -132,10 +146,12 @@ fn test_multi_margin() {
 fn test_multi_margin_all_inactive() {
     // Target score dominates by > margin → all hinges inactive → loss 0.
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[3.0, 0.5, 0.1]),
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 3], &[3.0, 0.5, 0.1])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let loss = multi_margin(&x, &[0], 1.0, 1.0);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let loss = multi_margin(&x, &[0], 1.0, 1.0).expect("invariant: test operation succeeds");
     assert_eq!(
         loss.tensor.as_slice(),
         &[0.0_f64],
@@ -151,12 +167,14 @@ fn test_hinge_embedding_loss() {
     // formula and are corrected here to torch's documented contract.)
     //   0.5, max(0,1-2)=0, -1.0, max(0,1-0.3)=0.7  =>  mean = 0.2 / 4 = 0.05.
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[0.5, 2.0, -1.0, 0.3]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[0.5, 2.0, -1.0, 0.3])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = [1.0f64, -1.0, 1.0, -1.0];
 
-    let loss = hinge_embedding_loss(&x, &target, 1.0);
+    let loss = hinge_embedding_loss(&x, &target, 1.0).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(
         (loss.tensor.as_slice()[0] - 0.05).abs() < 1e-12,
@@ -188,15 +206,20 @@ fn test_multi_label_soft_margin_loss() {
     //   i0: x=0, σ=0.5, y=1 -> -ln(0.5) = ln 2
     //   i1: x=2, y=0        -> -ln(1-σ(2))
     let x = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 0.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = multi_label_soft_margin_loss(&x, &target);
+    let loss =
+        multi_label_soft_margin_loss(&x, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     let sig2 = 1.0 / (1.0 + (-2.0f64).exp());
     let expected = (2.0f64.ln() + -(1.0 - sig2).ln()) / 2.0;

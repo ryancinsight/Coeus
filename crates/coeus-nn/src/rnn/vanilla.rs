@@ -87,10 +87,10 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> R
     ) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let input = self.w_ih.forward(x)?;
         let hidden = self.w_hh.forward(h)?;
-        let pre = coeus_autograd::add(&input, &hidden);
+        let pre = coeus_autograd::add(&input, &hidden)?;
         Ok(match self.nonlinearity {
-            RnnNonlinearity::Tanh => coeus_autograd::tanh(&pre),
-            RnnNonlinearity::Relu => coeus_autograd::relu(&pre),
+            RnnNonlinearity::Tanh => coeus_autograd::tanh(&pre)?,
+            RnnNonlinearity::Relu => coeus_autograd::relu(&pre)?,
         })
     }
 }
@@ -113,7 +113,10 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
     fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let batch = validation::cell_input(x.tensor.shape(), self.input_size, "RNNCell")?;
         let backend = B::default();
-        let h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+        let h = Var::new(
+            Tensor::zeros_on([batch, self.hidden_size], &backend)?,
+            false,
+        )?;
         self.step_validated(x, &h)
     }
 }
@@ -173,21 +176,24 @@ where
             validation::sequence_input(x.tensor.shape(), self.input_size, "Rnn")?;
         let backend = B::default();
 
-        let mut h = Var::new(Tensor::zeros_on([batch, self.hidden_size], &backend), false);
+        let mut h = Var::new(
+            Tensor::zeros_on([batch, self.hidden_size], &backend)?,
+            false,
+        )?;
         let mut outputs: Vec<Var<T, B>> = Vec::with_capacity(seq_len);
         for t in 0..seq_len {
-            let x_t_3d = coeus_autograd::slice(x, &[(0, batch), (t, t + 1), (0, self.input_size)]);
-            let x_t = coeus_autograd::reshape(&x_t_3d, vec![batch, self.input_size]);
+            let x_t_3d = coeus_autograd::slice(x, &[(0, batch), (t, t + 1), (0, self.input_size)])?;
+            let x_t = coeus_autograd::reshape(&x_t_3d, vec![batch, self.input_size])?;
             let h_new = self.cell.step_validated(&x_t, &h)?;
             outputs.push(coeus_autograd::reshape(
                 &h_new,
                 vec![batch, 1, self.hidden_size],
-            ));
+            )?);
             h = h_new;
         }
 
         let refs: Vec<&Var<T, B>> = outputs.iter().collect();
-        let output = coeus_autograd::cat(&refs, 1);
+        let output = coeus_autograd::cat(&refs, 1)?;
         Ok((output, h))
     }
 }

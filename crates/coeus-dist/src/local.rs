@@ -32,8 +32,10 @@ pub struct LocalClusterShared {
 ///         let rank = comm.rank() as f32;
 ///         // rank r contributes [r+1, r+2] -> [1,2], [2,3], [3,4]
 ///         let mut tensor =
-///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend);
-///         let Ok(()) = comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend);
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 2.0], &backend)
+///                 .expect("invariant: example shape matches rank-local data");
+///         comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend)
+///             .expect("invariant: all simulated ranks enter the example collective");
 ///         // sum across 3 ranks: [1+2+3, 2+3+4] = [6, 9]
 ///         let data = tensor.as_slice();
 ///         assert_eq!(data[0], 6.0);

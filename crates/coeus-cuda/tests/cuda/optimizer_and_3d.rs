@@ -16,15 +16,27 @@ fn test_cuda_adamw_step() {
     let m_data = vec![0.01f32, 0.02, 0.03, 0.04];
     let v_data = vec![0.001f32, 0.002, 0.003, 0.004];
 
-    let mut param_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &param_data);
-    let grad_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &grad_data);
-    let mut m_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &m_data);
-    let mut v_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &v_data);
+    let mut param_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &param_data)
+        .expect("invariant: test backend operation succeeds");
+    let grad_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &grad_data)
+        .expect("invariant: test backend operation succeeds");
+    let mut m_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &m_data)
+        .expect("invariant: test backend operation succeeds");
+    let mut v_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &v_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut param_cuda = param_seq.to_backend_on(&seq, &cuda_b);
-    let grad_cuda = grad_seq.to_backend_on(&seq, &cuda_b);
-    let mut m_cuda = m_seq.to_backend_on(&seq, &cuda_b);
-    let mut v_cuda = v_seq.to_backend_on(&seq, &cuda_b);
+    let mut param_cuda = param_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let grad_cuda = grad_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let mut m_cuda = m_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let mut v_cuda = v_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
     let p_seq_layout = param_seq.layout().clone();
     let g_seq_layout = grad_seq.layout().clone();
@@ -36,13 +48,13 @@ fn test_cuda_adamw_step() {
     let m_cuda_layout = m_cuda.layout().clone();
     let v_cuda_layout = v_cuda.layout().clone();
     seq.adamw_step(
-        param_seq.storage_mut(),
+        param_seq.storage_mut()?,
         &p_seq_layout,
         grad_seq.storage(),
         &g_seq_layout,
-        m_seq.storage_mut(),
+        m_seq.storage_mut()?,
         &m_seq_layout,
-        v_seq.storage_mut(),
+        v_seq.storage_mut()?,
         &v_seq_layout,
         0.001,
         0.9,
@@ -55,13 +67,13 @@ fn test_cuda_adamw_step() {
 
     cuda_b
         .adamw_step(
-            param_cuda.storage_mut(),
+            param_cuda.storage_mut()?,
             &p_cuda_layout,
             grad_cuda.storage(),
             &g_cuda_layout,
-            m_cuda.storage_mut(),
+            m_cuda.storage_mut()?,
             &m_cuda_layout,
-            v_cuda.storage_mut(),
+            v_cuda.storage_mut()?,
             &v_cuda_layout,
             0.001,
             0.9,
@@ -72,9 +84,15 @@ fn test_cuda_adamw_step() {
         )
         .expect("CUDA AdamW step");
 
-    let param_cuda_on_cpu = param_cuda.to_backend_on(&cuda_b, &seq);
-    let m_cuda_on_cpu = m_cuda.to_backend_on(&cuda_b, &seq);
-    let v_cuda_on_cpu = v_cuda.to_backend_on(&cuda_b, &seq);
+    let param_cuda_on_cpu = param_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
+    let m_cuda_on_cpu = m_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
+    let v_cuda_on_cpu = v_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     for (i, (&res, &exp)) in param_cuda_on_cpu
         .as_slice()
@@ -131,15 +149,23 @@ fn test_cuda_conv3d() {
     let input_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
     let weight_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &input_data);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &input_data)
+        .expect("invariant: test backend operation succeeds");
     let weight_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &weight_data);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &weight_data)
+            .expect("invariant: test backend operation succeeds");
 
-    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
-    let weight_cuda = weight_seq.to_backend_on(&seq, &cuda_b);
+    let input_cuda = input_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let weight_cuda = weight_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 1, 1, 1]);
-    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 1, 1, 1]);
+    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 1, 1, 1])
+        .expect("invariant: test backend operation succeeds");
+    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 1, 1, 1])
+        .expect("invariant: test backend operation succeeds");
 
     let input_seq_layout = input_seq.layout().clone();
     let weight_seq_layout = weight_seq.layout().clone();
@@ -157,7 +183,7 @@ fn test_cuda_conv3d() {
         1,
         0,
         1,
-        out_seq.storage_mut(),
+        out_seq.storage_mut()?,
         &out_seq_layout,
     )
     .expect("CPU conv3d dispatch");
@@ -172,12 +198,14 @@ fn test_cuda_conv3d() {
             1,
             0,
             1,
-            out_cuda.storage_mut(),
+            out_cuda.storage_mut()?,
             &out_cuda_layout,
         )
         .expect("CUDA conv3d dispatch");
 
-    let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
+    let out_cuda_on_cpu = out_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(out_cuda_on_cpu.as_slice(), out_seq.as_slice());
 }
@@ -191,11 +219,16 @@ fn test_cuda_max_pool3d_forward_backward() {
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
-    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_cuda = input_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2]);
-    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2]);
+    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
+    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
 
     let input_seq_layout = input_seq.layout().clone();
     let out_seq_layout = out_seq.layout().clone();
@@ -210,7 +243,7 @@ fn test_cuda_max_pool3d_forward_backward() {
         1,
         0,
         1,
-        out_seq.storage_mut(),
+        out_seq.storage_mut()?,
         &out_seq_layout,
     )
     .expect("invariant: validated CPU max_pool3d dispatch must succeed");
@@ -223,22 +256,29 @@ fn test_cuda_max_pool3d_forward_backward() {
             1,
             0,
             1,
-            out_cuda.storage_mut(),
+            out_cuda.storage_mut()?,
             &out_cuda_layout,
         )
         .expect("invariant: validated CUDA max_pool3d dispatch must succeed");
 
-    let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
+    let out_cuda_on_cpu = out_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(out_cuda_on_cpu.as_slice(), out_seq.as_slice());
 
     let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data);
-    let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_cuda = grad_out_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3]);
-    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3]);
+    let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3])
+        .expect("invariant: test backend operation succeeds");
+    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3])
+        .expect("invariant: test backend operation succeeds");
 
     let grad_out_seq_layout = grad_out_seq.layout().clone();
     let grad_input_seq_layout = grad_input_seq.layout().clone();
@@ -254,7 +294,7 @@ fn test_cuda_max_pool3d_forward_backward() {
         1,
         0,
         1,
-        grad_input_seq.storage_mut(),
+        grad_input_seq.storage_mut()?,
         &grad_input_seq_layout,
     )
     .expect("invariant: validated CPU max_pool3d backward dispatch must succeed");
@@ -269,12 +309,14 @@ fn test_cuda_max_pool3d_forward_backward() {
             1,
             0,
             1,
-            grad_input_cuda.storage_mut(),
+            grad_input_cuda.storage_mut()?,
             &grad_input_cuda_layout,
         )
         .expect("invariant: validated CUDA max_pool3d backward dispatch must succeed");
 
-    let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
+    let grad_input_cuda_on_cpu = grad_input_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(grad_input_cuda_on_cpu.as_slice(), grad_input_seq.as_slice());
 }
@@ -288,11 +330,16 @@ fn test_cuda_avg_pool3d_forward_backward() {
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
-    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_cuda = input_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2]);
-    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2]);
+    let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
+    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
 
     let input_seq_layout = input_seq.layout().clone();
     let out_seq_layout = out_seq.layout().clone();
@@ -307,7 +354,7 @@ fn test_cuda_avg_pool3d_forward_backward() {
         1,
         0,
         1,
-        out_seq.storage_mut(),
+        out_seq.storage_mut()?,
         &out_seq_layout,
     )
     .expect("invariant: validated CPU avg_pool3d dispatch must succeed");
@@ -320,22 +367,29 @@ fn test_cuda_avg_pool3d_forward_backward() {
             1,
             0,
             1,
-            out_cuda.storage_mut(),
+            out_cuda.storage_mut()?,
             &out_cuda_layout,
         )
         .expect("invariant: validated CUDA avg_pool3d dispatch must succeed");
 
-    let out_cuda_on_cpu = out_cuda.to_backend_on(&cuda_b, &seq);
+    let out_cuda_on_cpu = out_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_close(out_cuda_on_cpu.as_slice(), out_seq.as_slice(), "avg_pool3d");
 
     let grad_out_data: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data);
-    let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_cuda = grad_out_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3]);
-    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3]);
+    let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3])
+        .expect("invariant: test backend operation succeeds");
+    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3])
+        .expect("invariant: test backend operation succeeds");
 
     let grad_out_seq_layout = grad_out_seq.layout().clone();
     let grad_input_seq_layout = grad_input_seq.layout().clone();
@@ -349,7 +403,7 @@ fn test_cuda_avg_pool3d_forward_backward() {
         1,
         0,
         1,
-        grad_input_seq.storage_mut(),
+        grad_input_seq.storage_mut()?,
         &grad_input_seq_layout,
     )
     .expect("invariant: validated CPU avg_pool3d backward dispatch must succeed");
@@ -362,12 +416,14 @@ fn test_cuda_avg_pool3d_forward_backward() {
             1,
             0,
             1,
-            grad_input_cuda.storage_mut(),
+            grad_input_cuda.storage_mut()?,
             &grad_input_cuda_layout,
         )
         .expect("invariant: validated CUDA avg_pool3d backward dispatch must succeed");
 
-    let grad_input_cuda_on_cpu = grad_input_cuda.to_backend_on(&cuda_b, &seq);
+    let grad_input_cuda_on_cpu = grad_input_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_close(
         grad_input_cuda_on_cpu.as_slice(),

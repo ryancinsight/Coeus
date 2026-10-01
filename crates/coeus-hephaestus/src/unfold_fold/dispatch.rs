@@ -34,7 +34,7 @@ where
 {
     let input_layout = ranked_exact::<R>(operation, input.1)?;
     let output_layout = ranked_exact::<3>(operation, output.1)?;
-    output.0.make_unique();
+    output.0.make_unique()?;
     let operands = SlidingWindowUnfoldOperands {
         input: StridedView::new(B::unfold_fold_buffer(input.0), &input_layout),
         output: StridedView::new(B::unfold_fold_buffer(output.0), &output_layout),
@@ -58,7 +58,7 @@ where
 {
     let input_layout = ranked_exact::<3>(operation, input.1)?;
     let output_layout = ranked_exact::<R>(operation, output.1)?;
-    output.0.make_unique();
+    output.0.make_unique()?;
     let operands = SlidingWindowFoldOperands {
         input: StridedView::new(B::unfold_fold_buffer(input.0), &input_layout),
         output: StridedView::new(B::unfold_fold_buffer(output.0), &output_layout),

@@ -94,9 +94,10 @@ impl PySequential {
     }
 
     /// Zero the accumulated gradients of all parameters in all modules.
-    pub fn zero_grad(&self, py: Python<'_>) {
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
         for module in &self.modules {
-            let _ = module.bind(py).call_method0("zero_grad");
+            module.bind(py).call_method0("zero_grad")?;
         }
+        Ok(())
     }
 }

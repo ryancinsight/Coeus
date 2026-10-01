@@ -6,7 +6,8 @@ use hephaestus_cuda::{
     MaxOp, MinOp, OpIdentity, ProdOp, SumOp,
 };
 
-impl<T> ReductionProvider<T> for CudaBackend
+// SAFETY: Provider reductions and scans overwrite every logical output on success without reading prior contents.
+unsafe impl<T> ReductionProvider<T> for CudaBackend
 where
     T: CudaScalar
         + DialectScalar<CudaC>
@@ -28,7 +29,8 @@ where
     type ScanOperations = CudaScanOps;
 }
 
-impl<T> coeus_ops::ReductionOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::ReductionOps<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC> + bytemuck::Pod,
     CudaBackend: ReductionProvider<T>,

@@ -49,10 +49,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
     ) -> Result<(), B::Error> {
         let backend = B::default();
         let dy = grad_out; // [N, D]
-        let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend);
+        let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend)?;
         if let Some(Some(ref gw)) = input_grads.get(1) {
             let dg_t = coeus_ops::sum_axis(
-                &coeus_ops::mul(dy, &self.x_hat_clone, &backend),
+                &coeus_ops::mul(dy, &self.x_hat_clone, &backend)?,
                 0,
                 &backend,
             )?;
@@ -72,11 +72,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
         // ── dL/dx ──
         if let Some(Some(ref gx)) = input_grads.first() {
             let sum_dy_w = coeus_ops::sum_axis(&dy_w, 1, &backend)?; // [N, 1]
-            let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend); // [N, D]
+            let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend)?; // [N, D]
             let sum_dy_w_xhat = coeus_ops::sum_axis(&dy_w_xhat, 1, &backend)?; // [N, 1]
 
             // term2 = x_hat * sum_dy_w_xhat + sum_dy_w
-            let mut term2 = coeus_ops::mul(&self.x_hat_clone, &sum_dy_w_xhat, &backend); // [N, D]
+            let mut term2 = coeus_ops::mul(&self.x_hat_clone, &sum_dy_w_xhat, &backend)?; // [N, D]
             coeus_ops::add_assign(&mut term2, &sum_dy_w, &backend)?;
 
             // dy_w = dy_w * d_const
@@ -108,7 +108,7 @@ pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x_hat: Tensor<T, B>,
     istdev: Tensor<T, B>,
     d_const: Tensor<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -117,7 +117,7 @@ pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -147,9 +147,9 @@ pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

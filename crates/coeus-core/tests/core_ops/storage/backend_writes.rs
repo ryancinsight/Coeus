@@ -29,27 +29,41 @@ fn scalar_writes<T: Scalar, B: ComputeBackend>(backend: &B, write: Write, one: T
         let expected_original: Vec<_> =
             (0..len).map(|index| [one, two, three][index % 3]).collect();
         let uploaded: Vec<_> = (0..len).map(|index| [three, one, two][index % 3]).collect();
-        let mut original = backend.allocate(len);
-        backend.copy_to_device(&expected_original, &mut original);
+        // SAFETY: the complete buffer is uploaded before any read below.
+        let mut original =
+            unsafe { backend.allocate(len) }.expect("invariant: test backend allocation succeeds");
+        backend
+            .copy_to_device(&expected_original, &mut original)
+            .expect("invariant: test backend copy succeeds");
         let mut modified = original.clone();
         let expected_modified = match write {
             Write::Fill => {
-                backend.fill(&mut modified, two);
+                backend
+                    .fill(&mut modified, two)
+                    .expect("invariant: test backend fill succeeds");
                 vec![two; len]
             }
             Write::FillZero => {
-                backend.fill_zero(&mut modified);
+                backend
+                    .fill_zero(&mut modified)
+                    .expect("invariant: test backend zero fill succeeds");
                 vec![T::zero(); len]
             }
             Write::CopyToDevice => {
-                backend.copy_to_device(&uploaded, &mut modified);
+                backend
+                    .copy_to_device(&uploaded, &mut modified)
+                    .expect("invariant: test backend copy succeeds");
                 uploaded
             }
         };
         let mut original_values = vec![T::zero(); len];
         let mut modified_values = vec![T::zero(); len];
-        backend.copy_to_host(&original, &mut original_values);
-        backend.copy_to_host(&modified, &mut modified_values);
+        backend
+            .copy_to_host(&original, &mut original_values)
+            .expect("invariant: test backend copy succeeds");
+        backend
+            .copy_to_host(&modified, &mut modified_values)
+            .expect("invariant: test backend copy succeeds");
         assert_eq!(
             original_values,
             expected_original,
