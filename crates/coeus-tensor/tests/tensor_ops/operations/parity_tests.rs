@@ -28,8 +28,8 @@ fn test_elementwise_add_parity() {
     let mut b = Tensor::<f32, SequentialBackend>::zeros(shape.clone())
         .expect("invariant: test backend operation succeeds");
     {
-        let a_slice = a.as_mut_slice();
-        let b_slice = b.as_mut_slice();
+        let a_slice = a.as_mut_slice().expect("invariant: tensor COW succeeds");
+        let b_slice = b.as_mut_slice().expect("invariant: tensor COW succeeds");
         for i in 0..12 {
             a_slice[i] = i as f32;
             b_slice[i] = (i * 2) as f32;
@@ -53,7 +53,7 @@ fn test_relu_parity() {
     let mut a = Tensor::<f32, SequentialBackend>::zeros(shape)
         .expect("invariant: test backend operation succeeds");
     {
-        let slice = a.as_mut_slice();
+        let slice = a.as_mut_slice().expect("invariant: tensor COW succeeds");
         slice[0] = -1.5;
         slice[1] = 2.0;
         slice[2] = -0.5;

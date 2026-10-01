@@ -17,14 +17,17 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// Allocate a tensor with the given shape without initializing the elements.
     ///
     /// # Safety
-    /// The returned tensor's contents are unspecified. Callers **must** write
-    /// every element before reading.
+    /// Initialize every element before any operation reads the tensor, or
+    /// before passing it to safe code that may read it. A device transfer is a
+    /// read and therefore also requires initialization.
     #[inline]
-    pub fn alloc_on<S: Into<Shape>>(shape: S, backend: &B) -> Result<Self, B::Error> {
+    pub unsafe fn alloc_on<S: Into<Shape>>(shape: S, backend: &B) -> Result<Self, B::Error> {
         let shape = shape.into();
         let numel = Self::checked_numel(&shape, "Tensor::alloc_on")?;
+        // SAFETY: this function is unsafe and carries the backend allocation
+        // obligation to its caller without reading the returned elements.
         Ok(Self::from_storage_and_shape(
-            backend.allocate(numel)?,
+            unsafe { backend.allocate(numel)? },
             shape,
         ))
     }
@@ -45,7 +48,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn ones_on<S: Into<Shape>>(shape: S, backend: &B) -> Result<Self, B::Error> {
         let shape = shape.into();
         let numel = Self::checked_numel(&shape, "Tensor::ones_on")?;
-        let mut storage = backend.allocate(numel)?;
+        // SAFETY: `fill` writes every element before storage is returned.
+        let mut storage = unsafe { backend.allocate(numel)? };
         backend.fill(&mut storage, T::one())?;
         Ok(Self::from_storage_and_shape(storage, shape))
     }
@@ -55,7 +59,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     pub fn full_on<S: Into<Shape>>(shape: S, value: T, backend: &B) -> Result<Self, B::Error> {
         let shape = shape.into();
         let numel = Self::checked_numel(&shape, "Tensor::full_on")?;
-        let mut storage = backend.allocate(numel)?;
+        // SAFETY: `fill` writes every element before storage is returned.
+        let mut storage = unsafe { backend.allocate(numel)? };
         backend.fill(&mut storage, value)?;
         Ok(Self::from_storage_and_shape(storage, shape))
     }
@@ -79,7 +84,9 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             }
             .into());
         }
-        let mut storage = backend.allocate(numel)?;
+        // SAFETY: `copy_to_device` writes the complete source slice, whose
+        // length was checked against the requested element count above.
+        let mut storage = unsafe { backend.allocate(numel)? };
         backend.copy_to_device(data, &mut storage)?;
         Ok(Self::from_storage_and_shape(storage, shape))
     }
@@ -120,9 +127,10 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         }
 
         let numel = self.numel();
-        let mut dst_storage = dst_backend
-            .allocate(numel)
-            .map_err(TensorTransferError::Destination)?;
+        // SAFETY: the full host buffer is copied into the destination before
+        // the tensor is returned.
+        let mut dst_storage =
+            unsafe { dst_backend.allocate(numel) }.map_err(TensorTransferError::Destination)?;
         let host_data = if let Some(host_slice) = self.storage.try_as_slice() {
             let start = self.layout.offset();
             if self.is_contiguous() {

@@ -28,13 +28,13 @@ fn test_wgpu_parity_adamw_step() {
     let m1_c_layout = m1_c.layout().clone();
     let m2_c_layout = m2_c.layout().clone();
     s.adamw_step(
-        p_c_mut.storage_mut(),
+        p_c_mut.storage_mut()?,
         &p_c_layout,
         g_c.storage(),
         &g_c_layout,
-        m1_c.storage_mut(),
+        m1_c.storage_mut()?,
         &m1_c_layout,
-        m2_c.storage_mut(),
+        m2_c.storage_mut()?,
         &m2_c_layout,
         0.001,
         0.9,
@@ -57,13 +57,13 @@ fn test_wgpu_parity_adamw_step() {
     let m1_g_layout = m1_g.layout().clone();
     let m2_g_layout = m2_g.layout().clone();
     w.adamw_step(
-        p_g_mut.storage_mut(),
+        p_g_mut.storage_mut()?,
         &p_g_layout,
         g_g.storage(),
         &g_g_layout,
-        m1_g.storage_mut(),
+        m1_g.storage_mut()?,
         &m1_g_layout,
-        m2_g.storage_mut(),
+        m2_g.storage_mut()?,
         &m2_g_layout,
         0.001,
         0.9,

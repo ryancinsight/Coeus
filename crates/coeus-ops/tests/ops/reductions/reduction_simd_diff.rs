@@ -26,9 +26,12 @@ where
     let a_layout = Layout::new(Shape::from(vec![rows, cols]));
     let c_layout = Layout::new(Shape::from(vec![rows, 1]));
 
-    let mut a_buf = ComputeBackend::allocate::<T>(backend, rows * cols)
+    // SAFETY: `copy_to_device` initializes every input element before reduce
+    // reads the buffer.
+    let mut a_buf = unsafe { ComputeBackend::allocate::<T>(backend, rows * cols) }
         .expect("invariant: test backend storage operation succeeds");
-    let mut c_buf = ComputeBackend::allocate::<T>(backend, rows)
+    let mut c_buf = backend
+        .allocate_zeroed::<T>(rows)
         .expect("invariant: test backend storage operation succeeds");
     backend
         .copy_to_device(data, &mut a_buf)

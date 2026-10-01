@@ -36,7 +36,7 @@ fn test_cuda_parity_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_s.storage_mut(),
+        out_s.storage_mut()?,
         &out_l,
     )
     .expect("CPU transposed conv1d dispatch");
@@ -56,7 +56,7 @@ fn test_cuda_parity_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g.storage_mut()?,
         &out_l,
     )
     .expect("CUDA transposed conv1d dispatch");
@@ -108,7 +108,7 @@ fn test_cuda_parity_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_s.storage_mut(),
+        out_s.storage_mut()?,
         &out_l,
     )
     .expect("CPU transposed conv2d dispatch");
@@ -128,7 +128,7 @@ fn test_cuda_parity_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g.storage_mut()?,
         &out_l,
     )
     .expect("CUDA transposed conv2d dispatch");

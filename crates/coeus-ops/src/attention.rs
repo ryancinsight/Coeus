@@ -106,12 +106,13 @@ pub fn scaled_dot_product_attention<T: AttentionScalar, B: AttentionOps<T> + Def
         validate_mask::<B::Error>(mask.shape(), batch, seq_k)?;
     }
 
-    // alloc_on: sdp_attention writes every output/attn_weights position — no zero-init needed.
-    let mut output = Tensor::alloc_on([batch, seq_q, d_v], backend)?;
-    let mut attn_weights = Tensor::alloc_on([batch, seq_q, seq_k], backend)?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut output = unsafe { Tensor::alloc_on([batch, seq_q, d_v], backend) }?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut attn_weights = unsafe { Tensor::alloc_on([batch, seq_q, seq_k], backend) }?;
 
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
-    let (aw_storage, aw_layout) = attn_weights.storage_mut_and_layout();
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
+    let (aw_storage, aw_layout) = attn_weights.storage_mut_and_layout()?;
 
     let (mask_storage, mask_layout) = match key_padding_mask {
         Some(m) => (Some(m.storage()), Some(m.layout())),
@@ -184,9 +185,9 @@ pub fn scaled_dot_product_attention_backward<T: AttentionScalar, B: AttentionOps
     let aw_storage = attn_weights.storage();
     let aw_layout = attn_weights.layout();
 
-    let grad_q = grad_q.map(Tensor::storage_mut_and_layout);
-    let grad_k = grad_k.map(Tensor::storage_mut_and_layout);
-    let grad_v = grad_v.map(Tensor::storage_mut_and_layout);
+    let grad_q = grad_q.map(Tensor::storage_mut_and_layout).transpose()?;
+    let grad_k = grad_k.map(Tensor::storage_mut_and_layout).transpose()?;
+    let grad_v = grad_v.map(Tensor::storage_mut_and_layout).transpose()?;
 
     backend.sdp_attention_backward(
         go_storage, go_layout, q_storage, q_layout, k_storage, k_layout, v_storage, v_layout,

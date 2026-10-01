@@ -36,7 +36,8 @@ fn copy_on_write_preserves_values_in_both_device_buffers() {
     let source = device
         .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::Device))
         .expect("failed to upload COW source");
-    let mut writable = HephaestusStorage::<crate::CudaBackend, _>::from_buffer(source);
+    // SAFETY: `upload_with_hint` initializes the complete source buffer.
+    let mut writable = unsafe { HephaestusStorage::<crate::CudaBackend, _>::from_buffer(source) };
     let retained = writable.clone();
 
     writable.make_unique()?;

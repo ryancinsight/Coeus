@@ -16,7 +16,8 @@ use coeus_tensor::Tensor;
 fn constructors_report_cpu_allocation_overflow() {
     let backend = SequentialBackend::new();
     let results = [
-        Tensor::<u16, SequentialBackend>::alloc_on([usize::MAX], &backend),
+        // SAFETY: the overflowing shape is rejected before storage is allocated.
+        unsafe { Tensor::<u16, SequentialBackend>::alloc_on([usize::MAX], &backend) },
         Tensor::<u16, SequentialBackend>::zeros_on([usize::MAX], &backend),
         Tensor::<u16, SequentialBackend>::ones_on([usize::MAX], &backend),
         Tensor::<u16, SequentialBackend>::full_on([usize::MAX], 7, &backend),

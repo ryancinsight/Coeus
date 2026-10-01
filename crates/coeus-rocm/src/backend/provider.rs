@@ -27,6 +27,7 @@ pub struct RocmProvider;
 // context before accessing the allocation; the handle is thread-transferable.
 unsafe impl HephaestusProvider for RocmProvider {
     type Device = RocmDevice;
+    type Error = coeus_hephaestus::HephaestusBackendError;
     const NAME: &'static str = "rocm";
 
     fn device() -> &'static Self::Device {

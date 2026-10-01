@@ -35,7 +35,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use coeus_core::{
     BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage,
-    Scalar, SequentialBackend,
+    Scalar, SequentialBackend, Storage,
 };
 use coeus_tensor::Tensor;
 
@@ -100,11 +100,13 @@ impl CountingBackend {
     fn allocate_storage<T: Scalar>(len: usize) -> CpuStorage<T> {
         STORAGE_REQUESTS.fetch_add(1, Ordering::Relaxed);
         let _scope = StorageAllocationScope::enter();
-        CpuStorage::new(len)
+        CpuStorage::new(len).expect("invariant: test CPU storage allocation succeeds")
     }
 }
 
-impl ComputeBackend for CountingBackend {
+// SAFETY: `allocate` returns initialized CPU storage, and every mutating
+// operation preserves initialized storage on success.
+unsafe impl ComputeBackend for CountingBackend {
     type Error = BackendError;
     type DeviceBuffer<T: Scalar> = CpuStorage<T>;
     type KernelDescriptor = ();
@@ -118,7 +120,7 @@ impl ComputeBackend for CountingBackend {
         1
     }
 
-    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         Ok(Self::allocate_storage(len))
     }
 
@@ -127,7 +129,7 @@ impl ComputeBackend for CountingBackend {
     }
 
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
-        dst.as_mut_slice().fill(val);
+        dst.as_mut_slice()?.fill(val);
         Ok(())
     }
 
@@ -136,7 +138,14 @@ impl ComputeBackend for CountingBackend {
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
-        dst.as_mut_slice().copy_from_slice(src);
+        if src.len() != dst.len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_device",
+                source_len: src.len(),
+                destination_len: dst.len(),
+            });
+        }
+        dst.as_mut_slice()?.copy_from_slice(src);
         Ok(())
     }
 

@@ -34,7 +34,7 @@ fn test_cuda_parity_conv1d_forward() {
         1,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("CPU conv1d dispatch");
@@ -54,7 +54,7 @@ fn test_cuda_parity_conv1d_forward() {
         1,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("CUDA conv1d dispatch");
@@ -102,7 +102,7 @@ fn test_cuda_parity_conv2d_forward() {
         1,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("CPU conv2d dispatch");
@@ -122,7 +122,7 @@ fn test_cuda_parity_conv2d_forward() {
         1,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("CUDA conv2d dispatch");
@@ -177,11 +177,11 @@ fn test_cuda_parity_conv2d_backward() {
         in_t.layout(),
         w_t.storage(),
         w_t.layout(),
-        Some(gi_c.storage_mut()),
+        Some(gi_c.storage_mut()?),
         &gi_l,
-        Some(gw_c.storage_mut()),
+        Some(gw_c.storage_mut()?),
         &gw_l,
-        Some(gb_c.storage_mut()),
+        Some(gb_c.storage_mut()?),
         1,
         0,
         1,
@@ -205,11 +205,11 @@ fn test_cuda_parity_conv2d_backward() {
         in_g.layout(),
         w_g.storage(),
         w_g.layout(),
-        Some(gi_g.storage_mut()),
+        Some(gi_g.storage_mut()?),
         &gi_l,
-        Some(gw_g.storage_mut()),
+        Some(gw_g.storage_mut()?),
         &gw_l,
-        Some(gb_g.storage_mut()),
+        Some(gb_g.storage_mut()?),
         1,
         0,
         1,
@@ -273,7 +273,7 @@ fn test_cuda_parity_conv3d_forward() {
         1,
         0,
         1,
-        out_s.storage_mut(),
+        out_s.storage_mut()?,
         &out_l,
     )
     .expect("CPU conv3d dispatch");
@@ -292,7 +292,7 @@ fn test_cuda_parity_conv3d_forward() {
         1,
         0,
         1,
-        out_g.storage_mut(),
+        out_g.storage_mut()?,
         &out_l,
     )
     .expect("CUDA conv3d dispatch");
@@ -347,11 +347,11 @@ fn test_cuda_parity_conv3d_backward() {
         in_t.layout(),
         w_t.storage(),
         w_t.layout(),
-        Some(gi_c.storage_mut()),
+        Some(gi_c.storage_mut()?),
         &gi_l,
-        Some(gw_c.storage_mut()),
+        Some(gw_c.storage_mut()?),
         &gw_l,
-        Some(gb_c.storage_mut()),
+        Some(gb_c.storage_mut()?),
         1,
         0,
         1,
@@ -374,11 +374,11 @@ fn test_cuda_parity_conv3d_backward() {
         in_g.layout(),
         w_g.storage(),
         w_g.layout(),
-        Some(gi_g.storage_mut()),
+        Some(gi_g.storage_mut()?),
         &gi_l,
-        Some(gw_g.storage_mut()),
+        Some(gw_g.storage_mut()?),
         &gw_l,
-        Some(gb_g.storage_mut()),
+        Some(gb_g.storage_mut()?),
         1,
         0,
         1,

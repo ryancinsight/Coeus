@@ -84,10 +84,12 @@ where
     }
     let backend = B::default();
     let saved_targets = backend.prepare_cross_entropy_targets(targets)?;
-    let mut output = Tensor::alloc_on([1], &backend)?;
-    let mut probabilities = Tensor::alloc_on([n, c], &backend)?;
-    let (output_storage, output_layout) = output.storage_mut_and_layout();
-    let (probability_storage, probability_layout) = probabilities.storage_mut_and_layout();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut output = unsafe { Tensor::alloc_on([1], &backend) }?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut probabilities = unsafe { Tensor::alloc_on([n, c], &backend) }?;
+    let (output_storage, output_layout) = output.storage_mut_and_layout()?;
+    let (probability_storage, probability_layout) = probabilities.storage_mut_and_layout()?;
     backend.cross_entropy_forward(
         logits.tensor.storage(),
         logits.tensor.layout(),

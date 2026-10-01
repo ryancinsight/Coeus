@@ -103,7 +103,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// use coeus_tensor::Tensor;
     /// use coeus_core::SequentialBackend;
     ///
-    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24]);
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24])
+    ///     .expect("example tensor allocation succeeds");
     /// assert_eq!(t.ndim(), 3);
     /// ```
     #[inline]
@@ -119,7 +120,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// use coeus_tensor::Tensor;
     /// use coeus_core::SequentialBackend;
     ///
-    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24]);
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3, 4], &[0.0; 24])
+    ///     .expect("example tensor allocation succeeds");
     /// assert_eq!(t.numel(), 24);
     /// ```
     #[inline]
@@ -135,7 +137,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// use coeus_tensor::Tensor;
     /// use coeus_core::SequentialBackend;
     ///
-    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[0.0; 6]);
+    /// let t = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 3], &[0.0; 6])
+    ///     .expect("example tensor allocation succeeds");
     /// assert_eq!(t.shape(), &[2, 3]);
     /// ```
     #[inline]
@@ -174,6 +177,10 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     }
 
     /// Mutable reference to storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend storage error if copy-on-write detachment fails.
     #[inline]
     pub fn storage_mut(&mut self) -> Result<&mut B::DeviceBuffer<T>, B::Error> {
         self.storage.make_unique()?;
@@ -181,6 +188,10 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     }
 
     /// Mutable reference to storage and reference to layout.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend storage error if copy-on-write detachment fails.
     #[inline]
     pub fn storage_mut_and_layout(
         &mut self,
@@ -288,24 +299,32 @@ where
     ///
     /// Triggers COW if storage is shared.
     ///
+    /// # Errors
+    /// Returns the backend storage error if copy-on-write allocation or copying fails.
+    ///
     /// # Panics
     /// If the tensor is not contiguous.
     #[inline]
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
+    pub fn as_mut_slice(&mut self) -> Result<&mut [T], B::Error> {
         assert!(
             self.is_contiguous(),
             "as_mut_slice requires contiguous tensor"
         );
         let start = self.layout.offset();
         let len = self.numel();
-        &mut self.storage.as_mut_slice()[start..start + len]
+        let storage = self.storage.as_mut_slice()?;
+        Ok(&mut storage[start..start + len])
     }
 
     /// Set element at logical index (triggers COW if shared).
+    ///
+    /// # Errors
+    /// Returns the backend storage error if copy-on-write allocation or copying fails.
     #[inline]
-    pub fn set(&mut self, index: &[usize], val: T) {
+    pub fn set(&mut self, index: &[usize], val: T) -> Result<(), B::Error> {
         let off = self.layout.physical_index(index);
-        self.storage.as_mut_slice()[off] = val;
+        self.storage.as_mut_slice()?[off] = val;
+        Ok(())
     }
 }
 

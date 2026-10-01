@@ -49,8 +49,8 @@ fn on_device(
     backend: &SequentialBackend,
     values: &[f64],
 ) -> <SequentialBackend as ComputeBackend>::DeviceBuffer<f64> {
-    let mut buffer = backend
-        .allocate::<f64>(values.len())
+    // SAFETY: `copy_to_device` initializes every element before the test reads the buffer.
+    let mut buffer = unsafe { backend.allocate::<f64>(values.len()) }
         .expect("invariant: test backend storage operation succeeds");
     backend
         .copy_to_device(values, &mut buffer)

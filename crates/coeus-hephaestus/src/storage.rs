@@ -1,3 +1,4 @@
+use crate::error::HephaestusBackendError;
 use crate::reduction::HephaestusProvider;
 use coeus_core::{Scalar, Storage, StorageMut};
 use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
@@ -17,8 +18,6 @@ where
     P: HephaestusProvider,
     T: eunomia::Pod,
 {
-    type Error = HephaestusBackendError;
-
     buffer: Arc<<P::Device as ComputeDevice>::Buffer<T>>,
     marker: PhantomData<P>,
 }
@@ -42,8 +41,12 @@ where
     T: Scalar,
 {
     /// Adopt an initialized provider buffer without copying its contents.
+    ///
+    /// # Safety
+    /// Every element must be initialized before any safe operation reads the
+    /// returned storage.
     #[must_use]
-    pub fn from_buffer(buffer: <P::Device as ComputeDevice>::Buffer<T>) -> Self {
+    pub unsafe fn from_buffer(buffer: <P::Device as ComputeDevice>::Buffer<T>) -> Self {
         Self {
             buffer: Arc::new(buffer),
             marker: PhantomData,
@@ -58,14 +61,21 @@ where
     pub fn new(len: usize) -> Result<Self, HephaestusError> {
         let buffer = P::try_device()?
             .alloc_zeroed_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
-        Ok(Self::from_buffer(buffer))
+        // SAFETY: the provider's zeroed allocation initializes every element.
+        Ok(unsafe { Self::from_buffer(buffer) })
     }
 
     /// Allocate uninitialized storage while preserving provider failures.
-    pub(crate) fn uninitialized(len: usize) -> Result<Self, HephaestusError> {
+    ///
+    /// # Safety
+    /// The caller must initialize every element before any safe operation
+    /// reads this storage.
+    pub(crate) unsafe fn uninitialized(len: usize) -> Result<Self, HephaestusError> {
         let buffer = P::try_device()?
             .alloc_uninitialized_with_hint(len, PlacementHint::Tier(MemoryTier::Device))?;
-        Ok(Self::from_buffer(buffer))
+        // SAFETY: this method forwards its initialization obligation to the
+        // caller and does not read the allocation.
+        Ok(unsafe { Self::from_buffer(buffer) })
     }
 
     /// Identify the allocation without exposing its reference-counted owner.
@@ -125,8 +135,10 @@ where
     P: HephaestusProvider,
     T: Scalar,
 {
-    fn try_as_mut_slice(&mut self) -> Option<&mut [T]> {
-        None
+    type Error = P::Error;
+
+    fn try_as_mut_slice(&mut self) -> Result<Option<&mut [T]>, Self::Error> {
+        Ok(None)
     }
 
     fn make_unique(&mut self) -> Result<(), Self::Error> {
@@ -137,16 +149,31 @@ where
         // allocation tier and keep the full payload on-device. The device
         // copy overwrites every element before the detached buffer is exposed,
         // so the replacement does not require a redundant initialization pass.
-        let device = P::device();
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device(
+                "storage uniqueness device acquisition",
+                source,
+            ))
+        })?;
         let replacement = device
             .alloc_uninitialized_with_hint(
                 self.buffer.len(),
                 PlacementHint::Tier(self.buffer.tier()),
             )
-            .map_err(|source| HephaestusBackendError::device("storage uniqueness allocation", source))?;
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device(
+                    "storage uniqueness allocation",
+                    source,
+                ))
+            })?;
         device
             .copy_buffer(self.buffer.as_ref(), &replacement)
-            .map_err(|source| HephaestusBackendError::device("storage uniqueness copy", source))?;
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device(
+                    "storage uniqueness copy",
+                    source,
+                ))
+            })?;
         self.buffer = Arc::new(replacement);
         Ok(())
     }

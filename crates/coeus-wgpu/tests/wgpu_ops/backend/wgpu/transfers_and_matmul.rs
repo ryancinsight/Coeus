@@ -139,7 +139,7 @@ fn test_wgpu_cow_semantics() {
     let mut b = a.clone();
 
     wgpu_b
-        .fill(b.storage_mut(), 10.0)
+        .fill(b.storage_mut()?, 10.0)
         .expect("invariant: test backend operation succeeds");
 
     let a_cpu = a

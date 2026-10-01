@@ -1,7 +1,4 @@
-use coeus_core::{
-    Backend, BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut,
-    CpuStorage, Scalar, SequentialBackend,
-};
+use coeus_core::{Backend, BackendError, ComputeBackend, CpuStorage, Scalar, SequentialBackend};
 
 /// Scalar types supported by the CUDA backend and Hephaestus fusion.
 pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
@@ -39,7 +36,9 @@ impl CudaBackend {
     }
 }
 
-impl ComputeBackend for CudaBackend {
+// SAFETY: the stub delegates safe storage operations to SequentialBackend,
+// whose CPU storage tracks initialization and full writes.
+unsafe impl ComputeBackend for CudaBackend {
     type Error = BackendError;
     type DeviceBuffer<T: Scalar> = CpuStorage<T>;
     type KernelDescriptor = ();
@@ -56,8 +55,10 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        SequentialBackend::new().allocate(len)
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        // SAFETY: the CPU fallback returns the same uninitialized storage, so
+        // the caller's initialization obligation remains unchanged.
+        unsafe { SequentialBackend::new().allocate(len) }
     }
 
     #[inline]
@@ -71,8 +72,7 @@ impl ComputeBackend for CudaBackend {
         dst: &mut Self::DeviceBuffer<T>,
         value: T,
     ) -> Result<(), Self::Error> {
-        dst.as_mut_slice().fill(value);
-        Ok(())
+        SequentialBackend::new().fill(dst, value)
     }
 
     #[inline]
@@ -81,8 +81,7 @@ impl ComputeBackend for CudaBackend {
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
-        dst.as_mut_slice().copy_from_slice(src);
-        Ok(())
+        SequentialBackend::new().copy_to_device(src, dst)
     }
 
     #[inline]
@@ -91,8 +90,7 @@ impl ComputeBackend for CudaBackend {
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
-        dst.copy_from_slice(src.as_slice());
-        Ok(())
+        SequentialBackend::new().copy_to_host(src, dst)
     }
 }
 

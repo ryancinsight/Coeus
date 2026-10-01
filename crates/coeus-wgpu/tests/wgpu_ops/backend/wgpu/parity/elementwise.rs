@@ -262,7 +262,7 @@ fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
         a_gpu.layout(),
         b_gpu.storage(),
         b_gpu.layout(),
-        out_gpu.storage_mut(),
+        out_gpu.storage_mut()?,
         &out_layout,
     )
     .expect("valid WGPU addition output buffer");
@@ -297,7 +297,7 @@ fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
         coeus_ops::UnaryOp::Recip,
         x_gpu.storage(),
         x_gpu.layout(),
-        out_gpu.storage_mut(),
+        out_gpu.storage_mut()?,
         &out_layout,
     )
     .expect("valid WGPU reciprocal output buffer");

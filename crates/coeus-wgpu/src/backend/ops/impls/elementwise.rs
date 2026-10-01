@@ -13,26 +13,31 @@ impl ParameterizedElementwiseProvider for WgpuBackend {
     type Operations = WgpuParameterizedUnaryOps;
 }
 
-impl ElementwiseProvider<f32> for WgpuBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<f32> for WgpuBackend {
     type Operations = WgpuElementwiseOps;
     type UnaryOperations = ActivationUnaryOperations;
 }
 
-impl ElementwiseProvider<i32> for WgpuBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<i32> for WgpuBackend {
     type Operations = WgpuElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ElementwiseProvider<u32> for WgpuBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<u32> for WgpuBackend {
     type Operations = WgpuElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ScalarPowerProvider<f32> for WgpuBackend {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ScalarPowerProvider<f32> for WgpuBackend {
     type Operations = WgpuElementwiseOps;
 }
 
-impl<T> coeus_ops::ElementwiseOps<T> for WgpuBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::ElementwiseOps<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
     WgpuBackend: ElementwiseProvider<T>,
@@ -48,17 +53,15 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<WgpuBackend>::new()
-            .elementwise_binary(
-                operation,
-                lhs,
-                lhs_layout,
-                rhs,
-                rhs_layout,
-                output,
-                output_layout,
-            )
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().elementwise_binary(
+            operation,
+            lhs,
+            lhs_layout,
+            rhs,
+            rhs_layout,
+            output,
+            output_layout,
+        )
     }
 
     #[inline]
@@ -70,13 +73,18 @@ where
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<WgpuBackend>::new()
-            .elementwise_unary(operation, input, input_layout, output, output_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().elementwise_unary(
+            operation,
+            input,
+            input_layout,
+            output,
+            output_layout,
+        )
     }
 }
 
-impl coeus_ops::ScalarPowerOps<f32> for WgpuBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl coeus_ops::ScalarPowerOps<f32> for WgpuBackend
 where
     WgpuBackend: ScalarPowerProvider<f32>,
 {
@@ -89,8 +97,12 @@ where
         output: &mut Self::DeviceBuffer<f32>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<WgpuBackend>::new()
-            .elementwise_pow_scalar(input, input_layout, exponent, output, output_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().elementwise_pow_scalar(
+            input,
+            input_layout,
+            exponent,
+            output,
+            output_layout,
+        )
     }
 }

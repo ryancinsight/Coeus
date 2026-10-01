@@ -16,12 +16,13 @@ fn backward_uses_destination_layout() {
         Strides::from_slice(&[6, 2, 1]),
         1,
     );
-    let output_gradient = CpuStorage::from_slice(&[2.0]);
-    let query = CpuStorage::from_slice(&[1.0]);
-    let key = CpuStorage::from_slice(&[1.0, 1.0]);
-    let value = CpuStorage::from_slice(&[2.0, 4.0]);
-    let weights = CpuStorage::from_slice(&[0.25, 0.75]);
-    let mut value_gradient = CpuStorage::from_slice(&[-9.0, 10.0, -9.0, 20.0]);
+    let output_gradient = CpuStorage::from_slice(&[2.0]).expect("CPU storage allocation succeeds");
+    let query = CpuStorage::from_slice(&[1.0]).expect("CPU storage allocation succeeds");
+    let key = CpuStorage::from_slice(&[1.0, 1.0]).expect("CPU storage allocation succeeds");
+    let value = CpuStorage::from_slice(&[2.0, 4.0]).expect("CPU storage allocation succeeds");
+    let weights = CpuStorage::from_slice(&[0.25, 0.75]).expect("CPU storage allocation succeeds");
+    let mut value_gradient =
+        CpuStorage::from_slice(&[-9.0, 10.0, -9.0, 20.0]).expect("CPU storage allocation succeeds");
 
     backend
         .sdp_attention_backward(
@@ -50,11 +51,11 @@ fn rejects_unpaired_mask_metadata_without_writes() {
     let backend = SequentialBackend::new();
     let tensor_layout = Layout::new([1, 1, 1].into());
     let mask_layout = Layout::new([1].into());
-    let query = CpuStorage::from_slice(&[1.0]);
-    let key = CpuStorage::from_slice(&[1.0]);
-    let value = CpuStorage::from_slice(&[3.0]);
-    let mut output = CpuStorage::from_slice(&[7.0]);
-    let mut weights = CpuStorage::from_slice(&[8.0]);
+    let query = CpuStorage::from_slice(&[1.0]).expect("CPU storage allocation succeeds");
+    let key = CpuStorage::from_slice(&[1.0]).expect("CPU storage allocation succeeds");
+    let value = CpuStorage::from_slice(&[3.0]).expect("CPU storage allocation succeeds");
+    let mut output = CpuStorage::from_slice(&[7.0]).expect("CPU storage allocation succeeds");
+    let mut weights = CpuStorage::from_slice(&[8.0]).expect("CPU storage allocation succeeds");
 
     let error = backend
         .sdp_attention(

@@ -141,13 +141,14 @@ pub fn topk<
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = k;
 
-    // alloc_on: backend.topk writes every val/idx position — no zero-init needed.
-    let mut val_tensor = Tensor::alloc_on(out_shape.clone(), &backend)?;
-    let mut idx_tensor = Tensor::alloc_on(out_shape, &backend)?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut val_tensor = unsafe { Tensor::alloc_on(out_shape.clone(), &backend) }?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut idx_tensor = unsafe { Tensor::alloc_on(out_shape, &backend) }?;
 
     {
-        let (val_storage, val_layout) = val_tensor.storage_mut_and_layout();
-        let (idx_storage, idx_layout) = idx_tensor.storage_mut_and_layout();
+        let (val_storage, val_layout) = val_tensor.storage_mut_and_layout()?;
+        let (idx_storage, idx_layout) = idx_tensor.storage_mut_and_layout()?;
         backend.topk(
             x_cont.storage(),
             x_cont.layout(),
@@ -178,9 +179,9 @@ pub fn argmax<
     let backend = B::default();
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = 1;
-    // alloc_on: backend.argmax writes every position — no zero-init needed.
-    let mut out = Tensor::alloc_on(out_shape, &backend)?;
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(out_shape, &backend) }?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.argmax(x.storage(), x.layout(), dim, out_storage, out_layout)?;
     Ok(out)
 }
@@ -199,9 +200,9 @@ pub fn argmin<
     let backend = B::default();
     let mut out_shape = x.shape_cloned();
     out_shape[dim] = 1;
-    // alloc_on: backend.argmin writes every position — no zero-init needed.
-    let mut out = Tensor::alloc_on(out_shape, &backend)?;
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(out_shape, &backend) }?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.argmin(x.storage(), x.layout(), dim, out_storage, out_layout)?;
     Ok(out)
 }

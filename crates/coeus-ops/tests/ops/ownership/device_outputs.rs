@@ -1,10 +1,16 @@
-use coeus_core::{ComputeBackend, Float, Layout, Scalar};
+use coeus_core::{ComputeBackend, Float, Layout, Scalar, Storage};
 use coeus_ops::{
     BinaryOp, ElementwiseOps, MatmulOps, ReductionOp, ReductionOps, ScalarPowerOps, UnaryOp,
 };
 use coeus_tensor::Tensor;
 
-pub(crate) trait OutputWrite<T: Scalar, B: ComputeBackend>: core::fmt::Debug {
+/// # Safety
+///
+/// `dispatch` must initialize every logical output element before returning
+/// `Ok(())`.
+pub(crate) unsafe trait OutputWrite<T: Scalar, B: ComputeBackend>:
+    core::fmt::Debug
+{
     const COLUMNS: usize;
     fn input(one: T) -> [T; 4] {
         let two = one + one;
@@ -39,6 +45,27 @@ where
         .expect("invariant: test backend operation succeeds");
     let expected = operation.expected(one);
     let columns = O::COLUMNS;
+    let uninitialized_layout = Layout::new([2, columns].into());
+    // SAFETY: `OutputWrite` requires successful dispatch to initialize every
+    // logical output element before this buffer is read.
+    let mut uninitialized_output = unsafe { backend.allocate(uninitialized_layout.numel()) }
+        .expect("invariant: test backend allocation succeeds");
+    assert!(Storage::try_as_slice(&uninitialized_output).is_none());
+    operation
+        .dispatch(
+            backend,
+            &input,
+            input.layout(),
+            &rhs,
+            &mut uninitialized_output,
+            &uninitialized_layout,
+        )
+        .expect("valid write to uninitialized output");
+    assert_eq!(
+        Storage::try_as_slice(&uninitialized_output),
+        Some(expected.as_slice()),
+        "{operation:?} did not initialize its complete output"
+    );
 
     for offset_view in [false, true] {
         let shape = if offset_view {
@@ -144,7 +171,10 @@ where
 #[derive(Debug)]
 pub(crate) struct Negate;
 
-impl<T: Scalar + core::ops::Neg<Output = T>, B: ElementwiseOps<T>> OutputWrite<T, B> for Negate {
+// SAFETY: ElementwiseOps::elementwise_unary writes the full output layout.
+unsafe impl<T: Scalar + core::ops::Neg<Output = T>, B: ElementwiseOps<T>> OutputWrite<T, B>
+    for Negate
+{
     const COLUMNS: usize = 2;
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
@@ -174,7 +204,8 @@ impl<T: Scalar + core::ops::Neg<Output = T>, B: ElementwiseOps<T>> OutputWrite<T
 #[derive(Debug)]
 pub(crate) struct Add;
 
-impl<T: Scalar, B: ElementwiseOps<T>> OutputWrite<T, B> for Add {
+// SAFETY: ElementwiseOps::elementwise_binary writes the full output layout.
+unsafe impl<T: Scalar, B: ElementwiseOps<T>> OutputWrite<T, B> for Add {
     const COLUMNS: usize = 2;
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
@@ -206,7 +237,8 @@ impl<T: Scalar, B: ElementwiseOps<T>> OutputWrite<T, B> for Add {
 #[derive(Debug)]
 pub(crate) struct Sum;
 
-impl<T: Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Sum {
+// SAFETY: ReductionOps::reduce writes the full output layout.
+unsafe impl<T: Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Sum {
     const COLUMNS: usize = 1;
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
@@ -237,7 +269,8 @@ impl<T: Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Sum {
 #[derive(Debug)]
 pub(crate) struct Product;
 
-impl<T: Scalar, B: MatmulOps<T>> OutputWrite<T, B> for Product {
+// SAFETY: MatmulOps::matmul writes the full output layout.
+unsafe impl<T: Scalar, B: MatmulOps<T>> OutputWrite<T, B> for Product {
     const COLUMNS: usize = 2;
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
@@ -268,7 +301,8 @@ impl<T: Scalar, B: MatmulOps<T>> OutputWrite<T, B> for Product {
 #[derive(Debug)]
 pub(crate) struct Square;
 
-impl<T: Float, B: ScalarPowerOps<T>> OutputWrite<T, B> for Square {
+// SAFETY: ScalarPowerOps::elementwise_pow_scalar writes the full output layout.
+unsafe impl<T: Float, B: ScalarPowerOps<T>> OutputWrite<T, B> for Square {
     const COLUMNS: usize = 2;
     fn input(one: T) -> [T; 4] {
         let two = one + one;
@@ -309,7 +343,8 @@ pub(crate) enum Scan {
     SuffixProduct,
 }
 
-impl<T: Scalar + leto_ops::Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Scan {
+// SAFETY: Each ReductionOps scan writes the full output layout.
+unsafe impl<T: Scalar + leto_ops::Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Scan {
     const COLUMNS: usize = 2;
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;

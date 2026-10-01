@@ -42,12 +42,12 @@ pub struct CtcBatch<'a> {
 /// let layout = Layout::new([1, 1, 2].into());
 /// let scalar = Layout::new([1].into());
 /// let input = CpuStorage::from_slice(&[-std::f32::consts::LN_2; 2]);
-/// let mut loss = CpuStorage::from_slice(&[0.0_f32]);
+/// let mut loss = CpuStorage::from_slice(&[0.0_f32]).expect("CPU storage allocation succeeds");
 /// let state = backend.ctc_forward(&input, &layout,
 ///     CtcBatch { targets: &[], input_lengths: &[1], target_lengths: &[0], blank: 0 },
 ///     &mut loss, &scalar)?;
 /// assert_eq!(loss.as_slice(), &[std::f32::consts::LN_2]);
-/// let upstream = CpuStorage::from_slice(&[1.0_f32]);
+/// let upstream = CpuStorage::from_slice(&[1.0_f32]).expect("CPU storage allocation succeeds");
 /// let mut gradient = CpuStorage::from_slice(&[0.0_f32; 2]);
 /// backend.ctc_backward_accumulate(&state, &upstream, &scalar, &mut gradient, &layout)?;
 /// assert_eq!(gradient.as_slice(), &[-1.0, 0.0]);

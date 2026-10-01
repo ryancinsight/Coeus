@@ -20,7 +20,7 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected.storage_mut(),
+            expected.storage_mut()?,
             &expected_layout,
         )
         .expect("sequential max_pool1d dispatch");
@@ -37,7 +37,7 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected_gradient.storage_mut(),
+            expected_gradient.storage_mut()?,
             &expected_gradient_layout,
         )
         .expect("sequential max_pool1d backward dispatch");
@@ -54,7 +54,7 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual.storage_mut(),
+        actual.storage_mut()?,
         &actual_layout,
     )
     .expect("CUDA max_pool1d dispatch");
@@ -70,7 +70,7 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual_gradient.storage_mut(),
+        actual_gradient.storage_mut()?,
         &actual_gradient_layout,
     )
     .expect("CUDA max_pool1d backward dispatch");
@@ -110,7 +110,7 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected.storage_mut(),
+            expected.storage_mut()?,
             &expected_layout,
         )
         .expect("sequential avg_pool1d dispatch");
@@ -125,7 +125,7 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
             1,
             1,
             1,
-            expected_gradient.storage_mut(),
+            expected_gradient.storage_mut()?,
             &expected_gradient_layout,
         )
         .expect("sequential avg_pool1d backward dispatch");
@@ -142,7 +142,7 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual.storage_mut(),
+        actual.storage_mut()?,
         &actual_layout,
     )
     .expect("CUDA avg_pool1d dispatch");
@@ -156,7 +156,7 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
         1,
         1,
         1,
-        actual_gradient.storage_mut(),
+        actual_gradient.storage_mut()?,
         &actual_gradient_layout,
     )
     .expect("CUDA avg_pool1d backward dispatch");
@@ -194,7 +194,7 @@ fn test_cuda_parity_max_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU max_pool2d dispatch must succeed");
@@ -210,7 +210,7 @@ fn test_cuda_parity_max_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("invariant: validated CUDA max_pool2d dispatch must succeed");
@@ -242,7 +242,7 @@ fn test_cuda_parity_avg_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
@@ -258,7 +258,7 @@ fn test_cuda_parity_avg_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("invariant: validated CUDA avg_pool2d dispatch must succeed");
@@ -298,7 +298,7 @@ fn test_cuda_parity_max_pool2d_backward() {
         2,
         0,
         1,
-        gi_c.storage_mut(),
+        gi_c.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CPU max_pool2d backward dispatch must succeed");
@@ -316,7 +316,7 @@ fn test_cuda_parity_max_pool2d_backward() {
         2,
         0,
         1,
-        gi_g.storage_mut(),
+        gi_g.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CUDA max_pool2d backward dispatch must succeed");
@@ -350,7 +350,7 @@ fn test_cuda_parity_avg_pool2d_backward() {
         2,
         0,
         1,
-        gi_c.storage_mut(),
+        gi_c.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CPU avg_pool2d backward dispatch must succeed");
@@ -365,7 +365,7 @@ fn test_cuda_parity_avg_pool2d_backward() {
         2,
         0,
         1,
-        gi_g.storage_mut(),
+        gi_g.storage_mut()?,
         &gi_l,
     )
     .expect("invariant: validated CUDA avg_pool2d backward dispatch must succeed");

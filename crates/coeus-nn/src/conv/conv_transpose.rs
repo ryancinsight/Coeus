@@ -272,7 +272,7 @@ where
         out_shape.extend_from_slice(&out_spatial);
 
         let mut out_tensor = Tensor::zeros_on(out_shape, &backend)?;
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
         let dispatch = match DIM {
             1 => backend.conv_transpose1d(
                 input.tensor.storage(),

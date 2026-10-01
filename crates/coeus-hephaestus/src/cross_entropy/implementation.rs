@@ -21,12 +21,14 @@ pub fn prepare_targets<B: ComputeBackend>(
             })
         })
         .collect::<Result<Box<[_]>, _>>()?;
-    let mut storage = backend.allocate(encoded.len())?;
+    // SAFETY: the complete encoded slice is uploaded before storage escapes.
+    let mut storage = unsafe { backend.allocate(encoded.len())? };
     backend.copy_to_device(&encoded, &mut storage)?;
     Ok(storage)
 }
 
-impl<P> coeus_ops::CrossEntropyOps<f32> for HephaestusBackend<P>
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<P> coeus_ops::CrossEntropyOps<f32> for HephaestusBackend<P>
 where
     P: CrossEntropyProvider,
 {

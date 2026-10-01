@@ -14,7 +14,7 @@ With autograd:
 
 ```rust,ignore
 let c: Var<f32> = coeus::autograd::matmul(&a_var, &b_var)?;
-c.backward();
+c.backward()?;
 // a_var.grad() = dL/dA = dL/dC @ B^T
 // b_var.grad() = dL/dB = A^T @ dL/dC
 ```

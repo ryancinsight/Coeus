@@ -15,8 +15,15 @@ use super::super::ops::{BinaryOp, UnaryOp};
 /// [`BackendOps`].  Backends implement `ElementwiseOps` directly; the
 /// blanket impl provides `BackendOps` automatically.
 ///
+/// # Safety
+///
+/// On `Ok(())`, `elementwise_binary` and `elementwise_unary` must write every
+/// logical element described by the destination layout without reading its
+/// previous contents. They may return an error after partial writes; callers
+/// must discard an uninitialized destination on error.
+///
 /// [`BackendOps`]: super::super::BackendOps
-pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
+pub unsafe trait ElementwiseOps<T: Scalar>: ComputeBackend {
     /// Element-wise binary operations.
     fn elementwise_binary(
         &self,
@@ -43,7 +50,7 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         b_layout: &Layout,
     ) -> Result<(), Self::Error> {
         let output_layout = Layout::new(a_layout.shape_cloned());
-        let mut output = self.allocate(output_layout.numel())?;
+        let mut output = self.allocate_zeroed(output_layout.numel())?;
         self.elementwise_binary(op, a, a_layout, b, b_layout, &mut output, &output_layout)?;
         *a = output;
         *a_layout = output_layout;
@@ -103,7 +110,7 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
         input_layout: &mut Layout,
     ) -> Result<(), Self::Error> {
         let output_layout = Layout::new(input_layout.shape_cloned());
-        let mut output = self.allocate(output_layout.numel())?;
+        let mut output = self.allocate_zeroed(output_layout.numel())?;
         self.elementwise_unary(op, input, input_layout, &mut output, &output_layout)?;
         *input = output;
         *input_layout = output_layout;
@@ -112,7 +119,14 @@ pub trait ElementwiseOps<T: Scalar>: ComputeBackend {
 }
 
 /// Provider-owned scalar exponentiation.
-pub trait ScalarPowerOps<T: Float>: ComputeBackend {
+///
+/// # Safety
+///
+/// On `Ok(())`, `elementwise_pow_scalar` must write every logical output
+/// element described by `output_layout` without reading its previous
+/// contents. It may return an error after partial writes; callers must discard
+/// an uninitialized destination on error.
+pub unsafe trait ScalarPowerOps<T: Float>: ComputeBackend {
     /// Compute `output = input.powf(exponent)` over the input layout.
     fn elementwise_pow_scalar(
         &self,

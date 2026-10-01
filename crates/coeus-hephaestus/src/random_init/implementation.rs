@@ -1,4 +1,4 @@
-use super::{RandomInitProvider, normal, uniform};
+use super::{normal, uniform, RandomInitProvider};
 use crate::{HephaestusBackend, HephaestusBackendError, HephaestusStorage};
 use coeus_core::{Layout, Scalar};
 

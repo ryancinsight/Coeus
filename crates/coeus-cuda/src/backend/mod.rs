@@ -1,4 +1,4 @@
-use coeus_core::{Backend, ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_core::{Backend, BackendError, ComputeBackend, Scalar, Storage, StorageMut};
 use hephaestus_core::CommandStream;
 use hephaestus_cuda::{ComputeDevice, CudaDevice, KernelDevice};
 use std::sync::OnceLock;
@@ -50,7 +50,9 @@ impl CudaBackend {
     }
 }
 
-impl ComputeBackend for CudaBackend {
+// SAFETY: provider storage never exposes host slices, and successful fill and
+// transfer operations initialize their complete destination buffers.
+unsafe impl ComputeBackend for CudaBackend {
     type Error = crate::CudaBackendError;
     type DeviceBuffer<T: Scalar> = coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>;
     type KernelDescriptor = ();
@@ -67,9 +69,10 @@ impl ComputeBackend for CudaBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusBackend::<CudaBackend>::new()
-            .allocate(len)
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        // SAFETY: this backend forwards the caller's initialization
+        // obligation to the shared provider backend.
+        unsafe { coeus_hephaestus::HephaestusBackend::<CudaBackend>::new().allocate(len) }
             .map_err(Into::into)
     }
 
@@ -115,6 +118,14 @@ impl ComputeBackend for CudaBackend {
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_device",
+                source_len: src.len(),
+                destination_len: dst.len(),
+            }
+            .into());
+        }
         let device = try_get_cuda_device()
             .map_err(|source| CudaBackendError::dispatch("copy_to_device", source))?;
         dst.make_unique()?;
@@ -128,6 +139,14 @@ impl ComputeBackend for CudaBackend {
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_host",
+                source_len: src.len(),
+                destination_len: dst.len(),
+            }
+            .into());
+        }
         let device = try_get_cuda_device()
             .map_err(|source| CudaBackendError::dispatch("copy_to_host", source))?;
         device

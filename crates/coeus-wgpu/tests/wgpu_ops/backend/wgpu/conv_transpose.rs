@@ -59,7 +59,7 @@ fn test_wgpu_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_c.storage_mut(),
+        out_c.storage_mut()?,
         &out_l,
     )
     .expect("CPU transposed conv1d dispatch");
@@ -85,7 +85,7 @@ fn test_wgpu_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g.storage_mut()?,
         &out_l,
     )
     .expect("WGPU transposed conv1d dispatch");
@@ -137,7 +137,7 @@ fn test_wgpu_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_c.storage_mut(),
+        out_c.storage_mut()?,
         &out_l,
     )
     .expect("CPU transposed conv2d dispatch");
@@ -163,7 +163,7 @@ fn test_wgpu_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g.storage_mut()?,
         &out_l,
     )
     .expect("WGPU transposed conv2d dispatch");

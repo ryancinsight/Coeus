@@ -14,8 +14,9 @@ pub fn pow_scalar<T: Float, B: ElementwiseOps<T> + ScalarPowerOps<T>>(
     exponent: T,
     backend: &B,
 ) -> Result<Tensor<T, B>, B::Error> {
-    let mut output = Tensor::alloc_on(input.shape_cloned(), backend)?;
-    let (storage, layout) = output.storage_mut_and_layout();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut output = unsafe { Tensor::alloc_on(input.shape_cloned(), backend) }?;
+    let (storage, layout) = output.storage_mut_and_layout()?;
     backend.elementwise_pow_scalar(input.storage(), input.layout(), exponent, storage, layout)?;
     Ok(output)
 }

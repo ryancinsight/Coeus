@@ -45,11 +45,14 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let mut a_buffer = ComputeBackend::allocate::<T>(backend, a.len())
+    // SAFETY: Both input buffers are initialized by the copies below before
+    // the matrix operation reads them.
+    let mut a_buffer = unsafe { ComputeBackend::allocate::<T>(backend, a.len()) }
         .expect("invariant: test backend storage operation succeeds");
-    let mut b_buffer = ComputeBackend::allocate::<T>(backend, b.len())
+    let mut b_buffer = unsafe { ComputeBackend::allocate::<T>(backend, b.len()) }
         .expect("invariant: test backend storage operation succeeds");
-    let mut c_buffer = ComputeBackend::allocate::<T>(backend, c_layout.numel())
+    let mut c_buffer = backend
+        .allocate_zeroed::<T>(c_layout.numel())
         .expect("invariant: test backend storage operation succeeds");
 
     backend

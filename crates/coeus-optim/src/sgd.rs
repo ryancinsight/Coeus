@@ -86,8 +86,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
                 let grad_tensor = g.read();
                 let velocity_tensor = &mut self.velocity[i];
 
-                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout();
-                let (velocity_storage, velocity_layout) = velocity_tensor.storage_mut_and_layout();
+                let (param_storage, param_layout) = param.var.tensor.storage_mut_and_layout()?;
+                let (velocity_storage, velocity_layout) =
+                    velocity_tensor.storage_mut_and_layout()?;
 
                 backend.sgd_step(
                     param_storage,
@@ -115,7 +116,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Defaul
         self.lr = lr;
     }
 
-    fn clip_grad_norm(&mut self, max_norm: T) -> T
+    fn clip_grad_norm(&mut self, max_norm: T) -> Result<T, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

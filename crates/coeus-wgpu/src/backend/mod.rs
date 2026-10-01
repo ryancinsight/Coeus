@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_core::{BackendError, ComputeBackend, Scalar, Storage, StorageMut};
 use hephaestus_core::{CommandStream, ComputeDevice, KernelDevice};
 use std::sync::OnceLock;
 
@@ -147,7 +147,9 @@ impl WgpuBackend {
     }
 }
 
-impl ComputeBackend for WgpuBackend {
+// SAFETY: provider storage never exposes host slices, and successful fill and
+// transfer operations initialize their complete destination buffers.
+unsafe impl ComputeBackend for WgpuBackend {
     type Error = WgpuBackendError;
     type DeviceBuffer<T: Scalar> = coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>;
     type KernelDescriptor = ();
@@ -164,10 +166,10 @@ impl ComputeBackend for WgpuBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusBackend::<WgpuBackend>::new()
-            .allocate(len)
-            .map_err(Into::into)
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        // SAFETY: this backend forwards the caller's initialization
+        // obligation to the shared provider backend.
+        unsafe { coeus_hephaestus::HephaestusBackend::<WgpuBackend>::new().allocate(len) }
     }
 
     #[inline]
@@ -209,6 +211,14 @@ impl ComputeBackend for WgpuBackend {
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_device",
+                source_len: src.len(),
+                destination_len: dst.len(),
+            }
+            .into());
+        }
         let context = try_get_wgpu_context()
             .map_err(|source| WgpuBackendError::dispatch("copy_to_device", source))?;
         dst.make_unique()?;
@@ -223,6 +233,14 @@ impl ComputeBackend for WgpuBackend {
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
+        if src.len() != dst.len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_host",
+                source_len: src.len(),
+                destination_len: dst.len(),
+            }
+            .into());
+        }
         try_get_wgpu_context()
             .map_err(|source| WgpuBackendError::dispatch("copy_to_host", source))?
             .hephaestus_device

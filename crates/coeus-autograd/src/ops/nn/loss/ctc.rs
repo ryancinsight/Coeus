@@ -39,7 +39,7 @@ where
     ) -> Result<(), B::Error> {
         if let Some(Some(gradient)) = input_grads.first() {
             let destination = gradient.write();
-            let (storage, layout) = destination.storage_mut_and_layout();
+            let (storage, layout) = destination.storage_mut_and_layout()?;
             B::default().ctc_backward_accumulate(
                 &self.state,
                 grad_out.storage(),
@@ -99,7 +99,7 @@ where
 {
     let backend = B::default();
     let mut output = Tensor::zeros_on([1], &backend)?;
-    let (storage, layout) = output.storage_mut_and_layout();
+    let (storage, layout) = output.storage_mut_and_layout()?;
     let state = backend.ctc_forward(
         log_probs.tensor.storage(),
         log_probs.tensor.layout(),

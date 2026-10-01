@@ -14,11 +14,11 @@ For a column-major [M, N] tensor: `strides = [1, M]`.
 ## Zero-Copy Views
 
 ```rust,ignore
-let a = Tensor::<f32>::zeros([8, 8, 3]);
+let a = Tensor::<f32>::zeros([8, 8, 3])?;
 
-let row  = a.slice(0..1, .., ..);     // shape [1, 8, 3]
-let t    = a.transpose();             // shape [3, 8, 8]; no copy
-let view = a.reshape([64, 3])?;       // shape [64, 3]; no copy if contiguous
+let row  = a.slice(&[(0, 1), (0, 8), (0, 3)]); // shape [1, 8, 3]
+let t    = a.transpose();                       // shape [3, 8, 8]; no copy
+let view = a.reshape([64, 3]);                  // shape [64, 3]; no copy
 ```
 
 All views share the underlying buffer. Writes to a shared view trigger COW.
@@ -28,16 +28,16 @@ All views share the underlying buffer. Writes to a shared view trigger COW.
 `permute(axes)` rearranges axes in the specified order:
 
 ```rust,ignore
-let b = a.permute([2, 0, 1]);  // [8, 8, 3] -> [3, 8, 8]
+let b = a.permute(&[2, 0, 1]);  // [8, 8, 3] -> [3, 8, 8]
 ```
 
 ## `contiguous`
 
-`contiguous()` returns a new tensor with standard row-major strides,
+`to_contiguous()` returns a new tensor with standard row-major strides,
 copying data if the current layout is non-contiguous:
 
 ```rust,ignore
-let c = b.contiguous();
+let c = b.to_contiguous()?;
 ```
 
 ## `StridedView` in Hephaestus

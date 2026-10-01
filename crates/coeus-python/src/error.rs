@@ -9,6 +9,7 @@ pub(crate) fn map_backend_error(error: BackendError) -> PyErr {
         BackendError::Allocation { operation, source } => {
             PyMemoryError::new_err(format!("{operation} allocation failed: {source}"))
         }
+        BackendError::AllocatorExhausted { .. } => PyMemoryError::new_err(error.to_string()),
         BackendError::SequenceLengthCounts { .. }
         | BackendError::SequenceInputLength { .. }
         | BackendError::SequenceLabel { .. }
@@ -104,6 +105,22 @@ mod tests {
             });
             assert!(error.is_instance_of::<PyMemoryError>(py));
             assert_eq!(error.value(py).to_string(), message);
+        });
+    }
+
+    #[test]
+    fn raw_allocator_failure_maps_to_memory_error() {
+        pyo3::prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let error = map_backend_error(BackendError::AllocatorExhausted {
+                operation: "cpu allocation",
+            });
+
+            assert!(error.is_instance_of::<PyMemoryError>(py));
+            assert_eq!(
+                error.value(py).to_string(),
+                "cpu allocation: allocator returned null"
+            );
         });
     }
 

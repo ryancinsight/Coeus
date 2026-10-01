@@ -231,7 +231,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     #[inline]
     pub fn zero_grad(&self) -> Result<(), B::Error> {
         if let Some(ref g) = self.grad {
-            B::default().fill(g.write().storage_mut(), T::zero())?;
+            B::default().fill(g.write().storage_mut()?, T::zero())?;
         }
         Ok(())
     }

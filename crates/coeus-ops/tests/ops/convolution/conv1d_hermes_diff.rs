@@ -66,17 +66,23 @@ where
     let weight_layout = layout(&case.weight_shape);
     let output_layout = layout(&case.output_shape);
 
-    let mut input = backend
-        .allocate::<f32>(case.input.len())
-        .expect("invariant: test backend storage operation succeeds");
-    let mut weight = backend
-        .allocate::<f32>(case.weight.len())
-        .expect("invariant: test backend storage operation succeeds");
-    let mut bias = backend
-        .allocate::<f32>(case.bias.len())
-        .expect("invariant: test backend storage operation succeeds");
+    // SAFETY: The copy operations below initialize all inputs before the
+    // convolution reads them.
+    let (mut input, mut weight, mut bias) = unsafe {
+        (
+            backend
+                .allocate::<f32>(case.input.len())
+                .expect("invariant: test backend storage operation succeeds"),
+            backend
+                .allocate::<f32>(case.weight.len())
+                .expect("invariant: test backend storage operation succeeds"),
+            backend
+                .allocate::<f32>(case.bias.len())
+                .expect("invariant: test backend storage operation succeeds"),
+        )
+    };
     let mut output = backend
-        .allocate::<f32>(output_layout.numel())
+        .allocate_zeroed::<f32>(output_layout.numel())
         .expect("invariant: test backend storage operation succeeds");
 
     backend

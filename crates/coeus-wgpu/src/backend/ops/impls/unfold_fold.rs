@@ -5,7 +5,9 @@ use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_wgpu::{WgpuDevice, WgpuSlidingWindowOps, WgpuWindowScalar};
 use leto::WindowParameters;
 
-impl<T> UnfoldFoldProvider<T> for WgpuBackend
+// SAFETY: `WgpuSlidingWindowOps` initializes unfold outputs and clears fold
+// outputs before accumulating, as required by the Hephaestus contract.
+unsafe impl<T> UnfoldFoldProvider<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
 {
@@ -38,7 +40,8 @@ where
     }
 }
 
-impl<T> coeus_ops::UnfoldFoldOps<T> for WgpuBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::UnfoldFoldOps<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
 {

@@ -47,6 +47,11 @@ struct GradientOutputs<'a, T: Scalar, B: coeus_ops::BackendOps<T>> {
     bias: Option<&'a mut B::DeviceBuffer<T>>,
 }
 
+struct GradientTarget<'a, T: Scalar, B: coeus_ops::BackendOps<T>> {
+    storage: Option<&'a mut B::DeviceBuffer<T>>,
+    layout: &'a Layout,
+}
+
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BackwardNode<T, B>
     for ConvTransposeNode<T, B, DIM>
 {
@@ -101,14 +106,14 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
         };
 
         let reference_layout = grad_output.layout();
-        let (input_storage, input_layout) = optional_gradient(&mut grad_input, reference_layout);
-        let (weight_storage, weight_layout) = optional_gradient(&mut grad_weight, reference_layout);
+        let input_gradient = optional_gradient(&mut grad_input, reference_layout)?;
+        let weight_gradient = optional_gradient(&mut grad_weight, reference_layout)?;
         let outputs = GradientOutputs {
-            input: input_storage,
-            input_layout,
-            weight: weight_storage,
-            weight_layout,
-            bias: grad_bias.as_mut().map(Tensor::storage_mut),
+            input: input_gradient.storage,
+            input_layout: input_gradient.layout,
+            weight: weight_gradient.storage,
+            weight_layout: weight_gradient.layout,
+            bias: grad_bias.as_mut().map(Tensor::storage_mut).transpose()?,
         };
 
         dispatch_backward::<T, B, DIM>(
@@ -132,13 +137,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
 fn optional_gradient<'a, T: Scalar, B: coeus_ops::BackendOps<T>>(
     tensor: &'a mut Option<Tensor<T, B>>,
     reference_layout: &'a Layout,
-) -> (Option<&'a mut B::DeviceBuffer<T>>, &'a Layout) {
+) -> Result<GradientTarget<'a, T, B>, B::Error> {
     match tensor {
         Some(tensor) => {
-            let (storage, layout) = tensor.storage_mut_and_layout();
-            (Some(storage), layout)
+            let (storage, layout) = tensor.storage_mut_and_layout()?;
+            Ok(GradientTarget {
+                storage: Some(storage),
+                layout,
+            })
         }
-        None => (None, reference_layout),
+        None => Ok(GradientTarget {
+            storage: None,
+            layout: reference_layout,
+        }),
     }
 }
 

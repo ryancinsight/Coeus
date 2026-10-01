@@ -26,9 +26,9 @@ pub fn cumprod<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     );
 
     let shape = x.shape_cloned();
-    // alloc_on: the cumulative product scan writes every output element.
-    let mut out = Tensor::alloc_on(shape, backend)?;
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(shape, backend) }?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.cumprod(x.storage(), x.layout(), dim, out_storage, out_layout)?;
     Ok(out)
 }
@@ -54,9 +54,9 @@ pub fn suffix_prod<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     );
 
     let shape = x.shape_cloned();
-    // alloc_on: the cumulative product scan writes every output element.
-    let mut out = Tensor::alloc_on(shape, backend)?;
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(shape, backend) }?;
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.suffix_prod(x.storage(), x.layout(), dim, out_storage, out_layout)?;
     Ok(out)
 }

@@ -329,7 +329,7 @@ where
             let sorted_to_orig = self.sorted_to_orig.as_slice();
             let grad_sorted_slice = grad_sorted.as_slice();
             let mut grad_coo = Tensor::<T, B>::zeros_on([nnz], &backend)?;
-            let grad_coo_slice = grad_coo.as_mut_slice();
+            let grad_coo_slice = grad_coo.as_mut_slice()?;
             for i in 0..nnz {
                 let orig = sorted_to_orig[i] as usize;
                 grad_coo_slice[orig] += grad_sorted_slice[i];
@@ -415,10 +415,10 @@ where
     let mut csr_row_offsets = Tensor::<i64, B>::zeros_on([rows + 1], backend)?;
     let mut sorted_to_orig = Tensor::<i64, B>::zeros_on([nnz], backend)?;
 
-    let val_mut = csr_values.as_mut_slice();
-    let col_mut = csr_col_indices.as_mut_slice();
-    let row_mut = csr_row_offsets.as_mut_slice();
-    let map_mut = sorted_to_orig.as_mut_slice();
+    let val_mut = csr_values.as_mut_slice()?;
+    let col_mut = csr_col_indices.as_mut_slice()?;
+    let row_mut = csr_row_offsets.as_mut_slice()?;
+    let map_mut = sorted_to_orig.as_mut_slice()?;
 
     let mut current_row = 0usize;
     row_mut[0] = 0;

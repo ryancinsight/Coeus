@@ -47,7 +47,7 @@ where
         if let Some(Some(gradient)) = input_grads.first() {
             let backend = B::default();
             let destination = gradient.write();
-            let (destination_storage, destination_layout) = destination.storage_mut_and_layout();
+            let (destination_storage, destination_layout) = destination.storage_mut_and_layout()?;
             backend.cross_entropy_backward_accumulate(
                 grad_out.storage(),
                 grad_out.layout(),

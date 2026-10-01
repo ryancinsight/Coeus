@@ -1,4 +1,4 @@
-use crate::{HephaestusProvider, HephaestusStorage, reduction::HephaestusBackend};
+use crate::{reduction::HephaestusBackend, HephaestusProvider, HephaestusStorage};
 use coeus_core::{Layout, Storage};
 use hephaestus_core::{ComputeDevice, CrossEntropyOps, DeviceBuffer, HephaestusError};
 use themis::PlacementHint;

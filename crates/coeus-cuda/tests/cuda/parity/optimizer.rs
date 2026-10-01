@@ -25,13 +25,13 @@ fn test_cuda_parity_adamw_step() {
     let m1_c_layout = m1_c.layout().clone();
     let m2_c_layout = m2_c.layout().clone();
     s.adamw_step(
-        p_c_mut.storage_mut(),
+        p_c_mut.storage_mut()?,
         &p_c_layout,
         g_c.storage(),
         &g_c_layout,
-        m1_c.storage_mut(),
+        m1_c.storage_mut()?,
         &m1_c_layout,
-        m2_c.storage_mut(),
+        m2_c.storage_mut()?,
         &m2_c_layout,
         0.001,
         0.9,
@@ -54,13 +54,13 @@ fn test_cuda_parity_adamw_step() {
     let m1_g_layout = m1_g.layout().clone();
     let m2_g_layout = m2_g.layout().clone();
     c.adamw_step(
-        p_g_mut.storage_mut(),
+        p_g_mut.storage_mut()?,
         &p_g_layout,
         g_g.storage(),
         &g_g_layout,
-        m1_g.storage_mut(),
+        m1_g.storage_mut()?,
         &m1_g_layout,
-        m2_g.storage_mut(),
+        m2_g.storage_mut()?,
         &m2_g_layout,
         0.001,
         0.9,
@@ -122,11 +122,11 @@ fn test_cuda_parity_sgd_step() {
     let gl = g_c.layout().clone();
     let vl = vel_c.layout().clone();
     s.sgd_step(
-        p_c.storage_mut(),
+        p_c.storage_mut()?,
         &pl,
         g_c.storage(),
         &gl,
-        vel_c.storage_mut(),
+        vel_c.storage_mut()?,
         &vl,
         lr,
         momentum,
@@ -139,11 +139,11 @@ fn test_cuda_parity_sgd_step() {
     let mut vel_g = Tensor::from_slice_on(vec![n], &vel, &c)
         .expect("invariant: test backend operation succeeds");
     c.sgd_step(
-        p_g.storage_mut(),
+        p_g.storage_mut()?,
         &pl,
         g_g.storage(),
         &gl,
-        vel_g.storage_mut(),
+        vel_g.storage_mut()?,
         &vl,
         lr,
         momentum,
@@ -185,22 +185,22 @@ fn test_cuda_parity_sgd_ranks_zero_through_eight() {
         let vl = v_c.layout().clone();
 
         s.sgd_step(
-            p_c.storage_mut(),
+            p_c.storage_mut()?,
             &pl,
             g_c.storage(),
             &gl,
-            v_c.storage_mut(),
+            v_c.storage_mut()?,
             &vl,
             0.1,
             0.0,
         )
         .unwrap_or_else(|error| panic!("rank-{rank} CPU SGD failed: {error}"));
         c.sgd_step(
-            p_g.storage_mut(),
+            p_g.storage_mut()?,
             &pl,
             g_g.storage(),
             &gl,
-            v_g.storage_mut(),
+            v_g.storage_mut()?,
             &vl,
             0.1,
             0.0,
@@ -247,13 +247,13 @@ fn test_cuda_parity_adam_step() {
     let ml = m_c.layout().clone();
     let vl = v_c.layout().clone();
     s.adam_step(
-        p_c.storage_mut(),
+        p_c.storage_mut()?,
         &pl,
         g_c.storage(),
         &gl,
-        m_c.storage_mut(),
+        m_c.storage_mut()?,
         &ml,
-        v_c.storage_mut(),
+        v_c.storage_mut()?,
         &vl,
         lr,
         beta1,
@@ -271,13 +271,13 @@ fn test_cuda_parity_adam_step() {
     let mut v_g = Tensor::from_slice_on(vec![n], &v_init, &c)
         .expect("invariant: test backend operation succeeds");
     c.adam_step(
-        p_g.storage_mut(),
+        p_g.storage_mut()?,
         &pl,
         g_g.storage(),
         &gl,
-        m_g.storage_mut(),
+        m_g.storage_mut()?,
         &ml,
-        v_g.storage_mut(),
+        v_g.storage_mut()?,
         &vl,
         lr,
         beta1,
@@ -328,11 +328,11 @@ fn test_cuda_parity_rmsprop_step() {
     let gl = g_c.layout().clone();
     let vl = v_c.layout().clone();
     s.rmsprop_step(
-        p_c.storage_mut(),
+        p_c.storage_mut()?,
         &pl,
         g_c.storage(),
         &gl,
-        v_c.storage_mut(),
+        v_c.storage_mut()?,
         &vl,
         lr,
         alpha,
@@ -346,11 +346,11 @@ fn test_cuda_parity_rmsprop_step() {
     let mut v_g = Tensor::from_slice_on(vec![n], &v_init, &c)
         .expect("invariant: test backend operation succeeds");
     c.rmsprop_step(
-        p_g.storage_mut(),
+        p_g.storage_mut()?,
         &pl,
         g_g.storage(),
         &gl,
-        v_g.storage_mut(),
+        v_g.storage_mut()?,
         &vl,
         lr,
         alpha,
@@ -393,11 +393,11 @@ fn test_cuda_parity_adagrad_step() {
     let gl = g_c.layout().clone();
     let hl = h_c.layout().clone();
     s.adagrad_step(
-        p_c.storage_mut(),
+        p_c.storage_mut()?,
         &pl,
         g_c.storage(),
         &gl,
-        h_c.storage_mut(),
+        h_c.storage_mut()?,
         &hl,
         lr,
         eps,
@@ -410,11 +410,11 @@ fn test_cuda_parity_adagrad_step() {
     let mut h_g = Tensor::from_slice_on(vec![n], &h_init, &c)
         .expect("invariant: test backend operation succeeds");
     c.adagrad_step(
-        p_g.storage_mut(),
+        p_g.storage_mut()?,
         &pl,
         g_g.storage(),
         &gl,
-        h_g.storage_mut(),
+        h_g.storage_mut()?,
         &hl,
         lr,
         eps,

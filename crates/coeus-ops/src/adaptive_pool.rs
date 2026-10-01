@@ -55,8 +55,8 @@ where
     let c = input.shape()[1];
     let l = input.shape()[2];
 
-    // alloc_on: every [ni, ci, oi] is written via set — no zero-init needed.
-    let mut out = Tensor::alloc_on([n, c, output_size], backend)?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on([n, c, output_size], backend) }?;
 
     for ni in 0..n {
         for ci in 0..c {
@@ -68,7 +68,7 @@ where
                 for li in start..end {
                     acc += input.get(&[ni, ci, li]);
                 }
-                out.set(&[ni, ci, oi], acc / count);
+                out.set(&[ni, ci, oi], acc / count)?;
             }
         }
     }
@@ -98,8 +98,8 @@ where
     let c = input.shape()[1];
     let l = input.shape()[2];
 
-    // alloc_on: every [ni, ci, oi] is written via set — no zero-init needed.
-    let mut out = Tensor::alloc_on([n, c, output_size], backend)?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on([n, c, output_size], backend) }?;
 
     for ni in 0..n {
         for ci in 0..c {
@@ -111,7 +111,7 @@ where
                     let v = input.get(&[ni, ci, li]);
                     max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
                 }
-                out.set(&[ni, ci, oi], max_val.unwrap_or(T::zero()));
+                out.set(&[ni, ci, oi], max_val.unwrap_or(T::zero()))?;
             }
         }
     }
@@ -154,9 +154,10 @@ where
     };
 
     use crate::ptr::{MutPtr, Ptr};
-    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend)?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on([n, c, out_h, out_w], backend) }?;
     let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
-    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+    let out_ptr = MutPtr(out.storage_mut()?.as_mut_slice()?.as_mut_ptr());
 
     let nc = n * c;
     backend.parallel_for(0, nc, move |idx| {
@@ -219,10 +220,10 @@ where
     };
 
     use crate::ptr::{MutPtr, Ptr};
-    // alloc_on: parallel_for writes every out position — no zero-init needed.
-    let mut out = Tensor::alloc_on([n, c, out_h, out_w], backend)?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on([n, c, out_h, out_w], backend) }?;
     let inp_ptr = Ptr(inp.storage().as_slice().as_ptr());
-    let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
+    let out_ptr = MutPtr(out.storage_mut()?.as_mut_slice()?.as_mut_ptr());
 
     let nc = n * c;
     backend.parallel_for(0, nc, move |idx| {

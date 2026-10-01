@@ -14,6 +14,11 @@ use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
 ///
 /// Returns the pre-clip total norm (in `T` precision).
 ///
+/// # Errors
+///
+/// Returns a backend error if copy-on-write storage detachment fails while
+/// scaling gradients.
+///
 /// # Examples
 ///
 /// ```
@@ -32,7 +37,8 @@ use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
 ///         .expect("example gradient allocation succeeds"),
 /// );
 ///
-/// let pre_norm = clip_grad_norm(&[x.clone()], 2.5f32);
+/// let pre_norm = clip_grad_norm(&[x.clone()], 2.5f32)
+///     .expect("invariant: example gradient storage is writable");
 /// assert!((pre_norm - 5.0).abs() < 1e-5);
 ///
 /// let g = x.grad().unwrap();
@@ -47,7 +53,7 @@ use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
 ///
 /// # Precision
 /// All arithmetic executes in `T` — no implicit widening to `f64`.
-pub fn clip_grad_norm<T, B>(params: &[Var<T, B>], max_norm: T) -> T
+pub fn clip_grad_norm<T, B>(params: &[Var<T, B>], max_norm: T) -> Result<T, B::Error>
 where
     T: Float,
     B: coeus_ops::BackendOps<T> + Default,
@@ -56,7 +62,7 @@ where
     clip_grad_norm_iter(params.iter(), max_norm)
 }
 
-pub(crate) fn clip_grad_norm_iter<'a, T, B, I>(params: I, max_norm: T) -> T
+pub(crate) fn clip_grad_norm_iter<'a, T, B, I>(params: I, max_norm: T) -> Result<T, B::Error>
 where
     T: Float + 'a,
     B: coeus_ops::BackendOps<T> + Default + 'a,
@@ -87,12 +93,12 @@ where
                 continue;
             };
             let grad = grad_arc.write();
-            let slice: &mut [T] = grad.as_mut_slice();
+            let slice: &mut [T] = grad.as_mut_slice()?;
             for v in slice {
                 *v *= clip_coef;
             }
         }
     }
 
-    total_norm
+    Ok(total_norm)
 }

@@ -23,7 +23,7 @@ where
             .map_err(provider_error)?;
         let output_layout = Layout::new(layout.shape_cloned());
         let mut output = self.allocate_zeroed(layout.numel())?;
-        coeus_leto::rotate_half_into(plan, &output_layout, output.as_mut_slice())
+        coeus_leto::rotate_half_into(plan, &output_layout, output.as_mut_slice()?)
             .map_err(provider_error)?;
         Ok(output)
     }

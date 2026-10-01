@@ -55,9 +55,12 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let layout = Layout::new(Shape::from(vec![input.len()]));
-    let mut input_buffer = ComputeBackend::allocate::<T>(backend, input.len())
+    // SAFETY: `copy_to_device` initializes every input element before the unary
+    // operation reads the buffer.
+    let mut input_buffer = unsafe { ComputeBackend::allocate::<T>(backend, input.len()) }
         .expect("invariant: test backend storage operation succeeds");
-    let mut output_buffer = ComputeBackend::allocate::<T>(backend, input.len())
+    let mut output_buffer = backend
+        .allocate_zeroed::<T>(input.len())
         .expect("invariant: test backend storage operation succeeds");
 
     backend

@@ -73,7 +73,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool2d
         )?;
 
         let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend)?;
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend
             .max_pool2d(
@@ -178,7 +178,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool3d
         )?;
 
         let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend)?;
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend
             .max_pool3d(

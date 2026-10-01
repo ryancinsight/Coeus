@@ -54,10 +54,10 @@ pub(crate) fn copy_host_slice_to_tensor<T: Scalar, B: ComputeBackend>(
     backend: &B,
 ) -> Result<(), B::Error> {
     if tensor.is_contiguous() && tensor.layout().offset() == 0 {
-        if let Some(slice) = tensor.storage_mut().try_as_mut_slice() {
+        if let Some(slice) = tensor.storage_mut()?.try_as_mut_slice()? {
             slice[..host_data.len()].copy_from_slice(host_data);
         } else {
-            backend.copy_to_device(host_data, tensor.storage_mut())?;
+            backend.copy_to_device(host_data, tensor.storage_mut()?)?;
         }
     } else {
         let storage_len = Storage::len(tensor.storage());
@@ -81,7 +81,7 @@ pub(crate) fn copy_host_slice_to_tensor<T: Scalar, B: ComputeBackend>(
                 index[d] = 0;
             }
         }
-        backend.copy_to_device(&full_host_storage, tensor.storage_mut())?;
+        backend.copy_to_device(&full_host_storage, tensor.storage_mut()?)?;
     }
     Ok(())
 }
@@ -122,7 +122,7 @@ where
     let bytes_len = numel * std::mem::size_of::<T>();
 
     if tensor.is_contiguous() && tensor.layout().offset() == 0 {
-        if let Some(slice) = tensor.storage_mut().try_as_mut_slice() {
+        if let Some(slice) = tensor.storage_mut()?.try_as_mut_slice()? {
             let raw_ptr = slice.as_mut_ptr() as *mut u8;
             let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
             return recv_fn(raw_slice).map_err(crate::CollectiveError::Communicator);

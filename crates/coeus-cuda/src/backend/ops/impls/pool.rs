@@ -6,7 +6,9 @@ use hephaestus_core::{ComputeDevice, CudaC, DialectScalar, HephaestusError, Pool
 use hephaestus_cuda::{CudaDevice, CudaPoolingOps};
 use leto::WindowParameters;
 
-impl<T> PoolingProvider<T> for CudaBackend
+// SAFETY: `CudaPoolingOps` initializes forward outputs and only accumulates
+// backward gradients into initialized destinations.
+unsafe impl<T> PoolingProvider<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC>,
 {
@@ -41,7 +43,8 @@ where
     }
 }
 
-impl<T> coeus_ops::PoolOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::PoolOps<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC>,
 {

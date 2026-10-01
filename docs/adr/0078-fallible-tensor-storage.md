@@ -1,12 +1,12 @@
-# ADR 0078: Fallible tensor storage construction
+# ADR 0078: Fallible tensor storage operations
 
 Status: Accepted  \
 Date: 2026-09-29  \
 Change class: [major] [arch]  \
 Delivery: [PR #461](https://github.com/ryancinsight/Coeus/pull/461)
-Revision 2026-09-29: storage mutation now reports provider copy-on-write
-failures through the backend error type; CPU constructors report allocator
-failures directly.
+Revision 2026-09-29: uninitialized outputs also require unsafe full-write
+contracts and validated raw-pool geometry; audits found safe providers and
+pool layouts did not establish those invariants.
 
 ## Context
 
@@ -47,14 +47,36 @@ the device through the provider's typed fallible seam. No backend silently
 falls back to CPU storage.
 Shape validation remains before allocation, and a failed operation does not
 publish a partially constructed tensor. Pure view methods remain infallible
-because they only rewrite layout metadata. Materialization and transfer
-methods that allocate or copy storage return the backend error. The separate
-`StorageMut::make_unique` contract remains infallible and is tracked by
-`ATLAS-COEUS-SAFETY-001` until copy-on-write detachment can report allocation
-failure without adding a compatibility path. `StorageMut::make_unique` now
-returns `Result<(), Error>`, and `Tensor::storage_mut` and
-`storage_mut_and_layout` propagate that result. `CpuStorage::new`, `filled`,
-and `from_slice` likewise return typed allocator failures.
+because they only rewrite layout metadata. Materialization, transfers, and
+mutable access that can detach shared storage return the backend error.
+`StorageMut::make_unique`, `try_as_mut_slice`, and
+`CpuAddressableStorageMut::as_mut_slice` expose allocation and copy failures;
+`Tensor::storage_mut`, `storage_mut_and_layout`, `as_mut_slice`, `try_iter_mut`,
+`set`, and `set_flat` propagate them. Provider transfer methods reject unequal
+buffer lengths before mutation. Provider-backed storage preserves the selected
+provider's error type while retaining the underlying device failure.
+`ComputeBackend` is an unsafe trait because implementors must uphold safe
+storage access, and its uninitialized `allocate` method is unsafe. The
+`Tensor::alloc_on` and `HephaestusStorage::from_buffer` constructors are also
+unsafe; callers prove every element is initialized before a read or safe
+exposure. CPU storage tracks initialization per handle, refuses immutable
+reads while uninitialized, and initializes before forming safe mutable typed
+slices. Copy-on-write detachment copies bytes as `MaybeUninit<T>` so it never
+forms a typed reference to uninitialized memory. Raw Mnemosyne allocation
+failure uses a fixed-data error rather than allocating a diagnostic string.
+`Backend` is unsafe to implement because `parallel_for` must invoke every
+index exactly once and join all calls before returning. The overwrite
+operation traits (`ElementwiseOps`, `ScalarPowerOps`, `MatmulOps`,
+`ReductionOps`, `PoolOps`, `UnfoldFoldOps`, `AttentionOps`, and
+`CrossEntropyOps`) and the Hephaestus provider markers are unsafe because a
+successful overwrite must initialize every logical output; accumulation
+methods require initialized destinations. CPU pooling validates output
+geometry, storage spans, and injective write layouts before raw-pointer
+access.
+The separate `ATLAS-COEUS-SAFETY-001` item covers remaining provider-operation
+dispatch paths that still use infallible device acquisition. `CpuStorage::new`,
+`filled`, `from_slice`, and copy-on-write mutation return typed allocation
+failures.
 
 The migration is split into dependency ordered leaves: the core trait and
 CPU/provider implementations, tensor constructors and their direct operation
@@ -74,12 +96,12 @@ consumer closure pass.
 
 ## Consequences
 
-The public constructor, mutable storage accessors, and backend traits are
-breaking changes and require a
-major SemVer review. The migration increases explicit error propagation at
-callers, but keeps allocation ownership in the provider and removes the need
-for host staging or recovery copies. The core `Result` type remains the
-backend's existing typed error, so provider-specific failures stay visible.
+The public constructor, mutable storage accessors, backend traits, and
+overwrite-operation/provider traits are breaking changes and require a major
+SemVer review. The migration increases explicit error propagation at callers,
+but keeps allocation ownership in the provider and removes the need for host
+staging or recovery copies. The core `Result` type remains the backend's
+existing typed error, so provider-specific failures stay visible.
 
 ## Verification
 

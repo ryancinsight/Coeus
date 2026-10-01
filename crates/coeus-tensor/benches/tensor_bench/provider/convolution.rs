@@ -55,7 +55,7 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("sequential conv1d benchmark dispatch");
@@ -78,7 +78,7 @@ pub(crate) fn bench_conv1d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("Moirai conv1d benchmark dispatch");
@@ -142,7 +142,7 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("sequential conv2d benchmark dispatch");
@@ -165,7 +165,7 @@ pub(crate) fn bench_conv2d(c: &mut Criterion) {
                     1,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("Moirai conv2d benchmark dispatch");

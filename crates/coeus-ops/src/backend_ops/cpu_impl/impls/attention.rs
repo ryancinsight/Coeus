@@ -33,8 +33,9 @@ fn map_attention_error(operation: &'static str, error: leto_ops::AttentionError)
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar + coeus_leto::AttentionScalar, B: CpuBackend> AttentionOps<T>
-    for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T: Scalar + leto_ops::Scalar + coeus_leto::AttentionScalar, B: CpuBackend>
+    AttentionOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -97,11 +98,11 @@ where
             scale,
             output: WriteOperand {
                 layout: output_layout,
-                data: output.as_mut_slice(),
+                data: output.as_mut_slice()?,
             },
             weights: WriteOperand {
                 layout: attn_weights_layout,
-                data: attn_weights.as_mut_slice(),
+                data: attn_weights.as_mut_slice()?,
             },
         })
         .map_err(|error| map_attention_error("attention forward", error))
@@ -128,6 +129,24 @@ where
     where
         T: AttentionScalar,
     {
+        let query_gradient = grad_q
+            .map(|(data, layout)| {
+                data.as_mut_slice()
+                    .map(|data| WriteOperand { layout, data })
+            })
+            .transpose()?;
+        let key_gradient = grad_k
+            .map(|(data, layout)| {
+                data.as_mut_slice()
+                    .map(|data| WriteOperand { layout, data })
+            })
+            .transpose()?;
+        let value_gradient = grad_v
+            .map(|(data, layout)| {
+                data.as_mut_slice()
+                    .map(|data| WriteOperand { layout, data })
+            })
+            .transpose()?;
         scaled_dot_product_attention_backward_accumulate(AttentionBackward {
             output_gradient: ReadOperand {
                 layout: grad_out_layout,
@@ -151,18 +170,9 @@ where
             },
             scale,
             gradients: AttentionGradientTargets {
-                query: grad_q.map(|(data, layout)| WriteOperand {
-                    layout,
-                    data: data.as_mut_slice(),
-                }),
-                key: grad_k.map(|(data, layout)| WriteOperand {
-                    layout,
-                    data: data.as_mut_slice(),
-                }),
-                value: grad_v.map(|(data, layout)| WriteOperand {
-                    layout,
-                    data: data.as_mut_slice(),
-                }),
+                query: query_gradient,
+                key: key_gradient,
+                value: value_gradient,
             },
         })
         .map_err(|error| map_attention_error("attention backward", error))

@@ -21,7 +21,7 @@ where
             b.as_slice(),
             a_layout,
             dim,
-            output.as_mut_slice(),
+            output.as_mut_slice()?,
         );
         Ok(output)
     }

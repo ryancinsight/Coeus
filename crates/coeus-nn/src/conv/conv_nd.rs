@@ -191,7 +191,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, D: ConvDim> Module<T, B> f
         let out_shape = D::output_shape(shape[0], self.out_channels, &out_sp);
         let mut out_tensor = Tensor::zeros_on(out_shape, &backend)?;
         {
-            let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+            let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
             D::backend_conv(ConvDispatch {
                 backend: &backend,
                 input_buf: input.tensor.storage(),

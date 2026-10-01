@@ -2,13 +2,17 @@ use super::*;
 use crate::reduction::HephaestusProvider;
 use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use std::{
+    cell::Cell,
     marker::PhantomData,
-    sync::atomic::{AtomicUsize, Ordering},
     sync::{Arc, Mutex},
 };
 
-static DOWNLOADS: AtomicUsize = AtomicUsize::new(0);
-static DEVICE_COPIES: AtomicUsize = AtomicUsize::new(0);
+std::thread_local! {
+    static DOWNLOADS: Cell<usize> = const { Cell::new(0) };
+    static DEVICE_COPIES: Cell<usize> = const { Cell::new(0) };
+    static FAIL_UNINITIALIZED_ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
+    static FAIL_DEVICE_COPIES: Cell<usize> = const { Cell::new(0) };
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TestInitialization {
@@ -111,6 +115,11 @@ impl ComputeDevice for TestDevice {
         len: usize,
         hint: PlacementHint,
     ) -> hephaestus_core::Result<Self::Buffer<T>> {
+        if FAIL_UNINITIALIZED_ALLOCATIONS.with(|failure| failure.replace(0) != 0) {
+            return Err(HephaestusError::AllocationFailed {
+                message: "injected COW allocation failure".to_owned(),
+            });
+        }
         empty_buffer(
             len,
             match hint {
@@ -136,7 +145,7 @@ impl ComputeDevice for TestDevice {
         buffer: &Self::Buffer<T>,
         out: &mut [T],
     ) -> hephaestus_core::Result<()> {
-        DOWNLOADS.fetch_add(1, Ordering::Relaxed);
+        DOWNLOADS.with(|count| count.set(count.get() + 1));
         require_len(buffer, out.len())?;
         let bytes = buffer
             .bytes
@@ -200,6 +209,11 @@ impl ComputeDevice for TestDevice {
         dst: &Self::Buffer<T>,
     ) -> hephaestus_core::Result<()> {
         require_len(dst, src.len)?;
+        if FAIL_DEVICE_COPIES.with(|failure| failure.replace(0) != 0) {
+            return Err(HephaestusError::DispatchFailed {
+                message: "injected device copy failure".to_owned(),
+            });
+        }
         let src_bytes = src
             .bytes
             .lock()
@@ -213,7 +227,7 @@ impl ComputeDevice for TestDevice {
                 message: "test destination lock poisoned".to_owned(),
             })?;
         dst_bytes.copy_from_slice(&src_bytes);
-        DEVICE_COPIES.fetch_add(1, Ordering::Relaxed);
+        DEVICE_COPIES.with(|count| count.set(count.get() + 1));
         Ok(())
     }
 
@@ -226,6 +240,7 @@ impl ComputeDevice for TestDevice {
 // thread-affine state, satisfying the provider buffer ownership contract.
 unsafe impl HephaestusProvider for TestProvider {
     type Device = TestDevice;
+    type Error = crate::error::HephaestusBackendError;
 
     const NAME: &'static str = "test";
 
@@ -244,6 +259,7 @@ unsafe impl HephaestusProvider for TestProvider {
 // returning a device.
 unsafe impl HephaestusProvider for UnavailableProvider {
     type Device = TestDevice;
+    type Error = crate::error::HephaestusBackendError;
 
     const NAME: &'static str = "unavailable-test";
 
@@ -288,18 +304,22 @@ fn backend_routes_allocation_by_initialization_contract() {
     use coeus_core::ComputeBackend;
 
     let backend = crate::reduction::HephaestusBackend::<TestProvider>::new();
-    let scratch = backend
-        .allocate::<u32>(4)
-        .expect("invariant: test backend allocation succeeds");
+    // SAFETY: the test fills every element before any safe read.
+    let mut scratch =
+        unsafe { backend.allocate::<u32>(4) }.expect("invariant: test backend allocation succeeds");
     assert_eq!(
         scratch.buffer.initialization,
         TestInitialization::Uninitialized
     );
-    let mut poison = [0; 4];
+    assert!(coeus_core::Storage::try_as_slice(&scratch).is_none());
     backend
-        .copy_to_host(&scratch, &mut poison)
+        .fill(&mut scratch, 17)
+        .expect("invariant: test backend fill succeeds");
+    let mut values = [0; 4];
+    backend
+        .copy_to_host(&scratch, &mut values)
         .expect("invariant: test backend transfer succeeds");
-    assert_eq!(poison, [0xa5a5_a5a5; 4]);
+    assert_eq!(values, [17; 4]);
 
     let zeroed = backend
         .allocate_zeroed::<u32>(4)
@@ -328,7 +348,9 @@ fn backend_storage_operations_report_device_acquisition_failure() {
     let backend = crate::reduction::HephaestusBackend::<UnavailableProvider>::new();
     assert_device_unavailable(
         expect_backend_failure(
-            backend.allocate::<u32>(4),
+            // SAFETY: only the returned error is inspected; an unexpected
+            // uninitialized buffer is dropped without being read.
+            unsafe { backend.allocate::<u32>(4) },
             "unavailable provider must reject allocation",
         ),
         "allocate",
@@ -344,7 +366,8 @@ fn backend_storage_operations_report_device_acquisition_failure() {
     let buffer = TestProvider::device()
         .alloc_zeroed_with_hint(4, PlacementHint::Tier(MemoryTier::Device))
         .expect("invariant: test buffer allocation succeeds");
-    let mut storage = HephaestusStorage::<UnavailableProvider, u32>::from_buffer(buffer);
+    // SAFETY: the provider allocated the buffer with zeroed initialization.
+    let mut storage = unsafe { HephaestusStorage::<UnavailableProvider, u32>::from_buffer(buffer) };
 
     assert_device_unavailable(
         expect_backend_failure(
@@ -386,8 +409,8 @@ fn backend_storage_operations_report_device_acquisition_failure() {
 
 #[test]
 fn make_unique_copies_device_data_without_host_download() {
-    DOWNLOADS.store(0, Ordering::Relaxed);
-    DEVICE_COPIES.store(0, Ordering::Relaxed);
+    DOWNLOADS.with(|count| count.set(0));
+    DEVICE_COPIES.with(|count| count.set(0));
 
     let device = TestProvider::device();
     let mut storage = HephaestusStorage::<TestProvider, u32>::new(4)
@@ -396,12 +419,12 @@ fn make_unique_copies_device_data_without_host_download() {
         .write_buffer(storage.buffer.as_ref(), &[1, 2, 3, 4])
         .expect("write test storage");
     let shared = storage.clone();
-    let downloads_before = DOWNLOADS.load(Ordering::Relaxed);
+    let downloads_before = DOWNLOADS.with(Cell::get);
 
     StorageMut::make_unique(&mut storage).expect("COW detachment succeeds");
 
-    assert_eq!(DOWNLOADS.load(Ordering::Relaxed), downloads_before);
-    assert_eq!(DEVICE_COPIES.load(Ordering::Relaxed), 1);
+    assert_eq!(DOWNLOADS.with(Cell::get), downloads_before);
+    assert_eq!(DEVICE_COPIES.with(Cell::get), 1);
 
     let mut detached = [0; 4];
     let mut retained = [0; 4];
@@ -415,4 +438,92 @@ fn make_unique_copies_device_data_without_host_download() {
     assert_eq!(retained, [1, 2, 3, 4]);
     assert_eq!(storage.buffer.tier(), MemoryTier::Device);
     assert_eq!(shared.buffer.tier(), MemoryTier::Device);
+}
+
+#[test]
+fn make_unique_reports_provider_allocation_failure() {
+    let device = TestProvider::device();
+    let mut storage = HephaestusStorage::<TestProvider, u32>::new(4)
+        .expect("invariant: test provider allocation succeeds");
+    device
+        .write_buffer(storage.buffer(), &[2, 3, 5, 7])
+        .expect("invariant: initial test data write succeeds");
+    let shared = storage.clone();
+    let allocation_before = storage.allocation_id();
+    FAIL_UNINITIALIZED_ALLOCATIONS.with(|failure| failure.set(1));
+
+    let error = StorageMut::make_unique(&mut storage)
+        .expect_err("injected COW allocation failure must remain observable");
+    assert!(matches!(
+        error,
+        HephaestusBackendError::Device {
+            operation: "storage uniqueness allocation",
+            source: HephaestusError::AllocationFailed { message }
+        } if message == "injected COW allocation failure"
+    ));
+    assert_eq!(storage.allocation_id(), allocation_before);
+    assert_eq!(shared.allocation_id(), allocation_before);
+
+    let mut retained = [0; 4];
+    device
+        .download(storage.buffer(), &mut retained)
+        .expect("invariant: original allocation remains readable");
+    assert_eq!(retained, [2, 3, 5, 7]);
+}
+
+#[test]
+fn make_unique_reports_device_acquisition_failure_without_replacing_storage() {
+    let buffer = TestProvider::device()
+        .alloc_zeroed_with_hint(4, PlacementHint::Tier(MemoryTier::Device))
+        .expect("invariant: test buffer allocation succeeds");
+    TestProvider::device()
+        .write_buffer(&buffer, &[13, 17, 19, 23])
+        .expect("invariant: initial test data write succeeds");
+    // SAFETY: the provider initialized all four elements before adoption.
+    let mut storage = unsafe { HephaestusStorage::<UnavailableProvider, u32>::from_buffer(buffer) };
+    let shared = storage.clone();
+    let allocation_before = storage.allocation_id();
+
+    let error = StorageMut::make_unique(&mut storage)
+        .expect_err("unavailable provider must reject COW detachment");
+    assert_device_unavailable(error, "storage uniqueness device acquisition");
+    assert_eq!(storage.allocation_id(), allocation_before);
+    assert_eq!(shared.allocation_id(), allocation_before);
+
+    let mut retained = [0; 4];
+    TestProvider::device()
+        .download(storage.buffer(), &mut retained)
+        .expect("invariant: source allocation remains readable");
+    assert_eq!(retained, [13, 17, 19, 23]);
+}
+
+#[test]
+fn make_unique_reports_provider_copy_failure_without_replacing_storage() {
+    let device = TestProvider::device();
+    let mut storage = HephaestusStorage::<TestProvider, u32>::new(4)
+        .expect("invariant: test provider allocation succeeds");
+    device
+        .write_buffer(storage.buffer.as_ref(), &[3, 5, 7, 11])
+        .expect("invariant: test buffer write succeeds");
+    let retained = storage.clone();
+    let allocation_before = storage.allocation_id();
+    FAIL_DEVICE_COPIES.with(|failure| failure.set(1));
+
+    let error = StorageMut::make_unique(&mut storage)
+        .expect_err("injected COW copy failure must remain observable");
+    assert!(matches!(
+        error,
+        HephaestusBackendError::Device {
+            operation: "storage uniqueness copy",
+            source: HephaestusError::DispatchFailed { message }
+        } if message == "injected device copy failure"
+    ));
+    assert_eq!(storage.allocation_id(), allocation_before);
+    assert_eq!(retained.allocation_id(), allocation_before);
+
+    let mut actual = [0; 4];
+    device
+        .download(storage.buffer(), &mut actual)
+        .expect("invariant: retained allocation remains readable");
+    assert_eq!(actual, [3, 5, 7, 11]);
 }

@@ -17,9 +17,9 @@ fn sequences() -> CtcBatch<'static> {
 }
 
 fn upload<T: Scalar, B: ComputeBackend>(backend: &B, values: &[T]) -> B::DeviceBuffer<T> {
-    let mut buffer = backend
-        .allocate(values.len())
-        .expect("test fixture allocation succeeds");
+    // SAFETY: the full input slice is uploaded before the buffer is returned.
+    let mut buffer =
+        unsafe { backend.allocate(values.len()) }.expect("test fixture allocation succeeds");
     backend
         .copy_to_device(values, &mut buffer)
         .expect("test fixture upload succeeds");

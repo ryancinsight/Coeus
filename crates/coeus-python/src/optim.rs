@@ -72,9 +72,11 @@ impl PySGD {
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
-    pub fn clip_grad_norm(&mut self, max_norm: f64) -> f64 {
+    pub fn clip_grad_norm(&mut self, max_norm: f64) -> PyResult<f64> {
         use coeus_optim::traits::Optimizer;
-        self.inner.clip_grad_norm(max_norm)
+        self.inner
+            .clip_grad_norm(max_norm)
+            .map_err(map_backend_error)
     }
 }
 
@@ -123,9 +125,11 @@ impl PyAdam {
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
-    pub fn clip_grad_norm(&mut self, max_norm: f64) -> f64 {
+    pub fn clip_grad_norm(&mut self, max_norm: f64) -> PyResult<f64> {
         use coeus_optim::traits::Optimizer;
-        self.inner.clip_grad_norm(max_norm)
+        self.inner
+            .clip_grad_norm(max_norm)
+            .map_err(map_backend_error)
     }
 }
 
@@ -172,9 +176,11 @@ impl PyRMSProp {
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
-    pub fn clip_grad_norm(&mut self, max_norm: f64) -> f64 {
+    pub fn clip_grad_norm(&mut self, max_norm: f64) -> PyResult<f64> {
         use coeus_optim::traits::Optimizer;
-        self.inner.clip_grad_norm(max_norm)
+        self.inner
+            .clip_grad_norm(max_norm)
+            .map_err(map_backend_error)
     }
 }
 
@@ -215,9 +221,11 @@ impl PyAdaGrad {
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
-    pub fn clip_grad_norm(&mut self, max_norm: f64) -> f64 {
+    pub fn clip_grad_norm(&mut self, max_norm: f64) -> PyResult<f64> {
         use coeus_optim::traits::Optimizer;
-        self.inner.clip_grad_norm(max_norm)
+        self.inner
+            .clip_grad_norm(max_norm)
+            .map_err(map_backend_error)
     }
 }
 
@@ -267,9 +275,11 @@ impl PyAdamW {
     }
 
     /// Clip gradient norms across all parameters to `max_norm`.
-    pub fn clip_grad_norm(&mut self, max_norm: f64) -> f64 {
+    pub fn clip_grad_norm(&mut self, max_norm: f64) -> PyResult<f64> {
         use coeus_optim::traits::Optimizer;
-        self.inner.clip_grad_norm(max_norm)
+        self.inner
+            .clip_grad_norm(max_norm)
+            .map_err(map_backend_error)
     }
 }
 

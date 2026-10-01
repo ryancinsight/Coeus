@@ -3,7 +3,15 @@ use coeus_core::{Float, Layout, Scalar};
 use hephaestus_core::{AttentionOps, AttentionScalar, HephaestusError};
 
 /// Provider-owned scalar attention operation marker.
-pub trait AttentionProvider<T>: HephaestusProvider
+///
+/// # Safety
+///
+/// Successful forward operations selected by `Operations` must initialize
+/// every logical output and attention-weight element without reading prior
+/// contents. Backward operations accumulate into selected gradient buffers,
+/// which must be initialized before dispatch. A dispatch error may leave an
+/// output partially written.
+pub unsafe trait AttentionProvider<T>: HephaestusProvider
 where
     T: Scalar + Float + AttentionScalar,
 {
@@ -132,6 +140,6 @@ where
     }
 
     fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        crate::HephaestusBackendError::device(operation, source)
+        P::Error::from(crate::HephaestusBackendError::device(operation, source))
     }
 }

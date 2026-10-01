@@ -296,7 +296,7 @@ pub fn clip_grad_norm_(
                 *v *= scale;
             }
             backend
-                .copy_to_device(&host, grad_tensor.storage_mut())
+                .copy_to_device(&host, grad_tensor.storage_mut()?)
                 .map_err(map_backend_error)?;
         }
     }
@@ -334,7 +334,7 @@ pub fn clip_grad_value_(
             *v = v.clamp(-clip_value, clip_value);
         }
         backend
-            .copy_to_device(&host, grad_tensor.storage_mut())
+            .copy_to_device(&host, grad_tensor.storage_mut()?)
             .map_err(map_backend_error)?;
     }
     Ok(())

@@ -29,9 +29,9 @@ fn scalar_writes<T: Scalar, B: ComputeBackend>(backend: &B, write: Write, one: T
         let expected_original: Vec<_> =
             (0..len).map(|index| [one, two, three][index % 3]).collect();
         let uploaded: Vec<_> = (0..len).map(|index| [three, one, two][index % 3]).collect();
-        let mut original = backend
-            .allocate(len)
-            .expect("invariant: test backend allocation succeeds");
+        // SAFETY: the complete buffer is uploaded before any read below.
+        let mut original =
+            unsafe { backend.allocate(len) }.expect("invariant: test backend allocation succeeds");
         backend
             .copy_to_device(&expected_original, &mut original)
             .expect("invariant: test backend copy succeeds");

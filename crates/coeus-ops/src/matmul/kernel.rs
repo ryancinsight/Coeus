@@ -61,8 +61,9 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
 
     // Fast path for strictly 2-D inputs — zero overhead.
     if a_ndim == 2 && b_ndim == 2 {
-        let mut out = Tensor::alloc_on([m, n], backend)?;
-        let (out_storage, out_layout) = out.storage_mut_and_layout();
+        // SAFETY: The following operation writes every output element before it is read.
+        let mut out = unsafe { Tensor::alloc_on([m, n], backend) }?;
+        let (out_storage, out_layout) = out.storage_mut_and_layout()?;
         backend.matmul(
             a.storage(),
             a.layout(),
@@ -112,11 +113,12 @@ pub fn matmul<T: Scalar, B: BackendOps<T> + Default>(
     // to the backend kernel.
     let mut out_shape = batch_shape;
     out_shape.extend([m, n]);
-    let mut out = Tensor::alloc_on(out_shape, backend)?;
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(out_shape, backend) }?;
 
     let a_storage = a.storage();
     let b_storage = b.storage();
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
 
     let a_layout = batch_layout(a.layout(), a_slices, m, k, a_ndim == 2);
     let b_layout = batch_layout(b.layout(), b_slices, k, n, b_ndim == 2);
@@ -209,7 +211,7 @@ pub fn matmul_accumulate<T: Scalar, B: BackendOps<T> + Default>(
     );
 
     if a_ndim == 2 && b_ndim == 2 {
-        let (out_storage, out_layout) = out.storage_mut_and_layout();
+        let (out_storage, out_layout) = out.storage_mut_and_layout()?;
         backend.matmul_accumulate(
             a.storage(),
             a.layout(),
@@ -245,7 +247,7 @@ pub fn matmul_accumulate<T: Scalar, B: BackendOps<T> + Default>(
         a_slices.max(b_slices) * m * n,
         "matmul_accumulate: output element count must match batched product"
     );
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     let c_layout = Layout::from_shape_strides(
         Shape::from([a_slices.max(b_slices), m, n].as_slice()),
         Strides::from([m * n, n, 1].as_slice()),

@@ -87,8 +87,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for MaxPool1d
             self.dilation,
         )?;
 
-        let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend)?;
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        // SAFETY: The following operation writes every output element before it is read.
+        let mut out_tensor = unsafe { Tensor::alloc_on([n, c, l_out], &backend) }?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend
             .max_pool1d(
@@ -196,8 +197,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool1d
             self.dilation,
         )?;
 
-        let mut out_tensor = Tensor::alloc_on([n, c, l_out], &backend)?;
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        // SAFETY: The following operation writes every output element before it is read.
+        let mut out_tensor = unsafe { Tensor::alloc_on([n, c, l_out], &backend) }?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend
             .avg_pool1d(

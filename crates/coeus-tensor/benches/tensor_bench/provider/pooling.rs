@@ -40,7 +40,7 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
                     STRIDE,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("valid Sequential MaxPool2d benchmark layout");
@@ -61,7 +61,7 @@ pub(crate) fn bench_max_pool2d(c: &mut Criterion) {
                     STRIDE,
                     0,
                     1,
-                    output.storage_mut(),
+                    output.storage_mut()?,
                     &output_layout,
                 )
                 .expect("valid Moirai MaxPool2d benchmark layout");

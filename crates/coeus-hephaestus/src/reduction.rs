@@ -3,7 +3,7 @@ use crate::{
     layout::{ranked, ranked_axis},
     storage::HephaestusStorage,
 };
-use coeus_core::{ComputeBackend, Layout, Scalar, StorageMut};
+use coeus_core::{BackendError, ComputeBackend, Layout, Scalar, StorageMut};
 use coeus_ops::ReductionOp;
 use hephaestus_core::{
     AxisReductionOps, CombineExpr, ComputeDevice, DeviceBuffer, IdentityToken, MaxOp, MinOp,
@@ -23,6 +23,14 @@ use std::future::Ready;
 pub unsafe trait HephaestusProvider: Send + Sync + Clone + Copy + Default + 'static {
     /// Concrete Hephaestus device type selected by this provider.
     type Device: ComputeDevice + Send + Sync + 'static;
+
+    /// Coeus error type used by this provider's storage and dispatch boundary.
+    type Error: std::error::Error
+        + From<coeus_core::BackendError>
+        + From<HephaestusBackendError>
+        + Send
+        + Sync
+        + 'static;
 
     /// Stable backend name used by Coeus diagnostics.
     const NAME: &'static str;
@@ -165,7 +173,13 @@ pub struct RankedOperand<'a, B, const N: usize> {
 
 /// Provider implementation of scalar-specific rank-2 reduction and scan
 /// kernels.
-pub trait ReductionProvider<T>: HephaestusProvider
+///
+/// # Safety
+///
+/// When `reduce` or `scan` returns `Ok(())`, it must initialize every logical
+/// output element and must not read its prior contents. An error may leave a
+/// partially written output; callers must discard it.
+pub unsafe trait ReductionProvider<T>: HephaestusProvider
 where
     T: Scalar + leto_ops::Scalar,
 {
@@ -242,11 +256,13 @@ impl<P> HephaestusBackend<P> {
     }
 }
 
-impl<P> ComputeBackend for HephaestusBackend<P>
+// SAFETY: provider storage never exposes host slices, and successful fill and
+// transfer operations initialize their complete destination buffers.
+unsafe impl<P> ComputeBackend for HephaestusBackend<P>
 where
     P: HephaestusProvider,
 {
-    type Error = HephaestusBackendError;
+    type Error = P::Error;
     type DeviceBuffer<T: Scalar> = HephaestusStorage<P, T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = Ready<T>;
@@ -259,14 +275,17 @@ where
         1
     }
 
-    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        HephaestusStorage::uninitialized(len)
-            .map_err(|source| HephaestusBackendError::device("allocate", source))
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        // SAFETY: the caller of this unsafe backend method must initialize the
+        // returned buffer before any read.
+        unsafe { HephaestusStorage::uninitialized(len) }
+            .map_err(|source| P::Error::from(HephaestusBackendError::device("allocate", source)))
     }
 
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        HephaestusStorage::new(len)
-            .map_err(|source| HephaestusBackendError::device("allocate_zeroed", source))
+        HephaestusStorage::new(len).map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("allocate_zeroed", source))
+        })
     }
 
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
@@ -279,12 +298,21 @@ where
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
-        let device = P::try_device()
-            .map_err(|source| HephaestusBackendError::device("copy_to_device", source))?;
+        if src.len() != dst.buffer().len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_device",
+                source_len: src.len(),
+                destination_len: dst.buffer().len(),
+            }
+            .into());
+        }
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("copy_to_device", source))
+        })?;
         dst.make_unique()?;
-        device
-            .write_buffer(dst.buffer(), src)
-            .map_err(|source| HephaestusBackendError::device("copy_to_device", source))
+        device.write_buffer(dst.buffer(), src).map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("copy_to_device", source))
+        })
     }
 
     fn copy_to_host<T: Scalar>(
@@ -292,14 +320,27 @@ where
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
+        if src.buffer().len() != dst.len() {
+            return Err(BackendError::BufferLengthMismatch {
+                operation: "copy_to_host",
+                source_len: src.buffer().len(),
+                destination_len: dst.len(),
+            }
+            .into());
+        }
         P::try_device()
-            .map_err(|source| HephaestusBackendError::device("copy_to_host", source))?
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device("copy_to_host", source))
+            })?
             .download(src.buffer(), dst)
-            .map_err(|source| HephaestusBackendError::device("copy_to_host", source))
+            .map_err(|source| {
+                P::Error::from(HephaestusBackendError::device("copy_to_host", source))
+            })
     }
 }
 
-impl<P, T> coeus_ops::ReductionOps<T> for HephaestusBackend<P>
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<P, T> coeus_ops::ReductionOps<T> for HephaestusBackend<P>
 where
     P: ReductionProvider<T>,
     T: Scalar + leto_ops::Scalar,
@@ -316,9 +357,11 @@ where
         let input_layout = ranked::<2>("reduce", a_layout)?;
         let output_layout = ranked::<2>("reduce", c_layout)?;
         let provider_axis = ranked_axis::<2>("reduce", a_layout, axis)?;
+        let device = P::try_device()
+            .map_err(|source| P::Error::from(HephaestusBackendError::device("reduce", source)))?;
         c.make_unique()?;
         P::reduce(
-            P::device(),
+            device,
             op,
             RankedOperand {
                 buffer: a.buffer(),
@@ -330,7 +373,7 @@ where
                 layout: &output_layout,
             },
         )
-        .map_err(|source| HephaestusBackendError::device("reduce", source))
+        .map_err(|source| P::Error::from(HephaestusBackendError::device("reduce", source)))
     }
 
     fn cumsum(
@@ -418,7 +461,7 @@ impl<P> HephaestusBackend<P>
 where
     P: HephaestusProvider,
 {
-    fn scan<T>(&self, request: ScanRequest<'_, P, T>) -> Result<(), HephaestusBackendError>
+    fn scan<T>(&self, request: ScanRequest<'_, P, T>) -> Result<(), P::Error>
     where
         P: ReductionProvider<T>,
         T: Scalar + leto_ops::Scalar,
@@ -427,9 +470,12 @@ where
         let output_layout = ranked::<2>(request.operation, request.output_layout)?;
         let provider_axis =
             ranked_axis::<2>(request.operation, request.input_layout, request.axis)?;
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device(request.operation, source))
+        })?;
         request.output.make_unique()?;
         P::scan(
-            P::device(),
+            device,
             RankedOperand {
                 buffer: request.input.buffer(),
                 layout: &input_layout,
@@ -442,6 +488,6 @@ where
                 layout: &output_layout,
             },
         )
-        .map_err(|source| HephaestusBackendError::device(request.operation, source))
+        .map_err(|source| P::Error::from(HephaestusBackendError::device(request.operation, source)))
     }
 }

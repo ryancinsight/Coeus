@@ -54,7 +54,12 @@ pub trait Optimizer<
     /// Clip gradient L2 norms across all parameters to `max_norm`.
     ///
     /// Returns the pre-clip total L2 norm.
-    fn clip_grad_norm(&mut self, max_norm: T) -> T
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend error if copy-on-write gradient storage cannot be
+    /// detached for mutation.
+    fn clip_grad_norm(&mut self, max_norm: T) -> Result<T, B::Error>
     where
         B::DeviceBuffer<T>:
             coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>;

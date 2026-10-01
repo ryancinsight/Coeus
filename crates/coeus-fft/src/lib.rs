@@ -70,7 +70,7 @@ where
     for (dst, src) in current.iter_mut().zip(delta_host) {
         *dst += src;
     }
-    backend.copy_to_device(&current, guard.storage_mut())?;
+    backend.copy_to_device(&current, guard.storage_mut()?)?;
     Ok(())
 }
 

@@ -34,7 +34,8 @@ fn test_clip_grad_norm_is_global_across_parameters() {
             .expect("invariant: test backend operation succeeds"),
     );
 
-    let pre_norm = clip_grad_norm(&[a.clone(), b.clone()], 6.5f32);
+    let pre_norm = clip_grad_norm(&[a.clone(), b.clone()], 6.5f32)
+        .expect("invariant: test gradient storage is writable");
     assert!(
         (pre_norm - 13.0).abs() < 1e-4,
         "global norm across both params: got {pre_norm}, expected 13.0"
@@ -61,7 +62,8 @@ fn test_clip_grad_norm_below_threshold_is_noop() {
             .expect("invariant: test backend operation succeeds"),
     );
 
-    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 10.0f32);
+    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 10.0f32)
+        .expect("invariant: test gradient storage is writable");
     assert!((pre_norm - 5.0).abs() < 1e-5);
 
     let g = x.grad().unwrap();
@@ -92,7 +94,8 @@ fn test_clip_grad_norm_exact_boundary_is_noop() {
             .expect("invariant: test backend operation succeeds"),
     );
 
-    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 5.0f32);
+    let pre_norm = clip_grad_norm(std::slice::from_ref(&x), 5.0f32)
+        .expect("invariant: test gradient storage is writable");
     assert!((pre_norm - 5.0).abs() < 1e-5);
 
     let g = x.grad().unwrap();
@@ -128,7 +131,8 @@ fn test_clip_grad_norm_skips_params_without_grad() {
     )
     .expect("invariant: test backend operation succeeds");
 
-    let pre_norm = clip_grad_norm(&[with_grad.clone(), without_grad.clone()], 2.5f32);
+    let pre_norm = clip_grad_norm(&[with_grad.clone(), without_grad.clone()], 2.5f32)
+        .expect("invariant: test gradient storage is writable");
     // Norm should reflect only `with_grad`'s [3,4] -> 5.0, not be perturbed by
     // (or panic on) the grad-less parameter.
     assert!(

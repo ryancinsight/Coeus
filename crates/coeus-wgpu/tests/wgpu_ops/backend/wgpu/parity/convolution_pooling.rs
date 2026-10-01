@@ -39,7 +39,7 @@ fn test_wgpu_parity_conv1d_forward() {
         1,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("CPU conv1d dispatch");
@@ -59,7 +59,7 @@ fn test_wgpu_parity_conv1d_forward() {
         1,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("WGPU conv1d dispatch");
@@ -112,7 +112,7 @@ fn test_wgpu_parity_conv2d_forward() {
         1,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("CPU conv2d dispatch");
@@ -132,7 +132,7 @@ fn test_wgpu_parity_conv2d_forward() {
         1,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("WGPU conv2d dispatch");
@@ -168,7 +168,7 @@ fn test_wgpu_parity_max_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU max_pool2d dispatch must succeed");
@@ -184,7 +184,7 @@ fn test_wgpu_parity_max_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("invariant: validated WGPU max_pool2d dispatch must succeed");
@@ -214,7 +214,7 @@ fn test_wgpu_parity_avg_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out.storage_mut()?,
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
@@ -230,7 +230,7 @@ fn test_wgpu_parity_avg_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out.storage_mut()?,
         &gpu_out_layout,
     )
     .expect("invariant: validated WGPU avg_pool2d dispatch must succeed");

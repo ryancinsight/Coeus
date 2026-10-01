@@ -84,9 +84,10 @@ where
     // in backend storage avoids the temporary host vector and the second
     // tensor allocation that made allocation counts depend on the shape.
     let out_dim = out_shape[dim];
-    let mut output = Tensor::alloc_on(out_shape, backend)?;
-    output.as_mut_slice().copy_from_slice(in_s);
-    let out_s = output.as_mut_slice();
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut output = unsafe { Tensor::alloc_on(out_shape, backend) }?;
+    output.as_mut_slice()?.copy_from_slice(in_s);
+    let out_s = output.as_mut_slice()?;
 
     for flat in 0..idx_numel {
         let scatter_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;

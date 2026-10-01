@@ -81,7 +81,7 @@ pub fn conv_transpose1d<T: Float, B: BackendOps<T> + Default>(
     let l_out = conv_transpose1d_output_len(l, k, stride, padding, output_padding, dilation);
 
     let mut output = Tensor::zeros_on([n, c_out, l_out], backend)?;
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
     backend.conv_transpose1d(
         input.storage(),
         input.layout(),
@@ -135,7 +135,7 @@ pub fn conv_transpose2d<T: Float, B: BackendOps<T> + Default>(
         conv_transpose2d_output_dims(h, w, kh, kw, stride, padding, output_padding, dilation);
 
     let mut output = Tensor::zeros_on([n, c_out, h_out, w_out], backend)?;
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
     backend.conv_transpose2d(
         input.storage(),
         input.layout(),
@@ -230,7 +230,7 @@ pub fn conv_transpose3d<T: Float, B: BackendOps<T> + Default>(
     );
 
     let mut output = Tensor::zeros_on([n, c_out, d_out, h_out, w_out], backend)?;
-    let (out_storage, out_layout) = output.storage_mut_and_layout();
+    let (out_storage, out_layout) = output.storage_mut_and_layout()?;
     backend.conv_transpose3d(
         input.storage(),
         input.layout(),

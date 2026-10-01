@@ -80,18 +80,24 @@ where
     let input_layout = layout(&case.input_shape);
     let weight_layout = layout(&case.weight_shape);
 
-    let mut grad_out = backend
-        .allocate::<f32>(case.grad_out.len())
-        .expect("invariant: test backend storage operation succeeds");
-    let mut input = backend
-        .allocate::<f32>(case.input.len())
-        .expect("invariant: test backend storage operation succeeds");
-    let mut weight = backend
-        .allocate::<f32>(case.weight.len())
-        .expect("invariant: test backend storage operation succeeds");
-    let mut grad_weight = backend
-        .allocate::<f32>(case.initial_grad_weight.len())
-        .expect("invariant: test backend storage operation succeeds");
+    // SAFETY: The four buffers are initialized by the copy operations below
+    // before the backward kernel reads them.
+    let (mut grad_out, mut input, mut weight, mut grad_weight) = unsafe {
+        (
+            backend
+                .allocate::<f32>(case.grad_out.len())
+                .expect("invariant: test backend storage operation succeeds"),
+            backend
+                .allocate::<f32>(case.input.len())
+                .expect("invariant: test backend storage operation succeeds"),
+            backend
+                .allocate::<f32>(case.weight.len())
+                .expect("invariant: test backend storage operation succeeds"),
+            backend
+                .allocate::<f32>(case.initial_grad_weight.len())
+                .expect("invariant: test backend storage operation succeeds"),
+        )
+    };
 
     backend
         .copy_to_device(case.grad_out, &mut grad_out)

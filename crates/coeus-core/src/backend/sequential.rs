@@ -43,7 +43,9 @@ impl SequentialBackend {
     }
 }
 
-impl ComputeBackend for SequentialBackend {
+// SAFETY: CPU storage tracks initialization, refuses reads while uninitialized,
+// and the fill/copy methods fully write before reporting success.
+unsafe impl ComputeBackend for SequentialBackend {
     type Error = crate::backend::BackendError;
     type DeviceBuffer<T: Scalar> = CpuStorage<T>;
     type KernelDescriptor = ();
@@ -60,22 +62,18 @@ impl ComputeBackend for SequentialBackend {
     }
 
     #[inline]
-    fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         CpuStorage::allocate_uninitialized(len)
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        let mut storage = CpuStorage::allocate_uninitialized(len)?;
-        self.fill(&mut storage, T::zero())?;
-        Ok(storage)
+        CpuStorage::filled(len, T::zero())
     }
 
     #[inline]
     fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error> {
-        use crate::storage::CpuAddressableStorageMut;
-        dst.as_mut_slice().fill(val);
-        Ok(())
+        dst.fill_cow(val)
     }
 
     #[inline]
@@ -84,9 +82,7 @@ impl ComputeBackend for SequentialBackend {
         src: &[T],
         dst: &mut Self::DeviceBuffer<T>,
     ) -> Result<(), Self::Error> {
-        use crate::storage::CpuAddressableStorageMut;
-        dst.as_mut_slice().copy_from_slice(src);
-        Ok(())
+        dst.copy_from_slice_cow(src)
     }
 
     #[inline]
@@ -96,6 +92,14 @@ impl ComputeBackend for SequentialBackend {
         dst: &mut [T],
     ) -> Result<(), Self::Error> {
         use crate::storage::CpuAddressableStorage;
+        let source_len = src.as_slice().len();
+        if source_len != dst.len() {
+            return Err(crate::backend::BackendError::BufferLengthMismatch {
+                operation: "copy_to_host",
+                source_len,
+                destination_len: dst.len(),
+            });
+        }
         dst.copy_from_slice(src.as_slice());
         Ok(())
     }

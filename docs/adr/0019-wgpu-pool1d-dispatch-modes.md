@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-07-23
 - Scope: `crates/coeus-wgpu/src/kernels/pool/pool1d/`
+- Revision 2026-09-29: ADR 0020 and PR #461 complete the typed backend and
+  storage caller boundaries referenced by this decision.
 
 ## Context
 
@@ -23,10 +25,10 @@ existing backward modes.
 The invalid forward/backward call-state is rejected by the type checker, the
 forward dispatcher no longer carries an input-dependent `unreachable!`, and
 the generated shader source and public launch functions remain unchanged.
-The separate WGPU layout metadata conversion still narrows `usize` values to
-the WGSL `u32` ABI at 23 sites. Correctly surfacing those failures requires a
-typed error through the currently infallible backend-operation traits; that
-larger API migration is not folded into this patch.
+The separate WGPU layout metadata conversion was subsequently moved behind the
+typed backend-operation error boundary in ADR 0020. PR #461 completes the
+fallible storage and higher-level caller closure without changing this
+pooling-mode type-state decision.
 
 ## Verification
 
