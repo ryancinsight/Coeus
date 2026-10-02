@@ -1,7 +1,22 @@
-"""Execute the installed lock hooks against real Git and Cargo fixtures."""
+"""Execute the installed lock hooks against real Git and Cargo fixtures.
+
+The hooks are the stack's single owned copies. Their lock stage does not run a
+member checker: it extracts `scripts/lockfile.py` from the stack's fetched
+default branch (`origin/HEAD`, else `origin/main` of the repository two levels
+above the member) and runs that. Outside a stack checkout there is no checker
+to run, and the stage defers to the `lockfile-guard` CI job.
+
+The fixtures therefore build a stack (`stack/`, one commit carrying `scripts/`,
+published as `refs/remotes/origin/main`) with the member at `stack/repos/member`,
+and a clone outside any stack (`alone/`). The checker the fixture stack carries
+is a recording stand-in (`STACK_CHECKER`): what these tests judge is how the
+hooks locate, invoke, and obey a checker, and what that checker's verdicts are
+is judged by the checker's own tests (atlas `scripts/tests/test_lockfile_*.py`).
+"""
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -11,25 +26,72 @@ import unittest
 from pathlib import Path
 
 
-# Every external command the new (atlas-owned) `pre-push` runs before and
-# inside its lockfile section. Adopting the fuller hook (atlas
-# ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09) means the missing-
-# interpreter fixture below must keep these available on a stripped PATH --
-# the prior two-line hook called only `git` and the interpreter candidates,
-# so a bare `git`-only PATH sufficed; this one fails earlier, on a missing
-# `seq`/`mktemp`, if it does not.
+# Every external command the hooks run before and inside their lock stage,
+# including the stack-tool extraction that precedes it (`mkdir`, `mv`, `touch`).
+# The missing-interpreter fixture must keep these on a stripped PATH: a hook
+# that fails earlier, on a missing `seq`/`mktemp`/`mv`, never reaches the
+# interpreter search and the test would judge the wrong refusal.
 _HOOK_COMMANDS = (
     "bash", "git", "seq", "sed", "grep", "awk", "cat", "head", "sort",
-    "tr", "mktemp", "rm", "tar",
+    "tr", "mktemp", "rm", "tar", "mkdir", "mv", "touch",
 )
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 HOOKS = ("pre-commit", "pre-push")
 ZERO = "0" * 40
-# `pre-push` reads the pushed range from stdin and judges the pushed
-# revision itself -- never `HEAD` in its place -- so the probe names the
-# fixture's current commit as a new branch. These fixtures have no `origin`
-# remote, so no base resolves and the whole revision is checked.
+
+# A first-party git source in the lock, and a manifest declaring the matching
+# dependency: the fixture member is the shape the checker's flattened-lock
+# diagnosis applies to.
+LOCK = (
+    '[[package]]\nname = "provider"\nversion = "0.1.0"\n'
+    'source = "git+https://github.com/ryancinsight/provider.git?branch=main#abc123"\n'
+)
+MANIFEST = (
+    '[package]\nname = "member"\nversion = "0.1.0"\n\n[dependencies]\n'
+    'provider = { git = "https://github.com/ryancinsight/provider", version = "0.1" }\n'
+)
+
+# The fixture stack's `scripts/lockfile.py`. It appends one JSON record per call
+# (arguments, working directory, the `Cargo.lock` beside a `--manifest-path`,
+# and the skip variable it inherited) to `LOCKFILE_CALLS_LOG`, then answers by
+# `LOCKFILE_STUB`: `pass` (default), `fail`, or `cargo` -- `--check` then runs
+# real `cargo metadata --locked` on the manifest and forwards its stderr and
+# status, as the stack checker's resolution step does, so a stale lock is
+# refused with cargo's own diagnostic; `--check-staged` runs no cargo.
+STACK_CHECKER = '''\
+import json, os, pathlib, subprocess, sys
+
+arguments = sys.argv[1:]
+lock = None
+manifest = None
+if "--manifest-path" in arguments:
+    manifest = pathlib.Path(arguments[arguments.index("--manifest-path") + 1])
+    beside = manifest.with_name("Cargo.lock")
+    lock = beside.read_text(encoding="utf-8") if beside.is_file() else None
+record = {
+    "arguments": arguments,
+    "cwd": os.getcwd(),
+    "lock": lock,
+    "skip": os.environ.get("SKIP_LOCKFILE_CHECK"),
+}
+with open(os.environ["LOCKFILE_CALLS_LOG"], "a", encoding="utf-8") as log:
+    log.write(json.dumps(record) + "\\n")
+
+mode = os.environ.get("LOCKFILE_STUB", "pass")
+if mode == "fail":
+    print("stack checker: refused", file=sys.stderr)
+    sys.exit(1)
+if mode == "cargo" and "--check" in arguments:
+    resolved = subprocess.run(
+        ["cargo", "metadata", "--locked", "--format-version", "1",
+         "--manifest-path", str(manifest)],
+        capture_output=True, encoding="utf-8", errors="replace", check=False,
+    )
+    sys.stderr.write(resolved.stderr)
+    sys.exit(resolved.returncode)
+sys.exit(0)
+'''
 
 
 class HookInstallationTests(unittest.TestCase):
@@ -56,16 +118,22 @@ class LockHookTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory(dir=Path(__file__).parent)
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name).resolve()
+        self.stack = self.root / "stack"
+        self.member = self.stack / "repos" / "member"
+        self.alone = self.root / "alone"
+        self.calls_log = self.root / "checker-calls.jsonl"
         self.environment = os.environ.copy()
-        self.environment.pop("SKIP_LOCKFILE_CHECK", None)
+        for variable in ("SKIP_LOCKFILE_CHECK", "LOCKFILE_STUB"):
+            self.environment.pop(variable, None)
         self.environment["PYTHON"] = Path(sys.executable).as_posix()
         self.environment["GIT_CONFIG_NOSYSTEM"] = "1"
         self.environment["GIT_CONFIG_GLOBAL"] = str(self.root / "gitconfig")
-        # The isolated global config above carries no identity, and CI
-        # runners (unlike a developer machine) have none in any wider scope
-        # either. The new hooks' interface needs real commits in this
-        # fixture's own repo (pre-push checks a committed revision, never
-        # the bare working tree), so every commit here needs one.
+        # `pre-push` reaches its code gate only after the lock stage; the gate
+        # is not under test, so the lock verdict is the hook's exit status.
+        self.environment["SKIP_LOCAL_GATE"] = "1"
+        self.environment["LOCKFILE_CALLS_LOG"] = str(self.calls_log)
+        # The isolated global config above carries no identity, and CI runners
+        # (unlike a developer machine) have none in any wider scope either.
         self.environment["GIT_AUTHOR_NAME"] = "Coeus tests"
         self.environment["GIT_AUTHOR_EMAIL"] = "tests@localhost"
         self.environment["GIT_COMMITTER_NAME"] = "Coeus tests"
@@ -74,31 +142,17 @@ class LockHookTests(unittest.TestCase):
         self.assertIsNotNone(self.git, "hook tests require Git")
         self.bash = shutil.which("bash")
         if os.name == "nt":
-            executable_root = Path(self.run_command([self.git, "--exec-path"]).stdout.strip())
+            executable_root = Path(
+                self.run_command([self.git, "--exec-path"], cwd=self.root).stdout.strip()
+            )
             self.bash = str(executable_root.parents[2] / "bin" / "bash.exe")
         self.assertIsNotNone(self.bash, "hook tests require Bash")
-        self.run_command([self.git, "init", "-q"])
-        for directory in (".githooks", "scripts", "src"):
-            (self.root / directory).mkdir()
-        for hook in HOOKS:
-            destination = self.root / ".githooks" / hook
-            shutil.copyfile(REPOSITORY / ".githooks" / hook, destination)
-            destination.chmod(0o755)
-        shutil.copyfile(REPOSITORY / "scripts/lockfile.py", self.root / "scripts/lockfile.py")
-        self.run_command([self.git, "config", "core.hooksPath", ".githooks"])
-        # `pre-push` exports and checks a *committed* revision (never the
-        # bare working tree), so it needs a real HEAD to export from the
-        # first invocation onward. Seed one now, with the checker present,
-        # so every test below starts from a valid, checker-carrying history
-        # and only has to commit the state it specifically wants to vary.
-        self.run_command([self.git, "add", "-A"])
-        self.run_command([self.git, "commit", "-qm", "Seed hooks and checker"])
 
-    def run_command(self, command, *, environment=None, expected=0, input_text=None):
+    def run_command(self, command, *, cwd, environment=None, expected=0, input_text=None):
         env = self.environment if environment is None else environment
         if input_text is None:
             result = subprocess.run(
-                command, cwd=self.root, env=env,
+                command, cwd=cwd, env=env,
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=60, check=False,
             )
@@ -107,11 +161,9 @@ class LockHookTests(unittest.TestCase):
             # `\r\n` while writing the child's stdin, which corrupts the
             # push-line protocol `pre-push` parses byte-for-byte -- a `\r`
             # riding along in `remote_sha` makes it compare unequal to the
-            # all-zeros sentinel, so the "new branch" case is never taken
-            # (same fix as atlas's scripts/tests/test_atlas_pre_push_gate.py
-            # GateFixture.run_hook).
+            # all-zeros sentinel, so the "new branch" case is never taken.
             raw = subprocess.run(
-                command, cwd=self.root, env=env,
+                command, cwd=cwd, env=env,
                 input=input_text.encode("utf-8"),
                 capture_output=True, timeout=60, check=False,
             )
@@ -124,58 +176,178 @@ class LockHookTests(unittest.TestCase):
             self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result
 
-    def hook(self, name, **variables):
+    def run_git(self, repository, *arguments, **options):
+        return self.run_command([self.git, *arguments], cwd=repository, **options)
+
+    def publish_stack(self, checker: str | None) -> None:
+        """Make a one-commit stack whose fetched default carries `checker`.
+
+        `None` publishes a default whose `scripts/` lacks `lockfile.py`, as a
+        stack default cut before the checker existed does.
+        """
+        self.run_git(self.stack.parent, "init", "-q", str(self.stack))
+        (self.stack / "scripts").mkdir()
+        if checker is None:
+            (self.stack / "scripts" / "other.py").write_text("pass\n", encoding="utf-8")
+        else:
+            (self.stack / "scripts" / "lockfile.py").write_text(
+                checker, encoding="utf-8", newline="\n"
+            )
+        self.run_git(self.stack, "add", "scripts")
+        self.run_git(self.stack, "commit", "-qm", "Publish the stack scripts")
+        head = self.run_git(self.stack, "rev-parse", "HEAD").stdout.strip()
+        self.run_git(self.stack, "update-ref", "refs/remotes/origin/main", head)
+
+    def make_member(self, path: Path) -> Path:
+        """A member repository carrying the installed hooks and no lock checker."""
+        path.mkdir(parents=True)
+        self.run_git(path, "init", "-q")
+        (path / ".githooks").mkdir()
+        for hook in HOOKS:
+            destination = path / ".githooks" / hook
+            shutil.copyfile(REPOSITORY / ".githooks" / hook, destination)
+            destination.chmod(0o755)
+        (path / "Cargo.toml").write_text(MANIFEST, encoding="utf-8", newline="\n")
+        (path / "Cargo.lock").write_text(LOCK, encoding="utf-8", newline="\n")
+        self.commit_all(path, "Seed the member")
+        return path
+
+    def commit_all(self, repository: Path, message: str) -> None:
+        self.run_git(repository, "add", "-A")
+        self.run_git(repository, "commit", "-qm", message)
+
+    def stage_lock(self, text: str) -> None:
+        (self.member / "Cargo.lock").write_text(text, encoding="utf-8", newline="\n")
+        self.run_git(self.member, "add", "Cargo.lock")
+
+    def hook(self, name, *, member=None, **variables):
+        member = self.member if member is None else member
         environment = self.environment | variables
-        # `pre-push` alone reads a push range from stdin; feeding it to
-        # `pre-commit` too would be inert (the commit hook never reads stdin)
-        # but stays scoped to the hook that needs it for clarity.
+        # `pre-push` alone reads a push range from stdin. These fixtures have
+        # no `origin` remote, so no base resolves and the whole pushed revision
+        # is judged -- never `HEAD` in its place.
         input_text = None
         if name == "pre-push":
-            head = self.run_command([self.git, "rev-parse", "HEAD"]).stdout.strip()
+            head = self.run_git(member, "rev-parse", "HEAD").stdout.strip()
             input_text = f"refs/heads/probe {head} refs/heads/probe {ZERO}\n"
         return self.run_command(
             [self.bash, "--noprofile", "--norc", f".githooks/{name}"],
-            environment=environment, expected=None, input_text=input_text,
+            cwd=member, environment=environment, expected=None, input_text=input_text,
         )
 
-    def test_missing_checker_rejects_both_hooks(self) -> None:
-        (self.root / "scripts/lockfile.py").unlink()
+    def prepare(self, hook: str) -> None:
+        """Put the member where `hook` judges its lock.
+
+        `pre-commit` judges the index and returns before any checker work when
+        no `Cargo.lock` is staged; `pre-push` judges the pushed commit, which
+        the seed commit already carries.
+        """
+        if hook == "pre-commit":
+            self.stage_lock(LOCK + "# touched\n")
+
+    def calls(self) -> list[dict]:
+        if not self.calls_log.is_file():
+            return []
+        lines = self.calls_log.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines]
+
+    def test_pre_commit_runs_the_stack_checker_on_the_index(self) -> None:
+        self.publish_stack(STACK_CHECKER)
+        self.make_member(self.member)
+        self.assertFalse((self.member / "scripts").exists(), "the member carries no checker")
+        self.prepare("pre-commit")
+
         result = self.hook("pre-commit")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("pre-commit: scripts/lockfile.py not present", result.stderr)
 
-        # `pre-push` checks the checker in the *pushed* revision, not the
-        # working tree, so the removal must be committed before it is
-        # visible there. The removal commit would itself be refused by the
-        # now-installed pre-commit (which reads the same working-tree
-        # absence) -- `--no-verify` constructs the adversarial history this
-        # sub-test needs pre-push to catch, the same way a commit made
-        # before the hook existed, or with `--no-verify` for real, would.
-        self.run_command([self.git, "add", "-A"])
-        self.run_command([self.git, "commit", "--no-verify", "-qm", "Remove the checker"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.calls()
+        self.assertEqual([call["arguments"] for call in calls], [["--check-staged"]])
+        self.assertEqual(Path(calls[0]["cwd"]).resolve(), self.member.resolve())
+
+    def test_pre_commit_without_a_staged_lock_never_reaches_the_stack(self) -> None:
+        # The stack default lacks the checker, and the commit still passes: the
+        # staged-path test runs before the stack is touched.
+        self.publish_stack(None)
+        self.make_member(self.member)
+        (self.member / "notes.txt").write_text("x\n", encoding="utf-8")
+        self.run_git(self.member, "add", "notes.txt")
+
+        result = self.hook("pre-commit")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_pre_push_checks_an_export_of_the_pushed_revision(self) -> None:
+        self.publish_stack(STACK_CHECKER)
+        self.make_member(self.member)
+        # The working lock is not the push: a peer's tree, or a cargo run inside
+        # a stack, leaves it flattened while the pushed commit stays sound.
+        (self.member / "Cargo.lock").write_text("# flattened\n", encoding="utf-8")
+
         result = self.hook("pre-push")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("pre-push: scripts/lockfile.py not present", result.stderr)
 
-    # test_missing_shared_entry_rejects_both_hooks is retired: the shared
-    # `.githooks/lockfile.sh` entry point it exercised is gone. The new hooks
-    # (adopted whole from the atlas stack, ATLAS-PREPUSH-HOOK-FORKED-ACROSS-
-    # MEMBERS-2026-09-09) are each self-contained -- no shared entry file for
-    # either to be missing.
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (call,) = self.calls()
+        self.assertEqual(call["arguments"][:2], ["--check", "--manifest-path"])
+        manifest = Path(call["arguments"][2])
+        self.assertEqual(manifest.name, "Cargo.toml")
+        self.assertEqual(Path(call["cwd"]).resolve(), manifest.parent.resolve())
+        self.assertFalse(
+            manifest.resolve().is_relative_to(self.member.resolve()),
+            "the manifest is the export's, never the checkout's",
+        )
+        self.assertEqual(call["lock"], LOCK, "the checker read the pushed lock")
+        self.assertEqual(
+            (self.member / "Cargo.lock").read_text(encoding="utf-8"), "# flattened\n"
+        )
+
+    def test_a_member_copy_is_never_the_checker_that_runs(self) -> None:
+        # A copy that accepts every lock cannot overrule the stack's verdict,
+        # and it is never executed: it leaves a witness if it ever is.
+        self.publish_stack(STACK_CHECKER)
+        self.make_member(self.member)
+        (self.member / "scripts").mkdir()
+        witness = self.member / "member-copy-ran"
+        (self.member / "scripts" / "lockfile.py").write_text(
+            f"import pathlib, sys\npathlib.Path({witness.as_posix()!r}).write_text('ran')\n"
+            "sys.exit(0)\n",
+            encoding="utf-8",
+        )
+        self.commit_all(self.member, "Add a member copy")
+        for hook in HOOKS:
+            with self.subTest(hook=hook):
+                self.prepare(hook)
+                result = self.hook(hook, LOCKFILE_STUB="fail")
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn("stack checker: refused", result.stderr)
+        self.assertFalse(witness.exists())
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_stack_default_without_the_checker_rejects_both_hooks(self) -> None:
+        self.publish_stack(None)
+        self.make_member(self.member)
+        for hook in HOOKS:
+            with self.subTest(hook=hook):
+                self.prepare(hook)
+                result = self.hook(hook)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(f"{hook}: the stack's scripts at ", result.stderr)
+                self.assertIn("carry no lockfile.py; lockfile not verified", result.stderr)
+        self.assertEqual(self.calls(), [])
 
     def _path_without_python(self) -> str:
         """A PATH carrying the hook's own commands and no python interpreter.
 
-        The hook resolves its repository with git and runs coreutils before
-        it searches for an interpreter, so an empty PATH (or one holding only
+        The hook resolves its repository with git and runs coreutils before it
+        searches for an interpreter, so an empty PATH (or one holding only
         `git`) tests the wrong failure: it fails on a missing `seq`/`mktemp`
-        first, never reaching the interpreter search at all. Windows keeps
-        its interpreter in its own directory outside the coreutils Git
-        bundles, so filtering only python-holding entries out of the
-        inherited PATH is correct there; POSIX needs the named commands
-        linked into a fresh directory instead, since `/usr/bin` there also
-        holds a system python (mirrors atlas's
-        scripts/tests/test_atlas_pre_push_gate.py `_path_without_python`).
+        first, never reaching the interpreter search at all. Windows keeps its
+        interpreter in its own directory outside the coreutils Git bundles, so
+        filtering only python-holding entries out of the inherited PATH is
+        correct there; POSIX needs the named commands linked into a fresh
+        directory instead, since `/usr/bin` there also holds a system python
+        (mirrors atlas's scripts/tests/test_atlas_pre_push_gate.py
+        `_path_without_python`).
         """
         if os.name == "nt":
             entries = []
@@ -209,46 +381,58 @@ class LockHookTests(unittest.TestCase):
         return str(tools)
 
     def test_missing_interpreter_rejects_both_hooks(self) -> None:
-        # Absolute Bash starts the actual hook; PATH carries its coreutils
-        # but no python. No replacement checker or interpreter can
-        # manufacture success.
+        # Absolute Bash starts the actual hook; PATH carries its coreutils but
+        # no python, and the stack checker is present and would pass. No
+        # replacement interpreter can manufacture success.
+        self.publish_stack(STACK_CHECKER)
+        self.make_member(self.member)
         path = self._path_without_python()
         for hook in HOOKS:
             with self.subTest(hook=hook):
+                self.prepare(hook)
                 result = self.hook(hook, PYTHON="", PATH=path)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(f"{hook}: no python interpreter found", result.stderr)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(
+                    f"{hook}: no python interpreter found; lockfile not verified",
+                    result.stderr,
+                )
+        self.assertEqual(self.calls(), [])
 
     def test_explicit_missing_interpreter_rejects_both_hooks(self) -> None:
+        self.publish_stack(STACK_CHECKER)
+        self.make_member(self.member)
         interpreter = (self.root / "absent-python").as_posix()
         for hook in HOOKS:
             with self.subTest(hook=hook):
+                self.prepare(hook)
                 result = self.hook(hook, PYTHON=interpreter)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(interpreter, result.stderr)
+        self.assertEqual(self.calls(), [])
 
     def test_skip_variable_cannot_hide_checker_failures(self) -> None:
-        # Both real checks reject a lock without the required first-party
-        # source. `pre-commit` checks the staged blob; `pre-push` exports and
-        # checks the committed revision, never the bare working tree, so the
-        # bad lock is checked staged first and then committed before the
-        # push side of this is exercised.
-        (self.root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
-        self.run_command([self.git, "add", "Cargo.lock"])
-        result = self.hook("pre-commit", SKIP_LOCKFILE_CHECK="1")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("contains no first-party git sources", result.stderr)
-        self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", result.stderr)
-        # `pre-push` checks the committed revision; `--no-verify` gets the
-        # same bad lock into history without going through the pre-commit
-        # this fixture just proved refuses it (a commit made with
-        # `--no-verify` for real, or before this hook existed, is exactly
-        # what `pre-push` exists to still catch).
-        self.run_command([self.git, "commit", "--no-verify", "-qm", "Add a flattened lock"])
-        result = self.hook("pre-push", SKIP_LOCKFILE_CHECK="1")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("contains no first-party git sources", result.stderr)
-        self.assertIn("SKIP_LOCKFILE_CHECK is no longer honoured", result.stderr)
+        self.publish_stack(STACK_CHECKER)
+        self.make_member(self.member)
+        for hook in HOOKS:
+            with self.subTest(hook=hook, checker="refuses"):
+                self.prepare(hook)
+                result = self.hook(hook, SKIP_LOCKFILE_CHECK="1", LOCKFILE_STUB="fail")
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(f"{hook}: SKIP_LOCKFILE_CHECK is no longer honoured", result.stderr)
+                self.assertIn("stack checker: refused", result.stderr)
+        # The checker ran under the skip variable: it was not skipped.
+        self.assertEqual([call["skip"] for call in self.calls()], ["1", "1"])
+
+    def test_skip_variable_cannot_hide_an_absent_checker(self) -> None:
+        self.publish_stack(None)
+        self.make_member(self.member)
+        for hook in HOOKS:
+            with self.subTest(hook=hook):
+                self.prepare(hook)
+                result = self.hook(hook, SKIP_LOCKFILE_CHECK="1")
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(f"{hook}: SKIP_LOCKFILE_CHECK is no longer honoured", result.stderr)
+                self.assertIn("carry no lockfile.py; lockfile not verified", result.stderr)
 
     def test_real_lock_passes_and_stale_lock_retains_cargo_diagnostic(self) -> None:
         dependency = self.root / "dependency"
@@ -258,66 +442,83 @@ class LockHookTests(unittest.TestCase):
             '[package]\nname = "hook-dependency"\nversion = "0.1.0"\nedition = "2024"\n',
             encoding="utf-8",
         )
-        self.run_command([self.git, "init", "-q", str(dependency)])
-        self.run_command([self.git, "-C", str(dependency), "add", "Cargo.toml", "src/lib.rs"])
-        self.run_command([
-            self.git, "-C", str(dependency), "-c", "user.name=Coeus tests",
-            "-c", "user.email=tests@localhost", "commit", "-qm", "Add hook fixture",
-        ])
+        self.run_git(dependency, "init", "-q")
+        self.run_git(dependency, "add", "Cargo.toml", "src/lib.rs")
+        self.run_git(dependency, "commit", "-qm", "Add hook fixture")
         url = "https://github.com/ryancinsight/hook-fixture"
         # Git resolves this first-party-shaped source locally; Cargo still
         # generates and verifies the actual Git revision and dependency graph.
-        self.run_command([
-            self.git, "config", "--global", f"url.{dependency.as_uri()}.insteadOf", url,
-        ])
+        self.run_git(self.root, "config", "--global", f"url.{dependency.as_uri()}.insteadOf", url)
         self.environment["CARGO_NET_GIT_FETCH_WITH_CLI"] = "true"
         self.environment["CARGO_HOME"] = str(self.root / "cargo-home")
-        (self.root / "src/lib.rs").write_text("//! Hook fixture consumer.\n", encoding="utf-8")
-        manifest = self.root / "Cargo.toml"
+        self.environment["LOCKFILE_STUB"] = "cargo"
+
+        self.publish_stack(STACK_CHECKER)
+        self.make_member(self.member)
+        (self.member / "src").mkdir()
+        (self.member / "src/lib.rs").write_text("//! Hook fixture consumer.\n", encoding="utf-8")
+        manifest = self.member / "Cargo.toml"
         manifest.write_text(
             '[package]\nname = "hook-consumer"\nversion = "0.1.0"\nedition = "2024"\n'
-            '[workspace]\nexclude = ["dependency"]\n'
+            '[workspace]\n'
             f'[dependencies]\nhook-dependency = {{ git = "{url}" }}\n',
             encoding="utf-8",
         )
-        self.run_command([sys.executable, "scripts/lockfile.py", "--regenerate"])
-        before = (self.root / "Cargo.lock").read_bytes()
-
-        # `pre-commit` checks the staged blob; `pre-push` exports and checks
-        # a committed revision, never the bare working tree. Stage the good
-        # manifest/lock pair, prove `pre-commit` passes it staged, then
-        # commit so `pre-push` has a real revision to export and check.
-        self.run_command([self.git, "add", "-A"])
-        self.run_command([self.git, "hook", "run", "pre-commit"])
-        self.run_command([
-            self.git, "commit", "-qm", "Add hook fixture consumer",
-        ])
-        # The lock check is under test; the pushed revision is now judged
-        # whole (no origin, so no base), and this fixture crate carries no
-        # tests for the package gate to run.
-        result = self.hook("pre-push", SKIP_LOCAL_GATE="1")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn(
-            "resolves under --locked; 1 first-party git sources",
-            result.stdout + result.stderr,
+        # A neutral working directory keeps the stack's cargo configuration
+        # (and any above this checkout) out of the lock the fixture generates.
+        self.run_command(
+            ["cargo", "generate-lockfile", "--manifest-path", str(manifest)],
+            cwd=Path(tempfile.gettempdir()),
         )
-        self.assertEqual((self.root / "Cargo.lock").read_bytes(), before)
+        before = (self.member / "Cargo.lock").read_bytes()
+        self.assertIn(b"git+" + url.encode(), before)
+
+        # `pre-commit` judges the staged blob; `pre-push` an export of the
+        # committed revision, never the bare working tree.
+        self.run_git(self.member, "add", "-A")
+        result = self.hook("pre-commit")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.run_git(self.member, "commit", "-qm", "Add hook fixture consumer")
+        result = self.hook("pre-push")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.member / "Cargo.lock").read_bytes(), before)
+        pushed = self.calls()[-1]
+        self.assertEqual(pushed["arguments"][:2], ["--check", "--manifest-path"])
+        self.assertEqual(pushed["lock"].encode("utf-8"), before)
 
         # A manifest/lock mismatch must be part of the checked revision: the
         # hook never reads the bare working tree, so the version bump is
-        # committed (without regenerating the lock) before the push side is
-        # exercised again.
+        # committed (without regenerating the lock) before pushing again.
         manifest.write_text(
             manifest.read_text(encoding="utf-8").replace('version = "0.1.0"', 'version = "0.2.0"'),
             encoding="utf-8",
         )
-        self.run_command([self.git, "add", "Cargo.toml"])
-        self.run_command([self.git, "commit", "-qm", "Bump the consumer version"])
-        result = self.hook("pre-push", SKIP_LOCAL_GATE="1")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("locked dependency hydration failed", result.stderr)
+        self.run_git(self.member, "add", "Cargo.toml")
+        self.run_git(self.member, "commit", "-qm", "Bump the consumer version")
+        result = self.hook("pre-push")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("does not resolve under --locked", result.stderr)
+        # Cargo's own diagnostic, forwarded by the checker and kept by the hook.
         self.assertIn("lock file", result.stderr)
-        self.assertEqual((self.root / "Cargo.lock").read_bytes(), before)
+        self.assertIn("--locked was passed", result.stderr)
+        self.assertEqual((self.member / "Cargo.lock").read_bytes(), before)
+
+    def test_outside_a_stack_the_lock_is_left_to_the_ci_job(self) -> None:
+        # No stack above this clone: there is no checker to run, and the one arm
+        # that lets a lock through unchecked says so and names its enforcer.
+        self.make_member(self.alone)
+        (self.alone / "Cargo.lock").write_text("# flattened\n", encoding="utf-8")
+        self.run_git(self.alone, "add", "Cargo.lock")
+        for hook in HOOKS:
+            with self.subTest(hook=hook):
+                result = self.hook(hook, member=self.alone, LOCKFILE_STUB="fail")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(
+                    f"{hook}: no stack checker reachable from this clone; lockfile not "
+                    "verified here, the lockfile-guard CI job enforces it",
+                    result.stderr,
+                )
+        self.assertEqual(self.calls(), [])
 
 
 if __name__ == "__main__":
