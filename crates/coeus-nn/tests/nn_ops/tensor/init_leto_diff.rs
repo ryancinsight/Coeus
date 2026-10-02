@@ -80,7 +80,7 @@ where
     coeus_nn::init::kaiming_uniform_with_seed(&mut weight, fan_in, seed)
         .expect("valid seeded Kaiming uniform fixture");
 
-    let fan = <T as Scalar>::from_usize(fan_in);
+    let fan = T::from_count(fan_in);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
     let expected_uniform = coeus_leto::uniform_values(&shape, T::zero() - limit, limit, seed)
         .expect("valid direct Leto Kaiming uniform fixture");
@@ -130,7 +130,7 @@ where
     coeus_nn::init::xavier_uniform_with_seed(&mut weight, fan_in, fan_out, seed)
         .expect("valid seeded Xavier uniform fixture");
 
-    let fan = <T as Scalar>::from_usize(fan_in + fan_out);
+    let fan = T::from_count(fan_in + fan_out);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
     let expected_uniform = coeus_leto::uniform_values(&shape, T::zero() - limit, limit, seed)
         .expect("valid direct Leto Xavier uniform fixture");

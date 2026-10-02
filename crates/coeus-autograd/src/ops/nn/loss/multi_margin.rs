@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::Float;
+use coeus_core::{Float, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -77,7 +77,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
 /// The complete forward and backward computation stays on the selected
 /// provider; the `targets: &[usize]` host slice is a one-hot boundary upload.
 pub fn multi_margin<
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     x: &Var<T, B>,
@@ -101,7 +101,7 @@ where
     // `index_select` is the wrong operation here — it applies the same column
     // set to every row, yielding [N, N], which reshapes cleanly only when
     // N == 1. m = margin - x[i,y_i] + x[i,j] (all j).
-    let target_f: Vec<T> = targets.iter().map(|&i| T::from_usize(i)).collect();
+    let target_f: Vec<T> = targets.iter().map(|&i| T::from_count(i)).collect();
     let target_tensor = Tensor::from_slice_on([n], &target_f, &backend);
     let target_column = Tensor::from_slice_on([n, 1], &target_f, &backend);
     let x_target = coeus_ops::gather(&x.tensor, 1, &target_column, &backend);
@@ -125,7 +125,7 @@ where
     let row_net = coeus_ops::sub(&row_sum, &margin_p, &backend);
     // loss = sum_i row_net_i / (N * C). `mean_axis` divides by N, so scale
     // the mean by 1/C.
-    let inv_c = T::one() / T::from_f64(c as f64);
+    let inv_c = T::one() / <T as Scalar>::from_f64(c as f64);
     let mean_loss = coeus_ops::mean_axis(&row_net.reshape([n]), 0, &backend)
         .expect("invariant: validated non-empty multi-margin reduction has axis zero");
     let loss = coeus_ops::mul(&mean_loss, &Tensor::full_on([1], inv_c, &backend), &backend);
@@ -147,7 +147,7 @@ where
         &backend,
     )
     .expect("multi_margin: active-hinge mask");
-    let inv_nc = T::one() / T::from_f64((n * c) as f64);
+    let inv_nc = T::one() / <T as Scalar>::from_f64((n * c) as f64);
     let grad_unit = coeus_ops::mul(
         &coef,
         &Tensor::full_on(shape.to_vec(), inv_nc, &backend),

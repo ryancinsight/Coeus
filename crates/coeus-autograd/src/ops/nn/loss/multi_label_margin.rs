@@ -102,7 +102,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 /// provider; no input-sized host staging occurs beyond the target boundary
 /// upload (the per-row target scores are gathered with `gather`). The
 /// pairwise formulation builds an `[N, C, C]` active tensor via broadcast.
-pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn multi_label_margin_loss<
+    T: Float + coeus_core::FloatElement,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &Var<T, B>,
     target: &[isize],
 ) -> Var<T, B>
@@ -127,8 +130,8 @@ where
     for &v in target {
         valid_flat.push(if v >= 0 { T::one() } else { T::zero() });
         let safe = if v >= 0 { v as usize } else { 0 };
-        target_flat.push(T::from_usize(safe));
-        safe_flat.push(T::from_usize(safe));
+        target_flat.push(T::from_count(safe));
+        safe_flat.push(T::from_count(safe));
     }
     let valid = Tensor::from_slice_on([n, c], &valid_flat, &backend);
     let safe_idx = Tensor::from_slice_on([n * c], &safe_flat, &backend);
@@ -181,7 +184,11 @@ where
         .expect("invariant: validated [N] active axis-0 reduction");
     let loss = coeus_ops::mul(
         &loss_sum,
-        &Tensor::full_on([1], T::one() / T::from_f64((n * c) as f64), &backend),
+        &Tensor::full_on(
+            [1],
+            T::one() / <T as Scalar>::from_f64((n * c) as f64),
+            &backend,
+        ),
         &backend,
     );
 

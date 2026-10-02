@@ -192,14 +192,6 @@ impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
     }
 
     #[inline(always)]
-    fn from_usize(v: usize) -> Self {
-        Self {
-            re: T::from_usize(v),
-            im: T::zero(),
-        }
-    }
-
-    #[inline(always)]
     fn sqrt_val(self) -> Self {
         let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
         let u = <T as Float>::sqrt((r + self.re) / T::from_f64(2.0));

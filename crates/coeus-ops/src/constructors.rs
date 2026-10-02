@@ -6,7 +6,7 @@
 // all other `coeus-ops` free functions (`matmul`, `dot`, `topk`, …).
 
 use crate::BackendOps;
-use coeus_core::{CpuAddressableStorageMut, Float};
+use coeus_core::{CpuAddressableStorageMut, Float, FloatElement};
 use coeus_tensor::Tensor;
 
 /// `n` evenly-spaced values from `start` to `end` (inclusive) on `backend`.
@@ -29,6 +29,7 @@ where
 {
     assert!(n > 0, "linspace: n must be > 0");
     Tensor::linspace_on(start, end, n, backend)
+        .expect("invariant: float elements represent every count")
 }
 
 /// `n` values from `base^start` to `base^end` (inclusive) on `backend`.
@@ -40,7 +41,7 @@ where
 /// # Panics
 /// Panics if `n == 0`.
 #[inline]
-pub fn logspace<T: Float, B: BackendOps<T> + Default>(
+pub fn logspace<T: Float + FloatElement, B: BackendOps<T> + Default>(
     start: T,
     end: T,
     n: usize,
@@ -62,7 +63,7 @@ where
 /// # Panics
 /// Panics if `n == 0`, if either endpoint is zero, or if they have opposite signs.
 #[inline]
-pub fn geomspace<T: Float, B: BackendOps<T> + Default>(
+pub fn geomspace<T: Float + FloatElement, B: BackendOps<T> + Default>(
     start: T,
     end: T,
     n: usize,

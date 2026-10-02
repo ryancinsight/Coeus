@@ -4,7 +4,9 @@ mod ctc;
 pub use ctc::ctc_loss;
 
 use coeus_autograd::Var;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement,
+};
 use coeus_tensor::Tensor;
 
 /// Mean Squared Error loss.
@@ -132,7 +134,7 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Negative Log-Likelihood Loss.
 /// log_probs: `[N, C]` log-probabilities, targets: `[N]` class indices.
 #[inline]
-pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nll_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
 ) -> Var<T, B>
@@ -148,7 +150,7 @@ where
 /// Computes `mean_i (1/C) sum_{j != y_i} max(0, margin - x[i,y_i] + x[i,j])^p`.
 #[inline]
 pub fn multi_margin<
-    T: Float,
+    T: Float + FloatElement,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     x: &Var<T, B>,
@@ -403,7 +405,7 @@ where
 /// `target[i][j] >= 0` are valid class indices and `-1` means ignore padding.
 /// Computes `mean_i sum_{t: target[i][t] >= 0} sum_{j != t} max(0, 1 - (x[i][t] - x[i][j]))`.
 #[inline]
-pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn multi_label_margin_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     target: &[isize],
 ) -> Var<T, B>

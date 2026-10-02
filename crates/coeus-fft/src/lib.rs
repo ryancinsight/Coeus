@@ -19,13 +19,13 @@
 use coeus_autograd::BackwardNode;
 use coeus_autograd::GradBuffer;
 use coeus_autograd::Var;
-use coeus_core::{Complex, ComputeBackend, Float, MoiraiBackend, Scalar};
+use coeus_core::{Complex, ComputeBackend, Float, FloatElement, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::ops::Neg;
 use std::sync::Arc;
 
 /// Scalar types supported by Apollo-backed Coeus FFT operations.
-pub trait FftScalar: Float + Neg<Output = Self> {
+pub trait FftScalar: Float + FloatElement + Neg<Output = Self> {
     /// Compute a 1-D forward FFT for a contiguous real signal.
     fn fft_1d_impl(signal: &[Self]) -> Vec<Complex<Self>>;
 
@@ -146,7 +146,7 @@ where
         grad_out: &Tensor<Complex<T>, B>,
         _input_grads: &[Option<Arc<GradBuffer<Complex<T>, B>>>],
     ) -> Result<(), B::Error> {
-        let n = T::from_usize(grad_out.numel());
+        let n = T::from_count(grad_out.numel());
         let mut dx = ifft_1d(grad_out);
         let mut host = tensor_to_vec(&dx);
         for value in &mut host {
@@ -199,7 +199,7 @@ where
         grad_out: &Tensor<T, B>,
         _input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
-        let n = T::from_usize(grad_out.numel());
+        let n = T::from_count(grad_out.numel());
         let mut dy = fft_1d(grad_out);
         let mut host = tensor_to_vec(&dy);
         for value in &mut host {
@@ -317,7 +317,7 @@ where
     ) -> Result<(), B::Error> {
         if let Some(Some(ref grad)) = input_grads.first() {
             let go = tensor_to_vec(grad_out)[0];
-            let factor = go * T::from_f64(2.0);
+            let factor = go * <T as Scalar>::from_f64(2.0);
             let spec_host = tensor_to_vec(&self.spectrum);
             let grad_spec: Vec<Complex<T>> = spec_host
                 .iter()
@@ -326,7 +326,7 @@ where
             let grad_spec =
                 Tensor::from_slice_on(self.spectrum.shape_cloned(), &grad_spec, &B::default());
             let mut dx = ifft_1d(&grad_spec);
-            let n = T::from_usize(dx.numel());
+            let n = T::from_count(dx.numel());
             let mut dx_host = tensor_to_vec(&dx);
             for value in &mut dx_host {
                 *value *= n;

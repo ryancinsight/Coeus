@@ -61,13 +61,14 @@ pub fn index_select(
 }
 
 #[pyfunction]
-pub fn nonzero(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn nonzero(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let backend = MoiraiBackend::new();
     let t = py
-        .allow_threads(|| coeus_ops::nonzero::<f64, MoiraiBackend>(&input.inner.tensor, &backend));
-    PyTensor {
+        .allow_threads(|| coeus_ops::nonzero::<f64, MoiraiBackend>(&input.inner.tensor, &backend))
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+    Ok(PyTensor {
         inner: coeus_autograd::Var::new(t, false),
-    }
+    })
 }
 
 #[pyfunction]
