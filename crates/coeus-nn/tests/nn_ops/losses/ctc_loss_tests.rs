@@ -76,7 +76,7 @@ fn alignment_case<T, B>(
         let time = index / (shape[1] * shape[2]);
         let sample = index / shape[2] % shape[1];
         if time >= input_lengths[sample] {
-            assert_eq!(actual, T::zero(), "padded frame {time}, sample {sample}");
+            assert_eq!(actual, T::ZERO, "padded frame {time}, sample {sample}");
         } else {
             close(actual, reference, operations);
         }
@@ -105,7 +105,7 @@ where
             .grad()
             .expect("invariant: blank path is tracked")
             .as_slice(),
-        &[-count::<T>(2), T::zero()]
+        &[-count::<T>(2), T::ZERO]
     );
 }
 
@@ -117,12 +117,12 @@ where
 {
     // One frame forces the target symbol. Independent log inputs may be zero
     // without normalization; posterior [0,1,0] and dyadic seed are exact.
-    let input = variable::<T, B>(&[T::zero(); 3], [1, 1, 3]);
+    let input = variable::<T, B>(&[T::ZERO; 3], [1, 1, 3]);
     let initial = <T as Scalar>::from_f64(0.75);
     input.set_grad(Tensor::from_slice([1, 1, 3], &[initial; 3]));
     let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
         .expect("invariant: a one-frame target has one alignment");
-    assert_eq!(loss.tensor.as_slice(), &[T::zero()]);
+    assert_eq!(loss.tensor.as_slice(), &[T::ZERO]);
     seeded_backward(&loss, <T as Scalar>::from_f64(2.5));
     assert_eq!(
         input
@@ -148,7 +148,7 @@ where
         let total = weights
             .iter()
             .copied()
-            .fold(T::zero(), |sum, value| sum + value);
+            .fold(T::ZERO, |sum, value| sum + value);
         for weight in weights {
             let probability = weight / total;
             probabilities.push(probability);
@@ -176,7 +176,7 @@ where
         let total = gradient
             .iter()
             .copied()
-            .fold(T::zero(), |sum, value| sum + value);
+            .fold(T::ZERO, |sum, value| sum + value);
         for (value, &probability) in gradient.iter_mut().zip(probability) {
             *value -= probability * total;
         }

@@ -49,7 +49,7 @@ where
             if col <= row + k {
                 input.get(&idx)
             } else {
-                T::zero()
+                T::ZERO
             }
         })
         .collect();
@@ -97,7 +97,7 @@ where
             if col >= row + k {
                 input.get(&idx)
             } else {
-                T::zero()
+                T::ZERO
             }
         })
         .collect();

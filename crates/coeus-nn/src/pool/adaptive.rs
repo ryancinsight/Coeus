@@ -29,7 +29,7 @@ fn avg_pool_matrix_t<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let mut pt = vec![T::zero(); in_len * out_len];
+    let mut pt = vec![T::ZERO; in_len * out_len];
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
@@ -67,11 +67,11 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     // outside[o, l] = 1 where l is NOT in region o → filled with -inf below.
-    let mut outside = vec![T::one(); out_len * in_len];
+    let mut outside = vec![T::ONE; out_len * in_len];
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
-        outside[o * in_len + start..o * in_len + end].fill(T::zero());
+        outside[o * in_len + start..o * in_len + end].fill(T::ZERO);
     }
     let outside_var = Var::new(
         Tensor::from_slice_on([1, out_len, in_len], &outside, backend),

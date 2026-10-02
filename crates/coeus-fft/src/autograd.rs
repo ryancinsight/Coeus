@@ -244,7 +244,7 @@ where
     let spectrum = fft_1d(&x.tensor);
     let energy = tensor_to_vec(&spectrum)
         .iter()
-        .fold(T::zero(), |acc, c| acc + c.re * c.re + c.im * c.im);
+        .fold(T::ZERO, |acc, c| acc + c.re * c.re + c.im * c.im);
     let out_tensor = Tensor::from_slice_on([1], &[energy], &backend);
     let requires_grad = coeus_autograd::is_grad_enabled() && x.grad.is_some();
     let grad = if requires_grad {

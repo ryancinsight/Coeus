@@ -79,7 +79,7 @@ fn alpha_dropout_with_mask<
             for _channel in 0..channels {
                 let kept = rng.next_unit() >= p;
                 keep.extend(std::iter::repeat_n(
-                    if kept { T::one() } else { T::zero() },
+                    if kept { T::ONE } else { T::ZERO },
                     spatial,
                 ));
             }
@@ -87,9 +87,9 @@ fn alpha_dropout_with_mask<
     } else {
         keep.extend((0..numel).map(|_| {
             if rng.next_unit() >= p {
-                T::one()
+                T::ONE
             } else {
-                T::zero()
+                T::ZERO
             }
         }));
     }
@@ -104,10 +104,10 @@ fn alpha_dropout_with_mask<
     let saturation_data = keep
         .iter()
         .map(|&value| {
-            if value == T::zero() {
+            if value == T::ZERO {
                 saturation
             } else {
-                T::zero()
+                T::ZERO
             }
         })
         .collect::<Vec<_>>();
@@ -254,7 +254,7 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
 
         // Box-Muller transform: two uniform samples → one normal sample.
         let mut rng = coeus_autograd::ops::nn::dropout::Xorshift64::new(42);
-        let mut noise = vec![T::zero(); numel];
+        let mut noise = vec![T::ZERO; numel];
         let std = self.std;
         let mut i = 0;
         while i < numel {
@@ -366,12 +366,12 @@ where
         // `M @ sq` over the channel axis is each channel's squared response
         // summed across its size-neighbourhood (with boundary clamping implicit
         // in the band), differentiable through `sq`.
-        let mut m_data = vec![T::zero(); c * c];
+        let mut m_data = vec![T::ZERO; c * c];
         for i in 0..c {
             let lo = i.saturating_sub(half);
             let hi = (i + half + 1).min(c);
             for cell in m_data[i * c + lo..i * c + hi].iter_mut() {
-                *cell = T::one();
+                *cell = T::ONE;
             }
         }
         let m = Var::new(Tensor::from_slice_on([c, c], &m_data, &backend), false);

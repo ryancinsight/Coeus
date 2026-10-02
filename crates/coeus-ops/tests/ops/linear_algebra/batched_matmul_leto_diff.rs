@@ -4,7 +4,9 @@
 //! `BackendOps::matmul`: it builds per-batch 2-D layouts and dispatches each
 //! slice to the CPU backend, which then routes through `coeus-leto`.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,
+};
 use coeus_tensor::Tensor;
 
 fn batched_reference<T: Scalar>(
@@ -16,14 +18,14 @@ fn batched_reference<T: Scalar>(
     n: usize,
     b_batches: usize,
 ) -> Vec<T> {
-    let mut out = vec![T::zero(); batches * m * n];
+    let mut out = vec![T::ZERO; batches * m * n];
     for batch in 0..batches {
         let a_base = batch * m * k;
         let b_base = (batch % b_batches) * k * n;
         let c_base = batch * m * n;
         for row in 0..m {
             for col in 0..n {
-                let mut acc = T::zero();
+                let mut acc = T::ZERO;
                 for inner in 0..k {
                     acc += a[a_base + row * k + inner] * b[b_base + inner * n + col];
                 }
@@ -47,8 +49,8 @@ fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            NumericElement::to_f64(actual).to_bits(),
+            NumericElement::to_f64(reference).to_bits(),
             "batched matmul mismatch at index {index}",
         );
     }

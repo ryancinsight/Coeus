@@ -142,7 +142,7 @@ macro_rules! impl_scalar_float_half {
             #[inline(always)]
             fn gelu_op(self) -> Self {
                 let half = Self::from_f64(0.5);
-                let one = Self::one();
+                let one = Self::ONE;
                 let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
                 half * self * (one + (self * inv_sqrt_two).erf_op())
             }

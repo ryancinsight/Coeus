@@ -71,7 +71,7 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
 
         let output_idx = output_layout.physical_index(&[ni, ci, ol]);
         unsafe {
-            output_ptr.write(output_idx, max_val.unwrap_or(T::zero()));
+            output_ptr.write(output_idx, max_val.unwrap_or(T::ZERO));
         }
     });
 }
@@ -199,7 +199,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
         let ci = temp % c;
         let ni = temp / c;
 
-        let mut sum = T::zero();
+        let mut sum = T::ZERO;
         let mut count = 0usize;
 
         for ik in 0..k_size {
@@ -215,7 +215,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
         let mean = if count > 0 {
             sum / T::from_f64(count as f64)
         } else {
-            T::zero()
+            T::ZERO
         };
 
         let output_idx = output_layout.physical_index(&[ni, ci, ol]);

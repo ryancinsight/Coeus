@@ -45,7 +45,7 @@ where
     B: ComputeBackend + Default,
 {
     let backend = B::default();
-    let mut current = vec![T::zero(); delta.numel()];
+    let mut current = vec![T::ZERO; delta.numel()];
     let delta_host = tensor_to_vec(delta);
     let guard = grad.write();
     backend.copy_to_host(guard.storage(), &mut current);
@@ -62,7 +62,7 @@ where
 {
     let backend = B::default();
     let contiguous = tensor.to_contiguous();
-    let mut host = vec![T::zero(); contiguous.numel()];
+    let mut host = vec![T::ZERO; contiguous.numel()];
     backend.copy_to_host(contiguous.storage(), &mut host);
     host
 }

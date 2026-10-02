@@ -41,8 +41,8 @@ where
     let inner: usize = shape[axis + 1..].iter().product();
     let numel: usize = shape.iter().product();
 
-    let mut out_vals = vec![T::zero(); numel];
-    let mut out_idx = vec![T::zero(); numel];
+    let mut out_vals = vec![T::ZERO; numel];
+    let mut out_idx = vec![T::ZERO; numel];
 
     // Iterate over every (outer, inner) slice and sort along `axis`.
     for o in 0..outer {

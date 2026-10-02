@@ -46,10 +46,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Embedding<T, B> {
             "Embedding::with_padding_idx: padding_idx {padding_idx} out of bounds [0, {num_embeddings})"
         );
         let backend = B::default();
-        let mut w_data = vec![T::one(); num_embeddings * embedding_dim];
+        let mut w_data = vec![T::ONE; num_embeddings * embedding_dim];
         let start = padding_idx * embedding_dim;
         for v in &mut w_data[start..start + embedding_dim] {
-            *v = T::zero();
+            *v = T::ZERO;
         }
         let w_tensor =
             Tensor::from_slice_on(vec![num_embeddings, embedding_dim], &w_data, &backend);
@@ -103,7 +103,7 @@ fn validate_indices<I: Scalar, B: coeus_core::ComputeBackend + Default>(
 ) -> Result<(), ModuleError<B::Error>> {
     let backend = B::default();
     for (position, &index) in indices.host_cow_on(&backend).iter().enumerate() {
-        let value = <I as Scalar>::to_f64(index);
+        let value = <I as coeus_core::NumericElement>::to_f64(index);
         if !value.is_finite()
             || value < 0.0
             || value.trunc() != value

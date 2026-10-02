@@ -55,11 +55,11 @@ impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default
             let zero_mask = coeus_ops::eq(&self.input_saved, &zeros, &backend);
             let zero_count = coeus_ops::sum(&zero_mask, &backend)?;
 
-            let gradient = if zero_count == T::zero() {
+            let gradient = if zero_count == T::ZERO {
                 let product_values =
                     Tensor::full_on(self.input_saved.shape_cloned(), product, &backend);
                 coeus_ops::div(&product_values, &self.input_saved, &backend)
-            } else if zero_count == T::one() {
+            } else if zero_count == T::ONE {
                 let nonzero_input = coeus_ops::add(&self.input_saved, &zero_mask, &backend);
                 let nonzero_product = coeus_ops::prod(&nonzero_input, &backend);
                 let nonzero_values =
@@ -69,7 +69,7 @@ impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default
                 Tensor::zeros_on(self.input_saved.shape_cloned(), &backend)
             };
 
-            let scaled_gradient = if seed == T::one() {
+            let scaled_gradient = if seed == T::ONE {
                 gradient
             } else {
                 let seed_values = Tensor::full_on(self.input_saved.shape_cloned(), seed, &backend);
@@ -83,7 +83,7 @@ impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default
 }
 
 fn read_scalar<T: Scalar, B: ComputeBackend>(tensor: &Tensor<T, B>, backend: &B) -> T {
-    let mut scalar = [T::zero()];
+    let mut scalar = [T::ZERO];
     backend.copy_to_host(tensor.storage(), &mut scalar);
     scalar[0]
 }

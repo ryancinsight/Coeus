@@ -22,7 +22,7 @@ use coeus_tensor::Tensor;
 /// Flat inner product: `Σ_i aᵢ bᵢ` after flattening.
 ///
 /// Matches `torch.dot(input, tensor)`. Both arguments may be any shape with
-/// the same number of elements; empty input returns `T::zero()`.
+/// the same number of elements; empty input returns `T::ZERO`.
 ///
 /// # Precision
 /// Native `T` precision throughout (no widening accumulator; `Scalar`
@@ -42,7 +42,7 @@ pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T
     let n = a.numel();
     assert_eq!(n, b.numel(), "dot: numel mismatch: a={n}, b={}", b.numel());
     if n == 0 {
-        return T::zero();
+        return T::ZERO;
     }
     let backend = B::default();
     let flatten = |x: &Tensor<T, B>| -> Tensor<T, B> {

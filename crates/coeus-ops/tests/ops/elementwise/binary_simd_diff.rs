@@ -7,8 +7,8 @@
 //! (no epsilon), across sizes that span the parallel chunk boundary (8192).
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
-    Shape,
+    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, NumericElement, Scalar,
+    SequentialBackend, Shape,
 };
 use coeus_ops::backend_ops::ElementwiseOps;
 use coeus_ops::{BinaryOp, CpuBackend};
@@ -56,7 +56,7 @@ where
         .elementwise_binary(op, &a_buf, &layout, &b_buf, &layout, &mut c_buf, &layout)
         .expect("valid binary test layouts");
 
-    let mut out = vec![T::zero(); n];
+    let mut out = vec![T::ZERO; n];
     backend.copy_to_host(&c_buf, &mut out);
     out
 }
@@ -80,8 +80,8 @@ where
         for i in 0..n {
             // Bitwise-exact: single IEEE op per lane, scalar == SIMD.
             assert_eq!(
-                Scalar::to_f64(got[i]).to_bits(),
-                Scalar::to_f64(expected[i]).to_bits(),
+                NumericElement::to_f64(got[i]).to_bits(),
+                NumericElement::to_f64(expected[i]).to_bits(),
                 "{op:?} mismatch at i={i}, n={n}",
             );
         }

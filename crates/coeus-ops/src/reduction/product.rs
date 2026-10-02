@@ -76,7 +76,7 @@ pub fn prod<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> T {
     let reduced = prod_tensor(a, backend).expect("prod: provider reduction failed");
-    let mut scalar = [T::zero()];
+    let mut scalar = [T::ZERO];
     backend.copy_to_host(reduced.storage(), &mut scalar);
     scalar[0]
 }

@@ -114,10 +114,10 @@ where
     }
 
     let mut parameters = initial_parameters.to_vec();
-    let mut residuals = vec![T::zero(); residual_count];
-    let mut jacobian = vec![T::zero(); residual_count * parameter_count];
-    let mut trial_parameters = vec![T::zero(); parameter_count];
-    let mut trial_residuals = vec![T::zero(); residual_count];
+    let mut residuals = vec![T::ZERO; residual_count];
+    let mut jacobian = vec![T::ZERO; residual_count * parameter_count];
+    let mut trial_parameters = vec![T::ZERO; parameter_count];
+    let mut trial_residuals = vec![T::ZERO; residual_count];
 
     problem.residuals(&parameters, &mut residuals)?;
     check_finite(&residuals, "residuals", 0)?;
@@ -196,7 +196,7 @@ where
         }
         // Relative against the previous cost, so the test means the same thing
         // whether residuals are in millimetres or signal counts.
-        if previous_cost > T::zero()
+        if previous_cost > T::ZERO
             && (previous_cost - cost) <= config.cost_tolerance * previous_cost
         {
             return Ok(report(
@@ -233,8 +233,8 @@ fn solve_damped<T: LeastSquaresScalar>(
     damping: &mut T,
     config: &LevenbergMarquardtConfig<T>,
 ) -> Option<Vec<T>> {
-    let mut damped = vec![T::zero(); parameter_count * parameter_count];
-    let negative_gradient: Vec<T> = gradient.iter().map(|value| T::zero() - *value).collect();
+    let mut damped = vec![T::ZERO; parameter_count * parameter_count];
+    let negative_gradient: Vec<T> = gradient.iter().map(|value| T::ZERO - *value).collect();
 
     let rhs = Array1::from_shape_vec([parameter_count], negative_gradient).ok()?;
 
@@ -245,11 +245,7 @@ fn solve_damped<T: LeastSquaresScalar>(
             // A structurally zero diagonal means the parameter has no local
             // influence; fall back to absolute damping so the row stays
             // solvable rather than scaling by nothing.
-            let scale = if diagonal > T::zero() {
-                diagonal
-            } else {
-                T::one()
-            };
+            let scale = if diagonal > T::ZERO { diagonal } else { T::ONE };
             damped[index * parameter_count + index] = diagonal + *damping * scale;
         }
 
@@ -273,10 +269,10 @@ fn solve_damped<T: LeastSquaresScalar>(
 /// `JᵀJ`, row-major and symmetric.
 fn jacobian_transpose_jacobian<T: Scalar>(jacobian: &[T], parameter_count: usize) -> Vec<T> {
     let residual_count = jacobian.len() / parameter_count;
-    let mut product = vec![T::zero(); parameter_count * parameter_count];
+    let mut product = vec![T::ZERO; parameter_count * parameter_count];
     for row in 0..parameter_count {
         for column in row..parameter_count {
-            let mut sum = T::zero();
+            let mut sum = T::ZERO;
             for residual in 0..residual_count {
                 let base = residual * parameter_count;
                 sum += jacobian[base + row] * jacobian[base + column];
@@ -294,7 +290,7 @@ fn jacobian_transpose_times<T: Scalar>(
     residuals: &[T],
     parameter_count: usize,
 ) -> Vec<T> {
-    let mut gradient = vec![T::zero(); parameter_count];
+    let mut gradient = vec![T::ZERO; parameter_count];
     for (residual_index, residual) in residuals.iter().enumerate() {
         let base = residual_index * parameter_count;
         for (parameter, slot) in gradient.iter_mut().enumerate() {
@@ -305,23 +301,21 @@ fn jacobian_transpose_times<T: Scalar>(
 }
 
 fn half_sum_of_squares<T: Scalar>(values: &[T]) -> T {
-    let sum = values.iter().fold(T::zero(), |accumulator, value| {
-        accumulator + *value * *value
-    });
+    let sum = values
+        .iter()
+        .fold(T::ZERO, |accumulator, value| accumulator + *value * *value);
     sum / T::from_f64(2.0)
 }
 
 fn euclidean_norm<T: Scalar>(values: &[T]) -> T {
     values
         .iter()
-        .fold(T::zero(), |accumulator, value| {
-            accumulator + *value * *value
-        })
+        .fold(T::ZERO, |accumulator, value| accumulator + *value * *value)
         .sqrt_val()
 }
 
 fn infinity_norm<T: Scalar>(values: &[T]) -> T {
-    values.iter().fold(T::zero(), |accumulator, value| {
+    values.iter().fold(T::ZERO, |accumulator, value| {
         let magnitude = value.abs_val();
         if magnitude > accumulator {
             magnitude
@@ -337,7 +331,7 @@ fn infinity_norm<T: Scalar>(values: &[T]) -> T {
 /// largest finite magnitude the type round-trips.
 fn is_finite<T: Scalar>(value: T) -> bool {
     let magnitude = value.abs_val();
-    magnitude >= T::zero() && magnitude <= T::from_f64(f64::MAX)
+    magnitude >= T::ZERO && magnitude <= T::from_f64(f64::MAX)
 }
 
 fn check_finite<T: Scalar>(

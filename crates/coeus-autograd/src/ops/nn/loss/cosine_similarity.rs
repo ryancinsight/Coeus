@@ -163,7 +163,7 @@ pub fn cosine_similarity<
         "cosine_similarity currently supports dim=1; got dim={dim}"
     );
     assert!(
-        eps > T::zero() && !<T as Float>::is_nan(eps) && !<T as Float>::is_infinite(eps),
+        eps > T::ZERO && !<T as Float>::is_nan(eps) && !<T as Float>::is_infinite(eps),
         "cosine_similarity requires finite eps > 0"
     );
 

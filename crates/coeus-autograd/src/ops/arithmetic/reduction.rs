@@ -144,9 +144,9 @@ where
         .iter()
         .map(|&v| {
             if <T as Float>::is_nan(v) {
-                T::one()
+                T::ONE
             } else {
-                T::zero()
+                T::ZERO
             }
         })
         .collect();
@@ -154,7 +154,7 @@ where
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::ZERO);
     sum(&cleaned)
 }
 
@@ -178,9 +178,9 @@ where
         .iter()
         .map(|&v| {
             if <T as Float>::is_nan(v) {
-                T::one()
+                T::ONE
             } else {
-                T::zero()
+                T::ZERO
             }
         })
         .collect();
@@ -188,7 +188,7 @@ where
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::ZERO);
     let s = sum(&cleaned);
     crate::scalar_div(&s, <T as coeus_core::Scalar>::from_f64(count as f64))
 }

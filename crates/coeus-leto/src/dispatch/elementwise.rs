@@ -178,22 +178,22 @@ fn binary_assign_n<T: LetoScalar + CoeusScalar, const N: usize>(
             *left = std::ops::Div::div(*left, *right);
         }),
         BinaryOp::Eq => assign!(|left: &mut T, right: &T| {
-            *left = if *left == *right { T::one() } else { T::zero() };
+            *left = if *left == *right { T::ONE } else { T::ZERO };
         }),
         BinaryOp::Ne => assign!(|left: &mut T, right: &T| {
-            *left = if *left != *right { T::one() } else { T::zero() };
+            *left = if *left != *right { T::ONE } else { T::ZERO };
         }),
         BinaryOp::Lt => assign!(|left: &mut T, right: &T| {
-            *left = if *left < *right { T::one() } else { T::zero() };
+            *left = if *left < *right { T::ONE } else { T::ZERO };
         }),
         BinaryOp::Gt => assign!(|left: &mut T, right: &T| {
-            *left = if *left > *right { T::one() } else { T::zero() };
+            *left = if *left > *right { T::ONE } else { T::ZERO };
         }),
         BinaryOp::Le => assign!(|left: &mut T, right: &T| {
-            *left = if *left <= *right { T::one() } else { T::zero() };
+            *left = if *left <= *right { T::ONE } else { T::ZERO };
         }),
         BinaryOp::Ge => assign!(|left: &mut T, right: &T| {
-            *left = if *left >= *right { T::one() } else { T::zero() };
+            *left = if *left >= *right { T::ONE } else { T::ZERO };
         }),
     }
 }

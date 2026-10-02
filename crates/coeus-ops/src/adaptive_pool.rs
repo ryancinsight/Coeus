@@ -64,7 +64,7 @@ where
                 let start = region_start(oi, l, output_size);
                 let end = region_end(oi, l, output_size);
                 let count = T::from_f64((end - start) as f64);
-                let mut acc = T::zero();
+                let mut acc = T::ZERO;
                 for li in start..end {
                     acc += input.get(&[ni, ci, li]);
                 }
@@ -111,7 +111,7 @@ where
                     let v = input.get(&[ni, ci, li]);
                     max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
                 }
-                out.set(&[ni, ci, oi], max_val.unwrap_or(T::zero()));
+                out.set(&[ni, ci, oi], max_val.unwrap_or(T::ZERO));
             }
         }
     }
@@ -171,7 +171,7 @@ where
                 let ws = region_start(ow, w, out_w);
                 let we = region_end(ow, w, out_w);
                 let count = T::from_f64(((he - hs) * (we - ws)) as f64);
-                let mut acc = T::zero();
+                let mut acc = T::ZERO;
                 for hi in hs..he {
                     for wi in ws..we {
                         acc += unsafe { inp_ptr.read(inp_nc + hi * w + wi) };
@@ -243,7 +243,7 @@ where
                         max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
                     }
                 }
-                unsafe { out_ptr.write(out_nc + oh * out_w + ow, max_val.unwrap_or(T::zero())) };
+                unsafe { out_ptr.write(out_nc + oh * out_w + ow, max_val.unwrap_or(T::ZERO)) };
             }
         }
     });
