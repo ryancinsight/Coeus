@@ -8,7 +8,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{ComputeBackend, Float, MoiraiBackend};
+use coeus_core::{ComputeBackend, Float, FloatElement, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// Sinusoidal (non-learnable) positional encoding layer.
@@ -24,7 +24,7 @@ pub struct SinusoidalEncoding<T: coeus_core::Scalar, B: ComputeBackend + Default
     pub d_model: usize,
 }
 
-impl<T: Float, B: ComputeBackend + Default> SinusoidalEncoding<T, B> {
+impl<T: Float + FloatElement, B: ComputeBackend + Default> SinusoidalEncoding<T, B> {
     /// Build the encoding table.
     ///
     /// - `max_len`: maximum sequence length supported.
@@ -39,18 +39,18 @@ impl<T: Float, B: ComputeBackend + Default> SinusoidalEncoding<T, B> {
             .checked_mul(d_model)
             .expect("SinusoidalEncoding: table element count overflows usize");
         let mut values = Vec::with_capacity(table_len);
-        let base = T::from_usize(10_000);
-        let dimension = T::from_usize(d_model);
+        let base = T::from_count(10_000);
+        let dimension = T::from_count(d_model);
         for pos in 0..max_len {
-            let position = T::from_usize(pos);
+            let position = T::from_count(pos);
             for i in 0..(d_model / 2) {
-                let exponent = T::from_usize(
+                let exponent = T::from_count(
                     i.checked_mul(2)
                         .expect("SinusoidalEncoding: frequency index overflows usize"),
                 ) / dimension;
-                let angle = position / base.powf(exponent);
-                values.push(angle.sin());
-                values.push(angle.cos());
+                let angle = position / Float::powf(base, exponent);
+                values.push(Float::sin(angle));
+                values.push(Float::cos(angle));
             }
         }
         let table = Tensor::from_slice_on([max_len, d_model], &values, &backend);

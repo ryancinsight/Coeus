@@ -61,7 +61,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nll
 /// indices. The complete forward and backward computation stays on the
 /// selected provider; no input-sized host staging occurs beyond the one-hot
 /// target-mask boundary upload.
-pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nll_loss<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
 ) -> Var<T, B>
@@ -76,7 +76,7 @@ where
     assert_eq!(targets.len(), n, "targets length must match batch size");
 
     // One-hot target mask on-provider; selected = mask * log_probs.
-    let target_f: Vec<T> = targets.iter().map(|&i| T::from_usize(i)).collect();
+    let target_f: Vec<T> = targets.iter().map(|&i| T::from_count(i)).collect();
     let target_tensor = Tensor::from_slice_on([n], &target_f, &backend);
     let target_mask = coeus_ops::one_hot(&target_tensor, c, &backend);
     let selected = coeus_ops::mul(&log_probs.tensor, &target_mask, &backend);
@@ -100,7 +100,11 @@ where
             target_mask,
             n,
             c,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on(
+                [1],
+                T::one() / <T as Scalar>::from_f64(n as f64),
+                &backend,
+            ),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

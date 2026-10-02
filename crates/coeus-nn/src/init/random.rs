@@ -245,7 +245,7 @@ where
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
-    let fan = <T as Scalar>::from_usize(fan);
+    let fan = T::from_count(fan);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
     uniform_typed_with_seed(weight, T::zero() - limit, limit, seed)
 }
@@ -280,7 +280,7 @@ where
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
-    let fan = <T as Scalar>::from_usize(fan);
+    let fan = T::from_count(fan);
     let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
     normal_typed_with_seed(weight, T::zero(), std_dev, seed)
 }
@@ -314,7 +314,7 @@ where
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = positive_fan::<B::Error>(fan_in)?;
-    let fan = <T as Scalar>::from_usize(fan);
+    let fan = T::from_count(fan);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
     uniform_typed_with_seed(weight, T::zero() - limit, limit, seed)
 }
@@ -348,7 +348,7 @@ where
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = positive_fan::<B::Error>(fan_in)?;
-    let fan = <T as Scalar>::from_usize(fan);
+    let fan = T::from_count(fan);
     let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
     normal_typed_with_seed(weight, T::zero(), std_dev, seed)
 }

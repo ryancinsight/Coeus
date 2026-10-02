@@ -29,7 +29,7 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
 ) -> Result<T, B::Error> {
     let n = a.numel();
     if n == 0 {
-        return Ok(T::from_usize(0));
+        return Ok(T::ZERO);
     }
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([n])

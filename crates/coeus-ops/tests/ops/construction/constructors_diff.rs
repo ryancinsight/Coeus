@@ -157,7 +157,7 @@ where
 {
     // [[0,1],[2,0]]: non-zero at (0,1) and (1,0) -> [[0,1],[1,0]] shape [2,2].
     let m = t(&[2, 2], &[0.0, 1.0, 2.0, 0.0], backend);
-    let nz = coeus_ops::nonzero(&m, backend);
+    let nz = coeus_ops::nonzero(&m, backend).expect("float elements represent every coordinate");
     assert_eq!(nz.shape(), &[2, 2], "nonzero 2x2 shape");
     assert_eq!(
         nz.as_slice(),
@@ -167,13 +167,13 @@ where
 
     // 1-D [0, 5, 0, 3]: non-zero at positions 1 and 3 -> [[1],[3]] shape [2,1].
     let v = t(&[4], &[0.0, 5.0, 0.0, 3.0], backend);
-    let nzv = coeus_ops::nonzero(&v, backend);
+    let nzv = coeus_ops::nonzero(&v, backend).expect("float elements represent every coordinate");
     assert_eq!(nzv.shape(), &[2, 1], "nonzero 1-D shape");
     assert_eq!(nzv.as_slice(), &[1.0_f64, 3.0], "nonzero 1-D indices");
 
     // All-zero tensor -> empty result shape [0, 2].
     let z = Tensor::<f64, B>::from_slice_on(vec![2, 2], &[0.0; 4], backend);
-    let nzz = coeus_ops::nonzero(&z, backend);
+    let nzz = coeus_ops::nonzero(&z, backend).expect("float elements represent every coordinate");
     assert_eq!(nzz.shape(), &[0, 2], "nonzero all-zero shape");
     assert!(nzz.as_slice().is_empty(), "nonzero all-zero empty");
 }
