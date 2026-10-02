@@ -163,27 +163,6 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
 
 impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
     #[inline(always)]
-    fn zero() -> Self {
-        Self {
-            re: <T as eunomia::NumericElement>::ZERO,
-            im: <T as eunomia::NumericElement>::ZERO,
-        }
-    }
-
-    #[inline(always)]
-    fn one() -> Self {
-        Self {
-            re: <T as eunomia::NumericElement>::ONE,
-            im: <T as eunomia::NumericElement>::ZERO,
-        }
-    }
-
-    #[inline(always)]
-    fn to_f64(self) -> f64 {
-        <T as eunomia::NumericElement>::to_f64(self.re)
-    }
-
-    #[inline(always)]
     fn from_f64(v: f64) -> Self {
         Self {
             re: T::from_f64(v),

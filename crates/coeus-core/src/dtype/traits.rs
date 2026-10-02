@@ -342,9 +342,6 @@ pub trait CpuUnaryDispatch: private::Sealed {
 pub trait Scalar:
     NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone
 {
-    /// Additive identity.
-    fn zero() -> Self;
-
     /// Return whether every byte in this value's representation is zero.
     ///
     /// Accelerator fills use this representation-level predicate to select a
@@ -353,12 +350,6 @@ pub trait Scalar:
     fn has_zero_bit_pattern(&self) -> bool {
         bytemuck::bytes_of(self).iter().all(|&byte| byte == 0)
     }
-
-    /// Multiplicative identity.
-    fn one() -> Self;
-
-    /// Convert this scalar to `f64`.
-    fn to_f64(self) -> f64;
 
     /// Construct a scalar from `f64`.
     fn from_f64(v: f64) -> Self;
