@@ -104,6 +104,35 @@ impl CountingBackend {
     }
 }
 
+/// SAFETY: the contract is that every `parallel_for` closure call is invoked
+/// inline before returning, so no work escapes the call. This loop is the same
+/// sequential iteration `SequentialBackend` discharges it with, and `f` is
+/// `Send + Sync + 'static` either way.
+unsafe impl coeus_core::backend::Backend for CountingBackend {
+    #[inline]
+    fn parallel_for<F>(&self, start: usize, end: usize, f: F)
+    where
+        F: Fn(usize) + Send + Sync + 'static,
+    {
+        for i in start..end {
+            f(i);
+        }
+    }
+}
+
+/// # Safety-critical: the oracle, not the kernel
+///
+/// `CpuBackend` is the whole of it (one `i64` slice accessor), so the double
+/// satisfies the kernel bounds and the storage scope can apply to every kernel
+/// in this file rather than only to those whose bounds happen not to need it.
+impl coeus_ops::backend_ops::CpuBackend for CountingBackend {
+    #[inline]
+    fn as_mut_slice_i64<'a>(&self, buf: &'a mut Self::DeviceBuffer<i64>) -> &'a mut [i64] {
+        use coeus_core::CpuAddressableStorageMut;
+        buf.as_mut_slice()
+    }
+}
+
 impl ComputeBackend for CountingBackend {
     type Error = BackendError;
     type DeviceBuffer<T: Scalar> = CpuStorage<T>;
@@ -160,37 +189,64 @@ fn indices(n: usize, extent: usize) -> Vec<f64> {
     (0..n).map(|i| (i % extent) as f64).collect()
 }
 
-/// Assert a kernel's allocation count does not grow with workload size.
+/// Assert a kernel's **kernel-owned** allocation count does not grow with
+/// workload size, and that its result-storage requests do not either.
 ///
 /// Each closure is run once before measuring so that any one-time lazy
 /// initialisation inside the op is not attributed to the smaller workload.
+///
+/// # Why storage requests are a separate oracle
+///
+/// A result is allocated through the backend, and one storage request may be
+/// satisfied with a *size-dependent* number of system allocations (see the
+/// module docs). Counting those as kernel allocation growth measures provider
+/// policy instead of the kernel, so `StorageAllocationScope` suppresses system
+/// calls made inside `ComputeBackend::allocate` and each request is counted on
+/// its own. A per-element or per-slice coordinate buffer is still counted --
+/// it is a kernel-owned `Vec` -- so the property this exists to protect is
+/// unchanged; only the confound is removed.
+///
+/// Without this split the oracle is platform-dependent: a 1 KiB result and a
+/// 64 KiB result can differ by four system allocations on one host and by none
+/// on another, which is a property of the allocator, not of `gather`.
 fn assert_size_independent(
     kernel: &str,
     small: impl Fn() -> Box<dyn std::any::Any>,
     large: impl Fn() -> Box<dyn std::any::Any>,
+    expected_storage_requests: usize,
 ) {
     drop(small());
     drop(large());
 
+    STORAGE_REQUESTS.store(0, Ordering::Relaxed);
     let small_allocs = allocations_during(&small);
+    let small_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
     let large_allocs = allocations_during(&large);
+    let large_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
 
     assert_eq!(
         small_allocs, large_allocs,
-        "{kernel}: allocation count must not scale with workload size \
-         (small={small_allocs}, large={large_allocs}). A difference means a \
-         per-element or per-slice allocation has returned to this kernel."
+        "{kernel}: kernel-owned allocation count must not scale with workload \
+         size (small={small_allocs}, large={large_allocs}). A difference means \
+         a per-element or per-slice allocation has returned to this kernel."
+    );
+    assert_eq!(
+        (small_storage_requests, large_storage_requests),
+        (expected_storage_requests, expected_storage_requests),
+        "{kernel}: result-storage requests must not scale with workload size \
+         (small={small_storage_requests}, large={large_storage_requests}), and \
+         must be exactly {expected_storage_requests} per call."
     );
 }
 
 #[test]
 fn gather_allocation_count_is_independent_of_output_size() {
-    let backend = SequentialBackend::new();
+    let backend = CountingBackend;
     let build = |s: [usize; 3]| {
-        let input = tensor(&s, &ramp(s.iter().product()));
+        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend);
         let idx_shape = [s[0], s[1] / 2, s[2]];
         let idx_numel: usize = idx_shape.iter().product();
-        let index = tensor(&idx_shape, &indices(idx_numel, s[1]));
+        let index = Tensor::from_slice_on(idx_shape.to_vec(), &indices(idx_numel, s[1]), &backend);
         (input, index)
     };
     let (si, sx) = build([4, 8, 4]);
@@ -200,16 +256,17 @@ fn gather_allocation_count_is_independent_of_output_size() {
         "gather",
         || Box::new(coeus_ops::gather(&si, 1, &sx, &backend)),
         || Box::new(coeus_ops::gather(&li, 1, &lx, &backend)),
+        1,
     );
 }
 
 #[test]
 fn index_select_allocation_count_is_independent_of_output_size() {
-    let backend = SequentialBackend::new();
+    let backend = CountingBackend;
     let build = |s: [usize; 3]| {
-        let input = tensor(&s, &ramp(s.iter().product()));
+        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend);
         let take = s[1] / 2;
-        let index = tensor(&[take], &indices(take, s[1]));
+        let index = Tensor::from_slice_on(vec![take], &indices(take, s[1]), &backend);
         (input, index)
     };
     let (si, sx) = build([4, 8, 4]);
@@ -219,19 +276,21 @@ fn index_select_allocation_count_is_independent_of_output_size() {
         "index_select",
         || Box::new(coeus_ops::index_select(&si, 1, &sx, &backend)),
         || Box::new(coeus_ops::index_select(&li, 1, &lx, &backend)),
+        1,
     );
 }
 
 #[test]
 fn repeat_interleave_allocation_count_is_independent_of_output_size() {
-    let backend = SequentialBackend::new();
-    let small = tensor(&[4, 8, 4], &ramp(4 * 8 * 4));
-    let large = tensor(&[16, 32, 16], &ramp(16 * 32 * 16));
+    let backend = CountingBackend;
+    let small = Tensor::from_slice_on(vec![4, 8, 4], &ramp(4 * 8 * 4), &backend);
+    let large = Tensor::from_slice_on(vec![16, 32, 16], &ramp(16 * 32 * 16), &backend);
 
     assert_size_independent(
         "repeat_interleave",
         || Box::new(coeus_ops::repeat_interleave(&small, 2, 1, &backend)),
         || Box::new(coeus_ops::repeat_interleave(&large, 2, 1, &backend)),
+        1,
     );
 }
 
@@ -276,12 +335,27 @@ fn scatter_add_allocation_count_is_independent_of_index_size() {
 fn topk_allocation_count_is_independent_of_slice_count() {
     // `k` and the reduced extent are held constant so only the number of outer
     // slices varies; the old per-slice buffers scaled with exactly that.
+    //
+    // Unlike the three kernels above this one is measured against the raw
+    // backend: `topk` takes no backend argument and uses `B::default()`, and
+    // its `B: CpuBackend` bound is not satisfied by `CountingBackend`. Routing
+    // its result storage through the counting scope would mean implementing
+    // `CpuBackend` for the double, which is more machinery than the property
+    // needs -- so the count here is kernel-owned allocations only, and the
+    // storage confound this file guards against does not apply until it does.
     let small = tensor(&[4, 8, 4], &ramp(4 * 8 * 4));
     let large = tensor(&[16, 8, 16], &ramp(16 * 8 * 16));
 
-    assert_size_independent(
-        "topk",
-        || Box::new(coeus_ops::topk(&small, 2, 1, true)),
-        || Box::new(coeus_ops::topk(&large, 2, 1, true)),
+    let count = |t: &Tensor<f64, SequentialBackend>| {
+        allocations_during(|| Box::new(coeus_ops::topk(t, 2, 1, true)))
+    };
+    let small_allocs = count(&small);
+    let large_allocs = count(&large);
+
+    assert_eq!(
+        small_allocs, large_allocs,
+        "topk: allocation count must not scale with workload size \
+         (small={small_allocs}, large={large_allocs}). A difference means a \
+         per-element or per-slice allocation has returned to this kernel."
     );
 }
