@@ -21,7 +21,7 @@ let diag = Tensor::diag(&values_vec);             // diagonal from 1D tensor
 ## Range Tensors
 
 ```rust,ignore
-let lin = Tensor::<f32>::linspace(0.0, 1.0, 101); // 101 evenly spaced values
+let lin = Tensor::<f32>::linspace(0.0, 1.0, 101)?; // 101 evenly spaced values
 let rng = Tensor::<f32>::arange(0.0, 10.0, 0.5);  // [0.0, 0.5, 1.0, ..., 9.5]
 ```
 

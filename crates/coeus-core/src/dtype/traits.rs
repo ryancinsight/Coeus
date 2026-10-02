@@ -313,7 +313,7 @@ pub trait CpuUnaryDispatch: private::Sealed {
 ///   a host-only numeric type that cannot cross a device boundary.
 /// - `NumericElement` is the eunomia SSOT element vocabulary (constants
 ///   `ZERO`/`ONE`/etc., `abs`/`sqrt`/`is_finite`/`is_nan`/`to_f64`/`from_f64`/
-///   `from_usize`, plus `Add`/`Sub`/`Mul`/`Div`/`Assigns`/`Copy`/`Send`/`Sync`/
+///   `try_from_count`, plus `Add`/`Sub`/`Mul`/`Div`/`Assigns`/`Copy`/`Send`/`Sync`/
 ///   `'static`/`Debug`/`PartialOrd`). Backend `Scalar` traits must extend—
 ///   not redeclare—`NumericElement`.
 /// - `Rem<Output=Self>` is per-Scalar (not on `NumericElement`).
@@ -362,9 +362,6 @@ pub trait Scalar:
 
     /// Construct a scalar from `f64`.
     fn from_f64(v: f64) -> Self;
-
-    /// Construct a scalar from `usize`.
-    fn from_usize(v: usize) -> Self;
 
     /// Scalar square root.
     fn sqrt_val(self) -> Self;

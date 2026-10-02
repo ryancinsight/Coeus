@@ -2,7 +2,9 @@
 // Factory functions for creating tensors.
 
 use crate::tensor::Tensor;
-use coeus_core::{ComputeBackend, CpuAddressableStorageMut, Float, Scalar, Shape};
+use coeus_core::{
+    ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, FloatElement, Scalar, Shape,
+};
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
 where
@@ -24,14 +26,24 @@ where
     }
 
     /// Arange: values from [0, n) with step 1.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CountRangeError`] when `T` is an integer element whose range
+    /// does not contain `n - 1`.
     #[inline]
-    pub fn arange(n: usize) -> Self {
+    pub fn arange(n: usize) -> Result<Self, CountRangeError> {
         Self::arange_on(n, &B::default())
     }
 
     /// Linspace: n evenly spaced values from start to end (inclusive).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CountRangeError`] when `T` is an integer element whose range
+    /// does not contain `n - 1`.
     #[inline]
-    pub fn linspace(start: T, end: T, n: usize) -> Self {
+    pub fn linspace(start: T, end: T, n: usize) -> Result<Self, CountRangeError> {
         Self::linspace_on(start, end, n, &B::default())
     }
 }
@@ -67,32 +79,43 @@ where
     }
 
     /// Arange: values from [0, n) with step 1 on the given backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CountRangeError`] when `T` is an integer element whose range
+    /// does not contain `n - 1`; float elements never fail.
     #[inline]
-    pub fn arange_on(n: usize, backend: &B) -> Self {
-        let values = coeus_leto::from_shape_fn_values(&[n], |index| T::from_usize(index[0]))
-            .expect("coeus-leto arange generation failed");
-        Self::from_slice_on([n], &values, backend)
+    pub fn arange_on(n: usize, backend: &B) -> Result<Self, CountRangeError> {
+        let values = (0..n)
+            .map(T::try_from_count)
+            .collect::<Result<Vec<T>, _>>()?;
+        Ok(Self::from_slice_on([n], &values, backend))
     }
 
     /// Linspace: n evenly spaced values from start to end (inclusive) on the given backend.
     ///
     /// Computes natively in `T` (no `f64` widen-compute-narrow detour); valid
     /// for any [`Scalar`], including integer types (exact-division steps).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CountRangeError`] when `T` is an integer element whose range
+    /// does not contain `n - 1`; float elements never fail.
     #[inline]
-    pub fn linspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
+    pub fn linspace_on(start: T, end: T, n: usize, backend: &B) -> Result<Self, CountRangeError> {
         let step = if n > 1 {
-            (end - start) / T::from_usize(n - 1)
+            (end - start) / T::try_from_count(n - 1)?
         } else {
             T::zero()
         };
-        let values =
-            coeus_leto::from_shape_fn_values(&[n], |index| start + step * T::from_usize(index[0]))
-                .expect("coeus-leto linspace generation failed");
-        Self::from_slice_on([n], &values, backend)
+        let values = (0..n)
+            .map(|index| T::try_from_count(index).map(|count| start + step * count))
+            .collect::<Result<Vec<T>, _>>()?;
+        Ok(Self::from_slice_on([n], &values, backend))
     }
 }
 
-impl<T: Float, B: ComputeBackend + Default> Tensor<T, B>
+impl<T: Float + FloatElement, B: ComputeBackend + Default> Tensor<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -114,14 +137,14 @@ where
     /// Computes natively in `T` (no `f64` widen-compute-narrow detour).
     #[inline]
     pub fn logspace_on(start: T, end: T, n: usize, base: T, backend: &B) -> Self {
-        let n_minus_1 = T::from_usize(if n > 1 { n - 1 } else { 1 });
+        let n_minus_1 = T::from_count(if n > 1 { n - 1 } else { 1 });
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
             let exp = if n > 1 {
-                start + (end - start) * T::from_usize(index[0]) / n_minus_1
+                start + (end - start) * T::from_count(index[0]) / n_minus_1
             } else {
                 start
             };
-            base.powf(exp)
+            Float::powf(base, exp)
         })
         .expect("coeus-leto logspace generation failed");
         Self::from_slice_on([n], &values, backend)
@@ -148,13 +171,13 @@ where
         let end_abs = Float::abs(end);
         let one = T::one();
         let ratio = if n > 1 {
-            Float::powf(end_abs / start_abs, one / T::from_usize(n - 1))
+            Float::powf(end_abs / start_abs, one / T::from_count(n - 1))
         } else {
             one
         };
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
             if n > 1 {
-                sign * start_abs * ratio.powf(T::from_usize(index[0]))
+                sign * start_abs * Float::powf(ratio, T::from_count(index[0]))
             } else {
                 start
             }

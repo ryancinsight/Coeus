@@ -23,10 +23,6 @@ macro_rules! impl_scalar_float_half {
                 <Self as eunomia::FloatElement>::from_f64(v)
             }
             #[inline(always)]
-            fn from_usize(v: usize) -> Self {
-                <Self as eunomia::FloatElement>::from_f64(v as f64)
-            }
-            #[inline(always)]
             fn sqrt_val(self) -> Self {
                 <Self as NumericElement>::sqrt(self)
             }
