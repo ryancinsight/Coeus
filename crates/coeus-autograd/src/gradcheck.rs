@@ -82,24 +82,14 @@
 //! [`GradcheckError::TriviallyZero`]; give the loss a non-uniform weighting so
 //! the output Jacobian is actually probed.
 
-use coeus_core::{CpuAddressableStorage, Float, Scalar};
+use coeus_core::{CpuAddressableStorage, Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 use crate::var::Var;
 
-/// Widen a scalar to `f64` for the error analysis.
-///
-/// `Scalar` and its `eunomia::NumericElement` supertrait both carry a
-/// `to_f64`, so the bare method call on a `T: Float` is ambiguous; every
-/// widening in this module routes through here to name [`Scalar`] once.
-#[inline]
-fn widen<T: Scalar>(value: T) -> f64 {
-    <T as coeus_core::NumericElement>::to_f64(value)
-}
-
 /// Round an `f64` back into the differentiated scalar type.
 ///
-/// The counterpart to [`widen`], disambiguating `from_f64` the same way.
+/// The counterpart of widening through `NumericElement::to_f64`.
 #[inline]
 fn narrow<T: Scalar>(value: f64) -> T {
     <T as Scalar>::from_f64(value)
@@ -124,9 +114,9 @@ fn machine_epsilon<T: Float>() -> f64 {
     let one = T::ONE;
     let mut epsilon = T::ONE;
     loop {
-        let halved = narrow::<T>(widen(epsilon) * 0.5);
+        let halved = narrow::<T>(epsilon.to_f64() * 0.5);
         if one + halved == one {
-            return widen(epsilon);
+            return epsilon.to_f64();
         }
         epsilon = halved;
     }
@@ -336,7 +326,7 @@ where
             shape: loss.tensor.shape().to_vec(),
         });
     }
-    let loss_magnitude = widen(loss.tensor.as_slice()[0]).abs().max(1.0);
+    let loss_magnitude = loss.tensor.as_slice()[0].to_f64().abs().max(1.0);
     loss.backward()
         .map_err(|error| GradcheckError::Backward(error.to_string()))?;
 
@@ -345,7 +335,13 @@ where
         .enumerate()
         .map(|(index, var)| {
             var.grad()
-                .map(|grad| grad.as_slice().iter().copied().map(widen).collect())
+                .map(|grad| {
+                    grad.as_slice()
+                        .iter()
+                        .copied()
+                        .map(NumericElement::to_f64)
+                        .collect()
+                })
                 .ok_or(GradcheckError::MissingGradient { input: index })
         })
         .collect::<Result<_, _>>()?;
@@ -370,7 +366,7 @@ where
         let mut column = Vec::with_capacity(perturber.base.len());
 
         for element in 0..perturber.base.len() {
-            let center = widen(perturber.base[element]);
+            let center = perturber.base[element].to_f64();
             let step = step_factor * center.abs().max(1.0);
 
             let plus = perturber.evaluate(element, center + step);
@@ -480,7 +476,7 @@ where
     fn evaluate(&self, element: usize, value: f64) -> Perturbed {
         let mut data = self.base.clone();
         data[element] = narrow::<T>(value);
-        let perturbed = widen(data[element]);
+        let perturbed = data[element].to_f64();
         let replaced = Tensor::from_slice_on(self.shape.clone(), &data, self.backend);
 
         let vars: Vec<Var<T, B>> = self
@@ -498,7 +494,7 @@ where
             .collect();
 
         Perturbed {
-            loss: widen((self.loss_fn)(&vars).tensor.as_slice()[0]),
+            loss: (self.loss_fn)(&vars).tensor.as_slice()[0].to_f64(),
             perturbed,
         }
     }

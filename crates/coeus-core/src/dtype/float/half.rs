@@ -7,18 +7,6 @@ macro_rules! impl_scalar_float_half {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn zero() -> Self {
-                Self::ZERO
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                Self::ONE
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                <Self as NumericElement>::to_f64(self)
-            }
-            #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 <Self as eunomia::FloatElement>::from_f64(v)
             }

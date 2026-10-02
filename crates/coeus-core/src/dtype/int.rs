@@ -9,18 +9,6 @@ macro_rules! impl_scalar_int_signed {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn zero() -> Self {
-                0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
-            #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
             }
@@ -82,18 +70,6 @@ macro_rules! impl_scalar_int_unsigned {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            #[inline(always)]
-            fn zero() -> Self {
-                0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self

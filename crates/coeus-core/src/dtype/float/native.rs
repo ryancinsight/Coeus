@@ -6,18 +6,6 @@ macro_rules! impl_scalar_float_native {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn zero() -> Self {
-                0.0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1.0 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
-            #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
             }
