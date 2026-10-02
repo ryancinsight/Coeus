@@ -16,9 +16,11 @@ fn adaptive_avg_pool1d_output_size_equals_input() {
     let m = AdaptiveAvgPool1d::<f64, SequentialBackend>::new(4);
     let data = [1.0_f64, 2.0, 3.0, 4.0];
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 4]);
     assert_eq!(y.tensor.as_slice(), &data);
@@ -29,9 +31,11 @@ fn adaptive_avg_pool1d_halves_length() {
     // [1, 1, 4] → [1, 1, 2]: region 0=[0,2), region 1=[2,4)
     let m = AdaptiveAvgPool1d::<f64, SequentialBackend>::new(2);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &[2.0_f64, 4.0, 6.0, 8.0]),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &[2.0_f64, 4.0, 6.0, 8.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2]);
     assert_eq!(y.tensor.as_slice(), &[3.0, 7.0]); // (2+4)/2=3, (6+8)/2=7
@@ -45,9 +49,11 @@ fn adaptive_avg_pool1d_global() {
         Tensor::<f64, SequentialBackend>::from_slice(
             vec![1, 2, 4],
             &[1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveAvgPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 2, 1]);
     // channel 0: mean(1,2,3,4)=2.5, channel 1: mean(5,6,7,8)=6.5
@@ -63,9 +69,11 @@ fn adaptive_max_pool1d_halves_length() {
     // [1, 1, 4] → [1, 1, 2]: max of each pair
     let m = AdaptiveMaxPool1d::<f64, SequentialBackend>::new(2);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &[1.0_f64, 3.0, 2.0, 4.0]),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &[1.0_f64, 3.0, 2.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveMaxPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2]);
     assert_eq!(y.tensor.as_slice(), &[3.0, 4.0]);
@@ -76,9 +84,11 @@ fn adaptive_max_pool1d_global() {
     // output_size=1 → global max
     let m = AdaptiveMaxPool1d::<f64, SequentialBackend>::new(1);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &[2.0_f64, 7.0, 1.0, 5.0, 3.0]),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &[2.0_f64, 7.0, 1.0, 5.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveMaxPool1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 1]);
     assert_eq!(y.tensor.as_slice(), &[7.0]);
@@ -91,9 +101,11 @@ fn adaptive_avg_pool2d_global_single_channel() {
     // [1, 1, 2, 2] → [1, 1, 1, 1]: global average
     let m = AdaptiveAvgPool2d::<f64, SequentialBackend>::square(1);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0_f64, 3.0, 5.0, 7.0]),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &[1.0_f64, 3.0, 5.0, 7.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveAvgPool2d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 1, 1]);
     assert!((y.tensor.as_slice()[0] - 4.0).abs() < 1e-10); // mean=4
@@ -105,9 +117,11 @@ fn adaptive_avg_pool2d_halves_each_dim() {
     let m = AdaptiveAvgPool2d::<f64, SequentialBackend>::new(2, 2);
     let data: Vec<f64> = (1..=16).map(|x| x as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveAvgPool2d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2, 2]);
     let s = y.tensor.as_slice();
@@ -129,9 +143,11 @@ fn adaptive_max_pool2d_halves_each_dim() {
     let m = AdaptiveMaxPool2d::<f64, SequentialBackend>::new(2, 2);
     let data: Vec<f64> = (1..=16).map(|x| x as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid AdaptiveMaxPool2d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 2, 2]);
     let s = y.tensor.as_slice();
@@ -154,9 +170,11 @@ fn adaptive_avg_pool2d_matches_global_avg_pool() {
     let m_global = GlobalAvgPool2d::<f64, SequentialBackend>::new();
     let data: Vec<f64> = (1..=12).map(|x| x as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 2, 3], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 2, 3], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let ya = m_adaptive
         .forward(&x)
         .expect("valid AdaptiveAvgPool2d input");
@@ -206,9 +224,11 @@ fn adaptive_avg_pool1d_backward_matches_numerical_gradient() {
     let data = [1.0_f64, -2.0, 3.0, 0.5, -1.5, 2.5, 4.0];
     let shape = [1, 1, 7];
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     m.forward(&x)
         .expect("valid AdaptiveAvgPool1d input")
         .backward()
@@ -220,9 +240,11 @@ fn adaptive_avg_pool1d_backward_matches_numerical_gradient() {
         .to_vec();
     assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
         let xv = Var::new(
-            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d)
+                .expect("invariant: test backend operation succeeds"),
             false,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         m.forward(&xv)
             .expect("valid AdaptiveAvgPool1d input")
             .tensor
@@ -240,9 +262,11 @@ fn adaptive_avg_pool2d_backward_matches_numerical_gradient() {
     let data: Vec<f64> = (0..25).map(|i| ((i * 7 % 11) as f64 - 5.0) * 0.3).collect();
     let shape = [1, 1, 5, 5];
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     m.forward(&x)
         .expect("valid AdaptiveAvgPool2d input")
         .backward()
@@ -254,9 +278,11 @@ fn adaptive_avg_pool2d_backward_matches_numerical_gradient() {
         .to_vec();
     assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
         let xv = Var::new(
-            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d)
+                .expect("invariant: test backend operation succeeds"),
             false,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         m.forward(&xv)
             .expect("valid AdaptiveAvgPool2d input")
             .tensor
@@ -275,9 +301,11 @@ fn adaptive_max_pool1d_backward_matches_numerical_gradient() {
     let data = [3.0_f64, 1.0, 4.0, 1.5, 5.0, 9.0, 2.0];
     let shape = [1, 1, 7];
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     m.forward(&x)
         .expect("valid AdaptiveMaxPool1d input")
         .backward()
@@ -289,9 +317,11 @@ fn adaptive_max_pool1d_backward_matches_numerical_gradient() {
         .to_vec();
     assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
         let xv = Var::new(
-            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d)
+                .expect("invariant: test backend operation succeeds"),
             false,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         m.forward(&xv)
             .expect("valid AdaptiveMaxPool1d input")
             .tensor
@@ -311,9 +341,11 @@ fn adaptive_max_pool2d_backward_matches_numerical_gradient() {
         .collect();
     let shape = [1, 1, 5, 5];
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(shape, &data),
+        Tensor::<f64, SequentialBackend>::from_slice(shape, &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     m.forward(&x)
         .expect("valid AdaptiveMaxPool2d input")
         .backward()
@@ -325,9 +357,11 @@ fn adaptive_max_pool2d_backward_matches_numerical_gradient() {
         .to_vec();
     assert_grad_matches_numeric(&analytic, &data, 1e-6, |d| {
         let xv = Var::new(
-            Tensor::<f64, SequentialBackend>::from_slice(shape, d),
+            Tensor::<f64, SequentialBackend>::from_slice(shape, d)
+                .expect("invariant: test backend operation succeeds"),
             false,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         m.forward(&xv)
             .expect("valid AdaptiveMaxPool2d input")
             .tensor
@@ -340,8 +374,18 @@ fn adaptive_max_pool2d_backward_matches_numerical_gradient() {
 
 #[test]
 fn adaptive_pool_rejects_zero_output_dimensions() {
-    let input_1d = Var::new(Tensor::<f64, SequentialBackend>::ones([1, 1, 4]), false);
-    let input_2d = Var::new(Tensor::<f64, SequentialBackend>::ones([1, 1, 4, 4]), false);
+    let input_1d = Var::new(
+        Tensor::<f64, SequentialBackend>::ones([1, 1, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let input_2d = Var::new(
+        Tensor::<f64, SequentialBackend>::ones([1, 1, 4, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     for error in [
         AdaptiveAvgPool1d::<f64, SequentialBackend>::new(0)

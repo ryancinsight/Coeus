@@ -243,7 +243,7 @@ pub use ops::{
     AttentionMask,
     BatchNormArgs,
     CausalMask,
-    EinsumError,
+    EinsumFailure,
     NullMask,
     VarScalarExt,
 };

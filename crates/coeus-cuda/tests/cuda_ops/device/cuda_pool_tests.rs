@@ -13,13 +13,20 @@ fn test_cuda_max_pool2d() {
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data);
-    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_cuda = input_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut output_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2]);
-    let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2]);
+    let mut output_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2])
+        .expect("invariant: test backend operation succeeds");
+    let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2])
+        .expect("invariant: test backend operation succeeds");
 
-    let (out_seq_storage, out_seq_layout) = output_seq.storage_mut_and_layout();
+    let (out_seq_storage, out_seq_layout) = output_seq
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool2d(
         &seq,
         input_seq.storage(),
@@ -33,7 +40,9 @@ fn test_cuda_max_pool2d() {
     )
     .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
-    let (out_cuda_storage, out_cuda_layout) = output_cuda.storage_mut_and_layout();
+    let (out_cuda_storage, out_cuda_layout) = output_cuda
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool2d(
         &cuda_b,
         input_cuda.storage(),
@@ -47,20 +56,29 @@ fn test_cuda_max_pool2d() {
     )
     .expect("invariant: validated CUDA max_pool2d dispatch must succeed");
 
-    let output_cuda_on_cpu = output_cuda.to_backend_on(&cuda_b, &seq);
+    let output_cuda_on_cpu = output_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(output_cuda_on_cpu.as_slice(), output_seq.as_slice());
 
     // Now test backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
-    let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_cuda = grad_out_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4]);
-    let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4]);
+    let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4])
+        .expect("invariant: test backend operation succeeds");
+    let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4])
+        .expect("invariant: test backend operation succeeds");
 
-    let (gi_seq_storage, gi_seq_layout) = grad_in_seq.storage_mut_and_layout();
+    let (gi_seq_storage, gi_seq_layout) = grad_in_seq
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool2d_backward(
         &seq,
         grad_out_seq.storage(),
@@ -76,7 +94,9 @@ fn test_cuda_max_pool2d() {
     )
     .expect("invariant: validated CPU max_pool2d backward dispatch must succeed");
 
-    let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda.storage_mut_and_layout();
+    let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::max_pool2d_backward(
         &cuda_b,
         grad_out_cuda.storage(),
@@ -92,7 +112,9 @@ fn test_cuda_max_pool2d() {
     )
     .expect("invariant: validated CUDA max_pool2d backward dispatch must succeed");
 
-    let grad_in_cuda_on_cpu = grad_in_cuda.to_backend_on(&cuda_b, &seq);
+    let grad_in_cuda_on_cpu = grad_in_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(grad_in_cuda_on_cpu.as_slice(), grad_in_seq.as_slice());
 }
@@ -106,13 +128,20 @@ fn test_cuda_avg_pool2d() {
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data);
-    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_cuda = input_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut output_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2]);
-    let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2]);
+    let mut output_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2])
+        .expect("invariant: test backend operation succeeds");
+    let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2])
+        .expect("invariant: test backend operation succeeds");
 
-    let (out_seq_storage, out_seq_layout) = output_seq.storage_mut_and_layout();
+    let (out_seq_storage, out_seq_layout) = output_seq
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool2d(
         &seq,
         input_seq.storage(),
@@ -126,7 +155,9 @@ fn test_cuda_avg_pool2d() {
     )
     .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
-    let (out_cuda_storage, out_cuda_layout) = output_cuda.storage_mut_and_layout();
+    let (out_cuda_storage, out_cuda_layout) = output_cuda
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool2d(
         &cuda_b,
         input_cuda.storage(),
@@ -140,20 +171,29 @@ fn test_cuda_avg_pool2d() {
     )
     .expect("invariant: validated CUDA avg_pool2d dispatch must succeed");
 
-    let output_cuda_on_cpu = output_cuda.to_backend_on(&cuda_b, &seq);
+    let output_cuda_on_cpu = output_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(output_cuda_on_cpu.as_slice(), output_seq.as_slice());
 
     // Now test backward
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0];
     let grad_out_seq =
-        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data);
-    let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
+        Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
+    let grad_out_cuda = grad_out_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4]);
-    let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4]);
+    let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4])
+        .expect("invariant: test backend operation succeeds");
+    let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4])
+        .expect("invariant: test backend operation succeeds");
 
-    let (gi_seq_storage, gi_seq_layout) = grad_in_seq.storage_mut_and_layout();
+    let (gi_seq_storage, gi_seq_layout) = grad_in_seq
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool2d_backward(
         &seq,
         grad_out_seq.storage(),
@@ -167,7 +207,9 @@ fn test_cuda_avg_pool2d() {
     )
     .expect("invariant: validated CPU avg_pool2d backward dispatch must succeed");
 
-    let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda.storage_mut_and_layout();
+    let (gi_cuda_storage, gi_cuda_layout) = grad_in_cuda
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
     coeus_ops::PoolOps::avg_pool2d_backward(
         &cuda_b,
         grad_out_cuda.storage(),
@@ -181,7 +223,9 @@ fn test_cuda_avg_pool2d() {
     )
     .expect("invariant: validated CUDA avg_pool2d backward dispatch must succeed");
 
-    let grad_in_cuda_on_cpu = grad_in_cuda.to_backend_on(&cuda_b, &seq);
+    let grad_in_cuda_on_cpu = grad_in_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(grad_in_cuda_on_cpu.as_slice(), grad_in_seq.as_slice());
 }

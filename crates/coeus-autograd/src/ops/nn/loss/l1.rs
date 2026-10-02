@@ -40,16 +40,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for L1L
         let backend = B::default();
         // d/d_pred mean|pred - target| = sign(pred - target) / n.
         // The kink subgradient is zero, matching torch.sign(0) == 0.
-        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
-        let sign = coeus_ops::sign(&self.diffs, &backend);
-        let d_pred = coeus_ops::mul(&sign, &scale, &backend);
+        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
+        let sign = coeus_ops::sign(&self.diffs, &backend)?;
+        let d_pred = coeus_ops::mul(&sign, &scale, &backend)?;
 
         if let Some(Some(ref gradient)) = input_grads.first() {
             coeus_ops::add_assign(gradient.write(), &d_pred, &backend)?;
         }
 
         if let Some(Some(ref gradient)) = input_grads.get(1) {
-            let d_target = coeus_ops::neg(&d_pred, &backend);
+            let d_target = coeus_ops::neg(&d_pred, &backend)?;
             coeus_ops::add_assign(gradient.write(), &d_target, &backend)?;
         }
 
@@ -65,7 +65,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for L1L
 pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         pred.tensor.shape(),
@@ -75,14 +75,13 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let n = pred.tensor.numel();
     assert!(n > 0, "l1_loss requires at least one element");
 
-    let diffs = coeus_ops::sub(&pred.tensor, &target.tensor, &backend);
-    let absolute_diffs = coeus_ops::abs(&diffs, &backend);
-    let loss = coeus_ops::mean_axis(&absolute_diffs.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty L1 reduction has axis zero");
+    let diffs = coeus_ops::sub(&pred.tensor, &target.tensor, &backend)?;
+    let absolute_diffs = coeus_ops::abs(&diffs, &backend)?;
+    let loss = coeus_ops::mean_axis(&absolute_diffs.reshape([n]), 0, &backend)?;
     let requires_grad =
         crate::grad_mode::should_track_var(pred) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
@@ -91,7 +90,7 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             .as_ref()
             .expect("invariant: tracked output has a gradient buffer")
             .clone();
-        let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend);
+        let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
         let node = L1LossNode {
             output_grad,
             inputs: vec![pred.clone(), target.clone()],
@@ -104,9 +103,9 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }

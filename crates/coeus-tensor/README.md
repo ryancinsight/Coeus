@@ -15,8 +15,10 @@ mathematical kernels — those live in
 - `to_contiguous()` / `to_contiguous_on()`, which return the receiver unchanged
   when it is already contiguous at offset 0 and otherwise materialize a
   compacted copy through `coeus-leto`.
-- Element iterators `iter()` and `iter_mut()`. These require a contiguous
-  tensor and assert on a strided one; materialize with `to_contiguous()` first.
+- Element accessors `iter()` and `try_iter_mut()`. These require a contiguous
+  tensor and assert on a strided one; mutable access can also return a storage
+  error when copy-on-write detachment fails. Materialize with `to_contiguous()`
+  first.
 - `StateArchive` / `StateDict` checkpointing backed by rkyv.
 
 ## Documentation

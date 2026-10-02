@@ -76,13 +76,17 @@ fn test_transformer_decoder_layer() {
     let seq_src = 5;
 
     let tgt = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let memory = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = layer
         .forward_decoder(&tgt, &memory)
@@ -146,7 +150,7 @@ fn test_transformer_decoder_layer() {
     }
 
     // Backward pass
-    let loss = coeus_autograd::sum(&output);
+    let loss = coeus_autograd::sum(&output).expect("invariant: test operation succeeds");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -181,20 +185,24 @@ fn test_transformer_decoder() {
     let seq_src = 5;
 
     let tgt = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let memory = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = decoder
         .forward_decoder(&tgt, &memory)
         .expect("valid TransformerDecoder input");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
-    let loss = coeus_autograd::sum(&output);
+    let loss = coeus_autograd::sum(&output).expect("invariant: test operation succeeds");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -253,20 +261,24 @@ fn test_transformer_seq2seq() {
     let seq_tgt = 4;
 
     let src = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_src, d_model], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let tgt = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([batch, seq_tgt, d_model], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = transformer
         .forward_seq2seq(&src, &tgt)
         .expect("valid Transformer sequence-to-sequence input");
     assert_eq!(output.tensor.shape(), &[batch, seq_tgt, d_model]);
 
-    let loss = coeus_autograd::sum(&output);
+    let loss = coeus_autograd::sum(&output).expect("invariant: test operation succeeds");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -290,13 +302,17 @@ fn decoder_layer_rejects_rank_and_memory_shape_before_attention() {
             .expect("valid decoder validation fixture");
     let backend = MoiraiBackend;
     let invalid_target = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([2, 8], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 8], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let memory = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([2, 3, 8], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 3, 8], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let rank_error = layer
         .forward_decoder(&invalid_target, &memory)
         .err()
@@ -311,13 +327,17 @@ fn decoder_layer_rejects_rank_and_memory_shape_before_attention() {
     ));
 
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([2, 4, 8], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 4, 8], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let wrong_memory = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([1, 3, 6], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([1, 3, 6], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let shape_error = layer
         .forward_decoder(&target, &wrong_memory)
         .err()
@@ -333,9 +353,11 @@ fn decoder_layer_rejects_rank_and_memory_shape_before_attention() {
     ));
 
     let wrong_width_memory = Var::new(
-        Tensor::<f64, MoiraiBackend>::ones_on([2, 3, 6], &backend),
+        Tensor::<f64, MoiraiBackend>::ones_on([2, 3, 6], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let width_error = layer
         .forward_decoder(&target, &wrong_width_memory)
         .err()

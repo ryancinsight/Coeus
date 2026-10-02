@@ -62,8 +62,8 @@ where
         seed: Option<u64>,
     ) -> Result<Self, InitializationError<B::Error>> {
         let backend = B::default();
-        let w_tensor = Tensor::zeros_on([out_features, in_features], &backend);
-        let mut weight = Var::new(w_tensor, true);
+        let w_tensor = Tensor::zeros_on([out_features, in_features], &backend)?;
+        let mut weight = Var::new(w_tensor, true)?;
 
         // Every weight was 1.0 here. Each unit in the layer then computed the
         // same value from the same input, took the same gradient and applied
@@ -74,7 +74,11 @@ where
             None => crate::init::kaiming_uniform(&mut weight, in_features)?,
         }
 
-        let bias_var = bias.then(|| Var::new(Tensor::zeros_on([out_features], &backend), true));
+        let bias_var = if bias {
+            Some(Var::new(Tensor::zeros_on([out_features], &backend)?, true)?)
+        } else {
+            None
+        };
 
         Ok(Self {
             weight,
@@ -119,12 +123,12 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
         let flattened = if input_shape.len() == 2 {
             input.clone()
         } else {
-            coeus_autograd::reshape(input, [rows, in_features])
+            coeus_autograd::reshape(input, [rows, in_features])?
         };
-        let w_t = coeus_autograd::transpose_2d(&self.weight);
-        let projected = coeus_autograd::matmul(&flattened, &w_t);
+        let w_t = coeus_autograd::transpose_2d(&self.weight)?;
+        let projected = coeus_autograd::matmul(&flattened, &w_t)?;
         let projected = if let Some(ref bias) = self.bias {
-            coeus_autograd::add(&projected, bias)
+            coeus_autograd::add(&projected, bias)?
         } else {
             projected
         };
@@ -137,7 +141,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
                 .last_mut()
                 .expect("invariant: rank was validated as at least two") =
                 self.weight.tensor.shape()[0];
-            coeus_autograd::reshape(&projected, output_shape)
+            coeus_autograd::reshape(&projected, output_shape)?
         };
         Ok(output)
     }

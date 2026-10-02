@@ -97,7 +97,7 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let shift = -scale * p * alpha_prime;
     let saturation = T::from_f64(alpha_prime);
     let backend = B::default();
-    let keep_tensor = Tensor::from_slice_on(shape.clone(), &keep, &backend);
+    let keep_tensor = Tensor::from_slice_on(shape.clone(), &keep, &backend)?;
     let saturation_data = keep
         .iter()
         .map(|&value| {
@@ -108,16 +108,16 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             }
         })
         .collect::<Vec<_>>();
-    let keep_var = Var::new(keep_tensor, false);
+    let keep_var = Var::new(keep_tensor, false)?;
     let saturation_var = Var::new(
-        Tensor::from_slice_on(shape, &saturation_data, &backend),
+        Tensor::from_slice_on(shape, &saturation_data, &backend)?,
         false,
-    );
-    let selected = coeus_autograd::add(&coeus_autograd::mul(input, &keep_var), &saturation_var);
+    )?;
+    let selected = coeus_autograd::add(&coeus_autograd::mul(input, &keep_var)?, &saturation_var)?;
     Ok(coeus_autograd::scalar_add(
-        &coeus_autograd::scalar_mul(&selected, T::from_f64(scale)),
+        &coeus_autograd::scalar_mul(&selected, T::from_f64(scale))?,
         T::from_f64(shift),
-    ))
+    )?)
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AlphaDropout {
@@ -259,9 +259,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GaussianN
             i += 2;
         }
 
-        let noise_tensor = Tensor::from_slice_on(shape, &noise, &backend);
-        let noise_var = Var::new(noise_tensor, false);
-        Ok(coeus_autograd::add(input, &noise_var))
+        let noise_tensor = Tensor::from_slice_on(shape, &noise, &backend)?;
+        let noise_var = Var::new(noise_tensor, false)?;
+        Ok(coeus_autograd::add(input, &noise_var)?)
     }
 }
 
@@ -345,8 +345,8 @@ where
         let backend = B::default();
 
         // View as [N, C, spatial] (channel axis = dim 1); square it.
-        let x3 = coeus_autograd::reshape(input, [n, c, spatial]);
-        let sq = coeus_autograd::mul(&x3, &x3);
+        let x3 = coeus_autograd::reshape(input, [n, c, spatial])?;
+        let sq = coeus_autograd::mul(&x3, &x3)?;
 
         // Constant band matrix M [C, C], M[i, j] = 1 iff |i - j| <= half. Then
         // `M @ sq` over the channel axis is each channel's squared response
@@ -360,23 +360,23 @@ where
                 *cell = T::one();
             }
         }
-        let m = Var::new(Tensor::from_slice_on([c, c], &m_data, &backend), false);
+        let m = Var::new(Tensor::from_slice_on([c, c], &m_data, &backend)?, false)?;
 
         // windowed = M @ sq:  [N,C,S] -> [C,N*S] -> M@ -> [C,N*S] -> [N,C,S].
-        let sq_cns = coeus_autograd::permute(&sq, &[1, 0, 2]);
-        let sq_2d = coeus_autograd::reshape(&sq_cns, [c, n * spatial]);
-        let win_2d = coeus_autograd::matmul(&m, &sq_2d);
-        let win_cns = coeus_autograd::reshape(&win_2d, [c, n, spatial]);
-        let windowed = coeus_autograd::permute(&win_cns, &[1, 0, 2]);
+        let sq_cns = coeus_autograd::permute(&sq, &[1, 0, 2])?;
+        let sq_2d = coeus_autograd::reshape(&sq_cns, [c, n * spatial])?;
+        let win_2d = coeus_autograd::matmul(&m, &sq_2d)?;
+        let win_cns = coeus_autograd::reshape(&win_2d, [c, n, spatial])?;
+        let windowed = coeus_autograd::permute(&win_cns, &[1, 0, 2])?;
 
         // denom = (k + (alpha / size) * windowed)^beta;  y = x / denom.
         let scaled =
-            coeus_autograd::scalar_mul(&windowed, T::from_f64(self.alpha / self.size as f64));
+            coeus_autograd::scalar_mul(&windowed, T::from_f64(self.alpha / self.size as f64))?;
         let denom = coeus_autograd::pow(
-            &coeus_autograd::scalar_add(&scaled, T::from_f64(self.k)),
+            &coeus_autograd::scalar_add(&scaled, T::from_f64(self.k))?,
             self.beta,
-        );
-        let y3 = coeus_autograd::div(&x3, &denom);
-        Ok(coeus_autograd::reshape(&y3, shape))
+        )?;
+        let y3 = coeus_autograd::div(&x3, &denom)?;
+        Ok(coeus_autograd::reshape(&y3, shape)?)
     }
 }

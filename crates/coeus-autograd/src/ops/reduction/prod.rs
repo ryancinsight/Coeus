@@ -47,32 +47,32 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pr
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let seed = read_scalar(grad_out, &backend);
-            let product = read_scalar(&self.product_saved, &backend);
-            let zeros = Tensor::zeros_on(self.input_saved.shape_cloned(), &backend);
-            let zero_mask = coeus_ops::eq(&self.input_saved, &zeros, &backend);
+            let seed = read_scalar(grad_out, &backend)?;
+            let product = read_scalar(&self.product_saved, &backend)?;
+            let zeros = Tensor::zeros_on(self.input_saved.shape_cloned(), &backend)?;
+            let zero_mask = coeus_ops::eq(&self.input_saved, &zeros, &backend)?;
             let zero_count = coeus_ops::sum(&zero_mask, &backend)?;
 
             let gradient = if zero_count == T::zero() {
                 let product_values =
-                    Tensor::full_on(self.input_saved.shape_cloned(), product, &backend);
+                    Tensor::full_on(self.input_saved.shape_cloned(), product, &backend)?;
                 coeus_ops::div(&product_values, &self.input_saved, &backend)
             } else if zero_count == T::one() {
-                let nonzero_input = coeus_ops::add(&self.input_saved, &zero_mask, &backend);
-                let nonzero_product = coeus_ops::prod(&nonzero_input, &backend);
+                let nonzero_input = coeus_ops::add(&self.input_saved, &zero_mask, &backend)?;
+                let nonzero_product = coeus_ops::prod(&nonzero_input, &backend)?;
                 let nonzero_values =
-                    Tensor::full_on(self.input_saved.shape_cloned(), nonzero_product, &backend);
+                    Tensor::full_on(self.input_saved.shape_cloned(), nonzero_product, &backend)?;
                 coeus_ops::mul(&nonzero_values, &zero_mask, &backend)
             } else {
                 Tensor::zeros_on(self.input_saved.shape_cloned(), &backend)
-            };
+            }?;
 
             let scaled_gradient = if seed == T::one() {
-                gradient
+                Ok(gradient)
             } else {
-                let seed_values = Tensor::full_on(self.input_saved.shape_cloned(), seed, &backend);
+                let seed_values = Tensor::full_on(self.input_saved.shape_cloned(), seed, &backend)?;
                 coeus_ops::mul(&gradient, &seed_values, &backend)
-            };
+            }?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &scaled_gradient, &backend)?;
         }
@@ -80,10 +80,13 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Pr
     }
 }
 
-fn read_scalar<T: Scalar, B: ComputeBackend>(tensor: &Tensor<T, B>, backend: &B) -> T {
+fn read_scalar<T: Scalar, B: ComputeBackend>(
+    tensor: &Tensor<T, B>,
+    backend: &B,
+) -> Result<T, B::Error> {
     let mut scalar = [T::zero()];
-    backend.copy_to_host(tensor.storage(), &mut scalar);
-    scalar[0]
+    backend.copy_to_host(tensor.storage(), &mut scalar)?;
+    Ok(scalar[0])
 }
 
 /// Tracked product of all elements (`torch.prod`), returning a `[1]` tensor.
@@ -95,23 +98,23 @@ fn read_scalar<T: Scalar, B: ComputeBackend>(tensor: &Tensor<T, B>, backend: &B)
 ///
 /// # Panics
 /// Panics if `input` is empty.
-#[must_use]
 #[inline]
-pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     assert!(
         input.tensor.numel() > 0,
         "prod: empty tensors have no product"
     );
     let backend = B::default();
-    let out_tensor =
-        coeus_ops::prod_tensor(&input.tensor, &backend).expect("prod: provider reduction failed");
+    let out_tensor = coeus_ops::prod_tensor(&input.tensor, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -126,11 +129,11 @@ pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>)
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -140,15 +143,17 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
     fn prod_forward_matches_reference() {
         let input = var_from(&[2.0, -3.0, 4.0]);
-        let out = prod(&input);
+        let out = prod(&input).expect("invariant: test operation succeeds");
         assert_eq!(out.tensor.shape(), &[1]);
         assert!((out.tensor.as_slice()[0] - (-24.0)).abs() < 1e-12);
     }
@@ -157,7 +162,7 @@ mod tests {
     fn prod_backward_zero_free_matches_analytic() {
         // x = [2, 3, 4], ∏ = 24. d/dx_i = 24 / x_i.
         let input = var_from(&[2.0, 3.0, 4.0]);
-        let out = prod(&input);
+        let out = prod(&input).expect("invariant: test operation succeeds");
         out.backward().expect("invariant: backward completes");
         let grad = input.grad().expect("input must receive a gradient");
         let expected = [12.0, 8.0, 6.0];
@@ -175,7 +180,7 @@ mod tests {
         // d/dx_i = ∏_{j≠i} x_j: nonzero elements get 0, the zero element
         // gets 2·4 = 8 (the product of the nonzero elements).
         let input = var_from(&[2.0, 0.0, 4.0]);
-        let out = prod(&input);
+        let out = prod(&input).expect("invariant: test operation succeeds");
         out.backward().expect("invariant: backward completes");
         let grad = input.grad().expect("input must receive a gradient");
         let expected = [0.0, 8.0, 0.0];
@@ -192,7 +197,7 @@ mod tests {
         // x = [0, 0, 4]: two zeros → every d/dx_i = 0 (the true derivative of
         // a product with ≥2 zero factors). A naive 0/0 shortcut would be NaN.
         let input = var_from(&[0.0, 0.0, 4.0]);
-        let out = prod(&input);
+        let out = prod(&input).expect("invariant: test operation succeeds");
         out.backward().expect("invariant: backward completes");
         let grad = input.grad().expect("input must receive a gradient");
         for (i, &g) in grad.as_slice().iter().enumerate() {
@@ -208,7 +213,7 @@ mod tests {
         // x = [-2, 3, -4], ∏ = 24. d/dx_0 = 3·(-4) = -12;
         // d/dx_1 = (-2)·(-4) = 8; d/dx_2 = (-2)·3 = -6.
         let input = var_from(&[-2.0, 3.0, -4.0]);
-        let out = prod(&input);
+        let out = prod(&input).expect("invariant: test operation succeeds");
         out.backward().expect("invariant: backward completes");
         let grad = input.grad().expect("input must receive a gradient");
         let expected = [-12.0, 8.0, -6.0];
@@ -224,6 +229,6 @@ mod tests {
     #[should_panic(expected = "empty")]
     fn prod_panics_on_empty_input() {
         let input = var_from(&[]);
-        let _ = prod(&input);
+        let _ = prod(&input).expect("invariant: test operation succeeds");
     }
 }

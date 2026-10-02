@@ -66,21 +66,21 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         // d/d_pred: scale * (z / beta) if |z| < beta, else scale * sign(z).
         // At |z| == beta the mask is false → L1 piece with sign(z) (right
         // limit); at z == 0 sign(0) = 0 matches PyTorch's reduce-at-zero.
-        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
-        let inv_beta_tensor = Tensor::full_on([1], T::one() / self.beta, &backend);
+        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
+        let inv_beta_tensor = Tensor::full_on([1], T::one() / self.beta, &backend)?;
         let quad = coeus_ops::mul(
-            &coeus_ops::mul(&self.diffs, &scale, &backend),
+            &coeus_ops::mul(&self.diffs, &scale, &backend)?,
             &inv_beta_tensor,
             &backend,
-        );
-        let linear = coeus_ops::mul(&coeus_ops::sign(&self.diffs, &backend), &scale, &backend);
+        )?;
+        let linear = coeus_ops::mul(&coeus_ops::sign(&self.diffs, &backend)?, &scale, &backend)?;
         let d_pred = coeus_ops::where_cond(&self.quad_mask, &quad, &linear, &backend)?;
 
         if let Some(Some(ref g)) = input_grads.first() {
             coeus_ops::add_assign(g.write(), &d_pred, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let d_target = coeus_ops::neg(&d_pred, &backend);
+            let d_target = coeus_ops::neg(&d_pred, &backend)?;
             coeus_ops::add_assign(g.write(), &d_target, &backend)?;
         }
         Ok(())
@@ -97,7 +97,7 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     beta: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         pred.tensor.shape(),
@@ -113,40 +113,39 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let shape = pred.tensor.shape_cloned();
 
     // z = pred - target, |z|, and the quadratic-region mask |z| < beta.
-    let diffs = coeus_ops::sub(&pred.tensor, &target.tensor, &backend);
-    let abs_z = coeus_ops::abs(&diffs, &backend);
-    let beta_tensor = Tensor::full_on([1], beta, &backend);
-    let quad_mask = coeus_ops::lt(&abs_z, &beta_tensor.broadcast(shape.clone()), &backend);
+    let diffs = coeus_ops::sub(&pred.tensor, &target.tensor, &backend)?;
+    let abs_z = coeus_ops::abs(&diffs, &backend)?;
+    let beta_tensor = Tensor::full_on([1], beta, &backend)?;
+    let quad_mask = coeus_ops::lt(&abs_z, &beta_tensor.broadcast(shape.clone()), &backend)?;
     //   quadratic: 0.5 * z² / beta
     //   linear:    |z| - 0.5 * beta
     let half = T::from_f64(0.5);
-    let inv_beta_tensor = Tensor::full_on([1], T::one() / beta, &backend);
+    let inv_beta_tensor = Tensor::full_on([1], T::one() / beta, &backend)?;
     let quadratic = coeus_ops::mul(
-        &coeus_ops::mul(&diffs, &diffs, &backend),
+        &coeus_ops::mul(&diffs, &diffs, &backend)?,
         &coeus_ops::mul(
-            &Tensor::full_on(shape.clone(), half, &backend),
+            &Tensor::full_on(shape.clone(), half, &backend)?,
             &inv_beta_tensor,
             &backend,
-        ),
+        )?,
         &backend,
-    );
+    )?;
     let linear = coeus_ops::sub(
         &abs_z,
-        &Tensor::full_on(shape.clone(), half * beta, &backend),
+        &Tensor::full_on(shape.clone(), half * beta, &backend)?,
         &backend,
-    );
-    let per_elem = coeus_ops::where_cond(&quad_mask, &quadratic, &linear, &backend)
-        .expect("smooth_l1_loss: provider where_cond dispatch");
-    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty Smooth L1 reduction has axis zero");
+    )?;
+    let per_elem = coeus_ops::where_cond(&quad_mask, &quadratic, &linear, &backend)?;
+    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(pred) || crate::grad_mode::should_track_var(target);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
+    let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
     let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = SmoothL1LossNode {
             output_grad,
@@ -156,15 +155,15 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             beta,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale,
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -174,9 +173,11 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
@@ -188,7 +189,7 @@ mod tests {
         //   mean = (1/3 + 1.25 + 2.25) / 3
         let pred = var_from(&[1.0, 2.0, 5.0]);
         let target = var_from(&[0.0, 4.0, 2.0]);
-        let loss = smooth_l1_loss(&pred, &target, 1.5);
+        let loss = smooth_l1_loss(&pred, &target, 1.5).expect("invariant: test operation succeeds");
         let expected = (1.0 / 3.0 + 1.25 + 2.25) / 3.0;
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - expected).abs() < 1e-12);
@@ -201,7 +202,7 @@ mod tests {
         //   d_pred = [1/1.5, -1, 1] / 3
         let pred = var_from(&[1.0, 2.0, 5.0]);
         let target = var_from(&[0.0, 4.0, 2.0]);
-        let loss = smooth_l1_loss(&pred, &target, 1.5);
+        let loss = smooth_l1_loss(&pred, &target, 1.5).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let pred_grad = pred.grad().expect("pred must receive a gradient");
         let target_grad = target.grad().expect("target must receive a gradient");
@@ -232,7 +233,7 @@ mod tests {
         // (gradient sign(z)), matching PyTorch's stable reduction.
         let pred = var_from(&[1.5, 0.0]);
         let target = var_from(&[0.0, 1.5]);
-        let loss = smooth_l1_loss(&pred, &target, 1.5);
+        let loss = smooth_l1_loss(&pred, &target, 1.5).expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let grad = pred.grad().expect("pred must receive a gradient");
         let expected = [1.0 / 2.0, -1.0 / 2.0];

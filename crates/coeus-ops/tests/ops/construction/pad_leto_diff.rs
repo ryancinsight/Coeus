@@ -18,6 +18,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
@@ -47,7 +48,8 @@ where
     .map(T::from_f64)
     .collect();
 
-    let padded = coeus_ops::pad(&transposed, &[(1, 0), (0, 1)], fill);
+    let padded = coeus_ops::pad(&transposed, &[(1, 0), (0, 1)], fill)
+        .expect("invariant: test operation succeeds");
 
     assert_eq!(padded.shape(), &[3, 4]);
     assert_values(padded.as_slice(), &expected, "transposed pad");

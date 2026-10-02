@@ -119,7 +119,7 @@ where
         .collect::<Result<Vec<_>, _>>()?;
     let output_layout = provider_layout(output_layout, "fused elementwise")?;
     let input_views = input_views(&inputs, &input_layouts);
-    coeus_core::StorageMut::make_unique(output);
+    coeus_core::StorageMut::make_unique(output)?;
     let output_view = DynamicStridedView::new(output.buffer(), &output_layout);
     let adapter = ExpressionAdapter {
         expression,
@@ -158,7 +158,7 @@ where
         .collect::<Result<Vec<_>, _>>()?;
     let output_layout = provider_layout(output_layout, "fused reduction")?;
     let input_views = input_views(&inputs, &input_layouts);
-    coeus_core::StorageMut::make_unique(output);
+    coeus_core::StorageMut::make_unique(output)?;
     let output_view = DynamicStridedView::new(output.buffer(), &output_layout);
     let adapter = ExpressionAdapter {
         expression,

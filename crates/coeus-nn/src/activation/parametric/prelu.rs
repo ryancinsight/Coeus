@@ -9,7 +9,7 @@ use coeus_core::Float;
 pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -31,19 +31,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> PReLU<T, B> {
     /// Create a PReLU module with `num_parameters` learnable slopes (`1` for
     /// a shared scalar, or the channel count for per-channel slopes), each
     /// initialized to `init` (PyTorch/Burn default: `0.25`).
-    pub fn new(num_parameters: usize, init: f64) -> Self {
+    pub fn new(
+        num_parameters: usize,
+        init: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         let backend = B::default();
         let weight = Var::new(
-            coeus_tensor::Tensor::full_on([num_parameters], T::from_f64(init), &backend),
+            coeus_tensor::Tensor::full_on([num_parameters], T::from_f64(init), &backend)?,
             true,
-        );
-        Self { weight }
-    }
-}
-
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Default for PReLU<T, B> {
-    fn default() -> Self {
-        Self::new(1, 0.25)
+        )?;
+        Ok(Self { weight })
     }
 }
 
@@ -64,6 +61,6 @@ where
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(prelu(input, &self.weight))
+        Ok(prelu(input, &self.weight)?)
     }
 }

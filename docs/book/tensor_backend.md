@@ -21,10 +21,10 @@ use coeus::Tensor;
 use coeus::backend::CudaBackend;
 
 // Default CPU tensor
-let a: Tensor<f32> = Tensor::zeros([256, 256]);
+let a: Tensor<f32> = Tensor::zeros([256, 256])?;
 
 // CUDA tensor (same API)
-let b: Tensor<f32, CudaBackend> = Tensor::zeros([256, 256]);
+let b: Tensor<f32, CudaBackend> = Tensor::zeros([256, 256])?;
 ```
 
 ## `ComputeBackend` Trait
@@ -33,12 +33,19 @@ The trait abstracts over device allocation, data transfer, and op dispatch:
 
 ```rust,ignore
 pub trait ComputeBackend {
-    type Buffer<T>: DeviceBuffer<T>;
-    fn allocate<T>(shape: &[usize]) -> Self::Buffer<T>;
-    fn upload<T>(host: &[T], device: &mut Self::Buffer<T>);
-    fn download<T>(device: &Self::Buffer<T>, host: &mut [T]);
+    type Error: std::error::Error;
+    type DeviceBuffer<T: Scalar>: StorageMut<T>;
+    fn allocate<T: Scalar>(&self, len: usize)
+        -> Result<Self::DeviceBuffer<T>, Self::Error>;
+    fn copy_to_device<T: Scalar>(&self, host: &[T], device: &mut Self::DeviceBuffer<T>)
+        -> Result<(), Self::Error>;
+    fn copy_to_host<T: Scalar>(&self, device: &Self::DeviceBuffer<T>, host: &mut [T])
+        -> Result<(), Self::Error>;
 }
 ```
+
+Allocation and transfer errors remain typed by the selected backend and
+propagate through tensor constructors and operations.
 
 Ops are dispatched through Hephaestus op traits, so the same autograd
 graph works on any backend.

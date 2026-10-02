@@ -31,13 +31,16 @@ where
     B: coeus_ops::BackendOps<T> + Default,
 {
     /// Construct a depthwise convolution with unit stride and dilation.
-    #[must_use]
-    pub fn new(channels: usize, kernel_size: usize, padding: usize, bias: bool) -> Self {
+    pub fn new(
+        channels: usize,
+        kernel_size: usize,
+        padding: usize,
+        bias: bool,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         Self::with_params(channels, kernel_size, 1, padding, 1, bias)
     }
 
     /// Construct a depthwise convolution with explicit spatial parameters.
-    #[must_use]
     pub fn with_params(
         channels: usize,
         kernel_size: usize,
@@ -45,26 +48,31 @@ where
         padding: usize,
         dilation: usize,
         bias: bool,
-    ) -> Self {
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         assert!(channels > 0, "DepthwiseConv3d: channels must be positive");
         assert!(stride > 0, "DepthwiseConv3d: stride must be positive");
         assert!(dilation > 0, "DepthwiseConv3d: dilation must be positive");
         let backend = B::default();
-        Self {
+        let bias = if bias {
+            Some(Var::new(Tensor::zeros_on([channels], &backend)?, true)?)
+        } else {
+            None
+        };
+        Ok(Self {
             weight: Var::new(
                 Tensor::ones_on(
                     [channels, 1, kernel_size, kernel_size, kernel_size],
                     &backend,
-                ),
+                )?,
                 true,
-            ),
-            bias: bias.then(|| Var::new(Tensor::zeros_on([channels], &backend), true)),
+            )?,
+            bias,
             channels,
             kernel_size,
             stride,
             padding,
             dilation,
-        }
+        })
     }
 }
 
@@ -115,7 +123,7 @@ where
                         (0, shape[3]),
                         (0, shape[4]),
                     ],
-                );
+                )?;
                 let channel_weight = slice(
                     &self.weight,
                     &[
@@ -125,19 +133,19 @@ where
                         (0, self.kernel_size),
                         (0, self.kernel_size),
                     ],
-                );
+                )?;
                 let output =
                     Conv3d::from_vars(channel_weight, None, params).forward(&channel_input)?;
-                Ok(if let Some(bias) = &self.bias {
+                if let Some(bias) = &self.bias {
                     let channel_bias =
-                        reshape(&slice(bias, &[(channel, channel + 1)]), [1, 1, 1, 1, 1]);
-                    add(&output, &channel_bias)
+                        reshape(&slice(bias, &[(channel, channel + 1)])?, [1, 1, 1, 1, 1])?;
+                    Ok(add(&output, &channel_bias)?)
                 } else {
-                    output
-                })
+                    Ok(output)
+                }
             })
             .collect::<Result<Vec<_>, ModuleError<B::Error>>>()?;
-        Ok(cat(&outputs.iter().collect::<Vec<_>>(), 1))
+        Ok(cat(&outputs.iter().collect::<Vec<_>>(), 1)?)
     }
 
     fn load_parameters(&mut self, parameters: &[Var<T, B>]) {
@@ -154,21 +162,22 @@ mod tests {
     use coeus_core::MoiraiBackend;
 
     #[test]
-    fn applies_independent_channel_kernels_and_gradients() {
+    fn applies_independent_channel_kernels_and_gradients() -> Result<(), Box<dyn std::error::Error>>
+    {
         let backend = MoiraiBackend::new();
-        let mut convolution = DepthwiseConv3d::<f32>::new(2, 1, 0, true);
+        let mut convolution = DepthwiseConv3d::<f32>::new(2, 1, 0, true)?;
         convolution.weight = Var::new(
-            Tensor::from_slice_on([2, 1, 1, 1, 1], &[2.0, 3.0], &backend),
+            Tensor::from_slice_on([2, 1, 1, 1, 1], &[2.0, 3.0], &backend)?,
             true,
-        );
+        )?;
         convolution.bias = Some(Var::new(
-            Tensor::from_slice_on([2], &[1.0, -1.0], &backend),
+            Tensor::from_slice_on([2], &[1.0, -1.0], &backend)?,
             true,
-        ));
+        )?);
         let input = Var::new(
-            Tensor::from_slice_on([1, 2, 1, 1, 2], &[4.0, 5.0, 6.0, 7.0], &backend),
+            Tensor::from_slice_on([1, 2, 1, 1, 2], &[4.0, 5.0, 6.0, 7.0], &backend)?,
             true,
-        );
+        )?;
 
         let output = convolution
             .forward(&input)
@@ -190,5 +199,6 @@ mod tests {
             .expect("bias enabled")
             .grad()
             .is_some());
+        Ok(())
     }
 }

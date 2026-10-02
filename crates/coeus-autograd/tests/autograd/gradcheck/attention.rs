@@ -112,8 +112,13 @@ fn log_softmax_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[3, 5], 0.37);
     let w = weighting::<T>(&[3, 5]);
 
-    gradcheck(&[x], |v| weighted(&log_softmax(&v[0], 1), &w))
-        .expect("log_softmax backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &log_softmax(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("log_softmax backward must match central differences");
 }
 
 #[test]
@@ -129,8 +134,13 @@ fn softmin_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[2, 4], 0.53);
     let w = weighting::<T>(&[2, 4]);
 
-    gradcheck(&[x], |v| weighted(&softmin(&v[0], 1), &w))
-        .expect("softmin backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &softmin(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("softmin backward must match central differences");
 }
 
 #[test]
@@ -146,8 +156,13 @@ fn causal_softmax_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[4, 4], 0.23);
     let w = weighting::<T>(&[4, 4]);
 
-    gradcheck(&[x], |v| weighted(&causal_softmax(&v[0], 1), &w))
-        .expect("causal_softmax backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &causal_softmax(&v[0], 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("causal_softmax backward must match central differences");
 }
 
 #[test]
@@ -167,11 +182,17 @@ fn masked_softmax_case<T: GradcheckScalar>() {
         .into_iter()
         .map(<T as coeus_core::Scalar>::from_f64)
         .collect();
-    let mask = Tensor::<T, MoiraiBackend>::from_slice_on([2, 5], &mask_values, &backend);
+    let mask = Tensor::<T, MoiraiBackend>::from_slice_on([2, 5], &mask_values, &backend)
+        .expect("invariant: test backend operation succeeds");
     let w = weighting::<T>(&[2, 5]);
 
-    gradcheck(&[x], |v| weighted(&masked_softmax(&v[0], &mask, 1), &w))
-        .expect("masked_softmax backward must match central differences");
+    gradcheck(&[x], |v| {
+        weighted(
+            &masked_softmax(&v[0], &mask, 1).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("masked_softmax backward must match central differences");
 }
 
 #[test]

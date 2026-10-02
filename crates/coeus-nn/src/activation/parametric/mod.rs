@@ -8,7 +8,9 @@ pub use prelu::{prelu, PReLU};
 
 /// Functional ELU activation.
 #[inline]
-pub fn elu<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn elu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::elu(input)
 }
 
@@ -24,13 +26,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for ELU {
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(elu(input))
+        Ok(elu(input)?)
     }
 }
 
 /// Functional GELU tanh approximation.
 #[inline]
-pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn gelu_tanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::gelu_tanh(input)
 }
 
@@ -46,7 +50,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLUTanh 
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(gelu_tanh(input))
+        Ok(gelu_tanh(input)?)
     }
 }
 
@@ -61,7 +65,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLUTanh 
 pub fn glu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let shape = input.tensor.shape();
     let ndim = shape.len();
     assert!(dim < ndim, "glu: dim {dim} out of range for rank {ndim}");
@@ -75,9 +79,9 @@ pub fn glu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let mut second = first.clone();
     first[dim] = (0, half);
     second[dim] = (half, axis);
-    let a = coeus_autograd::slice(input, &first);
-    let b = coeus_autograd::slice(input, &second);
-    coeus_autograd::mul(&a, &coeus_autograd::sigmoid(&b))
+    let a = coeus_autograd::slice(input, &first)?;
+    let b = coeus_autograd::slice(input, &second)?;
+    coeus_autograd::mul(&a, &coeus_autograd::sigmoid(&b)?)
 }
 
 /// Gated Linear Unit module gating along a fixed `dim` (see [`glu`]).
@@ -121,7 +125,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GLU {
                 extent,
             });
         }
-        Ok(glu(input, self.dim))
+        Ok(glu(input, self.dim)?)
     }
 }
 
@@ -130,7 +134,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GLU {
 pub fn leaky_relu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     negative_slope: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::leaky_relu(input, negative_slope)
 }
 
@@ -164,7 +168,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LeakyReLU
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(leaky_relu(input, self.negative_slope))
+        Ok(leaky_relu(input, self.negative_slope)?)
     }
 }
 
@@ -191,7 +195,7 @@ pub fn hardtanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     min_val: f64,
     max_val: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::hardtanh(input, min_val, max_val)
 }
 
@@ -229,7 +233,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardtanh 
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(hardtanh(input, self.min_val, self.max_val))
+        Ok(hardtanh(input, self.min_val, self.max_val)?)
     }
 }
 
@@ -250,7 +254,7 @@ impl HardshrinkOp {
 pub fn hardshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     lambda: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::hardshrink(input, lambda)
 }
 
@@ -283,7 +287,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Hardshrin
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(hardshrink(input, self.lambda))
+        Ok(hardshrink(input, self.lambda)?)
     }
 }
 
@@ -304,7 +308,7 @@ impl SoftshrinkOp {
 pub fn softshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     lambda: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::softshrink(input, lambda)
 }
 
@@ -336,7 +340,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softshrin
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(softshrink(input, self.lambda))
+        Ok(softshrink(input, self.lambda)?)
     }
 }
 
@@ -358,7 +362,7 @@ pub fn threshold<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     thresh: f64,
     value: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::threshold(input, thresh, value)
 }
 
@@ -395,7 +399,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Threshold
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(threshold(input, self.threshold, self.value))
+        Ok(threshold(input, self.threshold, self.value)?)
     }
 }
 
@@ -416,7 +420,7 @@ impl CeluOp {
 pub fn celu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     alpha: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::celu(input, alpha)
 }
 
@@ -448,6 +452,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Celu {
 
     #[inline]
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        Ok(celu(input, self.alpha))
+        Ok(celu(input, self.alpha)?)
     }
 }

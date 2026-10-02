@@ -57,12 +57,17 @@ fn through_both(axis: Axis, order: usize, divergence: bool) -> (Vec<f32>, Vec<f3
     let sequential = SequentialBackend;
     let wgpu = WgpuBackend::new();
     let host = field();
-    let input = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &host);
-    let input_wgpu = input.to_backend_on(&sequential, &wgpu);
+    let input = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &host)
+        .expect("invariant: test backend operation succeeds");
+    let input_wgpu = input
+        .to_backend_on(&sequential, &wgpu)
+        .expect("invariant: test backend operation succeeds");
 
     let cpu_pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&sequential, order, SPACING)
         .expect("sequential staggered preparation");
-    let mut cpu_storage = sequential.allocate_zeroed::<f32>(cells());
+    let mut cpu_storage = sequential
+        .allocate_zeroed::<f32>(cells())
+        .expect("invariant: test backend operation succeeds");
     if divergence {
         StaggeredPairOps::<f32>::staggered_divergence(
             &sequential,
@@ -91,7 +96,9 @@ fn through_both(axis: Axis, order: usize, divergence: bool) -> (Vec<f32>, Vec<f3
 
     let device_pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, order, SPACING)
         .expect("wgpu staggered preparation");
-    let mut device_storage = wgpu.allocate_zeroed::<f32>(cells());
+    let mut device_storage = wgpu
+        .allocate_zeroed::<f32>(cells())
+        .expect("invariant: test backend operation succeeds");
     if divergence {
         StaggeredPairOps::<f32>::staggered_divergence(
             &wgpu,
@@ -116,6 +123,7 @@ fn through_both(axis: Axis, order: usize, divergence: bool) -> (Vec<f32>, Vec<f3
     .expect("wgpu staggered dispatch");
     let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(device_storage, layout())
         .to_backend_on(&wgpu, &sequential)
+        .expect("invariant: test backend operation succeeds")
         .as_slice()
         .to_vec();
 
@@ -163,9 +171,14 @@ fn wgpu_staggered_pair_is_a_negative_adjoint_through_the_seam() {
         .expect("wgpu staggered preparation");
 
     for axis in AXES {
-        let p_host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &p);
-        let p_device = p_host.to_backend_on(&sequential, &wgpu);
-        let mut gradient = wgpu.allocate_zeroed::<f32>(cells());
+        let p_host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &p)
+            .expect("invariant: test backend operation succeeds");
+        let p_device = p_host
+            .to_backend_on(&sequential, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let mut gradient = wgpu
+            .allocate_zeroed::<f32>(cells())
+            .expect("invariant: test backend operation succeeds");
         StaggeredPairOps::<f32>::staggered_gradient(
             &wgpu,
             &pair,
@@ -178,12 +191,18 @@ fn wgpu_staggered_pair_is_a_negative_adjoint_through_the_seam() {
         .expect("wgpu gradient dispatch");
         let gradient = Tensor::<f32, WgpuBackend>::from_raw_parts(gradient, layout())
             .to_backend_on(&wgpu, &sequential)
+            .expect("invariant: test backend operation succeeds")
             .as_slice()
             .to_vec();
 
-        let u_host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &u);
-        let u_device = u_host.to_backend_on(&sequential, &wgpu);
-        let mut divergence = wgpu.allocate_zeroed::<f32>(cells());
+        let u_host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &u)
+            .expect("invariant: test backend operation succeeds");
+        let u_device = u_host
+            .to_backend_on(&sequential, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let mut divergence = wgpu
+            .allocate_zeroed::<f32>(cells())
+            .expect("invariant: test backend operation succeeds");
         StaggeredPairOps::<f32>::staggered_divergence(
             &wgpu,
             &pair,
@@ -196,6 +215,7 @@ fn wgpu_staggered_pair_is_a_negative_adjoint_through_the_seam() {
         .expect("wgpu divergence dispatch");
         let divergence = Tensor::<f32, WgpuBackend>::from_raw_parts(divergence, layout())
             .to_backend_on(&wgpu, &sequential)
+            .expect("invariant: test backend operation succeeds")
             .as_slice()
             .to_vec();
 
@@ -225,8 +245,12 @@ fn wgpu_staggered_rejects_a_grid_thinner_than_the_stencil() {
     let count: usize = thin.iter().product();
     let pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 6, [1.0, 1.0, 1.0])
         .expect("wgpu staggered preparation");
-    let input = wgpu.allocate_zeroed::<f32>(count);
-    let mut output = wgpu.allocate_zeroed::<f32>(count);
+    let input = wgpu
+        .allocate_zeroed::<f32>(count)
+        .expect("invariant: test backend operation succeeds");
+    let mut output = wgpu
+        .allocate_zeroed::<f32>(count)
+        .expect("invariant: test backend operation succeeds");
     let thin_layout = Layout::new(thin.into());
 
     assert!(StaggeredPairOps::<f32>::staggered_gradient(
@@ -247,8 +271,11 @@ fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
     let wgpu = WgpuBackend::new();
     let pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 4, SPACING)
         .expect("wgpu staggered preparation");
-    let host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &field());
-    let input = host.to_backend_on(&sequential, &wgpu);
+    let host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &field())
+        .expect("invariant: test backend operation succeeds");
+    let input = host
+        .to_backend_on(&sequential, &wgpu)
+        .expect("invariant: test backend operation succeeds");
     let strided = Layout::from_shape_strides(SHAPE.into(), [60, 1, 6].as_slice().into(), 0);
     let offset = Layout::from_shape_strides(SHAPE.into(), [60, 10, 1].as_slice().into(), 1);
     let input_strides = "staggered input layout must be contiguous with zero offset, got strides [60, 1, 6] and offset 0";
@@ -266,8 +293,11 @@ fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
         // Equal buffer lengths cannot detect a shape permutation, and the
         // sentinel confirms refusal leaves the destination untouched.
         let sentinel = vec![13.0_f32; cells()];
-        let initial = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &sentinel);
-        let mut output = initial.to_backend_on(&sequential, &wgpu);
+        let initial = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &sentinel)
+            .expect("invariant: test backend operation succeeds");
+        let mut output = initial
+            .to_backend_on(&sequential, &wgpu)
+            .expect("invariant: test backend operation succeeds");
         for (expected_operation, result) in [
             (
                 "staggered_gradient",
@@ -277,7 +307,9 @@ fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
                     Axis::X,
                     input.storage(),
                     &input_layout,
-                    output.storage_mut(),
+                    output
+                        .storage_mut()
+                        .expect("invariant: test backend operation succeeds"),
                     &output_layout,
                 ),
             ),
@@ -289,7 +321,9 @@ fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
                     Axis::X,
                     input.storage(),
                     &input_layout,
-                    output.storage_mut(),
+                    output
+                        .storage_mut()
+                        .expect("invariant: test backend operation succeeds"),
                     &output_layout,
                 ),
             ),
@@ -302,7 +336,9 @@ fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
                 other => panic!("expected a layout rejection, got {other:?}"),
             }
         }
-        let actual = output.to_backend_on(&wgpu, &sequential);
+        let actual = output
+            .to_backend_on(&wgpu, &sequential)
+            .expect("invariant: test backend operation succeeds");
         assert_eq!(actual.as_slice(), sentinel.as_slice());
     }
 }

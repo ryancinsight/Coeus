@@ -47,16 +47,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error> {
         let backend = B::default();
-        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
+        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
         // d/d(input1) = -target * mask / N; d/d(input2) = +target * mask / N.
-        let target_mask = coeus_ops::mul(&self.target_tensor, &self.mask, &backend);
+        let target_mask = coeus_ops::mul(&self.target_tensor, &self.mask, &backend)?;
 
         if let Some(Some(ref g1)) = input_grads.first() {
-            let d1 = coeus_ops::mul(&coeus_ops::neg(&target_mask, &backend), &scale, &backend);
+            let d1 = coeus_ops::mul(&coeus_ops::neg(&target_mask, &backend)?, &scale, &backend)?;
             coeus_ops::add_assign(g1.write(), &d1, &backend)?;
         }
         if let Some(Some(ref g2)) = input_grads.get(1) {
-            let d2 = coeus_ops::mul(&target_mask, &scale, &backend);
+            let d2 = coeus_ops::mul(&target_mask, &scale, &backend)?;
             coeus_ops::add_assign(g2.write(), &d2, &backend)?;
         }
         Ok(())
@@ -76,7 +76,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input2: &Var<T, B>,
     target: &[T],
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let n = input1.tensor.numel();
     assert_eq!(
@@ -87,31 +87,31 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     assert_eq!(target.len(), n, "target length must match input length");
 
     let shape = input1.tensor.shape_cloned();
-    let target_tensor = Tensor::from_slice_on(shape.clone(), target, &backend);
+    let target_tensor = Tensor::from_slice_on(shape.clone(), target, &backend)?;
 
     // hinge = relu(-target * (input1 - input2) + margin), all on-provider.
-    let diff = coeus_ops::sub(&input1.tensor, &input2.tensor, &backend);
+    let diff = coeus_ops::sub(&input1.tensor, &input2.tensor, &backend)?;
     let neg_target_diff =
-        coeus_ops::mul(&coeus_ops::neg(&target_tensor, &backend), &diff, &backend);
+        coeus_ops::mul(&coeus_ops::neg(&target_tensor, &backend)?, &diff, &backend)?;
     let raw = coeus_ops::add(
         &neg_target_diff,
-        &Tensor::full_on(shape.clone(), margin, &backend),
+        &Tensor::full_on(shape.clone(), margin, &backend)?,
         &backend,
-    );
-    let hinge = coeus_ops::relu(&raw, &backend);
+    )?;
+    let hinge = coeus_ops::relu(&raw, &backend)?;
     // mask = 1 where hinge > 0, else 0 (active hinge receives gradient).
-    let zeros = Tensor::zeros_on(shape.clone(), &backend);
-    let mask = coeus_ops::gt(&hinge, &zeros, &backend);
-    let loss = coeus_ops::mean_axis(&hinge.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty margin-ranking reduction has axis zero");
+    let zeros = Tensor::zeros_on(shape.clone(), &backend)?;
+    let mask = coeus_ops::gt(&hinge, &zeros, &backend)?;
+    let loss = coeus_ops::mean_axis(&hinge.reshape([n]), 0, &backend)?;
 
     let requires_grad =
         crate::grad_mode::should_track_var(input1) || crate::grad_mode::should_track_var(input2);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
+    let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
     let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = MarginRankingLossNode {
             output_grad,
@@ -119,15 +119,15 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             target_tensor,
             mask,
             n,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale,
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: loss,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -137,9 +137,11 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
@@ -152,7 +154,8 @@ mod tests {
         let input1 = var_from(&[1.0, 2.0, 3.0]);
         let input2 = var_from(&[0.0, 2.0, 5.0]);
         let target = [1.0, -1.0, 1.0];
-        let loss = margin_ranking_loss(&input1, &input2, &target, 1.0);
+        let loss = margin_ranking_loss(&input1, &input2, &target, 1.0)
+            .expect("invariant: test operation succeeds");
         assert_eq!(loss.tensor.shape(), &[1]);
         assert!((loss.tensor.as_slice()[0] - 4.0 / 3.0).abs() < 1e-12);
     }
@@ -164,7 +167,8 @@ mod tests {
         let input1 = var_from(&[1.0, 2.0, 3.0]);
         let input2 = var_from(&[0.0, 2.0, 5.0]);
         let target = [1.0, -1.0, 1.0];
-        let loss = margin_ranking_loss(&input1, &input2, &target, 1.0);
+        let loss = margin_ranking_loss(&input1, &input2, &target, 1.0)
+            .expect("invariant: test operation succeeds");
         loss.backward().expect("invariant: backward completes");
         let g1 = input1.grad().expect("input1 must receive a gradient");
         let g2 = input2.grad().expect("input2 must receive a gradient");
@@ -191,6 +195,7 @@ mod tests {
         let input1 = var_from(&[1.0, 2.0]);
         let input2 = var_from(&[0.0, 1.0]);
         let target = [1.0];
-        let _ = margin_ranking_loss(&input1, &input2, &target, 1.0);
+        let _ = margin_ranking_loss(&input1, &input2, &target, 1.0)
+            .expect("invariant: test operation succeeds");
     }
 }

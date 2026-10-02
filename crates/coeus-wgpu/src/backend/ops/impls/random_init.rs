@@ -15,7 +15,10 @@ impl coeus_ops::RandomInitOps<f32> for WgpuBackend {
         seed: u64,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
         random_uniform::<Self, _>(layout, low, high, seed)
-            .map(coeus_hephaestus::HephaestusStorage::from_buffer)
+            .map(|buffer| {
+                // SAFETY: random_uniform initializes every element on success.
+                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+            })
             .map_err(|source| WgpuBackendError::dispatch("uniform initialization", source))
     }
 
@@ -27,7 +30,10 @@ impl coeus_ops::RandomInitOps<f32> for WgpuBackend {
         seed: u64,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
         random_normal::<Self, _>(layout, mean, std_dev, seed)
-            .map(coeus_hephaestus::HephaestusStorage::from_buffer)
+            .map(|buffer| {
+                // SAFETY: random_normal initializes every element on success.
+                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+            })
             .map_err(|source| WgpuBackendError::dispatch("normal initialization", source))
     }
 }

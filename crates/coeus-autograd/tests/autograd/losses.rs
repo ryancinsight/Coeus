@@ -5,13 +5,17 @@ use coeus_tensor::Tensor;
 #[test]
 fn huber_loss_preserves_multidimensional_gradient_shape_and_values() {
     let input = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice([2, 2], &[0.0_f64, 0.0, 3.0, -3.0]),
+        Tensor::<f64, SequentialBackend>::from_slice([2, 2], &[0.0_f64, 0.0, 3.0, -3.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice([2, 2], &[0.0_f64, 1.0, 0.0, 0.0]),
+        Tensor::<f64, SequentialBackend>::from_slice([2, 2], &[0.0_f64, 1.0, 0.0, 0.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let loss = huber_loss(&input, &target, 1.0)
         .expect("invariant: matching non-empty shapes and positive finite delta");
@@ -29,13 +33,17 @@ fn huber_loss_preserves_multidimensional_gradient_shape_and_values() {
 #[test]
 fn huber_loss_rejects_shape_mismatch() {
     let input = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice([2], &[0.0, 1.0]),
+        Tensor::<f64, SequentialBackend>::from_slice([2], &[0.0, 1.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice([1, 2], &[0.0, 1.0]),
+        Tensor::<f64, SequentialBackend>::from_slice([1, 2], &[0.0, 1.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let error = match huber_loss(&input, &target, 1.0) {
         Ok(_) => panic!("different shapes must not enter Huber-loss indexing"),

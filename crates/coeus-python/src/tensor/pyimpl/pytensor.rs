@@ -72,7 +72,7 @@ impl PyTensor {
                 BinOp::Mul => coeus_autograd::mul(&self_inner, &other_inner),
                 BinOp::Div => coeus_autograd::div(&self_inner, &other_inner),
             });
-            Ok(Self::from_var(inner))
+            inner.map(Self::from_var).map_err(map_backend_error)
         } else if let Ok(scalar) = other.extract::<f64>() {
             let inner = py.allow_threads(|| match op {
                 BinOp::Add => coeus_autograd::scalar_add(&self_inner, scalar),
@@ -80,7 +80,7 @@ impl PyTensor {
                 BinOp::Mul => coeus_autograd::scalar_mul(&self_inner, scalar),
                 BinOp::Div => coeus_autograd::scalar_div(&self_inner, scalar),
             });
-            Ok(Self::from_var(inner))
+            inner.map(Self::from_var).map_err(map_backend_error)
         } else {
             Err(pyo3::exceptions::PyTypeError::new_err(format!(
                 "{op_label}: unsupported operand type for Tensor and {}",
@@ -92,14 +92,19 @@ impl PyTensor {
     #[inline]
     fn unary_dispatch<F>(&self, py: Python<'_>, op: F) -> PyResult<Self>
     where
-        F: FnOnce(&Var<f64>) -> Var<f64> + Send,
+        F: FnOnce(&Var<f64>) -> Result<Var<f64>, coeus_core::BackendError> + Send,
     {
         let inner = py.allow_threads(|| op(&self.inner));
-        Ok(Self::from_var(inner))
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     #[inline]
-    fn comparison_dispatch(&self, py: Python<'_>, other: &PyTensor, op: CompareOp) -> Self {
+    fn comparison_dispatch(
+        &self,
+        py: Python<'_>,
+        other: &PyTensor,
+        op: CompareOp,
+    ) -> PyResult<Self> {
         let inner = py.allow_threads(|| match op {
             CompareOp::Eq => coeus_autograd::eq(&self.inner, &other.inner),
             CompareOp::Lt => coeus_autograd::lt(&self.inner, &other.inner),
@@ -108,7 +113,7 @@ impl PyTensor {
             CompareOp::Ge => coeus_autograd::ge(&self.inner, &other.inner),
             CompareOp::Le => coeus_autograd::le(&self.inner, &other.inner),
         });
-        Self { inner }
+        inner.map(|inner| Self { inner }).map_err(map_backend_error)
     }
 }
 
@@ -120,10 +125,9 @@ impl PyTensor {
     #[pyo3(signature = (data, shape = None, requires_grad = false))]
     fn new(data: Vec<f64>, shape: Option<Vec<usize>>, requires_grad: bool) -> PyResult<Self> {
         let shape = shape.unwrap_or_else(|| vec![data.len()]);
-        let tensor = coeus_tensor::Tensor::from_slice(shape, &data);
-        Ok(Self {
-            inner: Var::new(tensor, requires_grad),
-        })
+        let tensor = coeus_tensor::Tensor::from_slice(shape, &data).map_err(map_backend_error)?;
+        let inner = Var::new(tensor, requires_grad).map_err(map_backend_error)?;
+        Ok(Self { inner })
     }
 
     #[getter]
@@ -132,8 +136,12 @@ impl PyTensor {
     }
 
     #[getter]
-    fn data(&self) -> Vec<f64> {
-        self.inner.tensor.to_contiguous().as_slice().to_vec()
+    fn data(&self) -> PyResult<Vec<f64>> {
+        self.inner
+            .tensor
+            .to_contiguous()
+            .map(|tensor| tensor.as_slice().to_vec())
+            .map_err(map_backend_error)
     }
 
     #[getter]
@@ -153,11 +161,15 @@ impl PyTensor {
                 "item(): tensor has {numel} elements, expected 1"
             )));
         }
-        let contiguous = self.inner.tensor.to_contiguous();
+        let contiguous = self
+            .inner
+            .tensor
+            .to_contiguous()
+            .map_err(map_backend_error)?;
         Ok(contiguous.as_slice()[0])
     }
 
-    fn tolist(&self) -> Vec<f64> {
+    fn tolist(&self) -> PyResult<Vec<f64>> {
         self.data()
     }
 
@@ -176,10 +188,14 @@ impl PyTensor {
 
     // ── Python protocol / dunder methods ──
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> PyResult<String> {
         let shape = self.shape();
         let requires_grad = self.inner.grad.is_some();
-        let data = self.inner.tensor.to_contiguous();
+        let data = self
+            .inner
+            .tensor
+            .to_contiguous()
+            .map_err(map_backend_error)?;
         let vals = data.as_slice();
         let max_display = 8;
         let data_str = if vals.is_empty() {
@@ -205,13 +221,15 @@ impl PyTensor {
             format!("[{}, ..., {}]", first.join(", "), last.join(", "))
         };
         if requires_grad {
-            format!("Tensor({data_str}, shape={shape:?}, requires_grad=True)")
+            Ok(format!(
+                "Tensor({data_str}, shape={shape:?}, requires_grad=True)"
+            ))
         } else {
-            format!("Tensor({data_str}, shape={shape:?})")
+            Ok(format!("Tensor({data_str}, shape={shape:?})"))
         }
     }
 
-    fn __str__(&self) -> String {
+    fn __str__(&self) -> PyResult<String> {
         self.__repr__()
     }
 
@@ -223,7 +241,11 @@ impl PyTensor {
         if numel != 1 {
             return Ok(true);
         }
-        Ok(self.inner.tensor.to_contiguous().as_slice()[0] != 0.0)
+        self.inner
+            .tensor
+            .to_contiguous()
+            .map(|tensor| tensor.as_slice()[0] != 0.0)
+            .map_err(map_backend_error)
     }
 
     fn __float__(&self) -> PyResult<f64> {
@@ -278,7 +300,7 @@ impl PyTensor {
 
     fn __matmul__(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::matmul(&self.inner, &other.inner));
-        Ok(Self::from_var(inner))
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     fn __neg__(&self, py: Python<'_>) -> PyResult<Self> {
@@ -300,28 +322,28 @@ impl PyTensor {
     fn __rsub__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
         // `scalar - self`: negate, then add the scalar.
         let inner = py.allow_threads(|| {
-            let neg = coeus_autograd::neg(&self.inner);
+            let neg = coeus_autograd::neg(&self.inner)?;
             coeus_autograd::scalar_add(&neg, scalar)
         });
-        Ok(Self::from_var(inner))
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     fn __rtruediv__(&self, scalar: f64, py: Python<'_>) -> PyResult<Self> {
         // `scalar / self`: `scalar * reciprocal(self)`.
         let inner = py.allow_threads(|| {
-            let recip = coeus_autograd::recip(&self.inner);
+            let recip = coeus_autograd::recip(&self.inner)?;
             coeus_autograd::scalar_mul(&recip, scalar)
         });
-        Ok(Self::from_var(inner))
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     fn __rpow__(&self, base: f64, _modulo: Option<i64>, py: Python<'_>) -> PyResult<Self> {
         // `base ** self`: exp(self * ln(base)).
         let inner = py.allow_threads(|| {
-            let scaled = coeus_autograd::scalar_mul(&self.inner, base.ln());
+            let scaled = coeus_autograd::scalar_mul(&self.inner, base.ln())?;
             coeus_autograd::exp(&scaled)
         });
-        Ok(Self::from_var(inner))
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     // ── Unary math ops ──
@@ -572,13 +594,11 @@ impl PyTensor {
             }
         }
         let inner = py.allow_threads(|| {
-            let zeros_v = Var::new(
-                coeus_tensor::Tensor::<f64, coeus_core::MoiraiBackend>::zeros(shape),
-                false,
-            );
+            let zeros = coeus_tensor::Tensor::<f64, coeus_core::MoiraiBackend>::zeros(shape)?;
+            let zeros_v = Var::new(zeros, false)?;
             coeus_autograd::add(&self.inner, &zeros_v)
         });
-        Ok(Self::from_var(inner))
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     fn broadcast_to(&self, shape: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
@@ -589,9 +609,9 @@ impl PyTensor {
         self.unary_dispatch(py, |x| coeus_autograd::flip(x, axis))
     }
 
-    fn repeat(&self, reps: Vec<usize>, py: Python<'_>) -> Self {
+    fn repeat(&self, reps: Vec<usize>, py: Python<'_>) -> PyResult<Self> {
         let inner = py.allow_threads(|| coeus_autograd::tile(&self.inner, &reps));
-        Self::from_var(inner)
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     #[getter]
@@ -604,7 +624,7 @@ impl PyTensor {
             )));
         }
         let inner = py.allow_threads(|| coeus_autograd::permute(&self.inner, &[1, 0]));
-        Ok(Self::from_var(inner))
+        inner.map(Self::from_var).map_err(map_backend_error)
     }
 
     // ── Indexing / slicing ──
@@ -632,10 +652,10 @@ impl PyTensor {
                 .map(|(d, &s)| if d == 0 { (idx, idx + 1) } else { (0, s) })
                 .collect();
             let inner = py.allow_threads(|| {
-                let sliced = coeus_autograd::slice(&self.inner, &ranges);
+                let sliced = coeus_autograd::slice(&self.inner, &ranges)?;
                 coeus_autograd::squeeze(&sliced, Some(0))
             });
-            return Ok(Self::from_var(inner));
+            return inner.map(Self::from_var).map_err(map_backend_error);
         }
 
         if let Ok(sl) = index.downcast::<pyo3::types::PySlice>() {
@@ -665,7 +685,7 @@ impl PyTensor {
                 .map(|(d, &s)| if d == 0 { (start, stop) } else { (0, s) })
                 .collect();
             let inner = py.allow_threads(|| coeus_autograd::slice(&self.inner, &ranges));
-            return Ok(Self::from_var(inner));
+            return inner.map(Self::from_var).map_err(map_backend_error);
         }
 
         Err(pyo3::exceptions::PyTypeError::new_err(
@@ -705,7 +725,7 @@ impl PyTensor {
         let fill_data: Vec<f64> = if let Ok(v) = value.extract::<f64>() {
             vec![v; row_numel]
         } else if let Ok(t) = value.extract::<PyTensor>() {
-            let cont = t.inner.tensor.to_contiguous();
+            let cont = t.inner.tensor.to_contiguous().map_err(map_backend_error)?;
             cont.as_slice().to_vec()
         } else {
             return Err(pyo3::exceptions::PyTypeError::new_err(
@@ -726,10 +746,13 @@ impl PyTensor {
         let mut host = vec![0.0f64; numel];
         use coeus_core::ComputeBackend;
         let backend = coeus_core::MoiraiBackend::new();
-        backend.copy_to_host(self.inner.tensor.storage(), &mut host);
+        backend
+            .copy_to_host(self.inner.tensor.storage(), &mut host)
+            .map_err(map_backend_error)?;
         let start = idx * row_numel;
         host[start..start + row_numel].copy_from_slice(&fill_data);
-        self.inner.tensor = coeus_tensor::Tensor::from_slice(shape, &host);
+        self.inner.tensor =
+            coeus_tensor::Tensor::from_slice(shape, &host).map_err(map_backend_error)?;
         Ok(())
     }
 
@@ -746,27 +769,27 @@ impl PyTensor {
 
     // ── Comparison ops ──
 
-    fn eq(&self, other: &PyTensor, py: Python<'_>) -> Self {
+    fn eq(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         self.comparison_dispatch(py, other, CompareOp::Eq)
     }
 
-    fn lt(&self, other: &PyTensor, py: Python<'_>) -> Self {
+    fn lt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         self.comparison_dispatch(py, other, CompareOp::Lt)
     }
 
-    fn gt(&self, other: &PyTensor, py: Python<'_>) -> Self {
+    fn gt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         self.comparison_dispatch(py, other, CompareOp::Gt)
     }
 
-    fn ne(&self, other: &PyTensor, py: Python<'_>) -> Self {
+    fn ne(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         self.comparison_dispatch(py, other, CompareOp::Ne)
     }
 
-    fn ge(&self, other: &PyTensor, py: Python<'_>) -> Self {
+    fn ge(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         self.comparison_dispatch(py, other, CompareOp::Ge)
     }
 
-    fn le(&self, other: &PyTensor, py: Python<'_>) -> Self {
+    fn le(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
         self.comparison_dispatch(py, other, CompareOp::Le)
     }
 
@@ -775,26 +798,26 @@ impl PyTensor {
             .map_err(map_backend_error)
     }
 
-    fn detach(&self) -> Self {
-        Self {
-            inner: Var::new(self.inner.tensor.clone(), false),
-        }
+    fn detach(&self) -> PyResult<Self> {
+        Var::new(self.inner.tensor.clone(), false)
+            .map(Self::from_var)
+            .map_err(map_backend_error)
     }
 
-    fn requires_grad_(&mut self, requires_grad: bool) -> Self {
+    fn requires_grad_(&mut self, requires_grad: bool) -> PyResult<Self> {
         if requires_grad && self.inner.grad.is_none() {
             let t = self.inner.tensor.clone();
-            self.inner = Var::new(t, true);
+            self.inner = Var::new(t, true).map_err(map_backend_error)?;
         } else if !requires_grad && self.inner.grad.is_some() {
             let t = self.inner.tensor.clone();
-            self.inner = Var::new(t, false);
+            self.inner = Var::new(t, false).map_err(map_backend_error)?;
         }
-        self.clone()
+        Ok(self.clone())
     }
 
     /// Zero the gradient of this tensor.
-    pub fn zero_grad(&self) {
-        self.inner.zero_grad();
+    pub fn zero_grad(&self) -> PyResult<()> {
+        self.inner.zero_grad().map_err(map_backend_error)
     }
 
     #[setter]
@@ -809,25 +832,27 @@ impl PyTensor {
                 expected_len
             )));
         }
-        self.inner.tensor = coeus_tensor::Tensor::from_slice(shape, &data);
+        self.inner.tensor =
+            coeus_tensor::Tensor::from_slice(shape, &data).map_err(map_backend_error)?;
         Ok(())
     }
 
     // ── In-place mutation ──
 
-    fn fill_(&mut self, value: f64) -> Self {
+    fn fill_(&mut self, value: f64) -> PyResult<Self> {
         let shape = self.inner.tensor.shape().to_vec();
         let numel: usize = shape.iter().product();
         let data = vec![value; numel];
-        self.inner.tensor = coeus_tensor::Tensor::from_slice(shape, &data);
-        self.clone()
+        self.inner.tensor =
+            coeus_tensor::Tensor::from_slice(shape, &data).map_err(map_backend_error)?;
+        Ok(self.clone())
     }
 
-    fn zero_(&mut self) -> Self {
+    fn zero_(&mut self) -> PyResult<Self> {
         self.fill_(0.0)
     }
 
-    fn one_(&mut self) -> Self {
+    fn one_(&mut self) -> PyResult<Self> {
         self.fill_(1.0)
     }
 
@@ -838,7 +863,7 @@ impl PyTensor {
             let b = other.inner.tensor.clone();
             coeus_ops::add(&a, &b, &backend)
         });
-        self.inner.tensor = new_t;
+        self.inner.tensor = new_t.map_err(map_backend_error)?;
         Ok(())
     }
 
@@ -847,7 +872,7 @@ impl PyTensor {
             let backend = coeus_core::MoiraiBackend::new();
             coeus_ops::sub(&self.inner.tensor, &other.inner.tensor, &backend)
         });
-        self.inner.tensor = new_t;
+        self.inner.tensor = new_t.map_err(map_backend_error)?;
         Ok(())
     }
 
@@ -856,7 +881,7 @@ impl PyTensor {
             let backend = coeus_core::MoiraiBackend::new();
             coeus_ops::mul(&self.inner.tensor, &other.inner.tensor, &backend)
         });
-        self.inner.tensor = new_t;
+        self.inner.tensor = new_t.map_err(map_backend_error)?;
         Ok(())
     }
 
@@ -870,48 +895,52 @@ impl PyTensor {
         self.clone()
     }
 
-    fn long(&self) -> Self {
-        let data: Vec<f64> = self
+    fn long(&self) -> PyResult<Self> {
+        let contiguous = self
             .inner
             .tensor
             .to_contiguous()
+            .map_err(map_backend_error)?;
+        let data: Vec<f64> = contiguous
             .as_slice()
             .iter()
             .map(|&v| (v as i64) as f64)
             .collect();
         let shape = self.inner.tensor.shape().to_vec();
-        let t = coeus_tensor::Tensor::from_slice(shape, &data);
-        Self {
-            inner: Var::new(t, false),
-        }
+        let t = coeus_tensor::Tensor::from_slice(shape, &data).map_err(map_backend_error)?;
+        Var::new(t, false)
+            .map(Self::from_var)
+            .map_err(map_backend_error)
     }
 
-    fn int(&self) -> Self {
+    fn int(&self) -> PyResult<Self> {
         self.long()
     }
 
-    fn half(&self) -> Self {
-        let data: Vec<f64> = self
+    fn half(&self) -> PyResult<Self> {
+        let contiguous = self
             .inner
             .tensor
             .to_contiguous()
+            .map_err(map_backend_error)?;
+        let data: Vec<f64> = contiguous
             .as_slice()
             .iter()
             .map(|&v| f64::from(eunomia::F16::from_f64(v).to_f32()))
             .collect();
         let shape = self.inner.tensor.shape().to_vec();
-        let t = coeus_tensor::Tensor::from_slice(shape, &data);
-        Self {
-            inner: Var::new(t, false),
-        }
+        let t = coeus_tensor::Tensor::from_slice(shape, &data).map_err(map_backend_error)?;
+        Var::new(t, false)
+            .map(Self::from_var)
+            .map_err(map_backend_error)
     }
 
     fn to(&self, dtype: &str) -> PyResult<Self> {
         match dtype {
             "float" | "float32" | "float64" | "double" => Ok(self.float()),
-            "long" | "int64" => Ok(self.long()),
-            "int" | "int32" => Ok(self.int()),
-            "half" | "float16" => Ok(self.half()),
+            "long" | "int64" => self.long(),
+            "int" | "int32" => self.int(),
+            "half" | "float16" => self.half(),
             other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "to: unknown dtype '{other}'; supported: float, double, long, int, half, float16, float32, float64, int32, int64"
             ))),
@@ -925,9 +954,15 @@ impl PyTensor {
     // ── Grad getter (must stay in pymethods for PyO3 getter) ──
 
     #[getter]
-    fn grad(&self) -> Option<Vec<f64>> {
+    fn grad(&self) -> PyResult<Option<Vec<f64>>> {
         self.inner
             .grad()
-            .map(|g| g.to_contiguous().as_slice().to_vec())
+            .map(|gradient| {
+                gradient
+                    .to_contiguous()
+                    .map(|tensor| tensor.as_slice().to_vec())
+                    .map_err(map_backend_error)
+            })
+            .transpose()
     }
 }

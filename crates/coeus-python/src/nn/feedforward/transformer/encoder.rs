@@ -167,9 +167,10 @@ impl PyTransformerEncoder {
     }
 
     /// Zero gradients of all parameters across all encoder layers.
-    pub fn zero_grad(&self, py: Python<'_>) {
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
         for l in &self.layers {
-            l.bind(py).borrow().zero_grad(py);
+            l.bind(py).borrow().zero_grad(py)?;
         }
+        Ok(())
     }
 }

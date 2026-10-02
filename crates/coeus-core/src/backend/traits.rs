@@ -20,18 +20,27 @@ use crate::dtype::Scalar;
 /// use coeus_core::{ComputeBackend, SequentialBackend};
 ///
 /// let backend = SequentialBackend::new();
-/// let mut buf = backend.allocate::<f32>(3);
-/// backend.fill(&mut buf, 42.0);
+/// let mut buf = backend.allocate_zeroed::<f32>(3)?;
+/// backend.fill(&mut buf, 42.0)?;
 /// let mut host = [0.0_f32; 3];
-/// backend.copy_to_host(&buf, &mut host);
+/// backend.copy_to_host(&buf, &mut host)?;
 /// assert_eq!(host, [42.0; 3]);
+/// # Ok::<(), coeus_core::BackendError>(())
 /// ```
-pub trait ComputeBackend: Send + Sync + Clone + 'static {
+///
+/// # Safety
+/// Implementations must keep `DeviceBuffer`'s safe accessors sound. In
+/// particular, `allocate_zeroed`, `fill`, `fill_zero`, and
+/// `copy_to_device` initialize every element on success; `try_as_slice` must
+/// not expose uninitialized elements; and failed operations must not make a
+/// previously initialized buffer invalid. The caller of `allocate` must
+/// initialize every element before invoking any operation that reads it.
+pub unsafe trait ComputeBackend: Send + Sync + Clone + 'static {
     /// Typed failure returned by fallible backend operation traits.
     type Error: std::error::Error + From<BackendError> + Send + Sync + 'static;
 
     /// Memory handle type representing device-allocated storage.
-    type DeviceBuffer<T: Scalar>: StorageMut<T>;
+    type DeviceBuffer<T: Scalar>: StorageMut<T, Error = Self::Error>;
 
     /// Descriptor / configuration params needed for launching/compiling pipelines on this backend.
     type KernelDescriptor;
@@ -45,24 +54,32 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
     /// Number of workers/threads.
     fn num_threads(&self) -> usize;
 
-    /// Allocate storage on the device (uninitialized).
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T>;
+    /// Allocate storage on the device without initializing its elements.
+    ///
+    /// # Safety
+    /// The caller must initialize every element before any operation reads the
+    /// returned buffer. An implementation must provide storage that is valid
+    /// for `len` elements and must not expose uninitialized elements through a
+    /// safe read operation.
+    unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error>;
 
     /// Allocate zero-initialized storage on the device.
     ///
     /// Backends with native zeroed allocation should override this method so
     /// construction does not require a separate fill pass.
     #[inline]
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        let mut dst = self.allocate(len);
-        self.fill_zero(&mut dst);
-        dst
+    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
+        // SAFETY: `fill_zero` initializes every element before `dst` is
+        // returned to the caller.
+        let mut dst = unsafe { self.allocate(len)? };
+        self.fill_zero(&mut dst)?;
+        Ok(dst)
     }
 
     /// Fill device buffer with a value.
     ///
     /// Other storage clones retain their values when this buffer is shared.
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T);
+    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) -> Result<(), Self::Error>;
 
     /// Fill a device buffer with the additive identity.
     ///
@@ -70,17 +87,37 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
     /// memset operation, avoiding destination-sized host staging.
     /// Other storage clones retain their values when this buffer is shared.
     #[inline]
-    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
-        self.fill(dst, T::zero());
+    fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
+        self.fill(dst, T::zero())
     }
 
     /// Copy data from host (CPU) memory to this device buffer.
     ///
     /// Other storage clones retain their values when this buffer is shared.
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>);
+    /// The source length must equal the destination length; an invalid length
+    /// is rejected before the destination is detached or written.
+    ///
+    /// # Errors
+    /// Returns a typed error when lengths differ, storage detachment fails, or
+    /// the backend rejects the transfer.
+    fn copy_to_device<T: Scalar>(
+        &self,
+        src: &[T],
+        dst: &mut Self::DeviceBuffer<T>,
+    ) -> Result<(), Self::Error>;
 
     /// Copy data from this device buffer to host (CPU) memory.
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]);
+    /// The destination length must equal the source length; an invalid length
+    /// is rejected before the destination is written.
+    ///
+    /// # Errors
+    /// Returns a typed error when lengths differ or the backend rejects the
+    /// transfer.
+    fn copy_to_host<T: Scalar>(
+        &self,
+        src: &Self::DeviceBuffer<T>,
+        dst: &mut [T],
+    ) -> Result<(), Self::Error>;
 }
 
 /// Trait for backend execution engines.

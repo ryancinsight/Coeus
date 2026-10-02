@@ -13,7 +13,7 @@ pub fn one_hot<T: Scalar, B: BackendOps<T> + Default>(
     indices: &Tensor<T, B>,
     num_classes: usize,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -24,7 +24,7 @@ where
         indices.ndim()
     );
     let n = indices.shape()[0];
-    let idx_cont = indices.to_contiguous();
+    let idx_cont = indices.to_contiguous()?;
     let idx_slice = idx_cont.as_slice();
     let mut data = vec![T::zero(); n * num_classes];
     for (row, &v) in idx_slice.iter().enumerate() {
@@ -49,7 +49,7 @@ pub fn masked_select<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     mask: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -60,8 +60,8 @@ where
         input.shape(),
         mask.shape()
     );
-    let in_cont = input.to_contiguous();
-    let m_cont = mask.to_contiguous();
+    let in_cont = input.to_contiguous()?;
+    let m_cont = mask.to_contiguous()?;
     let selected: Vec<T> = in_cont
         .as_slice()
         .iter()
@@ -81,8 +81,9 @@ mod tests {
     #[test]
     fn one_hot_basic() {
         let b = SequentialBackend::new();
-        let idx = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[0.0, 2.0, 1.0, 2.0]);
-        let oh = one_hot(&idx, 3, &b);
+        let idx = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[0.0, 2.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
+        let oh = one_hot(&idx, 3, &b).expect("invariant: test operation succeeds");
         assert_eq!(oh.shape(), &[4, 3]);
         assert_eq!(
             oh.as_slice(),
@@ -93,9 +94,11 @@ mod tests {
     #[test]
     fn masked_select_basic() {
         let b = SequentialBackend::new();
-        let x = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 2.0, 3.0, 4.0]);
-        let m = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[0.0, 1.0, 0.0, 1.0]);
-        let out = masked_select(&x, &m, &b);
+        let x = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[1.0, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let m = Tensor::<f32, SequentialBackend>::from_slice(vec![4], &[0.0, 1.0, 0.0, 1.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = masked_select(&x, &m, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2]);
         assert_eq!(out.as_slice(), &[2.0, 4.0]);
     }

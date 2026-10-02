@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{error::map_backend_error, tensor::PyTensor};
 use coeus_core::{ComputeBackend, MoiraiBackend};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -8,9 +8,9 @@ fn drop_axis_dim(
     inner: coeus_autograd::Var<f64, MoiraiBackend>,
     axis: usize,
     keepdim: bool,
-) -> coeus_autograd::Var<f64, MoiraiBackend> {
+) -> Result<coeus_autograd::Var<f64, MoiraiBackend>, coeus_core::BackendError> {
     if keepdim {
-        return inner;
+        return Ok(inner);
     }
     let mut shape = inner.tensor.shape().to_vec();
     shape.remove(axis);
@@ -48,13 +48,14 @@ pub fn std_dev(
         validate_stat_axis("std", input, ax)?;
         validate_stat_denominator("std", input.inner.tensor.shape()[ax], unbiased)?;
         let inner = py.allow_threads(|| coeus_autograd::std_dev_axis(&input.inner, ax, unbiased));
-        return Ok(PyTensor {
-            inner: drop_axis_dim(inner, ax, keepdim),
-        });
+        let inner = inner.map_err(map_backend_error)?;
+        return drop_axis_dim(inner, ax, keepdim)
+            .map(PyTensor::from_var)
+            .map_err(map_backend_error);
     }
     validate_stat_denominator("std", input.inner.tensor.numel(), unbiased)?;
     let inner = py.allow_threads(|| coeus_autograd::std_dev(&input.inner, unbiased));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -70,13 +71,14 @@ pub fn tensor_var(
         validate_stat_axis("var", input, ax)?;
         validate_stat_denominator("var", input.inner.tensor.shape()[ax], unbiased)?;
         let inner = py.allow_threads(|| coeus_autograd::var_axis(&input.inner, ax, unbiased));
-        return Ok(PyTensor {
-            inner: drop_axis_dim(inner, ax, keepdim),
-        });
+        let inner = inner.map_err(map_backend_error)?;
+        return drop_axis_dim(inner, ax, keepdim)
+            .map(PyTensor::from_var)
+            .map_err(map_backend_error);
     }
     validate_stat_denominator("var", input.inner.tensor.numel(), unbiased)?;
     let inner = py.allow_threads(|| coeus_autograd::var(&input.inner, unbiased));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -91,19 +93,22 @@ pub fn var_mean(
     if let Some(ax) = axis {
         validate_stat_axis("var_mean", input, ax)?;
         validate_stat_denominator("var_mean", input.inner.tensor.shape()[ax], unbiased)?;
-        let (v, mu) =
-            py.allow_threads(|| coeus_autograd::var_mean_axis(&input.inner, ax, unbiased));
+        let (v, mu) = py
+            .allow_threads(|| coeus_autograd::var_mean_axis(&input.inner, ax, unbiased))
+            .map_err(map_backend_error)?;
         return Ok((
             PyTensor {
-                inner: drop_axis_dim(v, ax, keepdim),
+                inner: drop_axis_dim(v, ax, keepdim).map_err(map_backend_error)?,
             },
             PyTensor {
-                inner: drop_axis_dim(mu, ax, keepdim),
+                inner: drop_axis_dim(mu, ax, keepdim).map_err(map_backend_error)?,
             },
         ));
     }
     validate_stat_denominator("var_mean", input.inner.tensor.numel(), unbiased)?;
-    let (v, mu) = py.allow_threads(|| coeus_autograd::var_mean(&input.inner, unbiased));
+    let (v, mu) = py
+        .allow_threads(|| coeus_autograd::var_mean(&input.inner, unbiased))
+        .map_err(map_backend_error)?;
     Ok((PyTensor::from_var(v), PyTensor::from_var(mu)))
 }
 
@@ -119,26 +124,29 @@ pub fn std_mean(
     if let Some(ax) = axis {
         validate_stat_axis("std_mean", input, ax)?;
         validate_stat_denominator("std_mean", input.inner.tensor.shape()[ax], unbiased)?;
-        let (sd, mu) =
-            py.allow_threads(|| coeus_autograd::std_mean_axis(&input.inner, ax, unbiased));
+        let (sd, mu) = py
+            .allow_threads(|| coeus_autograd::std_mean_axis(&input.inner, ax, unbiased))
+            .map_err(map_backend_error)?;
         return Ok((
             PyTensor {
-                inner: drop_axis_dim(sd, ax, keepdim),
+                inner: drop_axis_dim(sd, ax, keepdim).map_err(map_backend_error)?,
             },
             PyTensor {
-                inner: drop_axis_dim(mu, ax, keepdim),
+                inner: drop_axis_dim(mu, ax, keepdim).map_err(map_backend_error)?,
             },
         ));
     }
     validate_stat_denominator("std_mean", input.inner.tensor.numel(), unbiased)?;
-    let (sd, mu) = py.allow_threads(|| coeus_autograd::std_mean(&input.inner, unbiased));
+    let (sd, mu) = py
+        .allow_threads(|| coeus_autograd::std_mean(&input.inner, unbiased))
+        .map_err(map_backend_error)?;
     Ok((PyTensor::from_var(sd), PyTensor::from_var(mu)))
 }
 
 #[pyfunction]
-pub fn norm(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn norm(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::norm(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -163,7 +171,9 @@ pub fn vector_norm(
     }
     if let Some(ax) = axis {
         validate_stat_axis("vector_norm", input, ax)?;
-        let inner = py.allow_threads(|| coeus_autograd::norm_p_axis(&input.inner, ord, ax));
+        let inner = py
+            .allow_threads(|| coeus_autograd::norm_p_axis(&input.inner, ord, ax))
+            .map_err(map_backend_error)?;
         let squeezed = if keepdim {
             inner
         } else {
@@ -172,12 +182,12 @@ pub fn vector_norm(
             if shape.is_empty() {
                 shape = vec![1];
             }
-            coeus_autograd::reshape(&inner, shape)
+            coeus_autograd::reshape(&inner, shape).map_err(map_backend_error)?
         };
         return Ok(PyTensor { inner: squeezed });
     }
     let inner = py.allow_threads(|| coeus_autograd::norm_p(&input.inner, ord));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -188,10 +198,11 @@ pub fn topk(
     dim: usize,
     largest: bool,
     py: Python<'_>,
-) -> (PyTensor, PyTensor) {
-    let (vals_var, idx_var) =
-        py.allow_threads(|| coeus_autograd::topk(&input.inner, k, dim, largest));
-    (PyTensor { inner: vals_var }, PyTensor { inner: idx_var })
+) -> PyResult<(PyTensor, PyTensor)> {
+    let (vals_var, idx_var) = py
+        .allow_threads(|| coeus_autograd::topk(&input.inner, k, dim, largest))
+        .map_err(map_backend_error)?;
+    Ok((PyTensor { inner: vals_var }, PyTensor { inner: idx_var }))
 }
 
 #[pyfunction]
@@ -201,10 +212,11 @@ pub fn sort(
     dim: usize,
     descending: bool,
     py: Python<'_>,
-) -> (PyTensor, PyTensor) {
-    let (sorted_var, idx_var) =
-        py.allow_threads(|| coeus_autograd::sort(&input.inner, dim, descending));
-    (PyTensor { inner: sorted_var }, PyTensor { inner: idx_var })
+) -> PyResult<(PyTensor, PyTensor)> {
+    let (sorted_var, idx_var) = py
+        .allow_threads(|| coeus_autograd::sort(&input.inner, dim, descending))
+        .map_err(map_backend_error)?;
+    Ok((PyTensor { inner: sorted_var }, PyTensor { inner: idx_var }))
 }
 
 fn validate_stat_axis(op: &str, input: &PyTensor, axis: usize) -> PyResult<()> {
@@ -249,7 +261,7 @@ pub fn clip_grad_norm_(
     for p in &parameters {
         let p_ref = p.bind(py).borrow();
         if let Some(g) = p_ref.inner.grad() {
-            let cont = g.to_contiguous();
+            let cont = g.to_contiguous().map_err(map_backend_error)?;
             grad_data.extend_from_slice(cont.as_slice());
         }
     }
@@ -277,11 +289,15 @@ pub fn clip_grad_norm_(
             // Apply scale in-place via host round-trip.
             let numel = grad_tensor.numel();
             let mut host = vec![0.0f64; numel];
-            backend.copy_to_host(grad_tensor.storage(), &mut host);
+            backend
+                .copy_to_host(grad_tensor.storage(), &mut host)
+                .map_err(map_backend_error)?;
             for v in &mut host {
                 *v *= scale;
             }
-            backend.copy_to_device(&host, grad_tensor.storage_mut());
+            backend
+                .copy_to_device(&host, grad_tensor.storage_mut().map_err(map_backend_error)?)
+                .map_err(map_backend_error)?;
         }
     }
     Ok(global_norm)
@@ -311,11 +327,15 @@ pub fn clip_grad_value_(
         // Clamp in-place via copy-to-host + clamp + copy-back.
         let numel = grad_tensor.numel();
         let mut host = vec![0.0f64; numel];
-        backend.copy_to_host(grad_tensor.storage(), &mut host);
+        backend
+            .copy_to_host(grad_tensor.storage(), &mut host)
+            .map_err(map_backend_error)?;
         for v in &mut host {
             *v = v.clamp(-clip_value, clip_value);
         }
-        backend.copy_to_device(&host, grad_tensor.storage_mut());
+        backend
+            .copy_to_device(&host, grad_tensor.storage_mut().map_err(map_backend_error)?)
+            .map_err(map_backend_error)?;
     }
     Ok(())
 }

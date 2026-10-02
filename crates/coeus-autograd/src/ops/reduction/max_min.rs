@@ -61,19 +61,19 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 
         let max_broad = self.max_tensor.broadcast(self.input_tensor.shape_cloned());
 
-        let eps = Tensor::full_on(self.input_tensor.shape(), T::from_f64(1e-30), &backend);
-        let diff = coeus_ops::sub(&self.input_tensor, &max_broad, &backend);
-        let abs_diff = coeus_ops::abs(&diff, &backend);
-        let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
+        let eps = Tensor::full_on(self.input_tensor.shape(), T::from_f64(1e-30), &backend)?;
+        let diff = coeus_ops::sub(&self.input_tensor, &max_broad, &backend)?;
+        let abs_diff = coeus_ops::abs(&diff, &backend)?;
+        let shifted = coeus_ops::sub(&eps, &abs_diff, &backend)?;
         let mask_raw =
             coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad)?;
 
         let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend)?;
         let tie_broad = tie_count.broadcast(self.input_tensor.shape_cloned());
-        let mask = coeus_ops::div(&mask_raw, &tie_broad, &backend);
+        let mask = coeus_ops::div(&mask_raw, &tie_broad, &backend)?;
 
         let grad_broad = grad_out.broadcast(self.input_tensor.shape_cloned());
-        let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend);
+        let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend)?;
 
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_in, &backend)?;
@@ -88,18 +88,19 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = coeus_ops::max_axis(&a.tensor, axis, &backend)
-        .expect("invariant: max_axis input axis is validated");
+    let out_tensor = coeus_ops::max_axis(&a.tensor, axis, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
     let creator = requires_grad.then(|| {
         let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
@@ -111,11 +112,11 @@ pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
             axis,
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 // ── MinAxisNode ────────────────────────────────────────────────────────────
@@ -156,17 +157,17 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         };
 
         let min_broad = self.min_tensor.broadcast(self.input_tensor.shape_cloned());
-        let eps = Tensor::full_on(self.input_tensor.shape(), T::from_f64(1e-30), &backend);
-        let diff = coeus_ops::sub(&self.input_tensor, &min_broad, &backend);
-        let abs_diff = coeus_ops::abs(&diff, &backend);
-        let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
+        let eps = Tensor::full_on(self.input_tensor.shape(), T::from_f64(1e-30), &backend)?;
+        let diff = coeus_ops::sub(&self.input_tensor, &min_broad, &backend)?;
+        let abs_diff = coeus_ops::abs(&diff, &backend)?;
+        let shifted = coeus_ops::sub(&eps, &abs_diff, &backend)?;
         let mask_raw =
             coeus_ops::elementwise_unary(&shifted, &backend, coeus_ops::UnaryOp::ReluGrad)?;
         let tie_count = coeus_ops::sum_axis(&mask_raw, self.axis, &backend)?;
         let tie_broad = tie_count.broadcast(self.input_tensor.shape_cloned());
-        let mask = coeus_ops::div(&mask_raw, &tie_broad, &backend);
+        let mask = coeus_ops::div(&mask_raw, &tie_broad, &backend)?;
         let grad_broad = grad_out.broadcast(self.input_tensor.shape_cloned());
-        let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend);
+        let grad_in = coeus_ops::mul(&grad_broad, &mask, &backend)?;
 
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_in, &backend)?;
@@ -181,18 +182,19 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = coeus_ops::min_axis(&a.tensor, axis, &backend)
-        .expect("invariant: min_axis input axis is validated");
+    let out_tensor = coeus_ops::min_axis(&a.tensor, axis, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(a);
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
     let creator = requires_grad.then(|| {
         let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
@@ -204,9 +206,9 @@ pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
             axis,
         }) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

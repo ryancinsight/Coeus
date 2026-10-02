@@ -4,8 +4,11 @@
 // Output layout: `[N, C, L_out]`
 // L_out = (L + 2*padding - dilation*(kernel_size-1) - 1) / stride + 1
 
+use super::validation::{readable_storage, validate_backward, validate_forward, PoolParameters};
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, Storage,
+};
 
 // ── Max Pool 1D forward ──
 
@@ -20,17 +23,29 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let n = input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let out_numel = validate_forward::<1>(
+        "max_pool1d",
+        input_layout,
+        input.len(),
+        output_layout,
+        output.len(),
+        parameters,
+    )?;
     let c = input_layout.shape()[1];
     let l = input_layout.shape()[2];
     let l_out = output_layout.shape()[2];
-    let out_numel = n * c * l_out;
-
-    let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let input_slice = readable_storage("max_pool1d", input)?;
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -74,6 +89,7 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, max_val.unwrap_or(T::zero()));
         }
     });
+    Ok(())
 }
 
 // ── Max Pool 1D backward ──
@@ -91,18 +107,33 @@ pub(crate) fn max_pool1d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let n = input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let counts = validate_backward::<1>(
+        "max_pool1d_backward",
+        input_layout,
+        input.len(),
+        grad_out_layout,
+        grad_out.len(),
+        grad_input_layout,
+        grad_input.len(),
+        parameters,
+    )?;
+    let out_numel = counts.output;
     let c = input_layout.shape()[1];
     let l = input_layout.shape()[2];
     let l_out = grad_out_layout.shape()[2];
-    let out_numel = n * c * l_out;
-
-    let input_slice = input.as_slice();
-    let grad_out_slice = grad_out.as_slice();
-    let grad_input_slice = grad_input.as_mut_slice();
+    let input_slice = readable_storage("max_pool1d_backward", input)?;
+    let grad_out_slice = readable_storage("max_pool1d_backward", grad_out)?;
+    let grad_input_slice = grad_input.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let grad_out_ptr = Ptr(grad_out_slice.as_ptr());
@@ -155,6 +186,7 @@ pub(crate) fn max_pool1d_backward<T: Scalar, B: Backend>(
         }
     }
     let _ = backend; // backend unused in sequential backward
+    Ok(())
 }
 
 // ── Avg Pool 1D forward ──
@@ -170,17 +202,29 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
     dilation: usize,
     output: &mut B::DeviceBuffer<T>,
     output_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let n = input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let out_numel = validate_forward::<1>(
+        "avg_pool1d",
+        input_layout,
+        input.len(),
+        output_layout,
+        output.len(),
+        parameters,
+    )?;
     let c = input_layout.shape()[1];
     let l = input_layout.shape()[2];
     let l_out = output_layout.shape()[2];
-    let out_numel = n * c * l_out;
-
-    let input_slice = input.as_slice();
-    let output_slice = output.as_mut_slice();
+    let input_slice = readable_storage("avg_pool1d", input)?;
+    let output_slice = output.as_mut_slice()?;
 
     let input_ptr = Ptr(input_slice.as_ptr());
     let output_ptr = MutPtr(output_slice.as_mut_ptr());
@@ -223,6 +267,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
             output_ptr.write(output_idx, mean);
         }
     });
+    Ok(())
 }
 
 // ── Avg Pool 1D backward ──
@@ -238,17 +283,32 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
     dilation: usize,
     grad_input: &mut B::DeviceBuffer<T>,
     grad_input_layout: &Layout,
-) where
+) -> Result<(), B::Error>
+where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let n = grad_input_layout.shape()[0];
+    let parameters = PoolParameters {
+        kernel_size,
+        stride,
+        padding,
+        dilation,
+    };
+    let counts = validate_backward::<1>(
+        "avg_pool1d_backward",
+        grad_input_layout,
+        grad_input.len(),
+        grad_out_layout,
+        grad_out.len(),
+        grad_input_layout,
+        grad_input.len(),
+        parameters,
+    )?;
+    let out_numel = counts.output;
     let c = grad_input_layout.shape()[1];
     let l = grad_input_layout.shape()[2];
     let l_out = grad_out_layout.shape()[2];
-    let out_numel = n * c * l_out;
-
-    let grad_out_slice = grad_out.as_slice();
-    let grad_input_slice = grad_input.as_mut_slice();
+    let grad_out_slice = readable_storage("avg_pool1d_backward", grad_out)?;
+    let grad_input_slice = grad_input.as_mut_slice()?;
 
     let grad_out_ptr = Ptr(grad_out_slice.as_ptr());
     let grad_input_ptr = MutPtr(grad_input_slice.as_mut_ptr());
@@ -296,4 +356,5 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
         }
     }
     let _ = backend;
+    Ok(())
 }

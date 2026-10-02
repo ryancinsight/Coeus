@@ -28,12 +28,13 @@ where
         let numel = a_layout.numel();
         let mut a_host = vec![T::zero(); numel];
         let mut b_host = vec![T::zero(); numel];
-        self.copy_to_host(a, &mut a_host);
-        self.copy_to_host(b, &mut b_host);
+        self.copy_to_host(a, &mut a_host)?;
+        self.copy_to_host(b, &mut b_host)?;
         let mut out_host = vec![T::zero(); numel];
         coeus_ops::cross_fold(&a_host, &b_host, a_layout, dim, &mut out_host);
-        let mut output = self.allocate(numel);
-        self.copy_to_device(&out_host, &mut output);
+        // SAFETY: copy_to_device uploads every element of the completed output.
+        let mut output = unsafe { self.allocate(numel)? };
+        self.copy_to_device(&out_host, &mut output)?;
         Ok(output)
     }
 }

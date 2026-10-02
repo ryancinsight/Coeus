@@ -1,5 +1,6 @@
 // ── Python-exposed StateDict class wrapping weight/bias checkpoints ──
 
+use crate::error::map_backend_error;
 use pyo3::prelude::*;
 
 /// Python-exposed StateDict class wrapping weight/bias checkpoints.
@@ -22,10 +23,15 @@ impl PyStateDict {
         self.inner.insert(name, tensor.inner.tensor.clone());
     }
 
-    fn get(&self, name: &str) -> Option<super::PyTensor> {
-        self.inner.get(name).map(|t| super::PyTensor {
-            inner: coeus_autograd::Var::new(t.clone(), false),
-        })
+    fn get(&self, name: &str) -> PyResult<Option<super::PyTensor>> {
+        self.inner
+            .get(name)
+            .map(|tensor| {
+                coeus_autograd::Var::new(tensor.clone(), false)
+                    .map(super::PyTensor::from_var)
+                    .map_err(map_backend_error)
+            })
+            .transpose()
     }
 
     fn save(&self, path: &str) -> PyResult<()> {

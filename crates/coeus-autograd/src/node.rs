@@ -50,7 +50,7 @@ use std::sync::Arc;
 ///         if let Some(Some(ref g)) = input_grads.get(0) {
 ///             let go = grad_out.as_slice();
 ///             let gx = g.write();
-///             let gx_s = gx.as_mut_slice();
+///             let gx_s = gx.as_mut_slice()?;
 ///             for i in 0..gx_s.len() {
 ///                 // Real accumulation: grad_x[i] += c * grad_out[i]
 ///                 let c_val = T::from_f64(<T as Scalar>::to_f64(self.c));

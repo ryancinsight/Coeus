@@ -4,7 +4,8 @@ use crate::backend_ops::ops::ReductionOp;
 use crate::backend_ops::traits::ReductionOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ReductionOps<T> for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ReductionOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -29,10 +30,11 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
-        reduction::argmax(self, a, a_layout, axis, c, c_layout);
+        reduction::argmax(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -43,10 +45,11 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<i64>,
         c_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
-        reduction::argmin(self, a, a_layout, axis, c, c_layout);
+        reduction::argmin(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -61,7 +64,8 @@ where
         values_layout: &Layout,
         indices: &mut Self::DeviceBuffer<i64>,
         indices_layout: &Layout,
-    ) where
+    ) -> Result<(), Self::Error>
+    where
         T: leto_ops::Scalar,
     {
         reduction::topk(
@@ -75,7 +79,7 @@ where
             values_layout,
             indices,
             indices_layout,
-        );
+        )
     }
 
     #[inline]

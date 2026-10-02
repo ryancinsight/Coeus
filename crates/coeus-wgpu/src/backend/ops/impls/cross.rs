@@ -33,17 +33,21 @@ where
         let numel = a_layout.numel();
         if dim == a_layout.ndim().saturating_sub(1) && a_layout.is_contiguous() {
             return cross_product::<Self, T>(a.buffer(), b.buffer(), numel / 3)
-                .map(HephaestusStorage::from_buffer)
+                .map(|buffer| {
+                    // SAFETY: the cross-product kernel writes every output element.
+                    unsafe { HephaestusStorage::from_buffer(buffer) }
+                })
                 .map_err(|source| WgpuBackendError::dispatch("cross", source));
         }
         let mut a_host = vec![T::zero(); numel];
         let mut b_host = vec![T::zero(); numel];
-        self.copy_to_host(a, &mut a_host);
-        self.copy_to_host(b, &mut b_host);
+        self.copy_to_host(a, &mut a_host)?;
+        self.copy_to_host(b, &mut b_host)?;
         let mut out_host = vec![T::zero(); numel];
         coeus_ops::cross_fold(&a_host, &b_host, a_layout, dim, &mut out_host);
-        let mut output = self.allocate(numel);
-        self.copy_to_device(&out_host, &mut output);
+        // SAFETY: copy_to_device uploads every element of the completed output.
+        let mut output = unsafe { self.allocate(numel)? };
+        self.copy_to_device(&out_host, &mut output)?;
         Ok(output)
     }
 }

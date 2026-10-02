@@ -57,25 +57,25 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
         let backend = B::default();
         // d/dz: `z` in the quadratic region, `sign(z) * delta` in the linear
         // region, scaled by `grad_out / n`. Composed from provider ops only.
-        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
-        let quad = coeus_ops::mul(&self.diffs, &scale, &backend);
+        let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend)?;
+        let quad = coeus_ops::mul(&self.diffs, &scale, &backend)?;
         let delta_scale = coeus_ops::mul(
             &scale,
-            &Tensor::full_on(scale.shape_cloned(), self.delta, &backend),
+            &Tensor::full_on(scale.shape_cloned(), self.delta, &backend)?,
             &backend,
-        );
+        )?;
         let linear = coeus_ops::mul(
-            &coeus_ops::sign(&self.diffs, &backend),
+            &coeus_ops::sign(&self.diffs, &backend)?,
             &delta_scale,
             &backend,
-        );
+        )?;
         let d_pred = coeus_ops::where_cond(&self.quad_mask, &quad, &linear, &backend)?;
 
         if let Some(Some(ref g)) = input_grads.first() {
             coeus_ops::add_assign(g.write(), &d_pred, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(1) {
-            let d_target = coeus_ops::neg(&d_pred, &backend);
+            let d_target = coeus_ops::neg(&d_pred, &backend)?;
             coeus_ops::add_assign(g.write(), &d_target, &backend)?;
         }
         Ok(())
@@ -131,35 +131,35 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let shape = pred.tensor.shape_cloned();
 
     // z = pred - target, |z|, and the quadratic-region mask, all on-provider.
-    let diffs = coeus_ops::sub(&pred.tensor, &target.tensor, &backend);
-    let abs_z = coeus_ops::abs(&diffs, &backend);
-    let delta_tensor = Tensor::full_on([1], delta, &backend);
-    let quad_mask = coeus_ops::le(&abs_z, &delta_tensor.broadcast(shape.clone()), &backend);
+    let diffs = coeus_ops::sub(&pred.tensor, &target.tensor, &backend)?;
+    let abs_z = coeus_ops::abs(&diffs, &backend)?;
+    let delta_tensor = Tensor::full_on([1], delta, &backend)?;
+    let quad_mask = coeus_ops::le(&abs_z, &delta_tensor.broadcast(shape.clone()), &backend)?;
     // Classical Huber branch selection:
     //   quadratic: 0.5 * z²
     //   linear:    delta * |z| - 0.5 * delta²
     let half = T::from_f64(0.5);
     let half_sq = half * delta * delta;
     let quadratic = coeus_ops::mul(
-        &coeus_ops::mul(&diffs, &diffs, &backend),
-        &Tensor::full_on(shape.clone(), half, &backend),
+        &coeus_ops::mul(&diffs, &diffs, &backend)?,
+        &Tensor::full_on(shape.clone(), half, &backend)?,
         &backend,
-    );
+    )?;
     let linear = coeus_ops::sub(
-        &coeus_ops::mul(&abs_z, &delta_tensor.broadcast(shape.clone()), &backend),
-        &Tensor::full_on(shape.clone(), half_sq, &backend),
+        &coeus_ops::mul(&abs_z, &delta_tensor.broadcast(shape.clone()), &backend)?,
+        &Tensor::full_on(shape.clone(), half_sq, &backend)?,
         &backend,
-    );
+    )?;
     let per_elem = coeus_ops::where_cond(&quad_mask, &quadratic, &linear, &backend)?;
-    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)
-        .expect("invariant: validated non-empty Huber reduction has axis zero");
+    let loss = coeus_ops::mean_axis(&per_elem.reshape([n]), 0, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(pred);
     let grad = if requires_grad {
-        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))))
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
     } else {
         None
     };
+    let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend)?;
     let creator = if requires_grad {
         let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let node = HuberLossNode {
@@ -170,7 +170,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             delta,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale,
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {
@@ -190,9 +190,11 @@ mod tests {
 
     fn var_from(data: &[f64]) -> Var<f64, MoiraiBackend> {
         Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data),
+            Tensor::<f64, MoiraiBackend>::from_slice([data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
             true,
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
@@ -261,9 +263,11 @@ mod tests {
     fn huber_rejects_shape_mismatch() {
         let pred = var_from(&[1.0, 2.0]);
         let target = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([3], &[1.0, 2.0, 3.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([3], &[1.0, 2.0, 3.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         assert!(huber_loss(&pred, &target, 1.0).is_err());
     }
 

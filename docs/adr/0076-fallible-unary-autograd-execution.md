@@ -1,19 +1,20 @@
 # ADR 0076: Fallible unary autograd execution
 
-Status: Proposed  \
+Status: Accepted  \
 Date: 2026-09-27  \
 Change class: [major] [arch]  \
-Board item: [COEUS-FALLIBLE-UNARY-EXECUTION](../../backlog.md#coeus-fallible-unary-execution)
+Delivery: Item `COEUS-FALLIBLE-STORAGE-CORE` (`git log --grep='^Item: COEUS-FALLIBLE-STORAGE-CORE'`)
+Revision 2026-09-29: implemented the signature and caller migration with fallible storage.
 
 ## Context
 
 `coeus-ops`'s elementwise unary functions (`sin`, `cos`, `exp`, `log`, `neg`,
 `abs`, `sqrt`, `recip`, `sign`, `floor`, `ceil`, `round`, `trunc`, and the
-twelve reverted in this session's `fix/coeus-expect-typed-error` — `erf`,
+twelve identified in the original probe — `erf`,
 `erfc`, `tan`, `asin`, `acos`, `atan`, `log2`, `log10`, `exp2`, `atanh`,
 `asinh`, `acosh`) all discard the backend's `Result` via
 `elementwise_unary(...).expect("<op>")`, turning any device/allocator failure
-into an unconditional panic. `COEUS-EXPECT-SWALLOWED-RESULTS` set out to widen
+into an unconditional panic. The original backlog audit proposed widening
 these signatures to `Result<Tensor<T, B>, B::Error>`.
 
 An attempt to widen the second twelve (unpushed, since reverted) proved that
@@ -45,19 +46,15 @@ tensor before it is added into the gradient buffer) is the infallible link in
 that chain. So the gap is exactly two trait methods and the wrapper functions
 built on them, not the graph engine itself.
 
-`COEUS-FALLIBLE-TENSOR-STORAGE` (unscoped: 2,781 textual constructor
-candidates across 406 files at last audit) will make `Tensor` construction
-and copy-on-write itself fallible. `UnaryAutogradOp::forward` constructs a new
-tensor on every call; landing unary fallibility first would thread a
-`B::Error`-only result through ~44 implementors and every caller, then redo
-the same signatures again once storage construction adds its own failure
-variants. Sequencing unary after storage means one signature change per
-call site instead of two.
+`COEUS-FALLIBLE-TENSOR-STORAGE` made `Tensor` construction and copy-on-write
+fallible in the same delivery. `UnaryAutogradOp::forward` constructs a new
+tensor on every call, so the unified cutover changed each affected signature
+once.
 
-## Decision (recommended)
+## Decision
 
-1. `COEUS-FALLIBLE-TENSOR-STORAGE` lands first (its own ADR, not this one).
-   `UnaryAutogradOp::forward`/`backward` widen to
+1. `COEUS-FALLIBLE-TENSOR-STORAGE` and the unary caller closure land together.
+   `UnaryAutogradOp::forward`/`backward` return
    `Result<Tensor<T, B>, B::Error>` in the same migration that makes `Tensor`
    construction fallible, so each affected signature changes exactly once.
 2. `unary_autograd!`'s generated `forward`/`backward`
@@ -106,19 +103,15 @@ not need this ADR's `UnaryAutogradOp` migration.
 
 ## Migration
 
-Dependency order: `COEUS-FALLIBLE-TENSOR-STORAGE` → this item → the twelve
-functions this session reverted (`erf`, `erfc`, `tan`, `asin`, `acos`, `atan`,
+The `COEUS-FALLIBLE-STORAGE-CORE` cutover migrates `COEUS-FALLIBLE-TENSOR-STORAGE` and these unary APIs in one
+caller closure. The twelve functions from the original probe (`erf`, `erfc`,
+`tan`, `asin`, `acos`, `atan`,
 `log2`, `log10`, `exp2`, `atanh`, `asinh`, `acosh`) and the remaining thirteen
 (`sin`, `cos`, `exp`, `log`, `neg`, `abs`, `sqrt`, `recip`, `sign`, `floor`,
 `ceil`, `round`, `trunc`) convert together, since both sets now share one
 `Result`-returning path with no infallible fallback to choose between them.
-Each `coeus_autograd::{op}` call site gains a `?` or an explicit match; this
-is mechanical once the trait signatures are fixed, but wide (~44 wrapper
-functions × their own callers) — split into dependency-ordered per-crate
-slices (`coeus-autograd` internal composites first, then `coeus-nn`, then
-`coeus-python`) under the standard review budget, per `sprint`'s Mikado
-method: probe one wrapper's signature change, let `cargo check` enumerate
-every broken call site, file each crate's fix-out as its own leaf item.
+Each `coeus_autograd::{op}` call site propagates with `?` or maps the typed
+backend error at its public boundary, including `coeus-nn` and `coeus-python`.
 
 ## Verification and limits
 
@@ -129,7 +122,7 @@ channel instead of panicking; a gradcheck-style value-semantic test confirms
 the same op's gradient is unaffected when the backend succeeds. Negative: the
 existing gradcheck suite (`crates/coeus-autograd/tests/autograd/gradcheck/`)
 continues to pass with `?` substituted for the removed panics — a widened
-signature must not change any already-verified gradient value. Not yet
-verified here (belongs to the implementation PRs): the actual forced-failure
-fixture backend, and whichever `B::Error` variant `COEUS-FALLIBLE-TENSOR-
-STORAGE` settles on for the unary path to wrap.
+signature must not change any already-verified gradient value. The
+storage cutover verifies the value and gradient paths through the migrated caller closure.
+The forced-allocation-failure fixture and device-matrix evidence remain
+tracked by `COEUS-FALLIBLE-UNARY-EXECUTION` in `backlog.md`.

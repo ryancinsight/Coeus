@@ -1,4 +1,4 @@
-use crate::tensor::PyTensor;
+use crate::{error::map_backend_error, tensor::PyTensor};
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
@@ -6,73 +6,83 @@ use pyo3::prelude::*;
 
 #[pyfunction]
 #[pyo3(signature = (input, axis, keepdim = false))]
-pub fn sum_axis(input: &PyTensor, axis: usize, keepdim: bool, py: Python<'_>) -> PyTensor {
+pub fn sum_axis(
+    input: &PyTensor,
+    axis: usize,
+    keepdim: bool,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| {
-        let out = coeus_autograd::sum_axis(&input.inner, axis);
+        let out = coeus_autograd::sum_axis(&input.inner, axis)?;
         if keepdim {
-            out
+            Ok(out)
         } else {
             // sum_axis always keeps the dim; squeeze it if keepdim=False.
             coeus_autograd::squeeze(&out, Some(axis))
         }
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
 #[pyo3(signature = (input, axis, keepdim = false))]
-pub fn mean_axis(input: &PyTensor, axis: usize, keepdim: bool, py: Python<'_>) -> PyTensor {
+pub fn mean_axis(
+    input: &PyTensor,
+    axis: usize,
+    keepdim: bool,
+    py: Python<'_>,
+) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| {
-        let out = coeus_autograd::mean_axis(&input.inner, axis);
+        let out = coeus_autograd::mean_axis(&input.inner, axis)?;
         if keepdim {
-            out
+            Ok(out)
         } else {
             coeus_autograd::squeeze(&out, Some(axis))
         }
     });
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn log_softmax(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
+pub fn log_softmax(input: &PyTensor, axis: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::log_softmax(&input.inner, axis));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn cumsum(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
+pub fn cumsum(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::cumsum(&input.inner, dim));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn max_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
+pub fn max_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::max_axis(&input.inner, axis));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn min_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
+pub fn min_axis(input: &PyTensor, axis: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::min_axis(&input.inner, axis));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn log_sum_exp(input: &PyTensor, axis: usize, py: Python<'_>) -> PyTensor {
+pub fn log_sum_exp(input: &PyTensor, axis: usize, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::log_sum_exp(&input.inner, axis));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn sum(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn sum(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::sum(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
-pub fn mean(input: &PyTensor, py: Python<'_>) -> PyTensor {
+pub fn mean(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     let inner = py.allow_threads(|| coeus_autograd::mean(&input.inner));
-    PyTensor::from_var(inner)
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -84,18 +94,18 @@ pub fn argmax(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor
         )));
     }
     let backend = MoiraiBackend::new();
-    let idx_i64 =
-        py.allow_threads(|| coeus_ops::argmax::<f64, MoiraiBackend>(&input.inner.tensor, dim));
-    let data: Vec<f64> = idx_i64
+    let idx_i64 = py
+        .allow_threads(|| coeus_ops::argmax::<f64, MoiraiBackend>(&input.inner.tensor, dim))
+        .map_err(map_backend_error)?;
+    let contiguous = idx_i64
         .to_contiguous_on(&backend)
-        .as_slice()
-        .iter()
-        .map(|&x| x as f64)
-        .collect();
-    let t = Tensor::<f64, MoiraiBackend>::from_slice(idx_i64.shape().to_vec(), &data);
-    Ok(PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    })
+        .map_err(map_backend_error)?;
+    let data: Vec<f64> = contiguous.as_slice().iter().map(|&x| x as f64).collect();
+    let t = Tensor::<f64, MoiraiBackend>::from_slice(idx_i64.shape().to_vec(), &data)
+        .map_err(map_backend_error)?;
+    coeus_autograd::Var::new(t, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -107,18 +117,18 @@ pub fn argmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTensor
         )));
     }
     let backend = MoiraiBackend::new();
-    let idx_i64 =
-        py.allow_threads(|| coeus_ops::argmin::<f64, MoiraiBackend>(&input.inner.tensor, dim));
-    let data: Vec<f64> = idx_i64
+    let idx_i64 = py
+        .allow_threads(|| coeus_ops::argmin::<f64, MoiraiBackend>(&input.inner.tensor, dim))
+        .map_err(map_backend_error)?;
+    let contiguous = idx_i64
         .to_contiguous_on(&backend)
-        .as_slice()
-        .iter()
-        .map(|&x| x as f64)
-        .collect();
-    let t = Tensor::<f64, MoiraiBackend>::from_slice(idx_i64.shape().to_vec(), &data);
-    Ok(PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    })
+        .map_err(map_backend_error)?;
+    let data: Vec<f64> = contiguous.as_slice().iter().map(|&x| x as f64).collect();
+    let t = Tensor::<f64, MoiraiBackend>::from_slice(idx_i64.shape().to_vec(), &data)
+        .map_err(map_backend_error)?;
+    coeus_autograd::Var::new(t, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -153,13 +163,14 @@ pub fn prod(input: &PyTensor, py: Python<'_>) -> PyResult<PyTensor> {
     // (nothing to track).
     if input.inner.tensor.numel() == 0 {
         let backend = MoiraiBackend::new();
-        return Ok(PyTensor::from_var(coeus_autograd::Var::new(
-            coeus_tensor::Tensor::from_slice_on(vec![1], &[1.0f64], &backend),
-            false,
-        )));
+        let tensor = coeus_tensor::Tensor::from_slice_on(vec![1], &[1.0f64], &backend)
+            .map_err(map_backend_error)?;
+        return coeus_autograd::Var::new(tensor, false)
+            .map(PyTensor::from_var)
+            .map_err(map_backend_error);
     }
     let inner = py.allow_threads(|| coeus_autograd::prod(&input.inner));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 #[pyfunction]
@@ -171,7 +182,7 @@ pub fn cumprod(input: &PyTensor, dim: usize, py: Python<'_>) -> PyResult<PyTenso
         )));
     }
     let inner = py.allow_threads(|| coeus_autograd::cumprod(&input.inner, dim));
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Lp-normalize `input` along `dim`.
@@ -201,12 +212,13 @@ pub fn normalize(
     }
     let x = input.inner.clone();
     let inner = py.allow_threads(move || {
-        let norms = coeus_autograd::norm_p_axis(&x, p, dim);
-        let shifted_norms = coeus_autograd::scalar_sub(&norms, eps);
-        let norms_clamped = coeus_autograd::scalar_add(&coeus_autograd::relu(&shifted_norms), eps);
+        let norms = coeus_autograd::norm_p_axis(&x, p, dim)?;
+        let shifted_norms = coeus_autograd::scalar_sub(&norms, eps)?;
+        let positive_norms = coeus_autograd::relu(&shifted_norms)?;
+        let norms_clamped = coeus_autograd::scalar_add(&positive_norms, eps)?;
         coeus_autograd::div(&x, &norms_clamped)
     });
-    Ok(PyTensor::from_var(inner))
+    inner.map(PyTensor::from_var).map_err(map_backend_error)
 }
 
 /// Element-wise closeness test.
@@ -229,8 +241,8 @@ pub fn isclose(
             b.inner.tensor.shape()
         )));
     }
-    let av = a.inner.tensor.to_contiguous();
-    let bv = b.inner.tensor.to_contiguous();
+    let av = a.inner.tensor.to_contiguous().map_err(map_backend_error)?;
+    let bv = b.inner.tensor.to_contiguous().map_err(map_backend_error)?;
     let as_ = av.as_slice();
     let bs = bv.as_slice();
     let data: Vec<f64> = as_
@@ -246,10 +258,11 @@ pub fn isclose(
         })
         .collect();
     let _ = py;
-    let t = Tensor::<f64, MoiraiBackend>::from_slice(a.inner.tensor.shape().to_vec(), &data);
-    Ok(PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    })
+    let t = Tensor::<f64, MoiraiBackend>::from_slice(a.inner.tensor.shape().to_vec(), &data)
+        .map_err(map_backend_error)?;
+    coeus_autograd::Var::new(t, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 /// Returns `true` if all elements are element-wise close.
@@ -265,7 +278,11 @@ pub fn allclose(
     py: Python<'_>,
 ) -> PyResult<bool> {
     let close = isclose(a, b, rtol, atol, py)?;
-    let data = close.inner.tensor.to_contiguous();
+    let data = close
+        .inner
+        .tensor
+        .to_contiguous()
+        .map_err(map_backend_error)?;
     Ok(data.as_slice().iter().all(|&v| v != 0.0))
 }
 
@@ -280,30 +297,34 @@ pub fn nan_to_num(
     posinf: Option<f64>,
     neginf: Option<f64>,
     py: Python<'_>,
-) -> PyTensor {
+) -> PyResult<PyTensor> {
     let pos_val = posinf.unwrap_or(f64::MAX);
     let neg_val = neginf.unwrap_or(f64::MIN);
     let x = input.inner.clone();
-    let data = py.allow_threads(move || {
-        let cont = x.tensor.to_contiguous();
-        cont.as_slice()
-            .iter()
-            .map(|&v| {
-                if v.is_nan() {
-                    nan
-                } else if v.is_infinite() && v > 0.0 {
-                    pos_val
-                } else if v.is_infinite() && v < 0.0 {
-                    neg_val
-                } else {
-                    v
-                }
-            })
-            .collect::<Vec<f64>>()
-    });
+    let data = py
+        .allow_threads(move || {
+            let cont = x.tensor.to_contiguous()?;
+            Ok::<_, coeus_core::BackendError>(
+                cont.as_slice()
+                    .iter()
+                    .map(|&v| {
+                        if v.is_nan() {
+                            nan
+                        } else if v.is_infinite() && v > 0.0 {
+                            pos_val
+                        } else if v.is_infinite() && v < 0.0 {
+                            neg_val
+                        } else {
+                            v
+                        }
+                    })
+                    .collect::<Vec<f64>>(),
+            )
+        })
+        .map_err(map_backend_error)?;
     let shape = input.inner.tensor.shape().to_vec();
-    let t = Tensor::<f64, MoiraiBackend>::from_slice(shape, &data);
-    PyTensor {
-        inner: coeus_autograd::Var::new(t, false),
-    }
+    let t = Tensor::<f64, MoiraiBackend>::from_slice(shape, &data).map_err(map_backend_error)?;
+    coeus_autograd::Var::new(t, false)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }

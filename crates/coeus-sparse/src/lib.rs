@@ -26,8 +26,10 @@ use coeus_tensor::Tensor;
 /// use coeus_core::Shape;
 /// use coeus_tensor::Tensor;
 ///
-/// let indices = Tensor::<i64>::from_slice([2, 2], &[0, 1, 1, 2]); // (0,0) and (1,2)
-/// let values = Tensor::<f32>::from_slice([2], &[5.0, 7.0]);
+/// let indices = Tensor::<i64>::from_slice([2, 2], &[0, 1, 1, 2])
+///     .expect("example index allocation succeeds"); // (0,0) and (1,2)
+/// let values = Tensor::<f32>::from_slice([2], &[5.0, 7.0])
+///     .expect("example value allocation succeeds");
 /// let coo = CooTensor::new(Shape::from(vec![2, 3]), indices, values);
 /// assert_eq!(coo.nnz(), 2);
 /// assert_eq!(coo.shape().as_ref(), &[2, 3]);
@@ -52,8 +54,10 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let indices = Tensor::<i64>::from_slice([2, 1], &[1, 0]); // entry at (1,0)
-    /// let values = Tensor::<f32>::from_slice([1], &[3.0]);
+    /// let indices = Tensor::<i64>::from_slice([2, 1], &[1, 0])
+    ///     .expect("example index allocation succeeds"); // entry at (1,0)
+    /// let values = Tensor::<f32>::from_slice([1], &[3.0])
+    ///     .expect("example value allocation succeeds");
     /// let coo = CooTensor::new(Shape::from(vec![2, 2]), indices, values);
     /// assert_eq!(coo.nnz(), 1);
     /// ```
@@ -92,8 +96,10 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let indices = Tensor::<i64>::from_slice([2, 1], &[0, 0]);
-    /// let values = Tensor::<f32>::from_slice([1], &[1.0]);
+    /// let indices = Tensor::<i64>::from_slice([2, 1], &[0, 0])
+    ///     .expect("example index allocation succeeds");
+    /// let values = Tensor::<f32>::from_slice([1], &[1.0])
+    ///     .expect("example value allocation succeeds");
     /// let coo = CooTensor::new(Shape::from(vec![3, 4]), indices, values);
     /// assert_eq!(coo.shape().as_ref(), &[3, 4]);
     /// ```
@@ -123,8 +129,10 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let indices = Tensor::<i64>::from_slice([2, 3], &[0, 1, 0, 0, 1, 2]);
-    /// let values = Tensor::<f32>::from_slice([3], &[1.0, 2.0, 3.0]);
+    /// let indices = Tensor::<i64>::from_slice([2, 3], &[0, 1, 0, 0, 1, 2])
+    ///     .expect("example index allocation succeeds");
+    /// let values = Tensor::<f32>::from_slice([3], &[1.0, 2.0, 3.0])
+    ///     .expect("example value allocation succeeds");
     /// let coo = CooTensor::new(Shape::from(vec![2, 3]), indices, values);
     /// assert_eq!(coo.nnz(), 3);
     /// ```
@@ -146,9 +154,12 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
 /// use coeus_tensor::Tensor;
 ///
 /// // Matrix: [[1,0,0],[0,0,2],[0,3,0]]
-/// let values = Tensor::<f32>::from_slice([3], &[1.0, 2.0, 3.0]);
-/// let col_indices = Tensor::<i64>::from_slice([3], &[0, 2, 1]);
-/// let row_offsets = Tensor::<i64>::from_slice([4], &[0, 1, 2, 3]);
+/// let values = Tensor::<f32>::from_slice([3], &[1.0, 2.0, 3.0])
+///     .expect("example value allocation succeeds");
+/// let col_indices = Tensor::<i64>::from_slice([3], &[0, 2, 1])
+///     .expect("example column allocation succeeds");
+/// let row_offsets = Tensor::<i64>::from_slice([4], &[0, 1, 2, 3])
+///     .expect("example row allocation succeeds");
 /// let csr = CsrTensor::new(Shape::from(vec![3, 3]), values, col_indices, row_offsets);
 /// assert_eq!(csr.nnz(), 3);
 /// assert_eq!(csr.shape().as_ref(), &[3, 3]);
@@ -176,9 +187,12 @@ impl<T: Scalar, B: ComputeBackend> CsrTensor<T, B> {
     /// use coeus_tensor::Tensor;
     ///
     /// // 2×2 identity matrix
-    /// let values = Tensor::<f32>::from_slice([2], &[1.0, 1.0]);
-    /// let col_indices = Tensor::<i64>::from_slice([2], &[0, 1]);
-    /// let row_offsets = Tensor::<i64>::from_slice([3], &[0, 1, 2]);
+    /// let values = Tensor::<f32>::from_slice([2], &[1.0, 1.0])
+    ///     .expect("example value allocation succeeds");
+    /// let col_indices = Tensor::<i64>::from_slice([2], &[0, 1])
+    ///     .expect("example column allocation succeeds");
+    /// let row_offsets = Tensor::<i64>::from_slice([3], &[0, 1, 2])
+    ///     .expect("example row allocation succeeds");
     /// let csr = CsrTensor::new(Shape::from(vec![2, 2]), values, col_indices, row_offsets);
     /// assert_eq!(csr.nnz(), 2);
     /// ```
@@ -219,9 +233,12 @@ impl<T: Scalar, B: ComputeBackend> CsrTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let values = Tensor::<f32>::from_slice([1], &[5.0]);
-    /// let col_indices = Tensor::<i64>::from_slice([1], &[1]);
-    /// let row_offsets = Tensor::<i64>::from_slice([3], &[0, 1, 1]);
+    /// let values = Tensor::<f32>::from_slice([1], &[5.0])
+    ///     .expect("example value allocation succeeds");
+    /// let col_indices = Tensor::<i64>::from_slice([1], &[1])
+    ///     .expect("example column allocation succeeds");
+    /// let row_offsets = Tensor::<i64>::from_slice([3], &[0, 1, 1])
+    ///     .expect("example row allocation succeeds");
     /// let csr = CsrTensor::new(Shape::from(vec![2, 3]), values, col_indices, row_offsets);
     /// assert_eq!(csr.shape().as_ref(), &[2, 3]);
     /// ```
@@ -257,9 +274,12 @@ impl<T: Scalar, B: ComputeBackend> CsrTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let values = Tensor::<f32>::from_slice([2], &[1.0, 2.0]);
-    /// let col_indices = Tensor::<i64>::from_slice([2], &[0, 1]);
-    /// let row_offsets = Tensor::<i64>::from_slice([3], &[0, 1, 2]);
+    /// let values = Tensor::<f32>::from_slice([2], &[1.0, 2.0])
+    ///     .expect("example value allocation succeeds");
+    /// let col_indices = Tensor::<i64>::from_slice([2], &[0, 1])
+    ///     .expect("example column allocation succeeds");
+    /// let row_offsets = Tensor::<i64>::from_slice([3], &[0, 1, 2])
+    ///     .expect("example row allocation succeeds");
     /// let csr = CsrTensor::new(Shape::from(vec![2, 2]), values, col_indices, row_offsets);
     /// assert_eq!(csr.nnz(), 2);
     /// ```

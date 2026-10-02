@@ -6,7 +6,8 @@ use hephaestus_core::{
 };
 use hephaestus_wgpu::{WgpuAxisReductionOps, WgpuScanOps, Wgsl};
 
-impl<T> ReductionProvider<T> for WgpuBackend
+// SAFETY: Provider reductions and scans overwrite every logical output on success without reading prior contents.
+unsafe impl<T> ReductionProvider<T> for WgpuBackend
 where
     T: WgpuScalar
         + leto_ops::Scalar
@@ -29,7 +30,8 @@ where
     type ScanOperations = WgpuScanOps;
 }
 
-impl<T> coeus_ops::ReductionOps<T> for WgpuBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::ReductionOps<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
     WgpuBackend: ReductionProvider<T>,
@@ -44,9 +46,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<WgpuBackend>::new()
-            .reduce(op, a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().reduce(op, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -61,9 +61,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<WgpuBackend>::new()
-            .cumsum(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().cumsum(a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -78,9 +76,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<WgpuBackend>::new()
-            .suffix_sum(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().suffix_sum(a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -95,9 +91,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<WgpuBackend>::new()
-            .cumprod(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().cumprod(a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -112,8 +106,6 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<WgpuBackend>::new()
-            .suffix_prod(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<WgpuBackend>::new().suffix_prod(a, a_layout, axis, c, c_layout)
     }
 }

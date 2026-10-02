@@ -14,10 +14,20 @@ fn test_poisson_nll() {
     let ys = [2.0_f64, 0.0, 3.0];
     let n = zs.len() as f64;
 
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &zs), true);
-    let target = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([3], &ys), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &zs)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &ys)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = poisson_nll(&input, &target);
+    let loss = poisson_nll(&input, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
 
     let mut expected = 0.0;
@@ -64,15 +74,19 @@ fn test_kl_divergence_loss() {
     let input_data = [0.25_f64.ln(), 0.75_f64.ln()];
     let target_data = [0.25_f64, 0.75_f64];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &target_data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = kl_divergence(&input, &target);
+    let loss = kl_divergence(&input, &target).expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!(loss.tensor.as_slice()[0].abs() <= 2.0 * f64::EPSILON);
 
@@ -92,19 +106,26 @@ fn test_gaussian_nll_loss() {
     //   i1: 0.5*(1/2     + ln 2  ) = 0.5*(0.5 + 0.6931472) =  0.5965736
     //   mean = 0.25.
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let target = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.5, 1.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.5, 1.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let var = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.5, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.5, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let loss = gaussian_nll_loss(&input, &target, &var, false);
+    let loss = gaussian_nll_loss(&input, &target, &var, false)
+        .expect("invariant: test operation succeeds");
     assert_eq!(loss.tensor.shape(), &[1]);
     assert!((loss.tensor.as_slice()[0] - 0.25).abs() < 1e-12);
 
@@ -118,10 +139,13 @@ fn test_gaussian_nll_loss() {
 
     // full=true adds the constant 0.5*ln(2π) (mean of a per-element constant).
     let input2 = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
-    let loss_full = gaussian_nll_loss(&input2, &target, &var, true);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let loss_full = gaussian_nll_loss(&input2, &target, &var, true)
+        .expect("invariant: test operation succeeds");
     let expected_full = 0.25 + 0.5 * (2.0 * std::f64::consts::PI).ln();
     assert!((loss_full.tensor.as_slice()[0] - expected_full).abs() < 1e-12);
 }

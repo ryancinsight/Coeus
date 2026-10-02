@@ -15,20 +15,25 @@ fn key_padding_mask_zeroes_padded_key_gradients() {
     const EPSILON: f32 = 1e-5;
 
     let backend = MoiraiBackend;
-    let q = Tensor::<f32, MoiraiBackend>::ones_on([HEADS, QUERY_LENGTH, HEAD_WIDTH], &backend);
-    let k = Tensor::<f32, MoiraiBackend>::ones_on([HEADS, KEY_LENGTH, HEAD_WIDTH], &backend);
-    let v = Tensor::<f32, MoiraiBackend>::ones_on([HEADS, KEY_LENGTH, HEAD_WIDTH], &backend);
-    let q_var = Var::new(q, true);
-    let k_var = Var::new(k, true);
-    let v_var = Var::new(v, true);
+    let q = Tensor::<f32, MoiraiBackend>::ones_on([HEADS, QUERY_LENGTH, HEAD_WIDTH], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let k = Tensor::<f32, MoiraiBackend>::ones_on([HEADS, KEY_LENGTH, HEAD_WIDTH], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let v = Tensor::<f32, MoiraiBackend>::ones_on([HEADS, KEY_LENGTH, HEAD_WIDTH], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let q_var = Var::new(q, true).expect("invariant: test backend operation succeeds");
+    let k_var = Var::new(k, true).expect("invariant: test backend operation succeeds");
+    let v_var = Var::new(v, true).expect("invariant: test backend operation succeeds");
     let mask = Var::new(
         Tensor::<f32, MoiraiBackend>::from_slice_on(
             [1, KEY_LENGTH],
             &[1.0, 1.0, 0.0, 0.0],
             &backend,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let (output, _) = coeus_autograd::sdp_attention::<f32, MoiraiBackend, NullMask>(
         &q_var,
@@ -39,6 +44,7 @@ fn key_padding_mask_zeroes_padded_key_gradients() {
     )
     .expect("valid masked attention fixture");
     coeus_autograd::sum(&output)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid attention graph completes backward");
 

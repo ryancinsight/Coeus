@@ -17,7 +17,10 @@ where
 {
     let input = variable::<T, B>(logs, [2, 1, 2]);
     let initial = <T as Scalar>::from_f64(0.75);
-    input.set_grad(Tensor::from_slice([2, 1, 2], &[initial; 4]));
+    input.set_grad(
+        Tensor::from_slice([2, 1, 2], &[initial; 4])
+            .expect("invariant: test backend operation succeeds"),
+    );
     let error = match ctc_loss(&input, targets, input_lengths, target_lengths, blank) {
         Err(error) => error,
         Ok(_) => panic!("invalid CTC fixture must return a typed error"),
@@ -98,11 +101,17 @@ where
     // and cannot fit in two frames. Rejection must precede *all* accumulation.
     let input = variable::<T, B>(&probability_logs::<T>(&[0.5; 8]), [2, 2, 2]);
     let initial = <T as Scalar>::from_f64(0.75);
-    input.set_grad(Tensor::from_slice([2, 2, 2], &[initial; 8]));
+    input.set_grad(
+        Tensor::from_slice([2, 2, 2], &[initial; 8])
+            .expect("invariant: test backend operation succeeds"),
+    );
     let loss = ctc_loss(&input, &[1, 1, 1], &[2, 2], &[1, 2], 0)
         .expect("invariant: impossible alignments have a defined infinite forward loss");
     assert_eq!(loss.tensor.as_slice(), &[<T as Float>::INFINITY]);
-    match loss.backward_with_seed(Tensor::from_slice([1], &[count::<T>(2)])) {
+    match loss.backward_with_seed(
+        Tensor::from_slice([1], &[count::<T>(2)])
+            .expect("invariant: test backend operation succeeds"),
+    ) {
         Err(BackendError::UndefinedGradient { sample, .. }) => assert_eq!(sample, 1),
         result => panic!("impossible path must reject its derivative: {result:?}"),
     }
@@ -116,7 +125,10 @@ where
 
     // A structurally feasible target with zero probability is also undefined.
     let input = variable::<T, B>(&[T::zero(), <T as Float>::NEG_INFINITY], [1, 1, 2]);
-    input.set_grad(Tensor::from_slice([1, 1, 2], &[initial; 2]));
+    input.set_grad(
+        Tensor::from_slice([1, 1, 2], &[initial; 2])
+            .expect("invariant: test backend operation succeeds"),
+    );
     let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
         .expect("invariant: zero-probability paths retain infinite forward loss");
     assert_eq!(loss.tensor.as_slice(), &[<T as Float>::INFINITY]);

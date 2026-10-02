@@ -2,7 +2,9 @@
 //! error instead of a panic or an unbounded wait.
 
 use coeus_core::SequentialBackend;
-use coeus_dist::{Communicator, MeshDeadlines, Sum, TcpCommunicator, TcpMesh, TcpMeshError};
+use coeus_dist::{
+    CollectiveError, Communicator, MeshDeadlines, Sum, TcpCommunicator, TcpMesh, TcpMeshError,
+};
 use coeus_tensor::Tensor;
 use std::io::ErrorKind;
 use std::num::NonZeroUsize;
@@ -40,7 +42,8 @@ fn all_reduce_after_a_peer_is_lost_fails_on_every_survivor() {
             .map(|comm| {
                 scope.spawn(move || {
                     let backend = SequentialBackend::new();
-                    let mut tensor = Tensor::from_slice_on([2], &[1.0_f32, 2.0], &backend);
+                    let mut tensor = Tensor::from_slice_on([2], &[1.0_f32, 2.0], &backend)
+                        .expect("invariant: test backend operation succeeds");
                     comm.all_reduce::<f32, _, Sum>(&mut tensor, &backend)
                 })
             })
@@ -53,12 +56,12 @@ fn all_reduce_after_a_peer_is_lost_fails_on_every_survivor() {
 
     for (rank, (outcome, expected_peer)) in outcomes.into_iter().zip([2, 0]).enumerate() {
         match outcome {
-            Err(TcpMeshError::Recv {
+            Err(CollectiveError::Communicator(TcpMeshError::Recv {
                 rank: reporting,
                 peer,
                 source,
                 ..
-            }) => {
+            })) => {
                 assert_eq!(reporting, rank);
                 assert_eq!(peer, expected_peer, "rank {rank} names the peer it lost");
                 assert_eq!(source.kind(), ErrorKind::UnexpectedEof, "rank {rank}");

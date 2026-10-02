@@ -25,7 +25,7 @@ pub fn tril<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     k: isize,
     _backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -73,7 +73,7 @@ pub fn triu<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     k: isize,
     _backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -117,12 +117,13 @@ mod tests {
             vec![3, 3],
             &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
         )
+        .expect("invariant: test backend operation succeeds")
     }
 
     #[test]
     fn tril_k0_zeroes_above_main_diagonal() {
         let b = SequentialBackend::new();
-        let out = tril(&mat(), 0, &b);
+        let out = tril(&mat(), 0, &b).expect("invariant: test operation succeeds");
         assert_eq!(
             out.as_slice(),
             &[1.0, 0.0, 0.0, 4.0, 5.0, 0.0, 7.0, 8.0, 9.0]
@@ -132,7 +133,7 @@ mod tests {
     #[test]
     fn tril_k1_keeps_one_superdiagonal() {
         let b = SequentialBackend::new();
-        let out = tril(&mat(), 1, &b);
+        let out = tril(&mat(), 1, &b).expect("invariant: test operation succeeds");
         assert_eq!(
             out.as_slice(),
             &[1.0, 2.0, 0.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
@@ -142,7 +143,7 @@ mod tests {
     #[test]
     fn tril_k_neg1_zeroes_main_and_above() {
         let b = SequentialBackend::new();
-        let out = tril(&mat(), -1, &b);
+        let out = tril(&mat(), -1, &b).expect("invariant: test operation succeeds");
         assert_eq!(
             out.as_slice(),
             &[0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 7.0, 8.0, 0.0]
@@ -152,7 +153,7 @@ mod tests {
     #[test]
     fn triu_k0_zeroes_below_main_diagonal() {
         let b = SequentialBackend::new();
-        let out = triu(&mat(), 0, &b);
+        let out = triu(&mat(), 0, &b).expect("invariant: test operation succeeds");
         assert_eq!(
             out.as_slice(),
             &[1.0, 2.0, 3.0, 0.0, 5.0, 6.0, 0.0, 0.0, 9.0]
@@ -162,7 +163,7 @@ mod tests {
     #[test]
     fn triu_k1_zeroes_main_and_below() {
         let b = SequentialBackend::new();
-        let out = triu(&mat(), 1, &b);
+        let out = triu(&mat(), 1, &b).expect("invariant: test operation succeeds");
         assert_eq!(
             out.as_slice(),
             &[0.0, 2.0, 3.0, 0.0, 0.0, 6.0, 0.0, 0.0, 0.0]
@@ -172,9 +173,15 @@ mod tests {
     #[test]
     fn tril_triu_together_isolate_main_diagonal() {
         let b = SequentialBackend::new();
-        let l = tril(&mat(), 0, &b);
+        let l = tril(&mat(), 0, &b).expect("invariant: test operation succeeds");
         // triu(tril(x, 0), 0) picks out only the diagonal
-        let diag = triu(&Tensor::from_slice(vec![3, 3], l.as_slice()), 0, &b);
+        let diag = triu(
+            &Tensor::from_slice(vec![3, 3], l.as_slice())
+                .expect("invariant: test backend operation succeeds"),
+            0,
+            &b,
+        )
+        .expect("invariant: test operation succeeds");
         assert_eq!(
             diag.as_slice(),
             &[1.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 9.0]

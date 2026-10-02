@@ -13,9 +13,8 @@ verification, tightening, feature}.
 - Scope: head refs of the PRs below; no board or code change until a PR is claimed.
 - PRs (draft parking records, unclaimed; head ref is the only durable copy):
   - `ryancinsight/coeus#469` (`rescue/audit-coeus-20260928`): 2 audit commits (module-root splits, crate-level allow removal, RNG unit fix); 68 files, +2309/-2430, code across `coeus-ops`, `coeus-nn`, `coeus-autograd`, `coeus-python` and 7 other crates.
-  - `ryancinsight/coeus#464` (`rescue/coeus-fallible-storage-core-recovery`): 6 commits of the unverified fallible-storage migration preserved from PR #461 (storage seam, COW failures, caller propagation); 584 files, +19839/-11005, code across 15 crates plus one ADR. Overlaps [COEUS-FALLIBLE-STORAGE-CORE](#coeus-fallible-storage-core) and its dependent leaves; port per those leaves' scopes.
 - Acceptance: no open `rescue/` PR for this repository remains unaccounted for; a port's resolved diff against `main` is either integrated and verified by the committed gate or empty (landed-work proof), never closed on resemblance.
-- Needs: none for #469; #464 is claimed through the storage leaves above.
+- Needs: none.
 - Next step: `git diff $(git merge-base origin/main <head>) <head>` per PR, port onto a fresh branch from `main`, run the package gates.
 
 <a id="coeus-fallible-unary-execution"></a>
@@ -25,9 +24,9 @@ verification, tightening, feature}.
 - Outcome: provider failures reach callers without input-dependent panics for shared unary autograd execution.
 - Scope: `UnaryAutogradOp::forward`/`backward` (`coeus-autograd/src/ops/activation/mod.rs`), `unary_op`, and their ~44 implementors' public wrappers (macro-emitted and hand-written) across `coeus-autograd`, `coeus-nn`, `coeus-python`. Confirmed by falsification, not estimate: an unpushed, since-reverted attempt at widening `coeus-ops`'s unary functions alone broke `coeus-autograd` at exactly these 44 call sites — `UnaryAutogradOp` is infallible by trait contract even though the lower `BackwardNode::backward` already returns `Result`.
 - Acceptance: complete caller migration, typed failure/gradient tests, full native/device gates, SemVer classification with an updated ADR.
-- Needs: [fallible tensor storage](#coeus-fallible-tensor-storage) — its allocation/COW cutover must include the unary, derivative arithmetic and NN/Python callers it makes fallible; landing unary first would touch the same ~44 signatures twice.
+- Needs: none; the storage allocation/COW caller cutover landed under `Item: COEUS-FALLIBLE-STORAGE-CORE`.
 - Non-goal: resurrect superseded dependency pins or storage implementations.
-- Next step: [ADR 0076](adr/0076-fallible-unary-autograd-execution.md) (Proposed) drafts the recommended migration order and rejected alternatives; implement per it once `COEUS-FALLIBLE-TENSOR-STORAGE` lands.
+- Next step: add a forced backend-allocation failure fixture for unary forward/backward, then run the gradient and device gates against the migrated signatures in [ADR 0076](docs/adr/0076-fallible-unary-autograd-execution.md).
 
 <a id="coeus-fallible-index-reduction"></a>
 ## COEUS-FALLIBLE-INDEX-REDUCTION — Return index-reduction failures
@@ -35,55 +34,10 @@ verification, tightening, feature}.
 - Status: todo; priority: correctness; [major].
 - Outcome: malformed argmax/argmin requests return typed errors through their complete caller chain.
 - Scope: index-reduction backend trait methods, CPU/provider implementations, mathematical/Python callers; preserve index conventions and tie behavior.
-- Evidence: `coeus-ops/src/backend_ops/cpu_impl/reduction.rs` expects fallible Leto argmax/argmin results; current trait methods return no error (source finding, not an executed reproduction).
+- Evidence: the `COEUS-FALLIBLE-STORAGE-CORE` cutover changes argmax/argmin provider methods and public callers to typed `Result`; failure-injection coverage remains to close the item.
 - Acceptance: malformed layouts/axes reject before output writes, retain clone values, propagate typed errors; valid ties/boundaries retain exact expected indices.
-- Needs: coordinate with [fallible storage](#coeus-fallible-tensor-storage) for allocation propagation; reserve the governing ADR and migration before implementation.
-- Next step: draft the ADR, then implement after `coeus-fallible-tensor-storage` lands.
-
-<a id="coeus-fallible-tensor-storage"></a>
-## COEUS-FALLIBLE-TENSOR-STORAGE — Propagate tensor storage failures
-
-- Status: todo; priority: correctness; [major] [arch].
-- Outcome: allocation, zero-fill and copy-on-write failures reach typed callers.
-- Scope: `ComputeBackend` storage methods, Tensor constructors/materialization (`alloc_on`/`zeros_on` in `crates/coeus-tensor/src/tensor.rs` still return `Self`, not `Result`), provider implementations and their complete caller closure.
-- Acceptance: no provider-error expects on the migrated paths; real malformed-size/layout/device error tests; no partial writes claimed as whole-graph rollback.
-- Needs: [CPU ownership correction](#coeus-cpu-storage-ownership) (done); driver for [unary](#coeus-fallible-unary-execution) and [index-reduction](#coeus-fallible-index-reduction) consumers.
-- Next step: reserve an ADR; constructor search found 2,781 textual candidates in 406 files at last audit — scope the cutover before implementation.
-
-The migration is decomposed into these dependency ordered leaves:
-
-<a id="coeus-fallible-storage-core"></a>
-## COEUS-FALLIBLE-STORAGE-CORE — Make backend storage operations fallible
-
-- Status: todo; priority: correctness; [major] [arch].
-- Outcome: `ComputeBackend` allocation, fill, and transfer methods return typed errors and every provider implements the contract.
-- Scope: `crates/coeus-core/src/backend`, `crates/coeus-core/src/storage`, and provider backend implementations.
-- Acceptance: malformed sizes and provider failures return typed errors; valid CPU/provider operations retain values; no CPU fallback or partial output.
-- Needs: [CPU ownership correction](#coeus-cpu-storage-ownership) (done).
-- Next step: change the existing trait methods in place and run the provider compile closure.
-- Links: [ADR 0078](docs/adr/0078-fallible-tensor-storage.md), parent [COEUS-FALLIBLE-TENSOR-STORAGE](#coeus-fallible-tensor-storage).
-
-<a id="coeus-fallible-storage-tensor"></a>
-## COEUS-FALLIBLE-STORAGE-TENSOR — Make tensor constructors fallible
-
-- Status: todo; priority: correctness; [major].
-- Outcome: tensor allocation, zero-fill, constant-fill, and host-copy constructors return the backend error.
-- Scope: `crates/coeus-tensor/src/tensor.rs` and direct tensor constructor tests.
-- Acceptance: shape validation precedes allocation; failed allocation/fill/copy returns the exact error; successful construction preserves values and COW semantics.
-- Needs: [COEUS-FALLIBLE-STORAGE-CORE](#coeus-fallible-storage-core).
-- Next step: widen the existing constructor names and let the checker enumerate direct callers.
-- Links: [ADR 0078](docs/adr/0078-fallible-tensor-storage.md), parent [COEUS-FALLIBLE-TENSOR-STORAGE](#coeus-fallible-tensor-storage).
-
-<a id="coeus-fallible-storage-callers"></a>
-## COEUS-FALLIBLE-STORAGE-CALLERS — Propagate tensor construction failures
-
-- Status: todo; priority: correctness; [major].
-- Outcome: all operation, autograd, NN, optimizer, distributed, and Python callers propagate tensor storage errors.
-- Scope: consumer crates named by the compile closure from the tensor constructor leaf.
-- Acceptance: no migrated constructor result is discarded; valid value semantics remain unchanged; provider failure fixtures reach typed public boundaries.
-- Needs: [COEUS-FALLIBLE-STORAGE-TENSOR](#coeus-fallible-storage-tensor).
-- Next step: run the compile probe and file any crate-level leaves before editing shared callers.
-- Links: [ADR 0078](docs/adr/0078-fallible-tensor-storage.md), parent [COEUS-FALLIBLE-TENSOR-STORAGE](#coeus-fallible-tensor-storage).
+- Needs: none; storage allocation propagation landed under `Item: COEUS-FALLIBLE-STORAGE-CORE`.
+- Next step: add malformed-layout and forced-provider-failure tests for argmax/argmin, then run the CPU and device parity gates.
 
 <a id="coeus-device-output-ownership"></a>
 ## COEUS-DEVICE-OUTPUT-OWNERSHIP — Collect the device/hardware verification half
@@ -99,10 +53,10 @@ The migration is decomposed into these dependency ordered leaves:
 ## ATLAS-COEUS-SAFETY-001 — Hephaestus provider device-acquisition panics
 
 - Status: todo; priority: correctness; [major] [arch].
-- Outcome: ROCm/Metal provider device acquisition and Hephaestus fill/transfer return typed errors instead of panicking inside a library boundary.
-- Evidence (still present): `crates/coeus-rocm/src/backend/provider.rs:34` and `crates/coeus-metal/src/backend/provider.rs:30` call `.expect(...)` inside `OnceLock::get_or_init`; the generic Hephaestus `ComputeBackend` also uses `expect` for fill and host/device transfers.
+- Outcome: every provider-backed operation and copy-on-write detachment reports provider acquisition, allocation, and transfer failures instead of panicking inside a library boundary.
+- Evidence: the `COEUS-FALLIBLE-STORAGE-CORE` cutover makes storage allocation and `StorageMut::make_unique` fallible. Coeus provider-operation dispatch still calls `P::device()` across elementwise, convolution, pooling, matmul, unfold/fold, cross-entropy, attention, and stateful-update paths; ROCm and Metal `device()` still panic when acquisition fails.
 - Acceptance: value-semantic typed-error tests for unavailable devices and transfer failures; a production panic scan; provider feature gates on hosts with and without the required hardware; no CPU fallback or silent degradation.
-- Next step: draft the ADR for the fallible provider-initialization/transfer contract, then migrate every implementor and caller in dependency order.
+- Next step: draft the provider-acquisition ADR, then replace remaining operation-dispatch `P::device()` calls with typed `P::try_device()` propagation and add forced acquisition-failure coverage.
 - Note: deliberately outside the closed native-comparison-provider items — this is the separate public failure-boundary migration.
 
 <a id="coeus-sibling-named-crates"></a>

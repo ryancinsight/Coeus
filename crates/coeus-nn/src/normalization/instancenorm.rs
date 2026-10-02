@@ -50,14 +50,14 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     cache: &mut Option<InstanceNormCache<T, B>>,
     spatial: usize,
     eps: f64,
-) {
+) -> Result<(), B::Error> {
     let needs_rebuild = cache.as_ref().is_none_or(|c| c.spatial != spatial);
     if needs_rebuild {
         let backend = B::default();
-        let ln_weight = Var::new(Tensor::ones_on([spatial], &backend), false);
-        let ln_bias = Var::new(Tensor::zeros_on([spatial], &backend), false);
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let d_const = Tensor::full_on([1], T::from_f64(spatial as f64), &backend);
+        let ln_weight = Var::new(Tensor::ones_on([spatial], &backend)?, false)?;
+        let ln_bias = Var::new(Tensor::zeros_on([spatial], &backend)?, false)?;
+        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend)?;
+        let d_const = Tensor::full_on([1], T::from_f64(spatial as f64), &backend)?;
         *cache = Some(InstanceNormCache {
             spatial,
             ln_weight,
@@ -67,6 +67,7 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             ones_cache: RefCell::new(None),
         });
     }
+    Ok(())
 }
 
 // ── Shared normalization body ─────────────────────────────────────────────────
@@ -90,8 +91,8 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     let mean_t = coeus_ops::mean_axis(&flat.tensor, 1, &backend)
         .map_err(|source| validation::backend(MODULE, source))?; // [N*C, 1]
-    let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend);
-    let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend);
+    let xmu = coeus_ops::sub(&flat.tensor, &mean_t, &backend)?;
+    let xmu_sq = coeus_ops::mul(&xmu, &xmu, &backend)?;
     let mut stdev = coeus_ops::mean_axis(&xmu_sq, 1, &backend)
         .map_err(|source| validation::backend(MODULE, source))?; // population var
     coeus_ops::add_assign(&mut stdev, &cache.eps_t, &backend)
@@ -107,7 +108,7 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         match &*o_cache {
             Some((cached_n, ref cached_ones)) if *cached_n == n_channels => cached_ones.clone(),
             _ => {
-                let ones = Tensor::ones_on([n_channels, 1], &backend);
+                let ones = Tensor::ones_on([n_channels, 1], &backend)?;
                 *o_cache = Some((n_channels, ones.clone()));
                 ones
             }
@@ -117,11 +118,11 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     coeus_ops::div_assign(&mut istdev, &stdev, &backend)
         .map_err(|source| validation::backend(MODULE, source))?;
 
-    let x_hat = coeus_ops::mul(&xmu, &istdev, &backend);
+    let x_hat = coeus_ops::mul(&xmu, &istdev, &backend)?;
 
     let w_reshaped = cache.ln_weight.tensor.reshape([1, spatial]);
     let b_reshaped = cache.ln_bias.tensor.reshape([1, spatial]);
-    let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend);
+    let mut out_tensor = coeus_ops::mul(&x_hat, &w_reshaped, &backend)?;
     coeus_ops::add_assign(&mut out_tensor, &b_reshaped, &backend)
         .map_err(|source| validation::backend(MODULE, source))?;
 
@@ -133,15 +134,15 @@ fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         x_hat,
         istdev,
         cache.d_const.clone(),
-    );
+    )?;
 
     let mut bshape = vec![1usize; orig_shape.len()];
     bshape[1] = c;
-    let normed = coeus_autograd::reshape(&normed_flat, orig_shape);
-    let wv = coeus_autograd::reshape(weight, bshape.as_slice());
-    let bv = coeus_autograd::reshape(bias, bshape.as_slice());
-    let scaled = coeus_autograd::mul(&normed, &wv);
-    Ok(coeus_autograd::add(&scaled, &bv))
+    let normed = coeus_autograd::reshape(&normed_flat, orig_shape)?;
+    let wv = coeus_autograd::reshape(weight, bshape.as_slice())?;
+    let bv = coeus_autograd::reshape(bias, bshape.as_slice())?;
+    let scaled = coeus_autograd::mul(&normed, &wv)?;
+    Ok(coeus_autograd::add(&scaled, &bv)?)
 }
 
 // ── Generic layer ─────────────────────────────────────────────────────────────
@@ -172,15 +173,18 @@ pub struct InstanceNorm<
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> InstanceNorm<T, B, DIM> {
     /// Create an `InstanceNorm` layer for `DIM` spatial dimensions.
-    pub fn new(num_features: usize, eps: f64) -> Self {
+    pub fn new(
+        num_features: usize,
+        eps: f64,
+    ) -> Result<Self, crate::init::InitializationError<B::Error>> {
         let backend = B::default();
-        Self {
-            weight: Var::new(Tensor::ones_on([num_features], &backend), true),
-            bias: Var::new(Tensor::zeros_on([num_features], &backend), true),
+        Ok(Self {
+            weight: Var::new(Tensor::ones_on([num_features], &backend)?, true)?,
+            bias: Var::new(Tensor::zeros_on([num_features], &backend)?, true)?,
             num_features,
             eps,
             cache: RefCell::new(None),
-        }
+        })
     }
 }
 
@@ -223,13 +227,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T
         // Spatial extent is the product of the trailing axes; the empty product
         // for the `[N, C]` form is the degenerate spatial size 1.
         let spatial: usize = shape[2..].iter().product();
-        let flat = coeus_autograd::reshape(input, [n * c, spatial]);
+        let flat = coeus_autograd::reshape(input, [n * c, spatial])?;
 
         let mut cache = self
             .cache
             .try_borrow_mut()
             .map_err(|_| validation::state_borrow(module, "cache"))?;
-        ensure_cache::<T, B>(&mut *cache, spatial, self.eps);
+        ensure_cache::<T, B>(&mut *cache, spatial, self.eps)?;
         let Some(cache) = cache.as_ref() else {
             unreachable!("invariant: ensure_cache initializes the InstanceNorm cache")
         };
@@ -252,8 +256,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T
 /// use coeus_tensor::Tensor;
 /// use coeus_core::SequentialBackend;
 ///
-/// let in1 = InstanceNorm1d::<f32, SequentialBackend>::new(4, 1e-5);
-/// let x = Var::new(Tensor::ones_on([2, 4, 8], &SequentialBackend::new()), false);
+/// let in1 = InstanceNorm1d::<f32, SequentialBackend>::new(4, 1e-5)
+///     .expect("invariant: example channel count and epsilon are valid");
+/// let x = Var::new(
+///     Tensor::ones_on([2, 4, 8], &SequentialBackend::new())
+///         .expect("invariant: example shape allocation succeeds"),
+///     false,
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 /// let y = in1.forward(&x).expect("valid InstanceNorm1d input");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 8]);
 /// ```
@@ -271,8 +280,13 @@ pub type InstanceNorm1d<T, B = MoiraiBackend> = InstanceNorm<T, B, 1>;
 /// use coeus_tensor::Tensor;
 /// use coeus_core::SequentialBackend;
 ///
-/// let in2 = InstanceNorm2d::<f32, SequentialBackend>::new(4, 1e-5);
-/// let x = Var::new(Tensor::ones_on([2, 4, 8, 8], &SequentialBackend::new()), false);
+/// let in2 = InstanceNorm2d::<f32, SequentialBackend>::new(4, 1e-5)
+///     .expect("invariant: example channel count and epsilon are valid");
+/// let x = Var::new(
+///     Tensor::ones_on([2, 4, 8, 8], &SequentialBackend::new())
+///         .expect("invariant: example shape allocation succeeds"),
+///     false,
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 /// let y = in2.forward(&x).expect("valid InstanceNorm2d input");
 /// assert_eq!(y.tensor.shape(), &[2, 4, 8, 8]);
 /// ```
@@ -290,8 +304,13 @@ pub type InstanceNorm2d<T, B = MoiraiBackend> = InstanceNorm<T, B, 2>;
 /// use coeus_tensor::Tensor;
 /// use coeus_core::SequentialBackend;
 ///
-/// let in3 = InstanceNorm3d::<f32, SequentialBackend>::new(4, 1e-5);
-/// let x = Var::new(Tensor::ones_on([1, 4, 4, 4, 4], &SequentialBackend::new()), false);
+/// let in3 = InstanceNorm3d::<f32, SequentialBackend>::new(4, 1e-5)
+///     .expect("invariant: example channel count and epsilon are valid");
+/// let x = Var::new(
+///     Tensor::ones_on([1, 4, 4, 4, 4], &SequentialBackend::new())
+///         .expect("invariant: example shape allocation succeeds"),
+///     false,
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 /// let y = in3.forward(&x).expect("valid InstanceNorm3d input");
 /// assert_eq!(y.tensor.shape(), &[1, 4, 4, 4, 4]);
 /// ```

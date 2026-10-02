@@ -75,9 +75,10 @@ impl PyModuleList {
     }
 
     /// Zero gradients in all child modules.
-    pub fn zero_grad(&self, py: Python<'_>) {
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
         for module in &self.modules {
-            let _ = module.bind(py).call_method0("zero_grad");
+            module.bind(py).call_method0("zero_grad")?;
         }
+        Ok(())
     }
 }

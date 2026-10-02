@@ -144,21 +144,21 @@ pub fn multi_head_attention_cross<
     let seq_q = dimensions.seq_q;
     let seq_k = dimensions.seq_k;
 
-    let q_proj = project_3d(query, params.w_q, params.b_q, batch, seq_q, d_model);
-    let k_proj = project_3d(key, params.w_k, params.b_k, batch, seq_k, d_model);
-    let v_proj = project_3d(value, params.w_v, params.b_v, batch, seq_k, d_model);
+    let q_proj = project_3d(query, params.w_q, params.b_q, batch, seq_q, d_model)?;
+    let k_proj = project_3d(key, params.w_k, params.b_k, batch, seq_k, d_model)?;
+    let v_proj = project_3d(value, params.w_v, params.b_v, batch, seq_k, d_model)?;
 
-    let q_split = coeus_autograd::reshape(&q_proj, [batch, seq_q, H, d_head]);
-    let k_split = coeus_autograd::reshape(&k_proj, [batch, seq_k, H, d_head]);
-    let v_split = coeus_autograd::reshape(&v_proj, [batch, seq_k, H, d_head]);
+    let q_split = coeus_autograd::reshape(&q_proj, [batch, seq_q, H, d_head])?;
+    let k_split = coeus_autograd::reshape(&k_proj, [batch, seq_k, H, d_head])?;
+    let v_split = coeus_autograd::reshape(&v_proj, [batch, seq_k, H, d_head])?;
 
-    let q_perm = coeus_autograd::permute(&q_split, &[0, 2, 1, 3]);
-    let k_perm = coeus_autograd::permute(&k_split, &[0, 2, 1, 3]);
-    let v_perm = coeus_autograd::permute(&v_split, &[0, 2, 1, 3]);
+    let q_perm = coeus_autograd::permute(&q_split, &[0, 2, 1, 3])?;
+    let k_perm = coeus_autograd::permute(&k_split, &[0, 2, 1, 3])?;
+    let v_perm = coeus_autograd::permute(&v_split, &[0, 2, 1, 3])?;
 
-    let q_heads = coeus_autograd::reshape(&q_perm, [batch * H, seq_q, d_head]);
-    let k_heads = coeus_autograd::reshape(&k_perm, [batch * H, seq_k, d_head]);
-    let v_heads = coeus_autograd::reshape(&v_perm, [batch * H, seq_k, d_head]);
+    let q_heads = coeus_autograd::reshape(&q_perm, [batch * H, seq_q, d_head])?;
+    let k_heads = coeus_autograd::reshape(&k_perm, [batch * H, seq_k, d_head])?;
+    let v_heads = coeus_autograd::reshape(&v_perm, [batch * H, seq_k, d_head])?;
 
     let (attn_out, _aw) = coeus_autograd::sdp_attention::<T, B, M>(
         &q_heads,
@@ -172,13 +172,13 @@ pub fn multi_head_attention_cross<
         source,
     })?;
 
-    let merged_split = coeus_autograd::reshape(&attn_out, [batch, H, seq_q, d_head]);
-    let merged_perm = coeus_autograd::permute(&merged_split, &[0, 2, 1, 3]);
-    let merged = coeus_autograd::reshape(&merged_perm, [batch, seq_q, d_model]);
+    let merged_split = coeus_autograd::reshape(&attn_out, [batch, H, seq_q, d_head])?;
+    let merged_perm = coeus_autograd::permute(&merged_split, &[0, 2, 1, 3])?;
+    let merged = coeus_autograd::reshape(&merged_perm, [batch, seq_q, d_model])?;
 
     Ok(project_3d(
         &merged, params.w_o, params.b_o, batch, seq_q, d_model,
-    ))
+    )?)
 }
 
 /// Project a 3D `[batch, seq, d_model]` var via a `[d_model, d_model]` weight:
@@ -192,12 +192,12 @@ fn project_3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     batch: usize,
     seq: usize,
     d_model: usize,
-) -> Var<T, B> {
-    let flat = coeus_autograd::reshape(x, [batch * seq, d_model]);
-    let w_t = coeus_autograd::transpose_2d(w);
-    let out_flat = coeus_autograd::matmul(&flat, &w_t);
+) -> Result<Var<T, B>, B::Error> {
+    let flat = coeus_autograd::reshape(x, [batch * seq, d_model])?;
+    let w_t = coeus_autograd::transpose_2d(w)?;
+    let out_flat = coeus_autograd::matmul(&flat, &w_t)?;
     let out_flat = if let Some(b) = bias {
-        coeus_autograd::add(&out_flat, b)
+        coeus_autograd::add(&out_flat, b)?
     } else {
         out_flat
     };
@@ -233,27 +233,27 @@ impl<
         }
         let make_weight = || -> Result<Var<T, B>, crate::init::InitializationError<B::Error>> {
             let mut v = Var::new(
-                coeus_tensor::Tensor::zeros_on([d_model, d_model], &B::default()),
+                coeus_tensor::Tensor::zeros_on([d_model, d_model], &B::default())?,
                 true,
-            );
+            )?;
             kaiming_uniform(&mut v, d_model)?;
             Ok(v)
         };
-        let make_bias = || -> Var<T, B> {
+        let make_bias = || -> Result<Var<T, B>, B::Error> {
             Var::new(
-                coeus_tensor::Tensor::zeros_on([d_model], &B::default()),
+                coeus_tensor::Tensor::zeros_on([d_model], &B::default())?,
                 true,
             )
         };
         Ok(Self {
             w_q: make_weight()?,
-            b_q: if bias { Some(make_bias()) } else { None },
+            b_q: if bias { Some(make_bias()?) } else { None },
             w_k: make_weight()?,
-            b_k: if bias { Some(make_bias()) } else { None },
+            b_k: if bias { Some(make_bias()?) } else { None },
             w_v: make_weight()?,
-            b_v: if bias { Some(make_bias()) } else { None },
+            b_v: if bias { Some(make_bias()?) } else { None },
             w_o: make_weight()?,
-            b_o: if bias { Some(make_bias()) } else { None },
+            b_o: if bias { Some(make_bias()?) } else { None },
             d_model,
             _mask: PhantomData,
         })

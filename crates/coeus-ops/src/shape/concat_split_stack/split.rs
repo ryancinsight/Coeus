@@ -16,7 +16,7 @@ pub fn split<T: Scalar, B: ComputeBackend + Default>(
     x: &Tensor<T, B>,
     chunk_size: usize,
     dim: usize,
-) -> Vec<Tensor<T, B>>
+) -> Result<Vec<Tensor<T, B>>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

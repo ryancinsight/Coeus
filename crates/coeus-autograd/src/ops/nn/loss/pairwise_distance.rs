@@ -57,12 +57,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
         // grad_rows broadcasts [N] over [N, D]; d/dx1 = grad_unit * row_scale
         // * grad_rows. All on-provider.
         let row_grad = grad_out.reshape([self.rows, 1]);
-        let broadcast = coeus_ops::mul(&self.grad_unit, &self.row_scale, &backend);
+        let broadcast = coeus_ops::mul(&self.grad_unit, &self.row_scale, &backend)?;
         let dx1 = coeus_ops::mul(
             &broadcast,
             &row_grad.broadcast(self.shape.clone()),
             &backend,
-        );
+        )?;
 
         if want_x1 {
             if let Some(Some(ref g)) = input_grads.first() {
@@ -71,7 +71,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
         }
         if want_x2 {
             if let Some(Some(ref g)) = input_grads.get(1) {
-                let dx2 = coeus_ops::neg(&dx1, &backend);
+                let dx2 = coeus_ops::neg(&dx1, &backend)?;
                 coeus_ops::add_assign(g.write(), &dx2, &backend)?;
             }
         }
@@ -96,7 +96,7 @@ pub fn pairwise_distance<
     x2: &Var<T, B>,
     p: T,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     assert_eq!(
         x1.tensor.shape(),
@@ -116,28 +116,28 @@ pub fn pairwise_distance<
     // diff = x1 - x2 + eps; out_i = norm_p_axis(diff, p, axis=1) — the same
     // row-wise p-norm as PyTorch's at::norm(x1 - x2 + eps, p), composed from
     // provider abs/pow_scalar/sum_axis with the exact dtype bounds.
-    let diff = coeus_ops::sub(&x1.tensor, &x2.tensor, &backend);
+    let diff = coeus_ops::sub(&x1.tensor, &x2.tensor, &backend)?;
     let shifted = coeus_ops::add(
         &diff,
-        &Tensor::full_on(shape.clone(), eps, &backend),
+        &Tensor::full_on(shape.clone(), eps, &backend)?,
         &backend,
-    );
-    let row_norm = coeus_ops::norm_p_axis(&shifted, p, 1, &backend);
+    )?;
+    let row_norm = coeus_ops::norm_p_axis(&shifted, p, 1, &backend)?;
     let out = row_norm.reshape([rows]);
 
     // Backward factors: row_scale = out^(1-p) reshaped to [N, 1] (the
     // `s^(1/p-1)` factor equals `out^(1-p)` since out = s^(1/p));
     // grad_unit = sign(diff) * |diff|^(p-1).
     let one_minus_p = T::one() - p;
-    let row_scale = coeus_ops::pow_scalar(&row_norm, one_minus_p, &backend);
+    let row_scale = coeus_ops::pow_scalar(&row_norm, one_minus_p, &backend)?;
     let row_scale = row_scale.reshape([rows, 1]);
     let p_minus_one = p - T::one();
-    let magnitudes = coeus_ops::abs(&shifted, &backend);
+    let magnitudes = coeus_ops::abs(&shifted, &backend)?;
     let grad_unit = coeus_ops::mul(
-        &coeus_ops::sign(&shifted, &backend),
-        &coeus_ops::pow_scalar(&magnitudes, p_minus_one, &backend),
+        &coeus_ops::sign(&shifted, &backend)?,
+        &coeus_ops::pow_scalar(&magnitudes, p_minus_one, &backend)?,
         &backend,
-    );
+    )?;
 
     let out_tensor = out;
     let requires_grad =
@@ -146,7 +146,7 @@ pub fn pairwise_distance<
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             [rows],
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -162,11 +162,11 @@ pub fn pairwise_distance<
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -179,14 +179,19 @@ mod tests {
         // x1 = [[3, 4]], x2 = [[0, 0]], p = 2, eps = 1e-6:
         //   diff = [3, 4], s = 9 + 16 = 25, out = 5.
         let x1 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[3.0, 4.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[3.0, 4.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let x2 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
-        let out = pairwise_distance(&x1, &x2, 2.0, 1e-6);
+        )
+        .expect("invariant: test backend operation succeeds");
+        let out =
+            pairwise_distance(&x1, &x2, 2.0, 1e-6).expect("invariant: test operation succeeds");
         assert_eq!(out.tensor.shape(), &[1]);
         // eps is added to each diff: norm of [3+eps, 4+eps].
         let eps = 1e-6;
@@ -200,14 +205,19 @@ mod tests {
         // d/dx2 = -d/dx1. With eps = 1e-6 the shifted norm is 5.0000014.
         let eps = 1e-6;
         let x1 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[3.0, 4.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[3.0, 4.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let x2 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
-        let out = pairwise_distance(&x1, &x2, 2.0, eps);
+        )
+        .expect("invariant: test backend operation succeeds");
+        let out =
+            pairwise_distance(&x1, &x2, 2.0, eps).expect("invariant: test operation succeeds");
         out.backward().expect("invariant: backward completes");
         let g1 = x1.grad().expect("x1 must receive a gradient");
         let g2 = x2.grad().expect("x2 must receive a gradient");
@@ -232,14 +242,19 @@ mod tests {
     fn pairwise_distance_p1_backward_matches_analytic() {
         // p = 1: out = sum|diff|; d/dx1 = sign(diff).
         let x1 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0, -2.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0, -2.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let x2 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.0, 0.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
-        let out = pairwise_distance(&x1, &x2, 1.0, 1e-6);
+        )
+        .expect("invariant: test backend operation succeeds");
+        let out =
+            pairwise_distance(&x1, &x2, 1.0, 1e-6).expect("invariant: test operation succeeds");
         out.backward().expect("invariant: backward completes");
         let g1 = x1.grad().expect("x1 must receive a gradient");
         let expected = [1.0, -1.0];
@@ -255,13 +270,17 @@ mod tests {
     #[should_panic(expected = "2D")]
     fn pairwise_distance_rejects_non_2d() {
         let x1 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([2], &[1.0, 2.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test backend operation succeeds");
         let x2 = Var::new(
-            Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 1.0]),
+            Tensor::<f64, MoiraiBackend>::from_slice([2], &[0.0, 1.0])
+                .expect("invariant: test backend operation succeeds"),
             true,
-        );
-        let _ = pairwise_distance(&x1, &x2, 2.0, 1e-6);
+        )
+        .expect("invariant: test backend operation succeeds");
+        let _ = pairwise_distance(&x1, &x2, 2.0, 1e-6).expect("invariant: test operation succeeds");
     }
 }
