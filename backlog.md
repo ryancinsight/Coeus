@@ -5,6 +5,14 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
+<a id="coeus-scalar-vocab"></a>
+## COEUS-SCALAR-VOCAB — Delete `Scalar`'s redeclared element vocabulary
+
+- Status: todo; priority: architecture; [major]; basis: 70e39493.
+- Outcome: `coeus_core::Scalar` declares only its slice-kernel surface; `zero`, `one`, `to_f64` and `from_f64` (`crates/coeus-core/src/dtype/traits.rs:346-364`) delete, call sites moving to `NumericElement::ZERO`/`ONE`/`to_f64` and `FloatElement::from_f64` (atlas:0005 decision 1, recorded closed there on 2026-07-04 but never landed).
+- Also: the `from_f64(n as f64)` count conversions COEUS-COUNT-CONV-001 left move to `from_count`/`try_from_count`.
+- Acceptance: the four methods are absent; values unchanged (the moves are identities); coeus gate green.
+
 <a id="coeus-rescue-queue"></a>
 ## COEUS-RESCUE-QUEUE — Complete or close the stranded rescue PRs
 
