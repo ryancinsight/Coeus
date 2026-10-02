@@ -446,7 +446,7 @@ pub trait Scalar:
     fn dot_slice(a: &[Self], b: &[Self]) -> Self {
         assert_eq!(a.len(), b.len(), "dot_slice: length mismatch");
 
-        let mut acc = Self::zero();
+        let mut acc = Self::ZERO;
         for (&x, &y) in a.iter().zip(b.iter()) {
             acc += x * y;
         }
@@ -486,7 +486,7 @@ pub trait Scalar:
     /// `hermes_simd::sum`. Summation is associative only approximately in
     /// floating point, so the SIMD result may differ from the sequential fold
     /// within the type's rounding error (differential tests use an epsilon
-    /// bound, not bitwise equality). Empty slice sums to `Self::zero()`.
+    /// bound, not bitwise equality). Empty slice sums to `Self::ZERO`.
     #[inline]
     fn sum_slice(s: &[Self]) -> Self {
         match s.split_first() {
@@ -497,7 +497,7 @@ pub trait Scalar:
                 }
                 acc
             }
-            None => Self::zero(),
+            None => Self::ZERO,
         }
     }
 

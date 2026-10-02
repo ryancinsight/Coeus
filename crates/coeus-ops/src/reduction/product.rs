@@ -80,7 +80,7 @@ pub fn prod_tensor<T: Scalar, B: BackendOps<T> + Default>(
 #[inline]
 pub fn prod<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
     let reduced = prod_tensor(a, backend).expect("prod: provider reduction failed");
-    let mut scalar = [T::zero()];
+    let mut scalar = [T::ZERO];
     backend.copy_to_host(reduced.storage(), &mut scalar);
     scalar[0]
 }

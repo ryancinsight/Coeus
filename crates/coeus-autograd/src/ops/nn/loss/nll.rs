@@ -100,11 +100,7 @@ where
             target_mask,
             n,
             c,
-            mean_scale: Tensor::full_on(
-                [1],
-                T::one() / <T as Scalar>::from_f64(n as f64),
-                &backend,
-            ),
+            mean_scale: Tensor::full_on([1], T::ONE / <T as Scalar>::from_f64(n as f64), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

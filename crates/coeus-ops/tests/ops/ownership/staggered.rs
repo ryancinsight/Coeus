@@ -28,7 +28,7 @@ pub(crate) fn staggered_preserves_clones<T: Float, B: StaggeredPairOps<T>>(backe
             .expect("valid staggered divergence");
         // Reflected order-two G=[[-1,1,0],[0,-1,1],[0,0,0]], D=-transpose(G).
         assert_values(backend, &original, &[four, three, two]);
-        assert_values(backend, &gradient, &[one, two, T::zero()]);
-        assert_values(backend, &divergence, &[one, one, T::zero() - two]);
+        assert_values(backend, &gradient, &[one, two, T::ZERO]);
+        assert_values(backend, &divergence, &[one, one, T::ZERO - two]);
     }
 }

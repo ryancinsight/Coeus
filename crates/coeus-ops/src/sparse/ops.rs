@@ -46,7 +46,7 @@ where
     backend.parallel_for(0, rows, move |r| unsafe {
         let start = row_ptr.read(r) as usize;
         let end = row_ptr.read(r + 1) as usize;
-        let mut sum = T::zero();
+        let mut sum = T::ZERO;
         for i in start..end {
             let col = col_ptr.read(i) as usize;
             let val = val_ptr.read(i);
@@ -108,7 +108,7 @@ where
     backend.parallel_for(0, m, move |r| unsafe {
         let start = row_ptr.read(r) as usize;
         let end = row_ptr.read(r + 1) as usize;
-        let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(T::zero(), n);
+        let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(T::ZERO, n);
         for i in start..end {
             let col = col_ptr.read(i) as usize;
             let val = val_ptr.read(i);
@@ -181,7 +181,7 @@ where
             for i in start..end {
                 let col = col_ptr.read(i) as usize;
                 let b_col_offset = b_offset + col * b_stride_row;
-                let mut sum = T::zero();
+                let mut sum = T::ZERO;
                 for j in 0..n {
                     let go_v = grad_out_ptr.read(go_row_offset + j * go_stride_col);
                     let b_v = b_ptr.read(b_col_offset + j * b_stride_col);
@@ -241,13 +241,13 @@ where
         // is guaranteed to be within [0, n), which is safe to read/write. Since each worker thread processes
         // a unique column index `j`, there are no data race write conflicts on `grad_b`.
         unsafe {
-            let mut col_accumulator = smallvec::SmallVec::<[T; 1024]>::from_elem(T::zero(), k);
+            let mut col_accumulator = smallvec::SmallVec::<[T; 1024]>::from_elem(T::ZERO, k);
             for r in 0..m {
                 let start = row_ptr.read(r) as usize;
                 let end = row_ptr.read(r + 1) as usize;
                 let go_idx = go_offset + r * go_stride_row + j * go_stride_col;
                 let go_v = grad_out_ptr.read(go_idx);
-                if go_v == T::zero() {
+                if go_v == T::ZERO {
                     continue;
                 }
                 for i in start..end {

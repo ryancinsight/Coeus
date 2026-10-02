@@ -183,7 +183,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
                 .expect("tensor host materialization requires a valid layout");
         }
 
-        let mut physical = vec![T::zero(); Storage::len(&self.storage)];
+        let mut physical = vec![T::ZERO; Storage::len(&self.storage)];
         backend.copy_to_host(&self.storage, &mut physical);
         coeus_leto::contiguous_values(&self.layout, &physical)
             .expect("tensor host materialization requires a valid layout")
@@ -358,7 +358,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         let shape = shape.into();
         let numel: usize = shape.iter().product();
         let mut storage = backend.allocate(numel);
-        backend.fill(&mut storage, T::one());
+        backend.fill(&mut storage, T::ONE);
         Self::from_storage_and_shape(storage, shape)
     }
 
@@ -440,7 +440,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             }
         } else {
             let storage_len = Storage::len(&self.storage);
-            let mut full_host_storage = vec![T::zero(); storage_len];
+            let mut full_host_storage = vec![T::ZERO; storage_len];
             src_backend.copy_to_host(&self.storage, &mut full_host_storage);
 
             if self.is_contiguous() {

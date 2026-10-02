@@ -73,7 +73,7 @@ pub(crate) fn max_pool2d<T: Scalar, B: Backend>(
 
         let output_idx = output_layout.physical_index(&[ni, ci, oh, ow]);
         unsafe {
-            output_ptr.write(output_idx, max_val.unwrap_or(T::zero()));
+            output_ptr.write(output_idx, max_val.unwrap_or(T::ZERO));
         }
     });
 }
@@ -130,7 +130,7 @@ pub(crate) fn max_pool2d_backward<T: Scalar, B: Backend>(
         let my_idx = inp_layout.physical_index(&[ni, ci, hi, wi]);
         let my_val = unsafe { inp_ptr.read(my_idx) };
 
-        let mut sum = T::zero();
+        let mut sum = T::ZERO;
 
         for ikh in 0..k_size {
             let numer_h = hi as isize + pad_s - ikh as isize * dil_s;
@@ -285,7 +285,7 @@ pub(crate) fn max_pool3d<T: Scalar, B: Backend>(
 
         let output_idx = output_layout.physical_index(&[ni, ci, od, oh, ow]);
         unsafe {
-            output_ptr.write(output_idx, max_val.unwrap_or(T::zero()));
+            output_ptr.write(output_idx, max_val.unwrap_or(T::ZERO));
         }
     });
 }
@@ -346,7 +346,7 @@ pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
         let my_idx = inp_layout.physical_index(&[ni, ci, di, hi, wi]);
         let my_val = unsafe { inp_ptr.read(my_idx) };
 
-        let mut sum = T::zero();
+        let mut sum = T::ZERO;
 
         for ikd in 0..k_size {
             let numer_d = di as isize + pad_s - ikd as isize * dil_s;

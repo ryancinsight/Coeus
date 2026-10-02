@@ -79,7 +79,7 @@ where
             expected,
             "{operation:?} computed incorrect logical output"
         );
-        let mut actual_storage = vec![T::zero(); expected_storage.len()];
+        let mut actual_storage = vec![T::ZERO; expected_storage.len()];
         backend.copy_to_host(destination.storage(), &mut actual_storage);
         assert_eq!(
             actual_storage, expected_storage,
@@ -279,7 +279,7 @@ impl<T: Float, B: ScalarPowerOps<T>> OutputWrite<T, B> for Square {
         backend.elementwise_pow_scalar(
             input.storage(),
             input_layout,
-            T::one() + T::one(),
+            T::ONE + T::ONE,
             output,
             output_layout,
         )

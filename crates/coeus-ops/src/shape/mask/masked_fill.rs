@@ -44,7 +44,7 @@ where
                 }
                 coords
             };
-            if mask.get(&idx) != T::zero() {
+            if mask.get(&idx) != T::ZERO {
                 value
             } else {
                 input.get(&idx)

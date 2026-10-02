@@ -94,7 +94,7 @@ use crate::var::Var;
 /// widening in this module routes through here to name [`Scalar`] once.
 #[inline]
 fn widen<T: Scalar>(value: T) -> f64 {
-    <T as Scalar>::to_f64(value)
+    <T as coeus_core::NumericElement>::to_f64(value)
 }
 
 /// Round an `f64` back into the differentiated scalar type.
@@ -121,8 +121,8 @@ fn narrow<T: Scalar>(value: f64) -> T {
 /// the exact representable epsilon — not an approximation of it. It converges
 /// in one iteration per mantissa bit (53 for `f64`, 11 for `F16`).
 fn machine_epsilon<T: Float>() -> f64 {
-    let one = T::one();
-    let mut epsilon = T::one();
+    let one = T::ONE;
+    let mut epsilon = T::ONE;
     loop {
         let halved = narrow::<T>(widen(epsilon) * 0.5);
         if one + halved == one {

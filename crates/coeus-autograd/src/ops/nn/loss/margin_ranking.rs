@@ -119,7 +119,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             target_tensor,
             mask,
             n,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on([1], T::ONE / T::from_f64(n as f64), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

@@ -24,7 +24,7 @@ pub fn mean<T: Scalar, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> Result<T, B::Error> {
     if a.numel() == 0 {
-        return Ok(T::zero() / T::from_f64(0.0));
+        return Ok(T::ZERO / T::from_f64(0.0));
     }
     let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([a.numel()])
@@ -33,7 +33,7 @@ pub fn mean<T: Scalar, B: BackendOps<T> + Default>(
         contiguous.reshape([a.numel()])
     };
     let reduced = mean_axis(&reshaped, 0, backend)?;
-    let mut host_scalar = [T::zero()];
+    let mut host_scalar = [T::ZERO];
     backend.copy_to_host(reduced.storage(), &mut host_scalar);
     Ok(host_scalar[0])
 }

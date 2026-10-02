@@ -220,8 +220,8 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     if axis_len == 0 {
         let identity = match op {
-            coeus_ops::ReductionOp::Sum => T::zero(),
-            coeus_ops::ReductionOp::Prod => T::one(),
+            coeus_ops::ReductionOp::Sum => <T as coeus_core::NumericElement>::ZERO,
+            coeus_ops::ReductionOp::Prod => <T as coeus_core::NumericElement>::ONE,
             coeus_ops::ReductionOp::Mean
             | coeus_ops::ReductionOp::Max
             | coeus_ops::ReductionOp::Min => {

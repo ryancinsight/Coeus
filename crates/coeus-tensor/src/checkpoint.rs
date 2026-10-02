@@ -261,7 +261,7 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
                 let offset = contiguous.layout().offset();
                 bytemuck::cast_slice(&slice[offset..offset + contiguous.numel()]).to_vec()
             } else {
-                let mut host = vec![T::zero(); contiguous.numel()];
+                let mut host = vec![T::ZERO; contiguous.numel()];
                 backend.copy_to_host(contiguous.storage(), &mut host);
                 bytemuck::cast_slice(&host).to_vec()
             };

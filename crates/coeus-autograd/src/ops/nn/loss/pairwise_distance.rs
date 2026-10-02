@@ -128,10 +128,10 @@ pub fn pairwise_distance<
     // Backward factors: row_scale = out^(1-p) reshaped to [N, 1] (the
     // `s^(1/p-1)` factor equals `out^(1-p)` since out = s^(1/p));
     // grad_unit = sign(diff) * |diff|^(p-1).
-    let one_minus_p = T::one() - p;
+    let one_minus_p = T::ONE - p;
     let row_scale = coeus_ops::pow_scalar(&row_norm, one_minus_p, &backend);
     let row_scale = row_scale.reshape([rows, 1]);
-    let p_minus_one = p - T::one();
+    let p_minus_one = p - T::ONE;
     let magnitudes = coeus_ops::abs(&shifted, &backend);
     let grad_unit = coeus_ops::mul(
         &coeus_ops::sign(&shifted, &backend),

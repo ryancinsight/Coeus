@@ -117,7 +117,7 @@ where
         BinaryOp::Le,
         BinaryOp::Ge,
     ] {
-        let mut expected = vec![T::zero(); lhs.len()];
+        let mut expected = vec![T::ZERO; lhs.len()];
         coeus_leto::elementwise_binary_into(
             operation,
             &layout,
@@ -140,7 +140,7 @@ where
                 &layout,
             )
             .expect("Metal integer comparison dispatch failed");
-        let mut actual_values = vec![T::zero(); lhs.len()];
+        let mut actual_values = vec![T::ZERO; lhs.len()];
         backend.copy_to_host(&actual, &mut actual_values);
         assert_eq!(
             actual_values, expected,

@@ -26,9 +26,9 @@ where
     let n = indices.shape()[0];
     let idx_cont = indices.to_contiguous();
     let idx_slice = idx_cont.as_slice();
-    let mut data = vec![T::zero(); n * num_classes];
+    let mut data = vec![T::ZERO; n * num_classes];
     for (row, &v) in idx_slice.iter().enumerate() {
-        let idx = <T as Scalar>::to_f64(v);
+        let idx = <T as coeus_core::NumericElement>::to_f64(v);
         assert!(
             idx.is_finite() && idx >= 0.0 && idx.fract() == 0.0,
             "one_hot: index value {idx} is not a non-negative integer"
@@ -38,7 +38,7 @@ where
             col < num_classes,
             "one_hot: index {col} out of range for num_classes={num_classes}"
         );
-        data[row * num_classes + col] = T::one();
+        data[row * num_classes + col] = T::ONE;
     }
     Tensor::from_slice_on(vec![n, num_classes], &data, backend)
 }
@@ -66,7 +66,7 @@ where
         .as_slice()
         .iter()
         .zip(m_cont.as_slice().iter())
-        .filter_map(|(&v, &m)| if m != T::zero() { Some(v) } else { None })
+        .filter_map(|(&v, &m)| if m != T::ZERO { Some(v) } else { None })
         .collect();
     let len = selected.len();
     Tensor::from_slice_on(vec![len], &selected, backend)

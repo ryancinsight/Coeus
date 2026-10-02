@@ -314,8 +314,8 @@ where
 
     if axis_len == 0 {
         let identity = match op {
-            crate::ReductionOp::Sum => T::zero(),
-            crate::ReductionOp::Prod => T::one(),
+            crate::ReductionOp::Sum => T::ZERO,
+            crate::ReductionOp::Prod => T::ONE,
             crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min => {
                 unreachable!("invariant: undefined empty reductions were rejected")
             }

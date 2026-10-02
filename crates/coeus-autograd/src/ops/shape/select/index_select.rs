@@ -78,7 +78,7 @@ where
 
             // Scatter output gradient back into input positions.
             let in_numel: usize = in_shape.iter().product();
-            let mut gi_data = vec![T::zero(); in_numel];
+            let mut gi_data = vec![T::ZERO; in_numel];
             for (out_flat, &grad_out_element) in go_s.iter().enumerate() {
                 let mut coords = vec![0usize; ndim];
                 let mut rem = out_flat;
@@ -86,7 +86,7 @@ where
                     coords[d] = rem / out_strides[d];
                     rem %= out_strides[d];
                 }
-                let sel = <T as Scalar>::to_f64(idx_s[coords[dim]]) as usize;
+                let sel = <T as coeus_core::NumericElement>::to_f64(idx_s[coords[dim]]) as usize;
                 let mut in_flat = 0usize;
                 for d in 0..ndim {
                     let c = if d == dim { sel } else { coords[d] };

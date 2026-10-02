@@ -343,11 +343,11 @@ where
         "target length must match input length"
     );
     let backend = B::default();
-    let zero = T::zero();
+    let zero = T::ZERO;
 
     let mask_data: Vec<T> = target
         .iter()
-        .map(|&y| if y > zero { T::one() } else { zero })
+        .map(|&y| if y > zero { T::ONE } else { zero })
         .collect();
     let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend);
     let mask_var = Var::new(mask_tensor, false);
