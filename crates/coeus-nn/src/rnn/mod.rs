@@ -14,3 +14,8 @@ pub use bidirectional::Bidirectional;
 pub use gru::{GRUCell, Gru};
 pub use lstm::{LSTMCell, Lstm};
 pub use vanilla::{RNNCell, Rnn, RnnNonlinearity};
+
+use coeus_autograd::Var;
+
+/// A pair of tracked variables on the same backend (e.g. hidden and cell state).
+pub(crate) type VarPair<T, B> = (Var<T, B>, Var<T, B>);

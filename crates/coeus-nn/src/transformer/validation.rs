@@ -1,7 +1,10 @@
-use crate::module::ModuleError;
+use crate::module::{ModuleError, ModuleResult};
 use coeus_autograd::Var;
 use coeus_core::Scalar;
 use std::error::Error;
+
+/// Two `[batch, sequence, features]` shapes: target and memory.
+type RankThreePair = ([usize; 3], [usize; 3]);
 
 pub(super) fn rank_three<T, B>(
     module: &'static str,
@@ -41,7 +44,7 @@ pub(super) fn decoder_inputs<T, B>(
     module: &'static str,
     target: &Var<T, B>,
     memory: &Var<T, B>,
-) -> Result<([usize; 3], [usize; 3]), ModuleError<B::Error>>
+) -> ModuleResult<RankThreePair, B>
 where
     T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,

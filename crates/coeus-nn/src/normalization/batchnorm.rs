@@ -13,11 +13,20 @@
 //! duplicated here on purpose.
 
 use super::validation;
-use crate::module::{Module, ModuleError};
+use crate::module::{Module, ModuleError, ModuleResult};
 use coeus_autograd::Var;
 use coeus_core::{Float, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
+
+/// A pair of tensors on the same backend.
+type TensorPair<T, B> = (Tensor<T, B>, Tensor<T, B>);
+
+/// Cached per-batch-size constants entry: `(m, m_const, corr_t)`.
+type MCacheEntry<T, B> = (usize, Tensor<T, B>, Tensor<T, B>);
+
+/// Cached per-batch-size constants, keyed by the batch size they were built for.
+type MCache<T, B> = RefCell<Option<MCacheEntry<T, B>>>;
 
 /// Diagnostic module name for a given spatial rank.
 const fn module_name<const DIM: usize>() -> &'static str {
@@ -130,7 +139,7 @@ pub struct BatchNorm<
     /// Cached ones tensor of shape `[1, C]`.
     ones_c: Tensor<T, B>,
     /// Cached spatial batch size m constants: `(m, m_const, corr_t)`.
-    m_cache: RefCell<Option<(usize, Tensor<T, B>, Tensor<T, B>)>>,
+    m_cache: MCache<T, B>,
 }
 
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
@@ -194,7 +203,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
         &self,
         m: usize,
         backend: &B,
-    ) -> Result<(Tensor<T, B>, Tensor<T, B>), ModuleError<B::Error>> {
+    ) -> ModuleResult<TensorPair<T, B>, B> {
         let module: &str = module_name::<DIM>();
         let mut cache = self
             .m_cache

@@ -24,8 +24,7 @@ where
     let mut values_vec = Vec::new();
 
     let mut index = smallvec::SmallVec::<[usize; 4]>::from_elem(0, rank);
-    for i in 0..numel {
-        let val = slice[i];
+    for &val in slice.iter().take(numel) {
         if val != T::zero() {
             for &idx in &index {
                 indices_vec.push(idx as i64);

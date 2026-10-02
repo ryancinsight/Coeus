@@ -40,12 +40,12 @@ where
     }
 
     let mut out_shape = Shape::with_capacity(ndim + 1);
-    for axis in 0..dim {
-        out_shape.push(base_shape[axis]);
+    for &extent in &base_shape[..dim] {
+        out_shape.push(extent);
     }
     out_shape.push(tensors.len());
-    for axis in dim..ndim {
-        out_shape.push(base_shape[axis]);
+    for &extent in &base_shape[dim..] {
+        out_shape.push(extent);
     }
 
     let layouts: Vec<_> = tensors.iter().map(|tensor| tensor.layout()).collect();

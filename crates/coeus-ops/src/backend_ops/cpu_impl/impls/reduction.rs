@@ -7,6 +7,7 @@ use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ReductionOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
     #[inline]
     fn reduce(

@@ -1,6 +1,9 @@
 // ── Backend-parameterized execution operations ──
 // Unifies CPU and GPU dispatch via monomorphized associated traits.
-#![allow(clippy::too_many_arguments)]
+//
+// The `too_many_arguments` expectation lives on the two subtrees that trip it
+// — `traits` (the kernel contracts) and `cpu_impl` (their CPU realizations) —
+// rather than on this shared parent.
 
 mod cpu_impl;
 pub(crate) mod defaults;
