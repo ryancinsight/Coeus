@@ -7,6 +7,7 @@ mod gradcheck;
 mod index_put;
 mod linalg;
 mod losses;
+mod mean_scale;
 mod minmax;
 mod nn_conv;
 mod ops_overloads;

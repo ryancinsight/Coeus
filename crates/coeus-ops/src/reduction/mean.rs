@@ -1,10 +1,13 @@
-// ── Mean reduction ──
+//! Mean reductions over all elements and along an axis.
 
-use crate::backend_ops::{BackendOps, ReductionOp};
-use coeus_core::{BackendError, Scalar};
+use crate::backend_ops::BackendOps;
+use coeus_core::{BackendError, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Mean of all elements.
+///
+/// Mean is float-only; integer tensors convert to a floating-point element
+/// type first (see [`mean_axis`]).
 ///
 /// # Examples
 ///
@@ -19,12 +22,12 @@ use coeus_tensor::Tensor;
 /// assert!((result - 3.5).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn mean<T: Scalar, B: BackendOps<T> + Default>(
+pub fn mean<T: Scalar + FloatElement, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
     if a.numel() == 0 {
-        return Ok(T::zero() / T::from_f64(0.0));
+        return Ok(T::NAN);
     }
     let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([a.numel()])
@@ -39,6 +42,24 @@ pub fn mean<T: Scalar, B: BackendOps<T> + Default>(
 }
 
 /// Mean along a specific axis.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: integer
+/// division would truncate the quotient.
+///
+/// ```compile_fail,E0277
+/// use coeus_tensor::Tensor;
+/// use coeus_core::SequentialBackend;
+/// use coeus_ops::mean_axis;
+///
+/// let backend = SequentialBackend::new();
+/// let a = Tensor::<i32, SequentialBackend>::from_slice([2, 3], &[1, 2, 3, 4, 5, 6]);
+/// let _ = mean_axis(&a, 1, &backend);
+/// ```
+///
+/// # Errors
+///
+/// Returns [`BackendError::AxisOutOfRange`] when `axis` is outside the rank,
+/// and the backend error when the provider mean kernel fails.
 ///
 /// # Examples
 ///
@@ -56,7 +77,7 @@ pub fn mean<T: Scalar, B: BackendOps<T> + Default>(
 /// assert!((s[1] - 5.0).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn mean_axis<T: Scalar, B: BackendOps<T> + Default>(
+pub fn mean_axis<T: Scalar + FloatElement, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     backend: &B,
@@ -75,14 +96,7 @@ pub fn mean_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out = Tensor::alloc_on(out_shape, backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.reduce(
-        ReductionOp::Mean,
-        a.storage(),
-        a.layout(),
-        axis,
-        out_storage,
-        out_layout,
-    )?;
+    backend.mean(a.storage(), a.layout(), axis, out_storage, out_layout)?;
 
     Ok(out)
 }

@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -67,7 +67,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
 /// host staging occurs.
 ///
 /// Returns a scalar Var (shape `[1]`).
-pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kl_divergence<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -113,7 +113,7 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             target_saved: target.tensor.clone(),
             input_shape,
             n,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on([1], T::one() / T::from_count(n), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

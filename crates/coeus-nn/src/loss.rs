@@ -468,7 +468,10 @@ where
 /// Mean of all finite elements, treating NaN as missing (`torch.nanmean`).
 ///
 /// Returns a scalar `Var` (shape `[1]`).
-pub fn nanmean<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nanmean<
+    T: coeus_core::Float + coeus_core::FloatElement,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &coeus_autograd::Var<T, B>,
 ) -> coeus_autograd::Var<T, B>
 where
