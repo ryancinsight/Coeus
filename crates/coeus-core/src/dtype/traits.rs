@@ -100,21 +100,6 @@ pub enum BinaryOp {
     Ge,
 }
 
-/// Reduction operation tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ReductionOp {
-    /// Sum of all elements.
-    Sum,
-    /// Product of all elements.
-    Prod,
-    /// Arithmetic mean of all elements.
-    Mean,
-    /// Maximum element.
-    Max,
-    /// Minimum element.
-    Min,
-}
-
 /// CPU unary operation dispatch tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CpuUnaryOp {
