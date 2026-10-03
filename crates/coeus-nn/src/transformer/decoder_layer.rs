@@ -6,7 +6,7 @@ use crate::dropout::Dropout;
 use crate::module::{prefixed_parameters, Module, ModuleError};
 use crate::normalization::LayerNorm;
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
-use coeus_core::MoiraiBackend;
+use coeus_core::{FloatElement, MoiraiBackend};
 
 /// Borrowed parameters for functional transformer decoder-layer execution.
 pub struct TransformerDecoderLayerParams<
@@ -73,7 +73,7 @@ fn apply_dropout<T: coeus_ops::AttentionScalar, B: coeus_ops::BackendOps<T> + De
 /// `x2 = x1 + Dropout(CrossAttn(LN2(x1), memory, memory))`
 /// `x3 = x2 + Dropout(Linear2(Dropout(GELU(Linear1(LN3(x2))))))`.
 pub fn transformer_decoder_layer<
-    T: coeus_ops::AttentionScalar,
+    T: coeus_ops::AttentionScalar + FloatElement,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     const H: usize,
     SelfM: AttentionMask,
@@ -205,7 +205,7 @@ pub struct TransformerDecoderLayer<
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         SelfM: AttentionMask,
@@ -297,7 +297,7 @@ impl<
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         SelfM: AttentionMask,

@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -71,7 +71,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 /// Returns a scalar Var (shape `[1]`). The complete forward and backward
 /// computation stays on the selected provider; no input-sized host staging
 /// occurs.
-pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn margin_ranking_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input1: &Var<T, B>,
     input2: &Var<T, B>,
     target: &[T],
@@ -119,7 +119,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             target_tensor,
             mask,
             n,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on([1], T::ONE / T::from_count(n), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

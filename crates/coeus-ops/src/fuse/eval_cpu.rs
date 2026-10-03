@@ -1,7 +1,7 @@
 use crate::fuse::expr_node::CpuExprNode;
 use crate::ptr::MutPtr;
 use crate::CpuBackend;
-use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorageMut, FloatElement, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 #[repr(transparent)]
@@ -137,11 +137,14 @@ fn reduce_pair<T: Scalar>(op: crate::ReductionOp, acc: T, val: T) -> T {
 }
 
 #[derive(Clone, Copy)]
-struct FusedReductionPlan<'a> {
+struct FusedReductionPlan<'a, T> {
     out_layout: &'a Layout,
     axis: usize,
     axis_len: usize,
     op: crate::ReductionOp,
+    /// Divisor applied to the accumulated sum; `Some` only on the float-bound
+    /// mean path.
+    mean_divisor: Option<T>,
 }
 
 unsafe fn eval_reduction_at<E, T, B>(
@@ -150,6 +153,7 @@ unsafe fn eval_reduction_at<E, T, B>(
     axis: usize,
     axis_len: usize,
     op: crate::ReductionOp,
+    mean_divisor: Option<T>,
 ) -> T
 where
     E: CpuExprNode<T, B> + Copy,
@@ -165,10 +169,9 @@ where
         acc = reduce_pair(op, acc, val);
     }
 
-    if matches!(op, crate::ReductionOp::Mean) {
-        acc / T::from_f64(axis_len as f64)
-    } else {
-        acc
+    match mean_divisor {
+        Some(divisor) => acc / divisor,
+        None => acc,
     }
 }
 
@@ -176,7 +179,7 @@ fn write_fused_reductions<E, T, B>(
     expr: E,
     out_ptr: MutPtr<T>,
     out_numel: usize,
-    plan: FusedReductionPlan<'_>,
+    plan: FusedReductionPlan<'_, T>,
     backend: &B,
 ) where
     E: CpuExprNode<T, B> + Copy + Send,
@@ -195,15 +198,28 @@ fn write_fused_reductions<E, T, B>(
             let mut coords = [0usize; 8];
             logical_to_coords(idx, ndim, &out_strides, &mut coords[..ndim]);
             unsafe {
-                let acc =
-                    eval_reduction_at(expr, &mut coords[..ndim], plan.axis, plan.axis_len, plan.op);
+                let acc = eval_reduction_at(
+                    expr,
+                    &mut coords[..ndim],
+                    plan.axis,
+                    plan.axis_len,
+                    plan.op,
+                    plan.mean_divisor,
+                );
                 out_ptr.write(idx, acc);
             }
         } else {
             let mut coords = smallvec::SmallVec::<[usize; 16]>::from_elem(0, ndim);
             logical_to_coords(idx, ndim, &out_strides, &mut coords);
             unsafe {
-                let acc = eval_reduction_at(expr, &mut coords, plan.axis, plan.axis_len, plan.op);
+                let acc = eval_reduction_at(
+                    expr,
+                    &mut coords,
+                    plan.axis,
+                    plan.axis_len,
+                    plan.op,
+                    plan.mean_divisor,
+                );
                 out_ptr.write(idx, acc);
             }
         }
@@ -274,16 +290,75 @@ where
 
 /// Evaluate a fused expression DAG with a reduction along `axis` on the CPU.
 ///
+/// Mean is float-only and evaluates through [`evaluate_fused_mean_cpu`].
+///
 /// # Errors
 ///
-/// Returns [`BackendError`] when the expression has no tensor input, child
-/// shapes cannot be broadcast, `axis` is outside the expression rank, or an
-/// empty axis is used with mean, maximum, or minimum.
+/// Returns [`BackendError::FloatOnlyReduction`] for
+/// [`ReductionOp::Mean`](crate::ReductionOp::Mean), and [`BackendError`] when
+/// the expression has no tensor input, child shapes cannot be broadcast,
+/// `axis` is outside the expression rank, or an empty axis is used with
+/// maximum or minimum.
 pub fn evaluate_fused_reduce_cpu<E, T, B>(
     expr: &E,
     op: crate::ReductionOp,
     axis: usize,
     backend: &B,
+) -> Result<Tensor<T, B>, BackendError>
+where
+    E: CpuExprNode<T, B> + Copy + Send,
+    T: Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    if op == crate::ReductionOp::Mean {
+        return Err(BackendError::FloatOnlyReduction {
+            operation: "fused reduction",
+            reduction: op,
+        });
+    }
+    fused_reduction(expr, op, axis, backend, None)
+}
+
+/// Evaluate a fused expression DAG with an arithmetic mean along `axis` on
+/// the CPU.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: integer
+/// division would truncate the quotient.
+///
+/// # Errors
+///
+/// Returns [`BackendError`] when the expression has no tensor input, child
+/// shapes cannot be broadcast, `axis` is outside the expression rank, or the
+/// axis is empty.
+pub fn evaluate_fused_mean_cpu<E, T, B>(
+    expr: &E,
+    axis: usize,
+    backend: &B,
+) -> Result<Tensor<T, B>, BackendError>
+where
+    E: CpuExprNode<T, B> + Copy + Send,
+    T: Scalar + FloatElement,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    fused_reduction(
+        expr,
+        crate::ReductionOp::Mean,
+        axis,
+        backend,
+        Some(T::from_count),
+    )
+}
+
+/// Shared fused reduction body; `mean_divisor` maps the axis length to the
+/// mean divisor and is `Some` only for the float-bound mean entry point.
+fn fused_reduction<E, T, B>(
+    expr: &E,
+    op: crate::ReductionOp,
+    axis: usize,
+    backend: &B,
+    mean_divisor: Option<fn(usize) -> T>,
 ) -> Result<Tensor<T, B>, BackendError>
 where
     E: CpuExprNode<T, B> + Copy + Send,
@@ -329,6 +404,7 @@ where
         axis,
         axis_len,
         op,
+        mean_divisor: mean_divisor.map(|divisor| divisor(axis_len)),
     };
     let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
     write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);

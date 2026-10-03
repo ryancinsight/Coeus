@@ -1,6 +1,6 @@
 use super::support::layout;
 use super::{
-    argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
+    argmax_into, argmin_into, cumprod_into, cumsum_into, mean_into, reduce_into, suffix_prod_into,
     suffix_sum_into, ReductionOp,
 };
 
@@ -22,16 +22,26 @@ fn reduction_dispatch_covers_keepdim_axis_ops() {
     .unwrap();
     assert_eq!(out, vec![3.0, 14.0]);
 
-    reduce_into(
+    mean_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
+    assert_eq!(out, vec![1.0, 14.0 / 3.0]);
+
+    let generic_mean = reduce_into(
         ReductionOp::Mean,
         &input_layout,
         &input,
         1,
         &output_layout,
         &mut out,
-    )
-    .unwrap();
-    assert_eq!(out, vec![1.0, 14.0 / 3.0]);
+    );
+    assert!(
+        matches!(generic_mean, Err(leto::LetoError::InvalidInput(_))),
+        "the generic reduction path must route float-only mean to mean_into"
+    );
+    assert_eq!(
+        out,
+        vec![1.0, 14.0 / 3.0],
+        "rejected mean must not write output"
+    );
 
     reduce_into(
         ReductionOp::Max,

@@ -9,7 +9,7 @@
 use super::validation;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{Float, FloatElement, MoiraiBackend};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
@@ -74,7 +74,7 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 // Input is already reshaped to `[N*C, spatial]` by the caller.
 // `weight`/`bias` are the per-channel affine parameters ([C]).
 
-fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+fn instance_norm_forward<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     flat: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
@@ -185,7 +185,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Instance
 }
 
 /// Implements the [`Module`] interface for every [`InstanceNorm`](crate::normalization::instancenorm::InstanceNorm) rank.
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
     for InstanceNorm<T, B, DIM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {

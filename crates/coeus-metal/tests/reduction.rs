@@ -37,15 +37,13 @@ fn native_reductions_and_scans_match_leto() {
         (ReductionOp::Max, [3.0_f32, 6.0]),
     ] {
         let mut expected_values = [0.0_f32; 2];
-        coeus_leto::reduce_into(
-            op,
-            &layout,
-            &input,
-            1,
-            &Layout::new([2, 1].into()),
-            &mut expected_values,
-        )
-        .expect("Leto reduction oracle failed");
+        let output_layout = Layout::new([2, 1].into());
+        let oracle = if op == ReductionOp::Mean {
+            coeus_leto::mean_into(&layout, &input, 1, &output_layout, &mut expected_values)
+        } else {
+            coeus_leto::reduce_into(op, &layout, &input, 1, &output_layout, &mut expected_values)
+        };
+        oracle.expect("Leto reduction oracle failed");
         assert_eq!(expected_values, expected, "Leto oracle contract");
 
         let mut actual = backend.allocate::<f32>(2);

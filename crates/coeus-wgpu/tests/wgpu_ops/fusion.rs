@@ -185,13 +185,8 @@ fn test_wgpu_evaluate_fused_reduce() {
         coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Mean, 1)
             .expect("fused WGPU mean reduction should dispatch");
     let out_mean_cpu = out_mean_gpu.to_backend_on(&wgpu_b, &seq);
-    let expected_mean = coeus_ops::fuse::evaluate_fused_reduce_cpu(
-        &expr_cpu,
-        coeus_ops::ReductionOp::Mean,
-        1,
-        &seq,
-    )
-    .expect("CPU fused mean should evaluate");
+    let expected_mean = coeus_ops::fuse::evaluate_fused_mean_cpu(&expr_cpu, 1, &seq)
+        .expect("CPU fused mean should evaluate");
 
     let axis_len = shape[1] as f32;
     let eps = f32::EPSILON;
