@@ -3,7 +3,10 @@ mod expr_node;
 mod op_tags;
 mod ops_impl;
 
-pub use eval_cpu::{evaluate_fused_cpu, evaluate_fused_reduce_cpu, validate_fused_reduction_axis};
+pub use eval_cpu::{
+    evaluate_fused_cpu, evaluate_fused_mean_cpu, evaluate_fused_reduce_cpu,
+    validate_fused_reduction_axis,
+};
 pub use expr_node::{
     scalar, BinaryExpr, CpuExprNode, Expr, ExprNode, ScalarVal, TensorExprExt, TensorRef, UnaryExpr,
 };

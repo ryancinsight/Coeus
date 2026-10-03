@@ -1,7 +1,9 @@
 use crate::fuse::expr_node::CpuExprNode;
 use crate::ptr::MutPtr;
 use crate::CpuBackend;
-use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{
+    BackendError, ClosedReduction, CpuAddressableStorageMut, FloatElement, Layout, Scalar,
+};
 use coeus_tensor::Tensor;
 
 #[repr(transparent)]
@@ -114,34 +116,62 @@ fn write_fused_values<E, T, B>(
     }
 }
 
-#[inline(always)]
-fn reduce_pair<T: Scalar>(op: crate::ReductionOp, acc: T, val: T) -> T {
-    match op {
-        crate::ReductionOp::Sum | crate::ReductionOp::Mean => acc + val,
-        crate::ReductionOp::Prod => acc * val,
-        crate::ReductionOp::Max => {
-            if val > acc {
-                val
-            } else {
-                acc
+/// How a fused reduction folds its axis and finishes.
+#[derive(Clone, Copy)]
+enum FusedFold<T> {
+    /// Sum, product, maximum, or minimum: the folded value is the result.
+    Closed(ClosedReduction),
+    /// Arithmetic mean: the folded sum divided by `divisor`, the axis length
+    /// in the element type.
+    Mean { divisor: T },
+}
+
+impl<T: Scalar> FusedFold<T> {
+    /// The reduction tag this fold evaluates.
+    fn op(self) -> crate::ReductionOp {
+        match self {
+            Self::Closed(reduction) => reduction.into(),
+            Self::Mean { .. } => crate::ReductionOp::Mean,
+        }
+    }
+
+    #[inline(always)]
+    fn combine(self, acc: T, val: T) -> T {
+        match self {
+            Self::Closed(ClosedReduction::Sum) | Self::Mean { .. } => acc + val,
+            Self::Closed(ClosedReduction::Prod) => acc * val,
+            Self::Closed(ClosedReduction::Max) => {
+                if val > acc {
+                    val
+                } else {
+                    acc
+                }
+            }
+            Self::Closed(ClosedReduction::Min) => {
+                if val < acc {
+                    val
+                } else {
+                    acc
+                }
             }
         }
-        crate::ReductionOp::Min => {
-            if val < acc {
-                val
-            } else {
-                acc
-            }
+    }
+
+    #[inline(always)]
+    fn finish(self, acc: T) -> T {
+        match self {
+            Self::Closed(_) => acc,
+            Self::Mean { divisor } => acc / divisor,
         }
     }
 }
 
 #[derive(Clone, Copy)]
-struct FusedReductionPlan<'a> {
+struct FusedReductionPlan<'a, T> {
     out_layout: &'a Layout,
     axis: usize,
     axis_len: usize,
-    op: crate::ReductionOp,
+    fold: FusedFold<T>,
 }
 
 unsafe fn eval_reduction_at<E, T, B>(
@@ -149,7 +179,7 @@ unsafe fn eval_reduction_at<E, T, B>(
     coords: &mut [usize],
     axis: usize,
     axis_len: usize,
-    op: crate::ReductionOp,
+    fold: FusedFold<T>,
 ) -> T
 where
     E: CpuExprNode<T, B> + Copy,
@@ -162,21 +192,17 @@ where
     for k in 1..axis_len {
         coords[axis] = k;
         let val = expr.eval_cpu(coords);
-        acc = reduce_pair(op, acc, val);
+        acc = fold.combine(acc, val);
     }
 
-    if matches!(op, crate::ReductionOp::Mean) {
-        acc / T::from_f64(axis_len as f64)
-    } else {
-        acc
-    }
+    fold.finish(acc)
 }
 
 fn write_fused_reductions<E, T, B>(
     expr: E,
     out_ptr: MutPtr<T>,
     out_numel: usize,
-    plan: FusedReductionPlan<'_>,
+    plan: FusedReductionPlan<'_, T>,
     backend: &B,
 ) where
     E: CpuExprNode<T, B> + Copy + Send,
@@ -195,15 +221,20 @@ fn write_fused_reductions<E, T, B>(
             let mut coords = [0usize; 8];
             logical_to_coords(idx, ndim, &out_strides, &mut coords[..ndim]);
             unsafe {
-                let acc =
-                    eval_reduction_at(expr, &mut coords[..ndim], plan.axis, plan.axis_len, plan.op);
+                let acc = eval_reduction_at(
+                    expr,
+                    &mut coords[..ndim],
+                    plan.axis,
+                    plan.axis_len,
+                    plan.fold,
+                );
                 out_ptr.write(idx, acc);
             }
         } else {
             let mut coords = smallvec::SmallVec::<[usize; 16]>::from_elem(0, ndim);
             logical_to_coords(idx, ndim, &out_strides, &mut coords);
             unsafe {
-                let acc = eval_reduction_at(expr, &mut coords, plan.axis, plan.axis_len, plan.op);
+                let acc = eval_reduction_at(expr, &mut coords, plan.axis, plan.axis_len, plan.fold);
                 out_ptr.write(idx, acc);
             }
         }
@@ -291,6 +322,58 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
+    fused_reduction(expr, axis, backend, |axis_len| match op {
+        crate::ReductionOp::Sum => FusedFold::Closed(ClosedReduction::Sum),
+        crate::ReductionOp::Prod => FusedFold::Closed(ClosedReduction::Prod),
+        crate::ReductionOp::Max => FusedFold::Closed(ClosedReduction::Max),
+        crate::ReductionOp::Min => FusedFold::Closed(ClosedReduction::Min),
+        crate::ReductionOp::Mean => FusedFold::Mean {
+            divisor: T::from_f64(f64::from_count(axis_len)),
+        },
+    })
+}
+
+/// Evaluate a fused expression DAG with an arithmetic mean along `axis` on
+/// the CPU.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: integer
+/// division would truncate the quotient.
+///
+/// # Errors
+///
+/// Returns [`BackendError`] when the expression has no tensor input, child
+/// shapes cannot be broadcast, `axis` is outside the expression rank, or the
+/// axis is empty.
+pub fn evaluate_fused_mean_cpu<E, T, B>(
+    expr: &E,
+    axis: usize,
+    backend: &B,
+) -> Result<Tensor<T, B>, BackendError>
+where
+    E: CpuExprNode<T, B> + Copy + Send,
+    T: Scalar + FloatElement,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    fused_reduction(expr, axis, backend, |axis_len| FusedFold::Mean {
+        divisor: T::from_count(axis_len),
+    })
+}
+
+/// Shared fused reduction body. `fold_for` builds the fold from the reduced
+/// axis length once the axis is validated.
+fn fused_reduction<E, T, B>(
+    expr: &E,
+    axis: usize,
+    backend: &B,
+    fold_for: impl FnOnce(usize) -> FusedFold<T>,
+) -> Result<Tensor<T, B>, BackendError>
+where
+    E: CpuExprNode<T, B> + Copy + Send,
+    T: Scalar,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
     let expr_shape = expr.shape()?.ok_or_else(|| BackendError::Storage {
         operation: "fused reduction",
         reason: "expression has no tensor input from which to derive its shape".to_string(),
@@ -310,13 +393,15 @@ where
 
     let out_numel = out.numel();
     let axis_len = expr_shape[axis];
-    validate_fused_reduction_axis(op, axis_len)?;
+    let fold = fold_for(axis_len);
+    validate_fused_reduction_axis(fold.op(), axis_len)?;
 
     if axis_len == 0 {
-        let identity = match op {
-            crate::ReductionOp::Sum => T::zero(),
-            crate::ReductionOp::Prod => T::one(),
-            crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min => {
+        let identity = match fold {
+            FusedFold::Closed(ClosedReduction::Sum) => T::ZERO,
+            FusedFold::Closed(ClosedReduction::Prod) => T::ONE,
+            FusedFold::Closed(ClosedReduction::Max | ClosedReduction::Min)
+            | FusedFold::Mean { .. } => {
                 unreachable!("invariant: undefined empty reductions were rejected")
             }
         };
@@ -328,7 +413,7 @@ where
         out_layout: &out_layout,
         axis,
         axis_len,
-        op,
+        fold,
     };
     let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
     write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);

@@ -86,8 +86,8 @@ pub use sparse::{
 /// Device-neutral fused expression DAG with CPU-addressable evaluation support.
 pub mod fuse;
 pub use fuse::{
-    evaluate_fused_cpu, evaluate_fused_reduce_cpu, scalar, CpuExprNode, Expr, ExprNode,
-    TensorExprExt,
+    evaluate_fused_cpu, evaluate_fused_mean_cpu, evaluate_fused_reduce_cpu, scalar, CpuExprNode,
+    Expr, ExprNode, TensorExprExt,
 };
 
 /// Scaled dot-product attention with causal and padding mask support.
