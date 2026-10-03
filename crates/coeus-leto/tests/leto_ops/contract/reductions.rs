@@ -43,6 +43,10 @@ fn reduction_dispatch_covers_keepdim_axis_ops() {
         "rejected mean must not write output"
     );
 
+    let mut float_mean = vec![0.0; 2];
+    mean_into(&input_layout, &input, 1, &output_layout, &mut float_mean).unwrap();
+    assert_eq!(float_mean, vec![1.0, 14.0 / 3.0]);
+
     reduce_into(
         ReductionOp::Max,
         &input_layout,

@@ -37,7 +37,6 @@ where
 
 #[inline]
 pub(super) fn mean<T, B>(
-    _backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
     axis: usize,

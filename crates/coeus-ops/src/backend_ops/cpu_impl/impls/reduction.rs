@@ -33,7 +33,7 @@ where
     where
         T: FloatElement,
     {
-        reduction::mean(self, a, a_layout, axis, c, c_layout)
+        reduction::mean::<T, B>(a, a_layout, axis, c, c_layout)
     }
 
     #[inline]

@@ -43,8 +43,8 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     /// Arithmetic mean along an axis.
     ///
     /// The `FloatElement` bound makes integer mean unrepresentable: integer
-    /// division would truncate the quotient. The default routes to the
-    /// provider's native [`ReductionOp::Mean`] kernel.
+    /// division would truncate the quotient. Every provider implements it
+    /// against its native mean kernel.
     ///
     /// # Errors
     ///
@@ -59,10 +59,7 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c_layout: &Layout,
     ) -> Result<(), Self::Error>
     where
-        T: FloatElement,
-    {
-        self.reduce(ReductionOp::Mean, a, a_layout, axis, c, c_layout)
-    }
+        T: FloatElement;
 
     /// Compute the indices of the maximum values along `axis`.
     fn argmax(
