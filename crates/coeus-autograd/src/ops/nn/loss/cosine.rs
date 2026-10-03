@@ -201,7 +201,7 @@ pub fn cosine_embedding_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T
             margin,
             n,
             d,
-            mean_scale: Tensor::full_on([1], T::ONE / T::from_count(n), &backend),
+            mean_scale: Tensor::full_on([1], T::from_count_reciprocal(n), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

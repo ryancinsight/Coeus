@@ -104,7 +104,7 @@ pub fn poisson_nll<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Defaul
             exp_input,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::ONE / T::from_count(n), &backend),
+            mean_scale: Tensor::full_on([1], T::from_count_reciprocal(n), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

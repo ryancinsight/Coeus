@@ -57,7 +57,7 @@ impl<T: Scalar + FloatElement, B: coeus_ops::BackendOps<T> + Default> ReductionA
 
     #[inline(always)]
     fn scaler(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Option<Tensor<T, B>> {
-        let scale = T::ONE / T::from_count(a.numel());
+        let scale = T::from_count_reciprocal(a.numel());
         Some(Tensor::full_on([1], scale, backend))
     }
 }
@@ -83,7 +83,7 @@ impl<T: Scalar + FloatElement, B: coeus_ops::BackendOps<T> + Default> ReductionA
     #[inline(always)]
     fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>> {
         let axis = param.expect("invariant: MeanAxisOp::scaler always receives Some(axis)");
-        let scale = T::ONE / T::from_count(a.shape()[axis]);
+        let scale = T::from_count_reciprocal(a.shape()[axis]);
         Some(Tensor::full_on([1], scale, backend))
     }
 }
