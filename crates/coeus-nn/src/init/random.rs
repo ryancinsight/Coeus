@@ -54,19 +54,19 @@ where
     if !<T as Float>::is_finite(low) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "low",
-            value: <T as Scalar>::to_f64(low),
+            value: <T as coeus_core::NumericElement>::to_f64(low),
         });
     }
     if !<T as Float>::is_finite(high) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "high",
-            value: <T as Scalar>::to_f64(high),
+            value: <T as coeus_core::NumericElement>::to_f64(high),
         });
     }
     if low > high {
         return Err(InitializationError::InvalidUniformBounds {
-            low: <T as Scalar>::to_f64(low),
-            high: <T as Scalar>::to_f64(high),
+            low: <T as coeus_core::NumericElement>::to_f64(low),
+            high: <T as coeus_core::NumericElement>::to_f64(high),
         });
     }
     let storage = B::default()
@@ -94,18 +94,18 @@ where
     if !<T as Float>::is_finite(mean) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "mean",
-            value: <T as Scalar>::to_f64(mean),
+            value: <T as coeus_core::NumericElement>::to_f64(mean),
         });
     }
     if !<T as Float>::is_finite(std_dev) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "std_dev",
-            value: <T as Scalar>::to_f64(std_dev),
+            value: <T as coeus_core::NumericElement>::to_f64(std_dev),
         });
     }
-    if std_dev < T::zero() {
+    if std_dev < T::ZERO {
         return Err(InitializationError::NegativeStandardDeviation {
-            value: <T as Scalar>::to_f64(std_dev),
+            value: <T as coeus_core::NumericElement>::to_f64(std_dev),
         });
     }
     let storage = B::default()
@@ -247,7 +247,7 @@ where
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
     let fan = T::from_count(fan);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
-    uniform_typed_with_seed(weight, T::zero() - limit, limit, seed)
+    uniform_typed_with_seed(weight, T::ZERO - limit, limit, seed)
 }
 
 /// Apply Xavier uniform initialization using seed 42.
@@ -282,7 +282,7 @@ where
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
     let fan = T::from_count(fan);
     let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
-    normal_typed_with_seed(weight, T::zero(), std_dev, seed)
+    normal_typed_with_seed(weight, T::ZERO, std_dev, seed)
 }
 
 /// Apply Xavier normal initialization using seed 42.
@@ -316,7 +316,7 @@ where
     let fan = positive_fan::<B::Error>(fan_in)?;
     let fan = T::from_count(fan);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
-    uniform_typed_with_seed(weight, T::zero() - limit, limit, seed)
+    uniform_typed_with_seed(weight, T::ZERO - limit, limit, seed)
 }
 
 /// Apply Kaiming uniform initialization using seed 42.
@@ -350,7 +350,7 @@ where
     let fan = positive_fan::<B::Error>(fan_in)?;
     let fan = T::from_count(fan);
     let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
-    normal_typed_with_seed(weight, T::zero(), std_dev, seed)
+    normal_typed_with_seed(weight, T::ZERO, std_dev, seed)
 }
 
 /// Apply Kaiming normal initialization using seed 42.

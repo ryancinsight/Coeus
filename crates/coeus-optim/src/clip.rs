@@ -57,7 +57,7 @@ where
     I: Iterator<Item = &'a Var<T, B>> + Clone,
 {
     // Pass 1: sum of squared gradient elements (native T precision).
-    let mut total_sq = T::zero();
+    let mut total_sq = T::ZERO;
     for param in params.clone() {
         let Some(ref grad_arc) = param.grad else {
             continue;

@@ -130,7 +130,7 @@ pub(crate) fn attention_preserves_output_clones<T: AttentionScalar, B: Attention
     one: T,
 ) {
     let _span = tracing::info_span!("attention_output_ownership").entered();
-    let zero = T::zero();
+    let zero = T::ZERO;
     let two = one + one;
     let three = two + one;
     let four = two + two;

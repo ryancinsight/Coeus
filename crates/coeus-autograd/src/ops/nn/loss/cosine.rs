@@ -151,14 +151,14 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     )
     .expect("cosine_embedding_loss: denom clamp");
     let den = coeus_ops::sqrt(&den_sq_safe, &backend);
-    let inv_den = coeus_ops::div(&Tensor::full_on([n, 1], T::one(), &backend), &den, &backend);
+    let inv_den = coeus_ops::div(&Tensor::full_on([n, 1], T::ONE, &backend), &den, &backend);
     let cos = coeus_ops::mul(&dot_col, &inv_den, &backend);
     let dot_over_n1sq = coeus_ops::div(&dot_col, &n1_col, &backend);
     let dot_over_n2sq = coeus_ops::div(&dot_col, &n2_col, &backend);
 
     // Loss per row: y == 1 → 1 - cos; else relu(cos - margin).
     let y_tensor = Tensor::from_slice_on([n], y, &backend).reshape([n, 1]);
-    let ones = Tensor::full_on([n, 1], T::one(), &backend);
+    let ones = Tensor::full_on([n, 1], T::ONE, &backend);
     let y_is_one = coeus_ops::eq(&y_tensor, &ones, &backend);
     let pos_loss = coeus_ops::sub(&ones, &cos, &backend);
     let neg_diff = coeus_ops::sub(&cos, &Tensor::full_on([n, 1], margin, &backend), &backend);
@@ -201,7 +201,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             margin,
             n,
             d,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on([1], T::ONE / T::from_f64(n as f64), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

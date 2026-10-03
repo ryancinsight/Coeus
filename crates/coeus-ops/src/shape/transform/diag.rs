@@ -34,7 +34,7 @@ where
     let size = n + k.unsigned_abs();
     let v_cont = v.to_contiguous();
     let v_s = v_cont.as_slice();
-    let mut data = vec![T::zero(); size * size];
+    let mut data = vec![T::ZERO; size * size];
     for (i, &val) in v_s.iter().enumerate() {
         let (row, col) = if k >= 0 {
             (i, i + k as usize)

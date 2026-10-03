@@ -71,7 +71,7 @@ pub trait ComputeBackend: Send + Sync + Clone + 'static {
     /// Other storage clones retain their values when this buffer is shared.
     #[inline]
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) {
-        self.fill(dst, T::zero());
+        self.fill(dst, T::ZERO);
     }
 
     /// Copy data from host (CPU) memory to this device buffer.

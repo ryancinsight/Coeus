@@ -13,7 +13,7 @@ pub fn argmax<T, B>(
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
 {
-    let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+    let mut host_a = vec![T::ZERO; a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);
 
     let mut host_c = vec![0i64; c_layout.shape().iter().product()];
@@ -35,7 +35,7 @@ pub fn argmin<T, B>(
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
 {
-    let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+    let mut host_a = vec![T::ZERO; a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);
 
     let mut host_c = vec![0i64; c_layout.shape().iter().product()];
@@ -65,10 +65,10 @@ pub fn topk<T, B>(
     T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
 {
-    let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
+    let mut host_a = vec![T::ZERO; a_layout.shape().iter().product()];
     backend.copy_to_host(a, &mut host_a);
 
-    let mut host_values = vec![T::zero(); values_layout.shape().iter().product()];
+    let mut host_values = vec![T::ZERO; values_layout.shape().iter().product()];
     let mut host_indices = vec![0i64; indices_layout.shape().iter().product()];
 
     crate::reduction::topk::topk_impl(

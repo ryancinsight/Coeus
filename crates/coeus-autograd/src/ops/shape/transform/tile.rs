@@ -86,7 +86,7 @@ where
             }
 
             // Sum output gradients over repeated copies into the input gradient.
-            let mut gi_data = vec![T::zero(); in_numel];
+            let mut gi_data = vec![T::ZERO; in_numel];
             for (out_flat, &grad_out_element) in go_s.iter().enumerate() {
                 let mut in_flat = 0usize;
                 let mut rem = out_flat;

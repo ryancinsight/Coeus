@@ -62,7 +62,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 grad_out,
                 &Tensor::full_on(
                     [1],
-                    T::one() / T::from_f64((self.n * self.c) as f64),
+                    T::ONE / T::from_f64((self.n * self.c) as f64),
                     &backend,
                 ),
                 &backend,
@@ -128,7 +128,7 @@ where
     let mut valid_flat: Vec<T> = Vec::with_capacity(n * c);
     let mut target_flat: Vec<T> = Vec::with_capacity(n * c);
     for &v in target {
-        valid_flat.push(if v >= 0 { T::one() } else { T::zero() });
+        valid_flat.push(if v >= 0 { T::ONE } else { T::ZERO });
         let safe = if v >= 0 { v as usize } else { 0 };
         target_flat.push(T::from_count(safe));
         safe_flat.push(T::from_count(safe));
@@ -150,7 +150,7 @@ where
     let diff = diff.to_contiguous_on(&backend);
     let m = coeus_ops::add(
         &coeus_ops::neg(&diff, &backend),
-        &Tensor::full_on([n, c, c], T::one(), &backend),
+        &Tensor::full_on([n, c, c], T::ONE, &backend),
         &backend,
     );
 
@@ -166,7 +166,7 @@ where
     let not_same = coeus_ops::where_cond(
         &same,
         &Tensor::zeros_on([n, c, c], &backend),
-        &Tensor::full_on([n, c, c], T::one(), &backend),
+        &Tensor::full_on([n, c, c], T::ONE, &backend),
         &backend,
     )
     .expect("multi_label_margin: j != target mask");
@@ -186,7 +186,7 @@ where
         &loss_sum,
         &Tensor::full_on(
             [1],
-            T::one() / <T as Scalar>::from_f64((n * c) as f64),
+            T::ONE / <T as Scalar>::from_f64((n * c) as f64),
             &backend,
         ),
         &backend,

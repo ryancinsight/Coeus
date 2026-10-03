@@ -2,30 +2,19 @@
 // Scalar + Int for i8, i16, i32, i64, u8, u16, u32, u64.
 
 use super::traits::{private, Int, Scalar};
+use eunomia::NumericElement;
 
 macro_rules! impl_scalar_int_signed {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn zero() -> Self {
-                0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
-            #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
             }
             #[inline(always)]
             fn sqrt_val(self) -> Self {
-                (self.to_f64().sqrt()) as Self
+                (<Self as NumericElement>::to_f64(self).sqrt()) as Self
             }
             #[inline(always)]
             fn abs_val(self) -> Self {
@@ -82,24 +71,12 @@ macro_rules! impl_scalar_int_unsigned {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn zero() -> Self {
-                0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
-            #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
             }
             #[inline(always)]
             fn sqrt_val(self) -> Self {
-                (self.to_f64().sqrt()) as Self
+                (<Self as NumericElement>::to_f64(self).sqrt()) as Self
             }
             #[inline(always)]
             fn abs_val(self) -> Self {
@@ -168,27 +145,27 @@ macro_rules! impl_cpu_unary_dispatch_int {
                 use $crate::dtype::{CpuUnaryOp, Scalar};
                 match op {
                     CpuUnaryOp::Relu => {
-                        if x > Self::zero() {
+                        if x > Self::ZERO {
                             x
                         } else {
-                            Self::zero()
+                            Self::ZERO
                         }
                     }
                     CpuUnaryOp::ReluGrad => {
-                        if x > Self::zero() {
-                            Self::one()
+                        if x > Self::ZERO {
+                            Self::ONE
                         } else {
-                            Self::zero()
+                            Self::ZERO
                         }
                     }
-                    CpuUnaryOp::Neg => Self::zero() - x,
+                    CpuUnaryOp::Neg => Self::ZERO - x,
                     CpuUnaryOp::Abs => x.abs_val(),
                     CpuUnaryOp::Sqrt => x.sqrt_val(),
-                    CpuUnaryOp::SigmoidGrad => x * (Self::one() - x),
-                    CpuUnaryOp::TanhGrad => Self::one() - x * x,
+                    CpuUnaryOp::SigmoidGrad => x * (Self::ONE - x),
+                    CpuUnaryOp::TanhGrad => Self::ONE - x * x,
                     CpuUnaryOp::LeakyRelu(slope_bits) => {
                         let slope = Self::from_f64(f64::from_bits(slope_bits));
-                        if x >= Self::zero() {
+                        if x >= Self::ZERO {
                             x
                         } else {
                             slope * x
@@ -198,26 +175,26 @@ macro_rules! impl_cpu_unary_dispatch_int {
                     // Matches PyTorch's contract which returns slope (not 1) at x = 0.
                     CpuUnaryOp::LeakyReluGrad(slope_bits) => {
                         let slope = Self::from_f64(f64::from_bits(slope_bits));
-                        if x > Self::zero() {
-                            Self::one()
+                        if x > Self::ZERO {
+                            Self::ONE
                         } else {
                             slope
                         }
                     }
                     CpuUnaryOp::Recip => {
-                        if x == Self::zero() {
-                            Self::zero()
+                        if x == Self::ZERO {
+                            Self::ZERO
                         } else {
-                            Self::one() / x
+                            Self::ONE / x
                         }
                     }
                     CpuUnaryOp::Sign => {
-                        if x > Self::zero() {
-                            Self::one()
-                        } else if x < Self::zero() {
-                            Self::zero() - Self::one()
+                        if x > Self::ZERO {
+                            Self::ONE
+                        } else if x < Self::ZERO {
+                            Self::ZERO.wrapping_sub(Self::ONE)
                         } else {
-                            Self::zero()
+                            Self::ZERO
                         }
                     }
                     // Floor/ceil/round/trunc are identity for integers.

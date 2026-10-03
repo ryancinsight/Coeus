@@ -122,7 +122,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             reason: "mean reduction requires at least one element".to_owned(),
         }));
     }
-    if !Float::is_finite(delta) || delta <= T::zero() {
+    if !Float::is_finite(delta) || delta <= T::ZERO {
         return Err(B::Error::from(BackendError::Storage {
             operation: "huber_loss",
             reason: "delta must be finite and greater than zero".to_owned(),
@@ -170,7 +170,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             delta,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on([1], T::ONE / T::from_f64(n as f64), &backend),
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {

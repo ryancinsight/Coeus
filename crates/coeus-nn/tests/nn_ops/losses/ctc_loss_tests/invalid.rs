@@ -77,7 +77,7 @@ where
         BackendError::ShapeMismatch { lhs, rhs, .. } => assert_eq!((lhs, rhs), (vec![1], vec![2])),
         error => panic!("concatenated target mismatch must retain lengths: {error:?}"),
     }
-    for bad in [<T as Float>::NAN, <T as Float>::INFINITY, T::one()] {
+    for bad in [<T as Float>::NAN, <T as Float>::INFINITY, T::ONE] {
         let mut invalid = logs.clone();
         invalid[1] = bad;
         match rejected::<T, B>(&invalid, &[1], &[2], &[1], 0) {
@@ -115,7 +115,7 @@ where
     );
 
     // A structurally feasible target with zero probability is also undefined.
-    let input = variable::<T, B>(&[T::zero(), <T as Float>::NEG_INFINITY], [1, 1, 2]);
+    let input = variable::<T, B>(&[T::ZERO, <T as Float>::NEG_INFINITY], [1, 1, 2]);
     input.set_grad(Tensor::from_slice([1, 1, 2], &[initial; 2]));
     let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
         .expect("invariant: zero-probability paths retain infinite forward loss");

@@ -8,10 +8,10 @@ impl<T: Scalar> UnaryOpTag<T> for Relu {
     const WGSL_TEMPLATE: &'static str = "max(({}), 0.0)";
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x > T::zero() {
+        if x > T::ZERO {
             x
         } else {
-            T::zero()
+            T::ZERO
         }
     }
 }
@@ -23,7 +23,7 @@ impl<T: Scalar> UnaryOpTag<T> for Neg {
     const WGSL_TEMPLATE: &'static str = "-(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        T::zero() - x
+        T::ZERO - x
     }
 }
 
@@ -56,7 +56,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Recip {
     const WGSL_TEMPLATE: &'static str = "(1.0 / ({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        T::one() / x
+        T::ONE / x
     }
 }
 
@@ -67,12 +67,12 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sign {
     const WGSL_TEMPLATE: &'static str = "sign(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x > T::zero() {
-            T::one()
-        } else if x < T::zero() {
-            T::zero() - T::one()
+        if x > T::ZERO {
+            T::ONE
+        } else if x < T::ZERO {
+            T::ZERO - T::ONE
         } else {
-            T::zero()
+            T::ZERO
         }
     }
 }
@@ -84,7 +84,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Floor {
     const WGSL_TEMPLATE: &'static str = "floor(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).floor())
+        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).floor())
     }
 }
 
@@ -95,7 +95,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Ceil {
     const WGSL_TEMPLATE: &'static str = "ceil(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).ceil())
+        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).ceil())
     }
 }
 
@@ -109,7 +109,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Round {
     const WGSL_TEMPLATE: &'static str = "round(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).round_ties_even())
+        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).round_ties_even())
     }
 }
 
@@ -120,6 +120,6 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Trunc {
     const WGSL_TEMPLATE: &'static str = "trunc(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).trunc())
+        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).trunc())
     }
 }

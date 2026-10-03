@@ -70,9 +70,9 @@ impl<T: Scalar> LevenbergMarquardtConfig<T> {
     /// bisection on the round-tripped value — exact for IEEE binary formats and
     /// evaluated once per construction, not per iteration.
     fn epsilon() -> T {
-        let mut epsilon = T::one();
+        let mut epsilon = T::ONE;
         let two = T::from_f64(2.0);
-        while T::one() + epsilon / two > T::one() {
+        while T::ONE + epsilon / two > T::ONE {
             epsilon = epsilon / two;
         }
         epsilon

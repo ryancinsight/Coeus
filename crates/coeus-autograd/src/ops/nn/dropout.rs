@@ -100,7 +100,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
             let r = rng.borrow_mut().next_f64();
             if r < p {
-                T::zero()
+                T::ZERO
             } else {
                 T::from_f64(scale)
             }

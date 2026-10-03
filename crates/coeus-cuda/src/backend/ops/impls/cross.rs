@@ -14,11 +14,11 @@ impl<T: Scalar> coeus_ops::CrossOps<T> for CudaBackend {
         dim: usize,
     ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         let numel = a_layout.numel();
-        let mut a_host = vec![T::zero(); numel];
-        let mut b_host = vec![T::zero(); numel];
+        let mut a_host = vec![T::ZERO; numel];
+        let mut b_host = vec![T::ZERO; numel];
         self.copy_to_host(a, &mut a_host);
         self.copy_to_host(b, &mut b_host);
-        let mut out_host = vec![T::zero(); numel];
+        let mut out_host = vec![T::ZERO; numel];
         coeus_ops::cross_fold(&a_host, &b_host, a_layout, dim, &mut out_host);
         let mut output = self.allocate(numel);
         self.copy_to_device(&out_host, &mut output);

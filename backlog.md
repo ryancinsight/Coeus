@@ -6,12 +6,14 @@ restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
 <a id="coeus-scalar-vocab"></a>
-## COEUS-SCALAR-VOCAB — Delete `Scalar`'s redeclared element vocabulary
+## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`
 
-- Status: todo; priority: architecture; [major]; basis: 70e39493.
-- Outcome: `coeus_core::Scalar` declares only its slice-kernel surface; `zero`, `one`, `to_f64` and `from_f64` (`crates/coeus-core/src/dtype/traits.rs:346-364`) delete, call sites moving to `NumericElement::ZERO`/`ONE`/`to_f64` and `FloatElement::from_f64` (atlas:0005 decision 1, recorded closed there on 2026-07-04 but never landed).
+- Status: todo; priority: architecture; [major]; basis: c279b69e.
+- Outcome: `coeus_core::Scalar` declares only its slice-kernel surface; its last redeclared element method, `from_f64` (`crates/coeus-core/src/dtype/traits.rs`), deletes (atlas:0005 decision 1). `zero`, `one` and `to_f64` already moved to `NumericElement::ZERO`/`ONE`/`to_f64`.
 - Also: the `from_f64(n as f64)` count conversions COEUS-COUNT-CONV-001 left move to `from_count`/`try_from_count`.
-- Acceptance: the four methods are absent; values unchanged (the moves are identities); coeus gate green.
+- Gap (decision first, as an ADR): `FloatElement::from_f64` exists for floats only and `Float` does not imply it — a `Float: FloatElement` supertrait makes every `x.exp()`/`x.floor()` on `T: Float` ambiguous (`Float` redeclares ~25 `FloatElement` methods) and per-site `+ FloatElement` bounds are viral; `Complex<T>` has neither `FloatElement` nor `CastFrom<f64>`; 17 src and ~130 test sites are `T: Scalar`-only and run at integers (`v as Self`, which `CastFrom<f64>` reproduces exactly). ~390 call sites.
+- Options: (1, recommended) `Scalar: CastFrom<f64>` with `CastFrom<f64> for Complex<T>` added upstream in eunomia, every site `<T as CastFrom<f64>>::cast_from(v)`; (2) per-site `+ FloatElement`, narrowing int-capable generics to floats.
+- Acceptance: `from_f64` absent from `Scalar`; values unchanged; coeus gate green.
 
 <a id="coeus-rescue-queue"></a>
 ## COEUS-RESCUE-QUEUE — Complete or close the stranded rescue PRs

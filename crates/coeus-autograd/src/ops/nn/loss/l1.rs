@@ -91,7 +91,7 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             .as_ref()
             .expect("invariant: tracked output has a gradient buffer")
             .clone();
-        let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend);
+        let mean_scale = Tensor::full_on([1], T::ONE / T::from_f64(n as f64), &backend);
         let node = L1LossNode {
             output_grad,
             inputs: vec![pred.clone(), target.clone()],

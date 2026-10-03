@@ -28,7 +28,7 @@ where
 
     for flat in 0..input.numel() {
         let idx = crate::shape::flat_to_nd(flat, shape);
-        if input.get(&idx) != T::zero() {
+        if input.get(&idx) != T::ZERO {
             count += 1;
             for coord in idx {
                 out_vec.push(T::try_from_count(coord)?);

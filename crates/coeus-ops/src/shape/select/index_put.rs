@@ -54,7 +54,7 @@ where
 
     // Copy input to host, apply updates, copy back.
     let numel = input.numel();
-    let mut host = vec![T::zero(); numel];
+    let mut host = vec![T::ZERO; numel];
     backend.copy_to_host(input.storage(), &mut host);
 
     let idx_cont = indices.to_contiguous();
@@ -64,7 +64,7 @@ where
 
     let n_rows = input.shape()[0];
     for (src_row, &idx_val) in idx_s.iter().enumerate() {
-        let row = <T as Scalar>::to_f64(idx_val) as usize;
+        let row = <T as coeus_core::NumericElement>::to_f64(idx_val) as usize;
         assert!(
             row < n_rows,
             "index_put: index {row} out of range for dim 0 size {n_rows}"

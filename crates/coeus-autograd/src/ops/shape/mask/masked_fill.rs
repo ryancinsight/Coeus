@@ -42,8 +42,7 @@ where
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let grad_input =
-                coeus_ops::masked_fill(grad_out, &self.mask_tensor, T::zero(), &backend);
+            let grad_input = coeus_ops::masked_fill(grad_out, &self.mask_tensor, T::ZERO, &backend);
             let lock = g.write();
             coeus_ops::add_assign(lock, &grad_input, &backend)?;
         }

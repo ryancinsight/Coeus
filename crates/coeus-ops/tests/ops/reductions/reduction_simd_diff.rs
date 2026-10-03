@@ -34,7 +34,7 @@ where
         .reduce(op, &a_buf, &a_layout, 1, &mut c_buf, &c_layout)
         .expect("CPU reduction dispatch");
 
-    let mut out = vec![T::zero(); rows];
+    let mut out = vec![T::ZERO; rows];
     backend.copy_to_host(&c_buf, &mut out);
     out
 }

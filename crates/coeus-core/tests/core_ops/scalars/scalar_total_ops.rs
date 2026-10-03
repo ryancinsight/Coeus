@@ -50,8 +50,8 @@ fn assert_float_total_ops<T: Float + Debug>() {
         "{:?}::MAX.total_mul(MAX) must overflow to infinity",
         T::MAX
     );
-    let two = T::one().total_add(T::one());
-    let three = two.total_add(T::one());
+    let two = T::ONE.total_add(T::ONE);
+    let three = two.total_add(T::ONE);
     let five = three.total_add(two);
     assert_eq!(two.total_add(three), five);
     let six = two.total_mul(three);
@@ -63,14 +63,14 @@ fn assert_float_total_ops<T: Float + Debug>() {
 /// so overflow and normal cases follow the same IEEE 754 rule at the
 /// component level as [`assert_float_total_ops`]'s real float types.
 fn assert_complex_total_ops<T: Float + core::ops::Neg<Output = T> + Debug>() {
-    let huge = Complex::<T>::new(T::MAX, T::zero());
+    let huge = Complex::<T>::new(T::MAX, T::ZERO);
     let overflowed = huge.total_add(huge);
     assert!(
         overflowed.re.is_infinite(),
         "Complex<{:?}> total_add must overflow its real part to infinity",
         T::MAX
     );
-    let one = T::one();
+    let one = T::ONE;
     let two = one.total_add(one);
     let three = two.total_add(one);
     let four = two.total_add(two);
