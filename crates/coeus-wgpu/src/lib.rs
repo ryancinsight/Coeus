@@ -26,7 +26,7 @@ mod storage;
 
 pub use backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 
-use coeus_core::{BackendError, ComputeBackend, Layout};
+use coeus_core::{BackendError, ClosedReduction, ComputeBackend, FloatElement, Layout};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 
@@ -154,11 +154,16 @@ pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
 /// Evaluate a fused reduction along an axis on the WebGPU device.
 ///
+/// Mean is float-only and evaluates through [`evaluate_fused_mean`].
+///
 /// # Errors
 ///
-/// Returns [`WgpuBackendError`] when the expression has no tensor input, the
-/// axis is invalid, an empty axis is used with mean, maximum, or minimum, or
-/// the layout and dispatch cannot be represented by the active WebGPU device.
+/// Returns [`WgpuBackendError`] carrying
+/// [`BackendError::FloatOnlyReduction`] for
+/// [`ReductionOp::Mean`](coeus_ops::ReductionOp::Mean), and when the
+/// expression has no tensor input, the axis is invalid, an empty axis is used
+/// with maximum or minimum, or the layout and dispatch cannot be represented
+/// by the active WebGPU device.
 ///
 /// Accelerator expressions cannot enter the CPU reduction evaluator:
 ///
@@ -174,6 +179,34 @@ pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 /// }
 /// ```
 pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
+    expr: &E,
+    op: coeus_ops::ReductionOp,
+    axis: usize,
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+    let reduction = ClosedReduction::from_op("fused reduction", op)?;
+    fused_reduction(expr, reduction.into(), axis)
+}
+
+/// Evaluate a fused arithmetic mean along an axis on the WebGPU device.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: integer
+/// division would truncate the quotient.
+///
+/// # Errors
+///
+/// Returns [`WgpuBackendError`] when the expression has no tensor input, the
+/// axis is invalid or empty, or the layout and dispatch cannot be represented
+/// by the active WebGPU device.
+pub fn evaluate_fused_mean<T: WgpuScalar + FloatElement, E: ExprNode<T, WgpuBackend>>(
+    expr: &E,
+    axis: usize,
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+    fused_reduction(expr, coeus_ops::ReductionOp::Mean, axis)
+}
+
+/// Shared fused reduction body. `op` is a closed reduction, or the mean from
+/// [`evaluate_fused_mean`] alone.
+fn fused_reduction<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr: &E,
     op: coeus_ops::ReductionOp,
     axis: usize,
@@ -236,7 +269,13 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
         return Ok(Tensor::from_raw_parts(out_storage, out_layout));
     }
 
-    fusion::dispatch_fused_reduce(expr, op, axis, &mut out_storage, &out_layout)?;
+    fusion::dispatch_fused_reduce(
+        expr,
+        coeus_hephaestus::fused_selector(op),
+        axis,
+        &mut out_storage,
+        &out_layout,
+    )?;
 
     Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }

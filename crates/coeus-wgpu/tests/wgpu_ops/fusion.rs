@@ -83,11 +83,18 @@ fn fused_empty_axis_matches_cpu_contract() {
         .to_backend_on(&wgpu, &seq);
     assert_eq!(sum.as_slice(), &[0.0, 0.0]);
     assert_eq!(product.as_slice(), &[1.0, 1.0]);
-    for operation in [
-        coeus_ops::ReductionOp::Mean,
-        coeus_ops::ReductionOp::Max,
-        coeus_ops::ReductionOp::Min,
-    ] {
+    let mean = match coeus_wgpu::evaluate_fused_mean(&gpu.expr(), 1) {
+        Ok(_) => panic!("empty WGPU mean must be rejected"),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        mean,
+        WgpuBackendError::Validation(coeus_core::BackendError::EmptyReduction {
+            operation: "fused reduction",
+            reduction: coeus_ops::ReductionOp::Mean,
+        })
+    ));
+    for operation in [coeus_ops::ReductionOp::Max, coeus_ops::ReductionOp::Min] {
         let error = match coeus_wgpu::evaluate_fused_reduce(&gpu.expr(), operation, 1) {
             Ok(_) => panic!("undefined empty WGPU reduction must be rejected"),
             Err(error) => error,
@@ -181,12 +188,17 @@ fn test_wgpu_evaluate_fused_reduce() {
     assert_eq!(out_sum_cpu.as_slice(), expected_sum.as_slice());
 
     // Fused mean reduction along axis 1
-    let out_mean_gpu =
-        coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Mean, 1)
-            .expect("fused WGPU mean reduction should dispatch");
+    let out_mean_gpu = coeus_wgpu::evaluate_fused_mean(&expr_gpu, 1)
+        .expect("fused WGPU mean reduction should dispatch");
     let out_mean_cpu = out_mean_gpu.to_backend_on(&wgpu_b, &seq);
     let expected_mean = coeus_ops::fuse::evaluate_fused_mean_cpu(&expr_cpu, 1, &seq)
         .expect("CPU fused mean should evaluate");
+    assert!(matches!(
+        coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Mean, 1),
+        Err(coeus_wgpu::WgpuBackendError::Validation(
+            coeus_core::BackendError::FloatOnlyReduction { .. }
+        ))
+    ));
 
     let axis_len = shape[1] as f32;
     let eps = f32::EPSILON;

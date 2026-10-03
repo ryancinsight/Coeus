@@ -22,9 +22,14 @@ use super::super::CpuBackend;
 pub trait ReductionOps<T: Scalar>: ComputeBackend {
     /// Reduction operations along an axis.
     ///
+    /// [`ReductionOp::Mean`] is float-only and computes through
+    /// [`ReductionOps::mean`].
+    ///
     /// # Errors
     ///
-    /// Returns the backend-associated error when layout validation, provider
+    /// Returns the backend-associated error carrying
+    /// [`BackendError::FloatOnlyReduction`](coeus_core::BackendError::FloatOnlyReduction)
+    /// for [`ReductionOp::Mean`], and when layout validation, provider
     /// execution, or output dispatch fails.
     fn reduce(
         &self,

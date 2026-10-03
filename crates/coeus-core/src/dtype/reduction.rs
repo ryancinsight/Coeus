@@ -9,7 +9,10 @@ pub enum ReductionOp {
     Sum,
     /// Product of all elements.
     Prod,
-    /// Arithmetic mean of all elements.
+    /// Arithmetic mean of all elements, defined only for floating-point
+    /// element types. Generic reduction paths reject it with
+    /// [`BackendError::FloatOnlyReduction`]; the float-bound mean entry points
+    /// compute it.
     Mean,
     /// Maximum element.
     Max,

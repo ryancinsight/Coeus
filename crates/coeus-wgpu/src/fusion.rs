@@ -133,7 +133,7 @@ where
 /// Dispatch a fused expression reduction through Hephaestus.
 pub(crate) fn dispatch_fused_reduce<T, E>(
     expression: &E,
-    reduction: coeus_ops::ReductionOp,
+    reduction: FusedReduction,
     axis: usize,
     output: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
     output_layout: &Layout,
@@ -161,13 +161,6 @@ where
     let adapter = ExpressionAdapter {
         expression,
         _scalar: PhantomData,
-    };
-    let reduction = match reduction {
-        coeus_ops::ReductionOp::Sum => FusedReduction::Sum,
-        coeus_ops::ReductionOp::Prod => FusedReduction::Product,
-        coeus_ops::ReductionOp::Mean => FusedReduction::Mean,
-        coeus_ops::ReductionOp::Max => FusedReduction::Maximum,
-        coeus_ops::ReductionOp::Min => FusedReduction::Minimum,
     };
     let device = &crate::backend::get_wgpu_context().hephaestus_device;
     WgpuFusionOps

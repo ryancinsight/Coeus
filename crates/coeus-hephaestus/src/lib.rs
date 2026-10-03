@@ -13,6 +13,7 @@ mod cross_entropy;
 mod cross_product;
 mod elementwise;
 mod error;
+mod fused_reduction;
 mod layout;
 mod matmul;
 mod pooling;
@@ -44,6 +45,7 @@ pub use elementwise::{
     ScalarPowerDispatch, ScalarPowerProvider, UnaryElementwiseDispatch,
 };
 pub use error::HephaestusBackendError;
+pub use fused_reduction::fused_selector;
 pub use matmul::{matmul, MatmulBackend, MatmulProvider};
 pub use pooling::{pooling_backward, pooling_forward, PoolingBackend, PoolingProvider};
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};

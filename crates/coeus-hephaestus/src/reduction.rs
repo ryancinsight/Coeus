@@ -4,7 +4,7 @@ use crate::{
     layout::{ranked, ranked_axis},
     storage::HephaestusStorage,
 };
-use coeus_core::{FloatElement, Layout, Scalar, StorageMut};
+use coeus_core::{ClosedReduction, FloatElement, Layout, Scalar, StorageMut};
 use coeus_ops::ReductionOp;
 use hephaestus_core::{
     AxisReductionOps, CombineExpr, ComputeDevice, IdentityToken, MaxOp, MinOp, OpIdentity,
@@ -26,7 +26,7 @@ pub trait AxisReductionDispatch<D: ComputeDevice, T: eunomia::Pod> {
     /// Execute one Coeus reduction operation.
     fn reduce(
         device: &D,
-        operation: ReductionOp,
+        operation: ClosedReduction,
         input: RankedOperand<'_, D::Buffer<T>, 2>,
         axis: usize,
         output: RankedOperand<'_, D::Buffer<T>, 2>,
@@ -65,7 +65,7 @@ where
 {
     fn reduce(
         device: &D,
-        operation: ReductionOp,
+        operation: ClosedReduction,
         input: RankedOperand<'_, D::Buffer<T>, 2>,
         axis: usize,
         output: RankedOperand<'_, D::Buffer<T>, 2>,
@@ -74,13 +74,14 @@ where
         let input = StridedView::new(input.buffer, input.layout);
         let output = StridedView::new(output.buffer, output.layout);
         match operation {
-            ReductionOp::Sum => operations.reduce_axis_into::<SumOp>(device, input, axis, output),
-            ReductionOp::Prod => {
+            ClosedReduction::Sum => {
+                operations.reduce_axis_into::<SumOp>(device, input, axis, output)
+            }
+            ClosedReduction::Prod => {
                 operations.reduce_axis_into::<hephaestus_core::ProdOp>(device, input, axis, output)
             }
-            ReductionOp::Mean => operations.mean_axis_into(device, input, axis, output),
-            ReductionOp::Min => operations.min_axis_into(device, input, axis, output),
-            ReductionOp::Max => operations.max_axis_into(device, input, axis, output),
+            ClosedReduction::Min => operations.min_axis_into(device, input, axis, output),
+            ClosedReduction::Max => operations.max_axis_into(device, input, axis, output),
         }
     }
 
@@ -182,7 +183,7 @@ where
     /// Reduce a rank-2 strided input into a keep-dimension output.
     fn reduce(
         device: &Self::Device,
-        op: ReductionOp,
+        op: ClosedReduction,
         input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
         axis: usize,
         output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
@@ -245,6 +246,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
+        let op = ClosedReduction::from_op("reduce", op)?;
         Self::axis_reduction(
             "reduce",
             (a, a_layout),

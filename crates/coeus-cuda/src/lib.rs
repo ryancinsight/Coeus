@@ -102,11 +102,16 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
 
 /// Evaluate a fused reduction along an axis on the CUDA device.
 ///
+/// Mean is float-only and evaluates through [`evaluate_fused_mean`].
+///
 /// # Errors
 ///
-/// Returns [`CudaBackendError`] when the expression, axis, CUDA provider,
-/// generated kernel, or launch ABI rejects the operation. Empty mean, maximum,
-/// and minimum reductions are undefined and rejected.
+/// Returns [`CudaBackendError`] carrying
+/// [`BackendError::FloatOnlyReduction`](coeus_core::BackendError::FloatOnlyReduction)
+/// for [`ReductionOp::Mean`](coeus_ops::ReductionOp::Mean), and when the
+/// expression, axis, CUDA provider, generated kernel, or launch ABI rejects
+/// the operation. Empty maximum and minimum reductions are undefined and
+/// rejected.
 ///
 /// Accelerator expressions cannot enter the CPU reduction evaluator:
 ///
@@ -122,6 +127,38 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
 /// }
 /// ```
 pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
+    expr: &E,
+    op: coeus_ops::ReductionOp,
+    axis: usize,
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
+    let reduction = coeus_core::ClosedReduction::from_op("fused reduction", op)
+        .map_err(CudaBackendError::validation)?;
+    fused_reduction(expr, reduction.into(), axis)
+}
+
+/// Evaluate a fused arithmetic mean along an axis on the CUDA device.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: integer
+/// division would truncate the quotient.
+///
+/// # Errors
+///
+/// Returns [`CudaBackendError`] when the expression, axis, CUDA provider,
+/// generated kernel, or launch ABI rejects the operation, or the axis is
+/// empty.
+pub fn evaluate_fused_mean<
+    T: CudaScalar + coeus_core::FloatElement,
+    E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy,
+>(
+    expr: &E,
+    axis: usize,
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError> {
+    fused_reduction(expr, coeus_ops::ReductionOp::Mean, axis)
+}
+
+/// Shared fused reduction body. `op` is a closed reduction, or the mean from
+/// [`evaluate_fused_mean`] alone.
+fn fused_reduction<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy>(
     expr: &E,
     op: coeus_ops::ReductionOp,
     axis: usize,
@@ -169,7 +206,13 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
         let out_layout = Layout::new(out_shape.clone());
         let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
 
-        fusion::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
+        fusion::dispatch_fused_reduce(
+            expr,
+            coeus_hephaestus::fused_selector(op),
+            axis,
+            out.storage_mut(),
+            &out_layout,
+        )?;
         Ok(out)
     }
 }
