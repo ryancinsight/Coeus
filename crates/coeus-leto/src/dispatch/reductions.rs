@@ -1,5 +1,5 @@
 use crate::convert::{to_leto_layout, to_leto_view, to_leto_view_mut};
-use coeus_core::{Layout as CoeusLayout, ReductionOp};
+use coeus_core::{FloatElement, Layout as CoeusLayout, ReductionOp};
 use leto::{
     application::{argmax, argmin},
     Array, LetoError, RankMarker, RemoveAxis, Result, SliceStorage, Storage,
@@ -29,9 +29,6 @@ fn reduce_n<T: LetoScalar, const N: usize>(
         ReductionOp::Prod => {
             leto_ops::reduce_axis_into::<ProductAxis, T, N>(&a_view, axis, &mut out_view)
         }
-        ReductionOp::Mean => {
-            leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
-        }
         ReductionOp::Max => {
             leto_ops::reduce_axis_into::<MaxAxis, T, N>(&a_view, axis, &mut out_view)
         }
@@ -44,10 +41,19 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 /// Keep-dim axis reductions of a coeus CPU tensor into caller-owned output,
 /// dispatched to the matching monomorphized leto reduction kernel.
 ///
+/// The arithmetic mean is not a [`ReductionOp`]; it dispatches through
+/// [`mean_into`], whose `FloatElement` bound rejects integer element types at
+/// compile time.
+///
+/// # Errors
+///
+/// Returns the leto layout or storage error when the rank is outside `1..=6`
+/// or the layouts do not describe a keep-dim reduction along `axis`.
+///
 /// # Examples
 ///
 /// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output, for the
-/// `sum`, `product`, `mean`, `max`, and `min` operators:
+/// `sum`, `product`, `max`, and `min` operators:
 ///
 /// ```
 /// use coeus_core::{Layout, ReductionOp};
@@ -63,9 +69,6 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 ///
 /// reduce_into(ReductionOp::Prod, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [-8.0, 90.0]);
-///
-/// reduce_into(ReductionOp::Mean, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
-/// assert_eq!(out, [1.0, 14.0 / 3.0]);
 ///
 /// reduce_into(ReductionOp::Max, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [4.0, 6.0]);
@@ -88,6 +91,65 @@ pub fn reduce_into<T: LetoScalar>(
         4 => reduce_n::<T, 4>(op, a_layout, a, axis, out_layout, out),
         5 => reduce_n::<T, 5>(op, a_layout, a, axis, out_layout, out),
         6 => reduce_n::<T, 6>(op, a_layout, a, axis, out_layout, out),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+fn mean_n<T: LetoScalar + FloatElement, const N: usize>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    let a_view = to_leto_view::<T, N>(a_layout, a)?;
+    let mut out_view = to_leto_view_mut::<T, N>(out_layout, out)?;
+    leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
+}
+
+/// Keep-dim arithmetic mean of a coeus CPU tensor along `axis` into
+/// caller-owned output, dispatched to the matching monomorphized leto
+/// reduction kernel.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: integer
+/// division would truncate the quotient, so integer callers convert to a
+/// floating-point tensor first.
+///
+/// # Errors
+///
+/// Returns the leto layout or storage error when the rank is outside `1..=6`,
+/// the layouts do not describe a keep-dim reduction along `axis`, or the axis
+/// is empty while the output is not.
+///
+/// # Examples
+///
+/// ```
+/// use coeus_core::Layout;
+/// use coeus_leto::mean_into;
+///
+/// let input = [1.0_f64, 4.0, -2.0, 5.0, 3.0, 6.0];
+/// let input_layout = Layout::new([2, 3].into());
+/// let output_layout = Layout::new([2, 1].into());
+/// let mut out = [0.0_f64; 2];
+/// mean_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// assert_eq!(out, [1.0, 14.0 / 3.0]);
+/// ```
+pub fn mean_into<T: LetoScalar + FloatElement>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    match a_layout.ndim() {
+        1 => mean_n::<T, 1>(a_layout, a, axis, out_layout, out),
+        2 => mean_n::<T, 2>(a_layout, a, axis, out_layout, out),
+        3 => mean_n::<T, 3>(a_layout, a, axis, out_layout, out),
+        4 => mean_n::<T, 4>(a_layout, a, axis, out_layout, out),
+        5 => mean_n::<T, 5>(a_layout, a, axis, out_layout, out),
+        6 => mean_n::<T, 6>(a_layout, a, axis, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),

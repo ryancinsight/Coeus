@@ -1,7 +1,7 @@
 //! Provider-neutral operation dispatch.
 
 use super::provider::{parameterized_unary, ParameterizedElementwiseProvider};
-use crate::reduction::{HephaestusProvider, RankedOperand};
+use crate::{reduction::RankedOperand, HephaestusProvider};
 use coeus_ops::{BinaryOp, UnaryOp};
 use hephaestus_core::{
     BinaryExpr, CeluGradOp, CeluOp, ComputeDevice, DialectScalar,

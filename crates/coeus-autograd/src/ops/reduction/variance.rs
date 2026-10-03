@@ -13,7 +13,7 @@
 // graph reproduces this exactly; the parity tests pin it against PyTorch.
 
 use crate::var::Var;
-use coeus_core::Float;
+use coeus_core::{Float, FloatElement};
 
 /// Tracked variance and mean over all elements.
 ///
@@ -24,7 +24,7 @@ use coeus_core::Float;
 /// Panics if `a` is empty, or if `unbiased` and `a` has a single element
 /// (variance denominator would be zero).
 #[must_use]
-pub fn var_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn var_mean<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> (Var<T, B>, Var<T, B>) {
@@ -42,14 +42,14 @@ pub fn var_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let dev = crate::ops::arithmetic::sub(&flat, &mu);
     let sq = crate::ops::arithmetic::mul(&dev, &dev);
     let ssum = crate::ops::arithmetic::sum(&sq);
-    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_f64(denom as f64));
+    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_count(denom));
     (v, mu)
 }
 
 /// Tracked variance over all elements (`torch.var`). See [`var_mean`].
 #[must_use]
 #[inline]
-pub fn var<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn var<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> Var<T, B> {
@@ -59,7 +59,7 @@ pub fn var<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked standard deviation and mean over all elements (`torch.std_mean`).
 #[must_use]
 #[inline]
-pub fn std_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn std_mean<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> (Var<T, B>, Var<T, B>) {
@@ -70,7 +70,7 @@ pub fn std_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked standard deviation over all elements (`torch.std`).
 #[must_use]
 #[inline]
-pub fn std_dev<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn std_dev<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> Var<T, B> {
@@ -86,7 +86,7 @@ pub fn std_dev<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Panics if `axis` is out of range, or if `unbiased` and the axis extent is
 /// 1 (denominator would be zero).
 #[must_use]
-pub fn var_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn var_mean_axis<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,
@@ -108,14 +108,14 @@ pub fn var_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let dev = crate::ops::arithmetic::sub(a, &mu);
     let sq = crate::ops::arithmetic::mul(&dev, &dev);
     let ssum = crate::ops::arithmetic::sum_axis(&sq, axis);
-    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_f64(denom as f64));
+    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_count(denom));
     (v, mu)
 }
 
 /// Tracked variance along `axis` (`torch.var(dim=axis, keepdim=True)`).
 #[must_use]
 #[inline]
-pub fn var_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn var_axis<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,
@@ -126,7 +126,7 @@ pub fn var_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked standard deviation and mean along `axis` (`torch.std_mean(dim=axis)`).
 #[must_use]
 #[inline]
-pub fn std_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn std_mean_axis<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,
@@ -138,7 +138,7 @@ pub fn std_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked standard deviation along `axis` (`torch.std(dim=axis, keepdim=True)`).
 #[must_use]
 #[inline]
-pub fn std_dev_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn std_dev_axis<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
     unbiased: bool,

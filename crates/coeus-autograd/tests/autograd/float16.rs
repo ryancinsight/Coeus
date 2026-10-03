@@ -90,3 +90,47 @@ fn f16_autograd_smoke() {
         );
     }
 }
+
+/// The mean gradient over `n = 65520` elements is `1/n`, though `n` itself
+/// is not an F16: it rounds past the largest finite F16, 65504, to `+inf`, so
+/// dividing one by the converted count gives exactly zero. The correctly
+/// rounded `1/65520 ≈ 1.52625e-5` is the subnormal `256 · 2^-24`; correct
+/// rounding bounds it within half the subnormal spacing, `2^-25`, of `1/n`.
+#[test]
+fn f16_mean_gradient_at_count_past_f16_range() {
+    use coeus_autograd::{mean, mean_axis, Var};
+
+    const N: usize = 65_520;
+    let expected = F16::from_f32(256.0 / 16_777_216.0);
+    let exact = 1.0_f64 / 65_520.0;
+    assert!(
+        (f64::from(expected.to_f32()) - exact).abs() <= 2.0_f64.powi(-25),
+        "the oracle is the F16 nearest 1/{N}"
+    );
+
+    let flat = Var::new(
+        Tensor::<F16, SequentialBackend>::from_slice(vec![N], &vec![F16::from_f32(0.0); N]),
+        true,
+    );
+    mean(&flat)
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
+    let flat_grad = flat.grad().expect("F16 mean must produce a gradient");
+    assert!(
+        flat_grad.as_slice().iter().all(|&g| g == expected),
+        "mean gradient must be 1/{N} correctly rounded"
+    );
+
+    let rows = Var::new(
+        Tensor::<F16, SequentialBackend>::from_slice(vec![1, N], &vec![F16::from_f32(0.0); N]),
+        true,
+    );
+    mean_axis(&rows, 1)
+        .backward_with_seed(Tensor::from_slice(vec![1, 1], &[F16::from_f32(1.0)]))
+        .expect("invariant: valid autograd fixture completes backward");
+    let rows_grad = rows.grad().expect("F16 mean_axis must produce a gradient");
+    assert!(
+        rows_grad.as_slice().iter().all(|&g| g == expected),
+        "mean_axis gradient must be 1/{N} correctly rounded"
+    );
+}

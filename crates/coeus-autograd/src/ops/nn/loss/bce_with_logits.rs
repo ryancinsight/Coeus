@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -65,7 +65,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 /// Per element with `z = logit`, `y = target`:
 /// `loss = max(z, 0) - z*y + log(1 + exp(-|z|))`, averaged over all elements.
 /// This is the `reduction="mean"` form of PyTorch `BCEWithLogitsLoss`.
-pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn bce_with_logits<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -97,7 +97,7 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         &target.tensor,
         &backend,
     );
-    let mean_scale = T::one() / T::from_f64(n as f64);
+    let mean_scale = T::from_count_reciprocal(n);
     let scale = Tensor::full_on([1], mean_scale, &backend);
     let requires_grad =
         crate::grad_mode::should_track_var(logits) || crate::grad_mode::should_track_var(target);

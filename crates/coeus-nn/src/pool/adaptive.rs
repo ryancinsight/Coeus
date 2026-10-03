@@ -11,7 +11,9 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, Scalar};
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, MoiraiBackend, Scalar,
+};
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
 
@@ -206,7 +208,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveAvgPool2d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveAvgPool2d<T, B>
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for AdaptiveAvgPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

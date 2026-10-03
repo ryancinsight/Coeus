@@ -2,10 +2,8 @@
 
 use super::provider::{ElementwiseProvider, ScalarPowerProvider};
 use crate::{
-    error::HephaestusBackendError,
-    layout::ranked,
-    reduction::{HephaestusBackend, HephaestusProvider, RankedOperand},
-    storage::HephaestusStorage,
+    error::HephaestusBackendError, layout::ranked, reduction::RankedOperand,
+    storage::HephaestusStorage, HephaestusBackend, HephaestusProvider,
 };
 use coeus_core::{BackendError, Float, Layout, Scalar, StorageMut};
 use coeus_ops::{BinaryOp, ElementwiseOps, ScalarPowerOps, UnaryOp};

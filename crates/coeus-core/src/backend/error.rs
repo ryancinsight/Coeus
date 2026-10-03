@@ -181,6 +181,13 @@ pub enum BackendError {
         /// Reduction whose result is undefined without an input value.
         reduction: ReductionOp,
     },
+    /// The arithmetic mean received an empty axis; it has no input value to
+    /// divide by the axis length.
+    #[error("{operation} mean is undefined for an empty axis")]
+    EmptyMean {
+        /// Operation family that rejected the empty axis.
+        operation: &'static str,
+    },
     /// The operation received shapes that cannot be broadcast.
     #[error("{operation} incompatible broadcast: {from:?} to {to:?}")]
     IncompatibleBroadcast {

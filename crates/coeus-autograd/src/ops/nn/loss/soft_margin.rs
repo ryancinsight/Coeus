@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -76,7 +76,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sof
 /// Forward uses the provider `softplus(-m)` (stable for any margin) and
 /// backward computes `-target * sigmoid(-m) / n` and `-input * sigmoid(-m) / n`
 /// entirely on the selected provider.
-pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn soft_margin<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -111,7 +111,7 @@ pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             margin,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on([1], T::from_count_reciprocal(n), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

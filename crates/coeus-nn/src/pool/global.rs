@@ -1,6 +1,6 @@
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_core::{Float, FloatElement, MoiraiBackend, Scalar};
 use std::marker::PhantomData;
 
 // ── Global average pooling ─────────────────────────────────────────────────
@@ -24,7 +24,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool1d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool1d<T, B> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalAvgPool1d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -65,7 +67,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool2d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool2d<T, B> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalAvgPool2d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -108,7 +112,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool3d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool3d<T, B> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalAvgPool3d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }

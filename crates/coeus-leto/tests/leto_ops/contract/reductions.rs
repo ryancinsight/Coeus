@@ -1,6 +1,6 @@
 use super::support::layout;
 use super::{
-    argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
+    argmax_into, argmin_into, cumprod_into, cumsum_into, mean_into, reduce_into, suffix_prod_into,
     suffix_sum_into, ReductionOp,
 };
 
@@ -22,15 +22,7 @@ fn reduction_dispatch_covers_keepdim_axis_ops() {
     .unwrap();
     assert_eq!(out, vec![3.0, 14.0]);
 
-    reduce_into(
-        ReductionOp::Mean,
-        &input_layout,
-        &input,
-        1,
-        &output_layout,
-        &mut out,
-    )
-    .unwrap();
+    mean_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
     assert_eq!(out, vec![1.0, 14.0 / 3.0]);
 
     reduce_into(

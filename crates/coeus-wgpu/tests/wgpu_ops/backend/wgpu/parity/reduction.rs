@@ -30,6 +30,9 @@ fn test_wgpu_parity_mean_axis() {
     let cpu = coeus_ops::mean_axis(&x, 1, &s).expect("valid CPU mean axis");
     let gpu = to_cpu(&coeus_ops::mean_axis(&to_gpu(&x), 1, &wgpu()).expect("valid WGPU mean axis"));
     assert_parity("mean_axis1", cpu.as_slice(), gpu.as_slice());
+    // Each row holds four multiples of 0.5 below 6, so every partial sum and
+    // each quotient by 4 is exact in f32 under any summation order.
+    assert_eq!(gpu.as_slice(), &[0.75, 2.75, 4.75]);
 }
 
 #[test]

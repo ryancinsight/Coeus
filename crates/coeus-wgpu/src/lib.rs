@@ -26,9 +26,10 @@ mod storage;
 
 pub use backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 
-use coeus_core::{BackendError, ComputeBackend, Layout};
+use coeus_core::{BackendError, ComputeBackend, FloatElement, Layout};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
+use hephaestus_core::FusedReduction;
 
 /// Element-wise addition of two WebGPU tensors.
 ///
@@ -154,11 +155,14 @@ pub fn evaluate_fused<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
 /// Evaluate a fused reduction along an axis on the WebGPU device.
 ///
+/// The arithmetic mean is not a [`ReductionOp`](coeus_ops::ReductionOp); it
+/// evaluates through [`evaluate_fused_mean`].
+///
 /// # Errors
 ///
 /// Returns [`WgpuBackendError`] when the expression has no tensor input, the
-/// axis is invalid, an empty axis is used with mean, maximum, or minimum, or
-/// the layout and dispatch cannot be represented by the active WebGPU device.
+/// axis is invalid, an empty axis is used with maximum or minimum, or the
+/// layout and dispatch cannot be represented by the active WebGPU device.
 ///
 /// Accelerator expressions cannot enter the CPU reduction evaluator:
 ///
@@ -177,6 +181,66 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     expr: &E,
     op: coeus_ops::ReductionOp,
     axis: usize,
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
+    let empty = match op {
+        coeus_ops::ReductionOp::Sum => Ok(T::zero()),
+        coeus_ops::ReductionOp::Prod => Ok(T::one()),
+        coeus_ops::ReductionOp::Max | coeus_ops::ReductionOp::Min => {
+            Err(BackendError::EmptyReduction {
+                operation: "fused reduction",
+                reduction: op,
+            })
+        }
+    };
+    fused_reduction(expr, fusion::fused_reduction(op), axis, empty)
+}
+
+/// Evaluate a fused arithmetic mean along an axis on the WebGPU device.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: the WGSL
+/// integer division would truncate the quotient.
+///
+/// ```compile_fail,E0277
+/// use coeus_ops::fuse::TensorExprExt;
+/// use coeus_tensor::Tensor;
+/// use coeus_wgpu::WgpuBackend;
+///
+/// fn integer_mean(tensor: &Tensor<i32, WgpuBackend>) {
+///     let _ = coeus_wgpu::evaluate_fused_mean(&tensor.expr(), 0);
+/// }
+/// ```
+///
+/// # Errors
+///
+/// Returns [`BackendError::EmptyMean`] when the axis is empty, and
+/// [`WgpuBackendError`] when the expression has no tensor input, the axis is
+/// invalid, or the layout and dispatch cannot be represented by the active
+/// WebGPU device.
+pub fn evaluate_fused_mean<T, E>(
+    expr: &E,
+    axis: usize,
+) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError>
+where
+    T: WgpuScalar + FloatElement,
+    E: ExprNode<T, WgpuBackend>,
+{
+    fused_reduction(
+        expr,
+        FusedReduction::Mean,
+        axis,
+        Err(BackendError::EmptyMean {
+            operation: "fused mean",
+        }),
+    )
+}
+
+/// Shared fused reduction body; `empty` is the result of the fold over an
+/// empty axis: its identity, or the error for a fold that has none.
+fn fused_reduction<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
+    expr: &E,
+    reduction: FusedReduction,
+    axis: usize,
+    empty: Result<T, BackendError>,
 ) -> Result<Tensor<T, WgpuBackend>, WgpuBackendError> {
     const OPERATION: &str = "fused reduction";
 
@@ -219,24 +283,11 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
     let mut out_storage = coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(out_numel);
 
     if axis_len == 0 {
-        let identity = match op {
-            coeus_ops::ReductionOp::Sum => T::zero(),
-            coeus_ops::ReductionOp::Prod => T::one(),
-            coeus_ops::ReductionOp::Mean
-            | coeus_ops::ReductionOp::Max
-            | coeus_ops::ReductionOp::Min => {
-                return Err(BackendError::EmptyReduction {
-                    operation: OPERATION,
-                    reduction: op,
-                }
-                .into());
-            }
-        };
-        WgpuBackend::new().fill(&mut out_storage, identity);
+        WgpuBackend::new().fill(&mut out_storage, empty?);
         return Ok(Tensor::from_raw_parts(out_storage, out_layout));
     }
 
-    fusion::dispatch_fused_reduce(expr, op, axis, &mut out_storage, &out_layout)?;
+    fusion::dispatch_fused_reduce(expr, reduction, axis, &mut out_storage, &out_layout)?;
 
     Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }

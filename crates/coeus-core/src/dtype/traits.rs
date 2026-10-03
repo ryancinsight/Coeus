@@ -100,15 +100,23 @@ pub enum BinaryOp {
     Ge,
 }
 
-/// Reduction operation tag.
+/// Reduction operation tag for the element-generic reductions.
+///
+/// Every operator here is defined for every element type. The arithmetic
+/// mean divides by the axis length, which truncates for integers, so it is
+/// not a tag: it has its own `FloatElement`-bound entry points
+/// (`ReductionOps::mean`, `evaluate_fused_mean_cpu`), and no generic
+/// reduction can request it.
+///
+/// ```compile_fail,E0599
+/// let _ = coeus_core::ReductionOp::Mean;
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReductionOp {
     /// Sum of all elements.
     Sum,
     /// Product of all elements.
     Prod,
-    /// Arithmetic mean of all elements.
-    Mean,
     /// Maximum element.
     Max,
     /// Minimum element.

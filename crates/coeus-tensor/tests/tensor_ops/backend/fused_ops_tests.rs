@@ -1,5 +1,7 @@
 use coeus_core::{BackendError, FloatOps, MoiraiBackend, SequentialBackend};
-use coeus_ops::fuse::{evaluate_fused_cpu, evaluate_fused_reduce_cpu, TensorExprExt};
+use coeus_ops::fuse::{
+    evaluate_fused_cpu, evaluate_fused_mean_cpu, evaluate_fused_reduce_cpu, TensorExprExt,
+};
 use coeus_ops::ReductionOp;
 use coeus_tensor::Tensor;
 
@@ -62,7 +64,17 @@ fn fused_empty_axis_uses_identities_and_rejects_undefined_reductions() {
         .expect("empty product should return its multiplicative identity");
     assert_eq!(sum.as_slice(), &[0.0, 0.0]);
     assert_eq!(product.as_slice(), &[1.0, 1.0]);
-    for operation in [ReductionOp::Mean, ReductionOp::Max, ReductionOp::Min] {
+    let mean_error = match evaluate_fused_mean_cpu(&expression, 1, &backend) {
+        Ok(_) => panic!("undefined empty mean must be rejected"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        mean_error,
+        BackendError::EmptyMean {
+            operation: "fused mean",
+        }
+    );
+    for operation in [ReductionOp::Max, ReductionOp::Min] {
         let error = match evaluate_fused_reduce_cpu(&expression, operation, 1, &backend) {
             Ok(_) => panic!("undefined empty reduction must be rejected"),
             Err(error) => error,
@@ -227,8 +239,7 @@ fn test_cpu_fusion_reduce_ops() {
     assert_eq!(product.shape(), &[2, 1]);
     assert_eq!(product.as_slice(), &[-5346.0, -90.75]);
 
-    let mean = evaluate_fused_reduce_cpu(&expr, ReductionOp::Mean, 1, &backend)
-        .expect("fused mean should evaluate");
+    let mean = evaluate_fused_mean_cpu(&expr, 1, &backend).expect("fused mean should evaluate");
     assert_eq!(mean.shape(), &[2, 1]);
     assert_eq!(mean.as_slice(), &[2.0 / 3.0, 1.0]);
 

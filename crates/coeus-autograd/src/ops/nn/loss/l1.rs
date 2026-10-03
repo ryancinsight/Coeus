@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -62,7 +62,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for L1L
 /// `pred` and `target` must have identical shape. The mean reduction covers
 /// every element, not only the leading dimension. All arithmetic remains on
 /// the selected backend: Leto for CPU and Hephaestus for accelerator backends.
-pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn l1_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -91,7 +91,7 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             .as_ref()
             .expect("invariant: tracked output has a gradient buffer")
             .clone();
-        let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend);
+        let mean_scale = Tensor::full_on([1], T::from_count_reciprocal(n), &backend);
         let node = L1LossNode {
             output_grad,
             inputs: vec![pred.clone(), target.clone()],

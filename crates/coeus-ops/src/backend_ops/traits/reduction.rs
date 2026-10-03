@@ -1,12 +1,12 @@
 //! Reduction sub-trait.
 //!
 //! [`ReductionOps`] is the interface-segregated sub-trait for all reduction
-//! kernel dispatch (reduce, argmax, argmin, topk, cumsum, suffix_sum, cumprod,
-//! suffix_prod). The argmax/argmin/topk defaults are CPU-only and route to
+//! kernel dispatch (reduce, mean, argmax, argmin, topk, cumsum, suffix_sum,
+//! cumprod, suffix_prod). The argmax/argmin/topk defaults are CPU-only and route to
 //! Leto through [`super::super::CpuBackend`]. Cumulative scan methods are
 //! required provider operations; no host-staging default is available.
 
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{ComputeBackend, FloatElement, Layout, Scalar};
 
 use super::super::defaults;
 use super::super::ops::ReductionOp;
@@ -22,6 +22,9 @@ use super::super::CpuBackend;
 pub trait ReductionOps<T: Scalar>: ComputeBackend {
     /// Reduction operations along an axis.
     ///
+    /// The arithmetic mean is not a [`ReductionOp`]; it is
+    /// [`ReductionOps::mean`], bounded on `FloatElement`.
+    ///
     /// # Errors
     ///
     /// Returns the backend-associated error when layout validation, provider
@@ -35,6 +38,42 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error>;
+
+    /// Arithmetic mean along an axis.
+    ///
+    /// The `FloatElement` bound makes integer mean unrepresentable: integer
+    /// division would truncate the quotient. Every provider implements it
+    /// against its native mean kernel, so no provider, CPU or accelerator,
+    /// can be asked for an integer mean:
+    ///
+    /// ```compile_fail,E0277
+    /// use coeus_core::Layout;
+    /// use coeus_ops::ReductionOps;
+    ///
+    /// fn integer_mean<B: ReductionOps<i32>>(
+    ///     backend: &B,
+    ///     a: &B::DeviceBuffer<i32>,
+    ///     layout: &Layout,
+    ///     c: &mut B::DeviceBuffer<i32>,
+    /// ) {
+    ///     let _ = backend.mean(a, layout, 0, c, layout);
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout validation, provider
+    /// execution, or output dispatch fails.
+    fn mean(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement;
 
     /// Compute the indices of the maximum values along `axis`.
     fn argmax(
