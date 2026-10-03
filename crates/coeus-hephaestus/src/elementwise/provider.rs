@@ -1,7 +1,7 @@
 //! Provider-facing elementwise operation contracts.
 
 use super::dispatch::{BinaryElementwiseDispatch, ScalarPowerDispatch, UnaryElementwiseDispatch};
-use crate::reduction::{HephaestusProvider, RankedOperand};
+use crate::{reduction::RankedOperand, HephaestusProvider};
 use coeus_core::{Float, Scalar};
 use coeus_ops::{BinaryOp, UnaryOp};
 use hephaestus_core::{

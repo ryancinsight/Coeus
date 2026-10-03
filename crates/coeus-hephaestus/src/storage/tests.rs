@@ -1,5 +1,5 @@
 use super::*;
-use crate::reduction::HephaestusProvider;
+use crate::backend::HephaestusProvider;
 use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use std::{
     marker::PhantomData,
@@ -240,7 +240,7 @@ unsafe impl HephaestusProvider for TestProvider {
 fn backend_routes_allocation_by_initialization_contract() {
     use coeus_core::ComputeBackend;
 
-    let backend = crate::reduction::HephaestusBackend::<TestProvider>::new();
+    let backend = crate::backend::HephaestusBackend::<TestProvider>::new();
     let scratch = backend.allocate::<u32>(4);
     assert_eq!(
         scratch.buffer.initialization,

@@ -14,7 +14,7 @@ use coeus_tensor::Tensor;
 /// Computes mean squared error between pred and target.
 /// Returns a scalar Var (shape `[1]`).
 #[inline]
-pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn mse_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -112,7 +112,7 @@ where
 /// pred: `[N]` probabilities, target: `[N]` float targets (0.0 or 1.0).
 /// eps: clamp for numerical stability (e.g., 1e-7 as T).
 #[inline]
-pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn binary_cross_entropy<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     eps: T,
@@ -124,7 +124,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// logits and target share shape; reduces with `mean`. Mirrors PyTorch
 /// `BCEWithLogitsLoss(reduction="mean")`.
 #[inline]
-pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn bce_with_logits<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     logits: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -173,7 +173,7 @@ where
 /// Returns the backend error type when the input shapes differ, the reduction
 /// is empty, or `delta` is non-finite or non-positive.
 #[inline]
-pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn huber_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
@@ -184,7 +184,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// L1 (mean absolute error) loss.
 /// pred: `[N]`, target: `[N]`. Computes `mean(|pred - target|)`.
 #[inline]
-pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn l1_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -196,7 +196,7 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Computes `mean(exp(input) - target * input)` (PyTorch
 /// `PoissonNLLLoss(log_input=True, full=False)`).
 #[inline]
-pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn poisson_nll<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -206,7 +206,7 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Soft-margin (logistic) loss. input: `[..]`, target: `[..]` in `{-1, +1}`.
 /// Computes `mean(log(1 + exp(-target * input)))` (PyTorch `SoftMarginLoss`).
 #[inline]
-pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn soft_margin<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -236,7 +236,7 @@ pub fn pairwise_distance<
 /// autograd graph's — no bespoke node.
 #[inline]
 pub fn triplet_margin_loss<
-    T: Float,
+    T: Float + FloatElement,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     anchor: &Var<T, B>,
@@ -257,7 +257,7 @@ pub fn triplet_margin_loss<
 /// `input` is log-probabilities and `target` is probabilities. Computes
 /// `mean(target * (log(target) - input))`.
 #[inline]
-pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kl_divergence<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -269,7 +269,7 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// `target` contains `+1` or `-1` labels. Computes
 /// `mean(max(0, -target * (input1 - input2) + margin))`.
 #[inline]
-pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn margin_ranking_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input1: &Var<T, B>,
     input2: &Var<T, B>,
     target: &[T],
@@ -281,7 +281,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// Cosine Embedding Loss.
 /// x1: `[N, D]`, x2: `[N, D]`, y: `[N]`, margin: threshold.
 #[inline]
-pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn cosine_embedding_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     y: &[T],
@@ -296,7 +296,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 /// `loss_smooth(z, β) = 0.5 z²/β` if `|z| < β`, else `|z| - 0.5 β`.
 /// `pred` and `target` must share shape.
 #[inline]
-pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn smooth_l1_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     beta: T,
@@ -333,7 +333,7 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 #[inline]
 pub fn hinge_embedding_loss<T, B>(x: &Var<T, B>, target: &[T], margin: T) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + Default + coeus_ops::BackendOps<T>,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -368,7 +368,10 @@ where
 /// Mathematically identical to `BCEWithLogitsLoss` when targets are binary.
 /// Delegates to `bce_with_logits` directly.
 #[inline]
-pub fn multi_label_soft_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn multi_label_soft_margin_loss<
+    T: Float + FloatElement,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -389,7 +392,7 @@ pub fn triplet_margin_with_distance_loss<T, B, F>(
     margin: T,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: coeus_ops::BackendOps<T> + Default,
     F: Fn(&Var<T, B>, &Var<T, B>) -> Var<T, B>,
 {
@@ -424,7 +427,7 @@ where
 ///
 /// Composed from existing autograd ops. When `full=true`, adds `0.5 * log(2π)`.
 #[inline]
-pub fn gaussian_nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn gaussian_nll_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
     var: &Var<T, B>,
@@ -434,13 +437,15 @@ pub fn gaussian_nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let diff_sq = coeus_autograd::mul(&diff, &diff);
     let var_term = coeus_autograd::div(&diff_sq, var);
     let log_var = coeus_autograd::log(var);
-    let loss =
-        coeus_autograd::scalar_mul(&coeus_autograd::add(&var_term, &log_var), T::from_f64(0.5));
+    let loss = coeus_autograd::scalar_mul(
+        &coeus_autograd::add(&var_term, &log_var),
+        <T as FloatElement>::from_f64(0.5),
+    );
     if full {
-        let two_pi = T::from_f64(2.0 * std::f64::consts::PI);
+        let two_pi = <T as FloatElement>::from_f64(2.0 * std::f64::consts::PI);
         coeus_autograd::scalar_add(
             &coeus_autograd::mean(&loss),
-            T::from_f64(0.5) * two_pi.log_op(),
+            <T as FloatElement>::from_f64(0.5) * two_pi.log_op(),
         )
     } else {
         coeus_autograd::mean(&loss)
@@ -463,7 +468,10 @@ where
 /// Mean of all finite elements, treating NaN as missing (`torch.nanmean`).
 ///
 /// Returns a scalar `Var` (shape `[1]`).
-pub fn nanmean<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nanmean<
+    T: coeus_core::Float + coeus_core::FloatElement,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &coeus_autograd::Var<T, B>,
 ) -> coeus_autograd::Var<T, B>
 where

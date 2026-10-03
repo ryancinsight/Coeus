@@ -181,6 +181,19 @@ pub enum BackendError {
         /// Reduction whose result is undefined without an input value.
         reduction: ReductionOp,
     },
+    /// A generic reduction path received a reduction defined only for
+    /// floating-point elements.
+    ///
+    /// Mean divides by the element count; integer division would truncate
+    /// it, so mean is float-only and integer callers convert to a
+    /// floating-point tensor first.
+    #[error("{operation} {reduction:?} requires a floating-point element type")]
+    FloatOnlyReduction {
+        /// Operation family that rejected the reduction.
+        operation: &'static str,
+        /// Reduction whose result is defined only for floating-point elements.
+        reduction: ReductionOp,
+    },
     /// The operation received shapes that cannot be broadcast.
     #[error("{operation} incompatible broadcast: {from:?} to {to:?}")]
     IncompatibleBroadcast {

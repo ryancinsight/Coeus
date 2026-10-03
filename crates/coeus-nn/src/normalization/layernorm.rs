@@ -3,7 +3,7 @@
 use super::validation;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{Float, FloatElement, MoiraiBackend};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
@@ -58,7 +58,7 @@ impl<const N: usize> From<[usize; N]> for NormalizedShape {
 /// Returns a typed module or backend failure when the input rank, trailing
 /// dimensions, affine parameter shapes, or epsilon violate the LayerNorm
 /// contract, or when a backend operation fails.
-pub fn layer_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn layer_norm<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     normalized_shape: impl Into<NormalizedShape>,
     weight: Option<&Var<T, B>>,
@@ -125,7 +125,7 @@ pub struct LayerNorm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBac
     ones_cache: RefCell<Option<(usize, Tensor<T, B>)>>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     /// Create a new LayerNorm layer for a single feature dimension.
     pub fn new(normalized_shape: usize, eps: f64) -> Self {
         Self::from_shape(normalized_shape, eps)
@@ -140,8 +140,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
             Tensor::zeros_on(normalized_shape.as_slice(), &backend),
             true,
         );
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let d_const = Tensor::full_on([1], T::from_f64(weight.tensor.numel() as f64), &backend);
+        let eps_t = Tensor::full_on([1], <T as FloatElement>::from_f64(eps), &backend);
+        let d_const = Tensor::full_on([1], T::from_count(weight.tensor.numel()), &backend);
         Self {
             weight,
             bias,
@@ -155,8 +155,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     /// Create a LayerNorm layer from existing affine parameters.
     pub fn from_parts(weight: Var<T, B>, bias: Var<T, B>, eps: f64) -> Self {
         let backend = B::default();
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let d_const = Tensor::full_on([1], T::from_f64(weight.tensor.numel() as f64), &backend);
+        let eps_t = Tensor::full_on([1], <T as FloatElement>::from_f64(eps), &backend);
+        let d_const = Tensor::full_on([1], T::from_count(weight.tensor.numel()), &backend);
         Self {
             weight,
             bias,
@@ -231,7 +231,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
 }
 
 /// Implements the [`crate::module::Module`] interface for [`LayerNorm`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm<T, B> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for LayerNorm<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
     }
@@ -248,7 +250,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LayerNorm
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     /// Forward pass for any rank ≥ 2 input.
     ///
     /// The configured suffix is flattened into one normalized feature axis for

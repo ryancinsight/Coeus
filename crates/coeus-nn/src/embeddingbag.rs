@@ -1,6 +1,8 @@
 use crate::module::{Module, ModuleError};
 use coeus_autograd::{cat, embedding, max_axis, mean_axis, slice, sum_axis, Var};
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, Scalar};
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, MoiraiBackend, Scalar,
+};
 use coeus_tensor::Tensor;
 
 /// Aggregation mode for EmbeddingBag.
@@ -47,7 +49,7 @@ pub struct EmbeddingBag<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Moira
     pub mode: EmbeddingBagMode,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> EmbeddingBag<T, B>
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> EmbeddingBag<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -156,7 +158,8 @@ where
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for EmbeddingBag<T, B>
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for EmbeddingBag<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

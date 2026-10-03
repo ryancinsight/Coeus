@@ -1,4 +1,4 @@
-use crate::{reduction::HephaestusBackend, HephaestusProvider};
+use crate::{HephaestusBackend, HephaestusProvider};
 use coeus_core::{Float, Layout, Scalar};
 use hephaestus_core::{AttentionOps, AttentionScalar, HephaestusError};
 

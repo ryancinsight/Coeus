@@ -15,7 +15,7 @@
 use super::validation;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_core::{Float, FloatElement, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
@@ -194,7 +194,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
         &self,
         m: usize,
         backend: &B,
-    ) -> Result<(Tensor<T, B>, Tensor<T, B>), ModuleError<B::Error>> {
+    ) -> Result<(Tensor<T, B>, Tensor<T, B>), ModuleError<B::Error>>
+    where
+        T: FloatElement,
+    {
         let module: &str = module_name::<DIM>();
         let mut cache = self
             .m_cache
@@ -205,19 +208,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
                 return Ok((cached_m_const.clone(), cached_corr_t.clone()));
             }
         }
-        let m_const = Tensor::full_on([1], T::from_f64(m as f64), backend);
+        let m_const = Tensor::full_on([1], T::from_count(m), backend);
         let correction = if m > 1 {
-            m as f64 / (m - 1) as f64
+            f64::from_count(m) / f64::from_count(m - 1)
         } else {
             1.0
         };
-        let corr_t = Tensor::full_on([1], T::from_f64(correction), backend);
+        let corr_t = Tensor::full_on([1], <T as FloatElement>::from_f64(correction), backend);
         *cache = Some((m, m_const.clone(), corr_t.clone()));
         Ok((m_const, corr_t))
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
     for BatchNorm<T, B, DIM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -285,7 +288,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>
+    BatchNorm<T, B, DIM>
+{
     /// Rank-`DIM` forward path: `[N, C, spatial...] -> [N, C, spatial...]`.
     /// Separated from the `Module` trait surface so the 2D-input adapter above
     /// can call it without going through the trait vtable.

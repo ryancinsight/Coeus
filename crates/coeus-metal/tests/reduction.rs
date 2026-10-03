@@ -1,5 +1,6 @@
-use coeus_core::{ComputeBackend, Layout, ReductionOp};
+use coeus_core::{BackendError, ClosedReduction, ComputeBackend, Layout, ReductionOp};
 use coeus_hephaestus::HephaestusBackend;
+use coeus_hephaestus::HephaestusBackendError;
 use coeus_metal::MetalProvider;
 use coeus_ops::ReductionOps;
 
@@ -32,13 +33,12 @@ fn native_reductions_and_scans_match_leto() {
     for (op, expected) in [
         (ReductionOp::Sum, [6.0_f32, 15.0]),
         (ReductionOp::Prod, [6.0_f32, 120.0]),
-        (ReductionOp::Mean, [2.0_f32, 5.0]),
         (ReductionOp::Min, [1.0_f32, 4.0]),
         (ReductionOp::Max, [3.0_f32, 6.0]),
     ] {
         let mut expected_values = [0.0_f32; 2];
         coeus_leto::reduce_into(
-            op,
+            ClosedReduction::from_op("oracle", op).expect("invariant: closed reductions only"),
             &layout,
             &input,
             1,
@@ -63,6 +63,51 @@ fn native_reductions_and_scans_match_leto() {
         backend.copy_to_host(&actual, &mut actual_values);
         assert_eq!(actual_values, expected_values, "Metal {op:?} parity");
     }
+
+    let mut expected_mean = [0.0_f32; 2];
+    coeus_leto::mean_into(
+        &layout,
+        &input,
+        1,
+        &Layout::new([2, 1].into()),
+        &mut expected_mean,
+    )
+    .expect("Leto mean oracle failed");
+    let mut mean = backend.allocate::<f32>(2);
+    ReductionOps::mean(
+        &backend,
+        &device_input,
+        &layout,
+        1,
+        &mut mean,
+        &Layout::new([2, 1].into()),
+    )
+    .expect("Metal mean failed");
+    let mut mean_values = [0.0_f32; 2];
+    backend.copy_to_host(&mean, &mut mean_values);
+    assert_eq!(mean_values, expected_mean, "Metal mean parity");
+
+    let integers = [1_i32, 2, 4, 5];
+    let mut device_integers = backend.allocate::<i32>(integers.len());
+    backend.copy_to_device(&integers, &mut device_integers);
+    let mut integer_mean = backend.allocate::<i32>(2);
+    let error = ReductionOps::reduce(
+        &backend,
+        ReductionOp::Mean,
+        &device_integers,
+        &Layout::new([2, 2].into()),
+        1,
+        &mut integer_mean,
+        &Layout::new([2, 1].into()),
+    )
+    .expect_err("invariant: integer mean is float-only");
+    assert!(matches!(
+        error,
+        HephaestusBackendError::Backend(BackendError::FloatOnlyReduction {
+            operation: "reduce",
+            reduction: ReductionOp::Mean,
+        })
+    ));
 
     let mut expected_scan = [0.0_f32; 6];
     coeus_leto::cumsum_into(&layout, &input, 1, &layout, &mut expected_scan)

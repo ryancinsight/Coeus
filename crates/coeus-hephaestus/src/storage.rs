@@ -1,4 +1,4 @@
-use crate::reduction::HephaestusProvider;
+use crate::backend::HephaestusProvider;
 use coeus_core::{Scalar, Storage, StorageMut};
 use hephaestus_core::{ComputeDevice, DeviceBuffer};
 use std::{marker::PhantomData, sync::Arc};

@@ -2,7 +2,10 @@
 //! sum/product scans.
 #![allow(clippy::too_many_arguments)]
 
-use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{
+    BackendError, ClosedReduction, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement,
+    Layout, Scalar,
+};
 
 use super::error::map_leto_error;
 use super::CpuBackend;
@@ -23,8 +26,26 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
+    let op = ClosedReduction::from_op("reduction", op)?;
     coeus_leto::reduce_into(op, a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
         .map_err(|error| map_leto_error("reduction", error))
+}
+
+#[inline]
+pub(super) fn mean<T, B>(
+    a: &B::DeviceBuffer<T>,
+    a_layout: &Layout,
+    axis: usize,
+    c: &mut B::DeviceBuffer<T>,
+    c_layout: &Layout,
+) -> Result<(), BackendError>
+where
+    T: Scalar + leto_ops::Scalar + FloatElement,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    coeus_leto::mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+        .map_err(|error| map_leto_error("mean", error))
 }
 
 #[inline]

@@ -1,42 +1,16 @@
 use crate::{
+    backend::{HephaestusBackend, HephaestusProvider},
     error::HephaestusBackendError,
     layout::{ranked, ranked_axis},
     storage::HephaestusStorage,
 };
-use coeus_core::{ComputeBackend, Layout, Scalar, StorageMut};
+use coeus_core::{ClosedReduction, FloatElement, Layout, Scalar, StorageMut};
 use coeus_ops::ReductionOp;
 use hephaestus_core::{
-    AxisReductionOps, CombineExpr, ComputeDevice, DeviceBuffer, IdentityToken, MaxOp, MinOp,
-    OpIdentity, ScanDirection, ScanOps, StridedView, SumOp,
+    AxisReductionOps, CombineExpr, ComputeDevice, IdentityToken, MaxOp, MinOp, OpIdentity,
+    ScanDirection, ScanOps, StridedView, SumOp,
 };
 use leto::Layout as LetoLayout;
-use std::future::Ready;
-
-/// Common provider identity and device acquisition seam.
-///
-/// # Safety
-///
-/// An implementation must ensure that every typed buffer exposed by its
-/// [`hephaestus_core::ComputeDevice`] remains safe to retain behind an
-/// `Arc` and to move between Coeus worker threads. Provider kernels must also
-/// synchronize access according to their device API's contract.
-pub unsafe trait HephaestusProvider: Send + Sync + Clone + Copy + Default + 'static {
-    /// Concrete Hephaestus device type selected by this provider.
-    type Device: ComputeDevice + Send + Sync + 'static;
-
-    /// Stable backend name used by Coeus diagnostics.
-    const NAME: &'static str;
-
-    /// Return the lazily acquired device owned by this provider.
-    fn device() -> &'static Self::Device;
-
-    /// Try to acquire the provider device without panicking.
-    ///
-    /// # Errors
-    ///
-    /// Returns the provider's typed acquisition failure.
-    fn try_device() -> hephaestus_core::Result<&'static Self::Device>;
-}
 
 /// Cumulative operation selected by a provider scan dispatch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,11 +26,22 @@ pub trait AxisReductionDispatch<D: ComputeDevice, T: eunomia::Pod> {
     /// Execute one Coeus reduction operation.
     fn reduce(
         device: &D,
-        operation: ReductionOp,
+        operation: ClosedReduction,
         input: RankedOperand<'_, D::Buffer<T>, 2>,
         axis: usize,
         output: RankedOperand<'_, D::Buffer<T>, 2>,
     ) -> hephaestus_core::Result<()>;
+
+    /// Execute the arithmetic mean along `axis`; the `FloatElement` bound
+    /// keeps integer element types off the dividing kernel.
+    fn mean(
+        device: &D,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()>
+    where
+        T: FloatElement;
 }
 
 impl<D, T, R> AxisReductionDispatch<D, T> for R
@@ -80,7 +65,7 @@ where
 {
     fn reduce(
         device: &D,
-        operation: ReductionOp,
+        operation: ClosedReduction,
         input: RankedOperand<'_, D::Buffer<T>, 2>,
         axis: usize,
         output: RankedOperand<'_, D::Buffer<T>, 2>,
@@ -89,14 +74,32 @@ where
         let input = StridedView::new(input.buffer, input.layout);
         let output = StridedView::new(output.buffer, output.layout);
         match operation {
-            ReductionOp::Sum => operations.reduce_axis_into::<SumOp>(device, input, axis, output),
-            ReductionOp::Prod => {
+            ClosedReduction::Sum => {
+                operations.reduce_axis_into::<SumOp>(device, input, axis, output)
+            }
+            ClosedReduction::Prod => {
                 operations.reduce_axis_into::<hephaestus_core::ProdOp>(device, input, axis, output)
             }
-            ReductionOp::Mean => operations.mean_axis_into(device, input, axis, output),
-            ReductionOp::Min => operations.min_axis_into(device, input, axis, output),
-            ReductionOp::Max => operations.max_axis_into(device, input, axis, output),
+            ClosedReduction::Min => operations.min_axis_into(device, input, axis, output),
+            ClosedReduction::Max => operations.max_axis_into(device, input, axis, output),
         }
+    }
+
+    fn mean(
+        device: &D,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()>
+    where
+        T: FloatElement,
+    {
+        R::default().mean_axis_into(
+            device,
+            StridedView::new(input.buffer, input.layout),
+            axis,
+            StridedView::new(output.buffer, output.layout),
+        )
     }
 }
 
@@ -180,12 +183,25 @@ where
     /// Reduce a rank-2 strided input into a keep-dimension output.
     fn reduce(
         device: &Self::Device,
-        op: ReductionOp,
+        op: ClosedReduction,
         input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
         axis: usize,
         output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
     ) -> hephaestus_core::Result<()> {
         Self::AxisOperations::reduce(device, op, input, axis, output)
+    }
+
+    /// Arithmetic mean of a rank-2 strided input into a keep-dimension output.
+    fn mean(
+        device: &Self::Device,
+        input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()>
+    where
+        T: FloatElement,
+    {
+        Self::AxisOperations::mean(device, input, axis, output)
     }
 
     /// Execute an inclusive prefix or suffix scan over a rank-2 strided input.
@@ -200,10 +216,6 @@ where
         Self::ScanOperations::scan(device, input, axis, operation, direction, output)
     }
 }
-
-/// Generic Coeus backend implementation over one Hephaestus provider.
-#[derive(Debug)]
-pub struct HephaestusBackend<P>(std::marker::PhantomData<P>);
 
 struct ScanRequest<'a, P, T>
 where
@@ -220,72 +232,6 @@ where
     operation: &'static str,
 }
 
-impl<P> Copy for HephaestusBackend<P> {}
-
-impl<P> Clone for HephaestusBackend<P> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<P> Default for HephaestusBackend<P> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<P> HephaestusBackend<P> {
-    /// Construct the zero-sized generic backend selector.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self(std::marker::PhantomData)
-    }
-}
-
-impl<P> ComputeBackend for HephaestusBackend<P>
-where
-    P: HephaestusProvider,
-{
-    type Error = HephaestusBackendError;
-    type DeviceBuffer<T: Scalar> = HephaestusStorage<P, T>;
-    type KernelDescriptor = ();
-    type DispatchFuture<T: Scalar> = Ready<T>;
-
-    fn name(&self) -> &'static str {
-        P::NAME
-    }
-
-    fn num_threads(&self) -> usize {
-        1
-    }
-
-    fn allocate<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        HephaestusStorage::uninitialized(len)
-    }
-
-    fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Self::DeviceBuffer<T> {
-        HephaestusStorage::new(len)
-    }
-
-    fn fill<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>, val: T) {
-        let values = vec![val; dst.buffer().len()];
-        self.copy_to_device(&values, dst);
-    }
-
-    fn copy_to_device<T: Scalar>(&self, src: &[T], dst: &mut Self::DeviceBuffer<T>) {
-        dst.make_unique();
-        P::device()
-            .write_buffer(dst.buffer(), src)
-            .expect("Hephaestus host-to-device copy failed");
-    }
-
-    fn copy_to_host<T: Scalar>(&self, src: &Self::DeviceBuffer<T>, dst: &mut [T]) {
-        P::device()
-            .download(src.buffer(), dst)
-            .expect("Hephaestus device-to-host copy failed");
-    }
-}
-
 impl<P, T> coeus_ops::ReductionOps<T> for HephaestusBackend<P>
 where
     P: ReductionProvider<T>,
@@ -300,24 +246,34 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        let input_layout = ranked::<2>("reduce", a_layout)?;
-        let output_layout = ranked::<2>("reduce", c_layout)?;
-        let provider_axis = ranked_axis::<2>("reduce", a_layout, axis)?;
-        c.make_unique();
-        P::reduce(
-            P::device(),
-            op,
-            RankedOperand {
-                buffer: a.buffer(),
-                layout: &input_layout,
-            },
-            provider_axis,
-            RankedOperand {
-                buffer: c.buffer(),
-                layout: &output_layout,
-            },
+        let op = ClosedReduction::from_op("reduce", op)?;
+        Self::axis_reduction(
+            "reduce",
+            (a, a_layout),
+            axis,
+            (c, c_layout),
+            |input, axis, output| P::reduce(P::device(), op, input, axis, output),
         )
-        .map_err(|source| HephaestusBackendError::device("reduce", source))
+    }
+
+    fn mean(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement,
+    {
+        Self::axis_reduction(
+            "mean",
+            (a, a_layout),
+            axis,
+            (c, c_layout),
+            |input, axis, output| P::mean(P::device(), input, axis, output),
+        )
     }
 
     fn cumsum(
@@ -405,6 +361,37 @@ impl<P> HephaestusBackend<P>
 where
     P: HephaestusProvider,
 {
+    /// Ranks the keep-dimension operands of an axis reduction and runs
+    /// `kernel` on them.
+    fn axis_reduction<T: Scalar>(
+        operation: &'static str,
+        (input, input_layout): (&HephaestusStorage<P, T>, &Layout),
+        axis: usize,
+        (output, output_layout): (&mut HephaestusStorage<P, T>, &Layout),
+        kernel: impl FnOnce(
+            RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<T>, 2>,
+            usize,
+            RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<T>, 2>,
+        ) -> hephaestus_core::Result<()>,
+    ) -> Result<(), HephaestusBackendError> {
+        let ranked_input = ranked::<2>(operation, input_layout)?;
+        let ranked_output = ranked::<2>(operation, output_layout)?;
+        let provider_axis = ranked_axis::<2>(operation, input_layout, axis)?;
+        output.make_unique();
+        kernel(
+            RankedOperand {
+                buffer: input.buffer(),
+                layout: &ranked_input,
+            },
+            provider_axis,
+            RankedOperand {
+                buffer: output.buffer(),
+                layout: &ranked_output,
+            },
+        )
+        .map_err(|source| HephaestusBackendError::device(operation, source))
+    }
+
     fn scan<T>(&self, request: ScanRequest<'_, P, T>) -> Result<(), HephaestusBackendError>
     where
         P: ReductionProvider<T>,

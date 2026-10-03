@@ -8,7 +8,9 @@
 use super::validation;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend};
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, MoiraiBackend,
+};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
@@ -74,7 +76,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
     fn get_cache(
         &self,
         group_size: usize,
-    ) -> Result<std::cell::RefMut<'_, Option<GroupNormCache<T, B>>>, ModuleError<B::Error>> {
+    ) -> Result<std::cell::RefMut<'_, Option<GroupNormCache<T, B>>>, ModuleError<B::Error>>
+    where
+        T: FloatElement,
+    {
         let mut cache = self
             .cache
             .try_borrow_mut()
@@ -87,8 +92,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
             let backend = B::default();
             let ln_weight = Var::new(Tensor::ones_on([group_size], &backend), false);
             let ln_bias = Var::new(Tensor::zeros_on([group_size], &backend), false);
-            let eps_t = Tensor::full_on([1], T::from_f64(self.eps), &backend);
-            let d_const = Tensor::full_on([1], T::from_f64(group_size as f64), &backend);
+            let eps_t = Tensor::full_on([1], <T as FloatElement>::from_f64(self.eps), &backend);
+            let d_const = Tensor::full_on([1], T::from_count(group_size), &backend);
             *cache = Some(GroupNormCache {
                 group_size,
                 ln_weight,
@@ -103,7 +108,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
 }
 
 /// Implements the [`crate::module::Module`] interface for [`GroupNorm`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, B>
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, B>
     for GroupNorm<T, B, G>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -254,7 +259,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
 /// - `C % num_groups != 0`.
 /// - `weight` or `bias` is present and not shaped `[C]`.
 /// - `eps` is not finite or is negative.
-pub fn group_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn group_norm<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     num_groups: usize,
     weight: Option<&Tensor<T, B>>,
@@ -322,7 +327,7 @@ where
         mean_axis(&xmu_sq, 1, &backend).map_err(|source| validation::backend(MODULE, source))?;
 
     // stdev = sqrt(var + eps): reuse var buffer
-    let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
+    let eps_t = Tensor::full_on([1], <T as FloatElement>::from_f64(eps), &backend);
     add_assign(&mut var, &eps_t, &backend).map_err(|source| validation::backend(MODULE, source))?;
     sqrt_assign(&mut var, &backend).map_err(|source| validation::backend(MODULE, source))?; // now holds stdev
 
