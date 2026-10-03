@@ -79,7 +79,7 @@ pub use linalg::{
     batched_matmul_accumulate_into, batched_matmul_into, matmul_accumulate_into, matmul_into,
 };
 pub use reductions::{
-    argmax_into, argmin_into, cumprod_into, cumsum_into, reduce_into, suffix_prod_into,
+    argmax_into, argmin_into, cumprod_into, cumsum_into, mean_into, reduce_into, suffix_prod_into,
     suffix_sum_into,
 };
 pub use rotary::{prepare_rotate_half_input, rotate_half_into, RotateHalfPlan};

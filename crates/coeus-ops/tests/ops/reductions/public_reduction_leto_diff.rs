@@ -5,10 +5,10 @@
 //! so bitwise equality is the correct oracle for both scalar widths.
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, Scalar,
-    SequentialBackend,
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement, MoiraiBackend,
+    Scalar, SequentialBackend,
 };
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, ReductionOps};
 use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
@@ -147,11 +147,40 @@ where
         .is_nan());
 }
 
+/// The float-bound provider entry point computes the keep-dim axis mean.
+fn check_provider_mean<T, B>(backend: &B)
+where
+    T: Scalar + leto_ops::Scalar + FloatElement,
+    B: BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    let data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0].map(<T as FloatElement>::from_f64);
+    let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
+    let mut mean = Tensor::<T, B>::zeros_on([2usize, 1], backend);
+    let (mean_storage, mean_layout) = mean.storage_mut_and_layout();
+    ReductionOps::mean(
+        backend,
+        tensor.storage(),
+        tensor.layout(),
+        1,
+        mean_storage,
+        mean_layout,
+    )
+    .expect("valid provider mean");
+    assert_same_bits(
+        mean.as_slice(),
+        [2.0, 5.0].map(<T as FloatElement>::from_f64),
+        "provider axis-1 mean",
+    );
+}
+
 #[test]
 fn sequential_public_reductions_match_reference() {
     let backend = SequentialBackend;
     check_reductions::<f32, _>(&backend);
     check_reductions::<f64, _>(&backend);
+    check_provider_mean::<f32, _>(&backend);
+    check_provider_mean::<f64, _>(&backend);
     check_empty_mean(&backend);
 }
 
@@ -160,5 +189,7 @@ fn moirai_public_reductions_match_reference() {
     let backend = MoiraiBackend;
     check_reductions::<f32, _>(&backend);
     check_reductions::<f64, _>(&backend);
+    check_provider_mean::<f32, _>(&backend);
+    check_provider_mean::<f64, _>(&backend);
     check_empty_mean(&backend);
 }
