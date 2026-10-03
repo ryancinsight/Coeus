@@ -38,7 +38,7 @@ categories = ["science", "mathematics", "data-structures"]
 moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.6.0", features = ["melinoe"] }
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.6.0" }
 # Mnemosyne's current default carries the portable WebAssembly backend.
-mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.7.0" }
+mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.8.0" }
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.7.0" }
 # Keep the Eunomia source aligned with the current Hephaestus provider graph.
 eunomia = { git = "https://github.com/ryancinsight/eunomia", version = "0.8.0", default-features = false }
