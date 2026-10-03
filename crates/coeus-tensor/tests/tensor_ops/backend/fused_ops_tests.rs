@@ -70,9 +70,8 @@ fn fused_empty_axis_uses_identities_and_rejects_undefined_reductions() {
     };
     assert_eq!(
         mean_error,
-        BackendError::EmptyReduction {
-            operation: "fused reduction",
-            reduction: ReductionOp::Mean,
+        BackendError::EmptyMean {
+            operation: "fused mean",
         }
     );
     for operation in [ReductionOp::Max, ReductionOp::Min] {
@@ -243,18 +242,6 @@ fn test_cpu_fusion_reduce_ops() {
     let mean = evaluate_fused_mean_cpu(&expr, 1, &backend).expect("fused mean should evaluate");
     assert_eq!(mean.shape(), &[2, 1]);
     assert_eq!(mean.as_slice(), &[2.0 / 3.0, 1.0]);
-
-    let generic_mean = match evaluate_fused_reduce_cpu(&expr, ReductionOp::Mean, 1, &backend) {
-        Ok(_) => panic!("the generic fused reduction must reject float-only mean"),
-        Err(error) => error,
-    };
-    assert_eq!(
-        generic_mean,
-        BackendError::FloatOnlyReduction {
-            operation: "fused reduction",
-            reduction: ReductionOp::Mean,
-        }
-    );
 
     let max = evaluate_fused_reduce_cpu(&expr, ReductionOp::Max, 1, &backend)
         .expect("fused maximum should evaluate");

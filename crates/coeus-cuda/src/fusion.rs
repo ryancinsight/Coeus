@@ -132,10 +132,23 @@ where
         .map_err(|source| CudaBackendError::dispatch("fused elementwise", source))
 }
 
+/// The Hephaestus fused fold for an element-generic reduction operator.
+///
+/// [`FusedReduction::Mean`] has no source here: only the `FloatElement`-bound
+/// [`evaluate_fused_mean`](crate::evaluate_fused_mean) requests it.
+pub(crate) fn fused_reduction(reduction: coeus_ops::ReductionOp) -> FusedReduction {
+    match reduction {
+        coeus_ops::ReductionOp::Sum => FusedReduction::Sum,
+        coeus_ops::ReductionOp::Prod => FusedReduction::Product,
+        coeus_ops::ReductionOp::Max => FusedReduction::Maximum,
+        coeus_ops::ReductionOp::Min => FusedReduction::Minimum,
+    }
+}
+
 /// Dispatch a fused expression reduction through Hephaestus CUDA.
 pub(crate) fn dispatch_fused_reduce<T, E>(
     expression: &E,
-    reduction: coeus_ops::ReductionOp,
+    reduction: FusedReduction,
     axis: usize,
     output: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
     output_layout: &Layout,
@@ -163,13 +176,6 @@ where
     let adapter = ExpressionAdapter {
         expression,
         _scalar: PhantomData,
-    };
-    let reduction = match reduction {
-        coeus_ops::ReductionOp::Sum => FusedReduction::Sum,
-        coeus_ops::ReductionOp::Prod => FusedReduction::Product,
-        coeus_ops::ReductionOp::Mean => FusedReduction::Mean,
-        coeus_ops::ReductionOp::Max => FusedReduction::Maximum,
-        coeus_ops::ReductionOp::Min => FusedReduction::Minimum,
     };
     let device = crate::backend::try_get_cuda_device()
         .map_err(|source| CudaBackendError::dispatch("fused reduction", source))?;

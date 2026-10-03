@@ -46,7 +46,7 @@ pub fn mean<T: Scalar + FloatElement, B: BackendOps<T> + Default>(
 /// The `FloatElement` bound makes integer mean unrepresentable: integer
 /// division would truncate the quotient.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
 /// use coeus_tensor::Tensor;
 /// use coeus_core::SequentialBackend;
 /// use coeus_ops::mean_axis;

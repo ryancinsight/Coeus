@@ -181,18 +181,12 @@ pub enum BackendError {
         /// Reduction whose result is undefined without an input value.
         reduction: ReductionOp,
     },
-    /// A reduction defined only over floating-point elements reached a
-    /// generic entry point that cannot prove the element type is a float.
-    ///
-    /// The arithmetic mean divides by the axis length; integer division would
-    /// truncate it, so mean is float-only and integer callers convert to a
-    /// floating-point tensor first.
-    #[error("{operation} {reduction:?} requires a floating-point element type")]
-    FloatOnlyReduction {
-        /// Operation family that rejected the reduction.
+    /// The arithmetic mean received an empty axis; it has no input value to
+    /// divide by the axis length.
+    #[error("{operation} mean is undefined for an empty axis")]
+    EmptyMean {
+        /// Operation family that rejected the empty axis.
         operation: &'static str,
-        /// Reduction whose result is defined only for floating-point elements.
-        reduction: ReductionOp,
     },
     /// The operation received shapes that cannot be broadcast.
     #[error("{operation} incompatible broadcast: {from:?} to {to:?}")]

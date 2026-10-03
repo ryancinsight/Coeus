@@ -25,28 +25,6 @@ fn reduction_dispatch_covers_keepdim_axis_ops() {
     mean_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
     assert_eq!(out, vec![1.0, 14.0 / 3.0]);
 
-    let generic_mean = reduce_into(
-        ReductionOp::Mean,
-        &input_layout,
-        &input,
-        1,
-        &output_layout,
-        &mut out,
-    );
-    assert!(
-        matches!(generic_mean, Err(leto::LetoError::InvalidInput(_))),
-        "the generic reduction path must route float-only mean to mean_into"
-    );
-    assert_eq!(
-        out,
-        vec![1.0, 14.0 / 3.0],
-        "rejected mean must not write output"
-    );
-
-    let mut float_mean = vec![0.0; 2];
-    mean_into(&input_layout, &input, 1, &output_layout, &mut float_mean).unwrap();
-    assert_eq!(float_mean, vec![1.0, 14.0 / 3.0]);
-
     reduce_into(
         ReductionOp::Max,
         &input_layout,

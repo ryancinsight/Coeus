@@ -6,8 +6,8 @@
 //! values, so bitwise equality is the correct oracle for both scalar widths.
 
 use coeus_core::{
-    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement,
-    MoiraiBackend, ReductionOp, Scalar, SequentialBackend,
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement, MoiraiBackend,
+    Scalar, SequentialBackend,
 };
 use coeus_ops::{BackendOps, ReductionOps};
 use coeus_tensor::{Tensor, Transpose};
@@ -150,41 +150,6 @@ where
         .is_nan());
 }
 
-/// Integer mean would truncate the quotient, so the generic `reduce` path
-/// rejects it with a typed error instead of returning `[2, 5]` for a true mean
-/// of `[2, 5]` or `[1, 4]` for `[1.5, 4.5]`.
-fn check_integer_mean_rejected<B>(backend: &B)
-where
-    B: BackendOps<i32> + ComputeBackend<Error = BackendError> + Default,
-    B::DeviceBuffer<i32>: CpuAddressableStorage<i32> + CpuAddressableStorageMut<i32>,
-{
-    let tensor = tensor_from_slice::<i32, B>(&[2, 2], &[1, 2, 4, 5], backend);
-    let mut out = Tensor::<i32, B>::zeros_on([2usize, 1], backend);
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
-    let error = backend
-        .reduce(
-            ReductionOp::Mean,
-            tensor.storage(),
-            tensor.layout(),
-            1,
-            out_storage,
-            out_layout,
-        )
-        .expect_err("invariant: integer mean is float-only");
-    assert_eq!(
-        error,
-        BackendError::FloatOnlyReduction {
-            operation: "reduction",
-            reduction: ReductionOp::Mean,
-        }
-    );
-    assert_eq!(
-        out.as_slice(),
-        &[0, 0],
-        "rejected mean must not write output"
-    );
-}
-
 /// The float-bound provider entry point computes the keep-dim axis mean.
 fn check_provider_mean<T, B>(backend: &B)
 where
@@ -220,7 +185,6 @@ fn sequential_public_reductions_match_reference() {
     check_provider_mean::<f32, _>(&backend);
     check_provider_mean::<f64, _>(&backend);
     check_empty_mean(&backend);
-    check_integer_mean_rejected(&backend);
 }
 
 #[test]
@@ -231,5 +195,4 @@ fn moirai_public_reductions_match_reference() {
     check_provider_mean::<f32, _>(&backend);
     check_provider_mean::<f64, _>(&backend);
     check_empty_mean(&backend);
-    check_integer_mean_rejected(&backend);
 }

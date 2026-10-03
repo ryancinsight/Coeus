@@ -25,12 +25,6 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    if op == ReductionOp::Mean {
-        return Err(BackendError::FloatOnlyReduction {
-            operation: "reduction",
-            reduction: op,
-        });
-    }
     coeus_leto::reduce_into(op, a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
         .map_err(|error| map_leto_error("reduction", error))
 }

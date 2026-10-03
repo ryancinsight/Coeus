@@ -104,7 +104,6 @@ where
             ReductionOp::Prod => {
                 operations.reduce_axis_into::<hephaestus_core::ProdOp>(device, input, axis, output)
             }
-            ReductionOp::Mean => operations.mean_axis_into(device, input, axis, output),
             ReductionOp::Min => operations.min_axis_into(device, input, axis, output),
             ReductionOp::Max => operations.max_axis_into(device, input, axis, output),
         }

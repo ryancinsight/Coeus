@@ -22,9 +22,8 @@ use super::super::CpuBackend;
 pub trait ReductionOps<T: Scalar>: ComputeBackend {
     /// Reduction operations along an axis.
     ///
-    /// [`ReductionOp::Mean`] is float-only; its typed entry point is
-    /// [`ReductionOps::mean`]. Providers whose generic path cannot prove a
-    /// floating-point element type reject it with a typed error.
+    /// The arithmetic mean is not a [`ReductionOp`]; it is
+    /// [`ReductionOps::mean`], bounded on `FloatElement`.
     ///
     /// # Errors
     ///
@@ -44,7 +43,22 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
     ///
     /// The `FloatElement` bound makes integer mean unrepresentable: integer
     /// division would truncate the quotient. Every provider implements it
-    /// against its native mean kernel.
+    /// against its native mean kernel, so no provider, CPU or accelerator,
+    /// can be asked for an integer mean:
+    ///
+    /// ```compile_fail,E0277
+    /// use coeus_core::Layout;
+    /// use coeus_ops::ReductionOps;
+    ///
+    /// fn integer_mean<B: ReductionOps<i32>>(
+    ///     backend: &B,
+    ///     a: &B::DeviceBuffer<i32>,
+    ///     layout: &Layout,
+    ///     c: &mut B::DeviceBuffer<i32>,
+    /// ) {
+    ///     let _ = backend.mean(a, layout, 0, c, layout);
+    /// }
+    /// ```
     ///
     /// # Errors
     ///

@@ -105,8 +105,10 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
 /// # Errors
 ///
 /// Returns [`CudaBackendError`] when the expression, axis, CUDA provider,
-/// generated kernel, or launch ABI rejects the operation. Empty mean, maximum,
-/// and minimum reductions are undefined and rejected.
+/// generated kernel, or launch ABI rejects the operation. Empty maximum and
+/// minimum reductions are undefined and rejected. The arithmetic mean is not a
+/// [`ReductionOp`](coeus_ops::ReductionOp); it evaluates through
+/// [`evaluate_fused_mean`].
 ///
 /// Accelerator expressions cannot enter the CPU reduction evaluator:
 ///
@@ -137,39 +139,112 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
 
     #[cfg(feature = "cuda")]
     {
-        let expr_shape = expr.shape()?.ok_or_else(|| {
-            CudaBackendError::validation(coeus_core::BackendError::Storage {
-                operation: "fused reduction",
-                reason: "expression has no tensor input from which to derive its shape".to_string(),
-            })
-        })?;
-        if axis >= expr_shape.len() {
-            return Err(CudaBackendError::validation(
-                coeus_core::BackendError::AxisOutOfRange {
-                    operation: "fused reduction",
-                    axis,
-                    rank: expr_shape.len(),
-                },
-            ));
-        }
-        let axis_len = expr_shape[axis];
-        coeus_ops::fuse::validate_fused_reduction_axis(op, axis_len)
-            .map_err(CudaBackendError::validation)?;
+        fused_reduction(expr, fusion::fused_reduction(op), axis, |axis_len| {
+            coeus_ops::fuse::validate_fused_reduction_axis(op, axis_len)
+        })
+    }
+}
 
-        let mut out_shape = expr_shape;
-        let out_rank = out_shape.len();
-        let output_axis = out_shape.get_mut(axis).ok_or_else(|| {
-            CudaBackendError::validation(coeus_core::BackendError::AxisOutOfRange {
+/// Evaluate a fused arithmetic mean along an axis on the CUDA device.
+///
+/// The `FloatElement` bound makes integer mean unrepresentable: integer
+/// division would truncate the quotient.
+///
+/// ```compile_fail,E0277
+/// use coeus_cuda::CudaBackend;
+/// use coeus_ops::fuse::TensorExprExt;
+/// use coeus_tensor::Tensor;
+///
+/// fn integer_mean(tensor: &Tensor<i32, CudaBackend>) {
+///     let _ = coeus_cuda::evaluate_fused_mean(&tensor.expr(), 0);
+/// }
+/// ```
+///
+/// # Errors
+///
+/// Returns [`BackendError::EmptyMean`](coeus_core::BackendError::EmptyMean)
+/// when the axis is empty, and [`CudaBackendError`] when the expression, axis,
+/// CUDA provider, generated kernel, or launch ABI rejects the operation.
+pub fn evaluate_fused_mean<T, E>(
+    expr: &E,
+    axis: usize,
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError>
+where
+    T: CudaScalar + coeus_core::FloatElement,
+    E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy,
+{
+    #[cfg(not(feature = "cuda"))]
+    {
+        let _ = (expr, axis);
+        Err(CudaBackendError::kernel(
+            "fused mean",
+            "the CUDA provider feature is disabled",
+        ))
+    }
+
+    #[cfg(feature = "cuda")]
+    {
+        fused_reduction(
+            expr,
+            hephaestus_core::FusedReduction::Mean,
+            axis,
+            |axis_len| {
+                if axis_len == 0 {
+                    Err(coeus_core::BackendError::EmptyMean {
+                        operation: "fused mean",
+                    })
+                } else {
+                    Ok(())
+                }
+            },
+        )
+    }
+}
+
+/// Shared fused reduction body; `validate` rejects an axis length the fold
+/// has no result for.
+#[cfg(feature = "cuda")]
+fn fused_reduction<T, E>(
+    expr: &E,
+    reduction: hephaestus_core::FusedReduction,
+    axis: usize,
+    validate: impl FnOnce(usize) -> Result<(), coeus_core::BackendError>,
+) -> Result<Tensor<T, CudaBackend>, CudaBackendError>
+where
+    T: CudaScalar,
+    E: coeus_ops::fuse::ExprNode<T, CudaBackend> + Copy,
+{
+    let expr_shape = expr.shape()?.ok_or_else(|| {
+        CudaBackendError::validation(coeus_core::BackendError::Storage {
+            operation: "fused reduction",
+            reason: "expression has no tensor input from which to derive its shape".to_string(),
+        })
+    })?;
+    if axis >= expr_shape.len() {
+        return Err(CudaBackendError::validation(
+            coeus_core::BackendError::AxisOutOfRange {
                 operation: "fused reduction",
                 axis,
-                rank: out_rank,
-            })
-        })?;
-        *output_axis = 1;
-        let out_layout = Layout::new(out_shape.clone());
-        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
-
-        fusion::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
-        Ok(out)
+                rank: expr_shape.len(),
+            },
+        ));
     }
+    let axis_len = expr_shape[axis];
+    validate(axis_len).map_err(CudaBackendError::validation)?;
+
+    let mut out_shape = expr_shape;
+    let out_rank = out_shape.len();
+    let output_axis = out_shape.get_mut(axis).ok_or_else(|| {
+        CudaBackendError::validation(coeus_core::BackendError::AxisOutOfRange {
+            operation: "fused reduction",
+            axis,
+            rank: out_rank,
+        })
+    })?;
+    *output_axis = 1;
+    let out_layout = Layout::new(out_shape.clone());
+    let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
+
+    fusion::dispatch_fused_reduce(expr, reduction, axis, out.storage_mut(), &out_layout)?;
+    Ok(out)
 }

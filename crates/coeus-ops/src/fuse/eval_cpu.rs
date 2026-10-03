@@ -117,7 +117,7 @@ fn write_fused_values<E, T, B>(
 #[inline(always)]
 fn reduce_pair<T: Scalar>(op: crate::ReductionOp, acc: T, val: T) -> T {
     match op {
-        crate::ReductionOp::Sum | crate::ReductionOp::Mean => acc + val,
+        crate::ReductionOp::Sum => acc + val,
         crate::ReductionOp::Prod => acc * val,
         crate::ReductionOp::Max => {
             if val > acc {
@@ -136,15 +136,25 @@ fn reduce_pair<T: Scalar>(op: crate::ReductionOp, acc: T, val: T) -> T {
     }
 }
 
+/// The fold a fused reduction applies along its axis.
+///
+/// `Mean` sums and then divides by the axis length. It carries its divisor --
+/// at the entry point as the conversion from the axis length, in the plan as
+/// the converted value -- so a divisor cannot exist without the mean, and the
+/// mean, which only the `FloatElement`-bound entry point constructs, cannot
+/// run without one.
+#[derive(Clone, Copy)]
+enum FusedFold<D> {
+    Reduce(crate::ReductionOp),
+    Mean(D),
+}
+
 #[derive(Clone, Copy)]
 struct FusedReductionPlan<'a, T> {
     out_layout: &'a Layout,
     axis: usize,
     axis_len: usize,
-    op: crate::ReductionOp,
-    /// Divisor applied to the accumulated sum; `Some` only on the float-bound
-    /// mean path.
-    mean_divisor: Option<T>,
+    fold: FusedFold<T>,
 }
 
 unsafe fn eval_reduction_at<E, T, B>(
@@ -152,26 +162,29 @@ unsafe fn eval_reduction_at<E, T, B>(
     coords: &mut [usize],
     axis: usize,
     axis_len: usize,
-    op: crate::ReductionOp,
-    mean_divisor: Option<T>,
+    fold: FusedFold<T>,
 ) -> T
 where
     E: CpuExprNode<T, B> + Copy,
     T: Scalar,
     B: CpuBackend,
 {
+    let combine = match fold {
+        FusedFold::Reduce(op) => op,
+        FusedFold::Mean(_) => crate::ReductionOp::Sum,
+    };
     coords[axis] = 0;
     let mut acc = expr.eval_cpu(coords);
 
     for k in 1..axis_len {
         coords[axis] = k;
         let val = expr.eval_cpu(coords);
-        acc = reduce_pair(op, acc, val);
+        acc = reduce_pair(combine, acc, val);
     }
 
-    match mean_divisor {
-        Some(divisor) => acc / divisor,
-        None => acc,
+    match fold {
+        FusedFold::Mean(divisor) => acc / divisor,
+        FusedFold::Reduce(_) => acc,
     }
 }
 
@@ -203,8 +216,7 @@ fn write_fused_reductions<E, T, B>(
                     &mut coords[..ndim],
                     plan.axis,
                     plan.axis_len,
-                    plan.op,
-                    plan.mean_divisor,
+                    plan.fold,
                 );
                 out_ptr.write(idx, acc);
             }
@@ -212,14 +224,7 @@ fn write_fused_reductions<E, T, B>(
             let mut coords = smallvec::SmallVec::<[usize; 16]>::from_elem(0, ndim);
             logical_to_coords(idx, ndim, &out_strides, &mut coords);
             unsafe {
-                let acc = eval_reduction_at(
-                    expr,
-                    &mut coords,
-                    plan.axis,
-                    plan.axis_len,
-                    plan.op,
-                    plan.mean_divisor,
-                );
+                let acc = eval_reduction_at(expr, &mut coords, plan.axis, plan.axis_len, plan.fold);
                 out_ptr.write(idx, acc);
             }
         }
@@ -228,8 +233,8 @@ fn write_fused_reductions<E, T, B>(
 
 /// Validate the shared empty-axis contract for fused reductions.
 ///
-/// Sum and product retain their additive and multiplicative identities. Mean,
-/// maximum, and minimum require at least one input value.
+/// Sum and product retain their additive and multiplicative identities;
+/// maximum and minimum require at least one input value.
 ///
 /// # Errors
 ///
@@ -239,12 +244,7 @@ pub fn validate_fused_reduction_axis(
     op: crate::ReductionOp,
     axis_len: usize,
 ) -> Result<(), BackendError> {
-    if axis_len == 0
-        && matches!(
-            op,
-            crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min
-        )
-    {
+    if axis_len == 0 && matches!(op, crate::ReductionOp::Max | crate::ReductionOp::Min) {
         return Err(BackendError::EmptyReduction {
             operation: "fused reduction",
             reduction: op,
@@ -290,13 +290,12 @@ where
 
 /// Evaluate a fused expression DAG with a reduction along `axis` on the CPU.
 ///
-/// Mean is float-only and evaluates through [`evaluate_fused_mean_cpu`].
+/// The arithmetic mean is not a [`ReductionOp`](crate::ReductionOp); it
+/// evaluates through [`evaluate_fused_mean_cpu`].
 ///
 /// # Errors
 ///
-/// Returns [`BackendError::FloatOnlyReduction`] for
-/// [`ReductionOp::Mean`](crate::ReductionOp::Mean), and [`BackendError`] when
-/// the expression has no tensor input, child shapes cannot be broadcast,
+/// Returns [`BackendError`] when the expression has no tensor input, child shapes cannot be broadcast,
 /// `axis` is outside the expression rank, or an empty axis is used with
 /// maximum or minimum.
 pub fn evaluate_fused_reduce_cpu<E, T, B>(
@@ -311,13 +310,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    if op == crate::ReductionOp::Mean {
-        return Err(BackendError::FloatOnlyReduction {
-            operation: "fused reduction",
-            reduction: op,
-        });
-    }
-    fused_reduction(expr, op, axis, backend, None)
+    fused_reduction(expr, axis, backend, FusedFold::Reduce(op))
 }
 
 /// Evaluate a fused expression DAG with an arithmetic mean along `axis` on
@@ -328,9 +321,9 @@ where
 ///
 /// # Errors
 ///
-/// Returns [`BackendError`] when the expression has no tensor input, child
-/// shapes cannot be broadcast, `axis` is outside the expression rank, or the
-/// axis is empty.
+/// Returns [`BackendError::EmptyMean`] when the axis is empty, and
+/// [`BackendError`] when the expression has no tensor input, child shapes
+/// cannot be broadcast, or `axis` is outside the expression rank.
 pub fn evaluate_fused_mean_cpu<E, T, B>(
     expr: &E,
     axis: usize,
@@ -342,23 +335,17 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    fused_reduction(
-        expr,
-        crate::ReductionOp::Mean,
-        axis,
-        backend,
-        Some(T::from_count),
-    )
+    let divisor: fn(usize) -> T = T::from_count;
+    fused_reduction(expr, axis, backend, FusedFold::Mean(divisor))
 }
 
-/// Shared fused reduction body; `mean_divisor` maps the axis length to the
-/// mean divisor and is `Some` only for the float-bound mean entry point.
+/// Shared fused reduction body; a `Mean` fold carries the conversion from the
+/// axis length to its divisor.
 fn fused_reduction<E, T, B>(
     expr: &E,
-    op: crate::ReductionOp,
     axis: usize,
     backend: &B,
-    mean_divisor: Option<fn(usize) -> T>,
+    fold: FusedFold<fn(usize) -> T>,
 ) -> Result<Tensor<T, B>, BackendError>
 where
     E: CpuExprNode<T, B> + Copy + Send,
@@ -385,13 +372,25 @@ where
 
     let out_numel = out.numel();
     let axis_len = expr_shape[axis];
-    validate_fused_reduction_axis(op, axis_len)?;
+    let fold = match fold {
+        FusedFold::Reduce(op) => {
+            validate_fused_reduction_axis(op, axis_len)?;
+            FusedFold::Reduce(op)
+        }
+        FusedFold::Mean(_) if axis_len == 0 => {
+            return Err(BackendError::EmptyMean {
+                operation: "fused mean",
+            });
+        }
+        FusedFold::Mean(divisor) => FusedFold::Mean(divisor(axis_len)),
+    };
 
     if axis_len == 0 {
-        let identity = match op {
-            crate::ReductionOp::Sum => T::zero(),
-            crate::ReductionOp::Prod => T::one(),
-            crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min => {
+        let identity = match fold {
+            FusedFold::Reduce(crate::ReductionOp::Sum) => T::zero(),
+            FusedFold::Reduce(crate::ReductionOp::Prod) => T::one(),
+            FusedFold::Reduce(crate::ReductionOp::Max | crate::ReductionOp::Min)
+            | FusedFold::Mean(_) => {
                 unreachable!("invariant: undefined empty reductions were rejected")
             }
         };
@@ -403,8 +402,7 @@ where
         out_layout: &out_layout,
         axis,
         axis_len,
-        op,
-        mean_divisor: mean_divisor.map(|divisor| divisor(axis_len)),
+        fold,
     };
     let out_ptr = MutPtr(out.storage_mut().as_mut_slice().as_mut_ptr());
     write_fused_reductions(*expr, out_ptr, out_numel, plan, backend);

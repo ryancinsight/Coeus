@@ -29,9 +29,6 @@ fn reduce_n<T: LetoScalar, const N: usize>(
         ReductionOp::Prod => {
             leto_ops::reduce_axis_into::<ProductAxis, T, N>(&a_view, axis, &mut out_view)
         }
-        ReductionOp::Mean => Err(LetoError::InvalidInput(
-            "mean is defined only for floating-point elements; use mean_into".to_string(),
-        )),
         ReductionOp::Max => {
             leto_ops::reduce_axis_into::<MaxAxis, T, N>(&a_view, axis, &mut out_view)
         }
@@ -44,14 +41,14 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 /// Keep-dim axis reductions of a coeus CPU tensor into caller-owned output,
 /// dispatched to the matching monomorphized leto reduction kernel.
 ///
-/// Mean is float-only and dispatches through [`mean_into`], whose
-/// `FloatElement` bound rejects integer element types at compile time.
+/// The arithmetic mean is not a [`ReductionOp`]; it dispatches through
+/// [`mean_into`], whose `FloatElement` bound rejects integer element types at
+/// compile time.
 ///
 /// # Errors
 ///
-/// Returns [`LetoError::InvalidInput`] for [`ReductionOp::Mean`], and the leto
-/// layout or storage error when the rank is outside `1..=6` or the layouts do
-/// not describe a keep-dim reduction along `axis`.
+/// Returns the leto layout or storage error when the rank is outside `1..=6`
+/// or the layouts do not describe a keep-dim reduction along `axis`.
 ///
 /// # Examples
 ///
@@ -72,9 +69,6 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 ///
 /// reduce_into(ReductionOp::Prod, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [-8.0, 90.0]);
-///
-/// let mean = reduce_into(ReductionOp::Mean, &input_layout, &input, 1, &output_layout, &mut out);
-/// assert!(matches!(mean, Err(leto::LetoError::InvalidInput(_))));
 ///
 /// reduce_into(ReductionOp::Max, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [4.0, 6.0]);
