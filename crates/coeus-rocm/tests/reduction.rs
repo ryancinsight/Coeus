@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Layout, ReductionOp};
+use coeus_core::{ClosedReduction, ComputeBackend, Layout, ReductionOp};
 use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::ReductionOps;
 use coeus_rocm::RocmProvider;
@@ -32,13 +32,12 @@ fn native_reductions_and_scans_match_leto() {
     for (op, expected) in [
         (ReductionOp::Sum, [6.0_f32, 15.0]),
         (ReductionOp::Prod, [6.0_f32, 120.0]),
-        (ReductionOp::Mean, [2.0_f32, 5.0]),
         (ReductionOp::Min, [1.0_f32, 4.0]),
         (ReductionOp::Max, [3.0_f32, 6.0]),
     ] {
         let mut expected_values = [0.0_f32; 2];
         coeus_leto::reduce_into(
-            op,
+            ClosedReduction::from_op("oracle", op).expect("invariant: closed reductions only"),
             &layout,
             &input,
             1,

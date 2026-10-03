@@ -3,7 +3,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use coeus_core::{
-    BackendError, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement, Layout, Scalar,
+    BackendError, ClosedReduction, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement,
+    Layout, Scalar,
 };
 
 use super::error::map_leto_error;
@@ -25,6 +26,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
+    let op = ClosedReduction::from_op("reduction", op)?;
     coeus_leto::reduce_into(op, a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
         .map_err(|error| map_leto_error("reduction", error))
 }

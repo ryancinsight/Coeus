@@ -1,5 +1,5 @@
 use crate::convert::{to_leto_layout, to_leto_view, to_leto_view_mut};
-use coeus_core::{FloatElement, Layout as CoeusLayout, ReductionOp};
+use coeus_core::{ClosedReduction, FloatElement, Layout as CoeusLayout};
 use leto::{
     application::{argmax, argmin},
     Array, LetoError, RankMarker, RemoveAxis, Result, SliceStorage, Storage,
@@ -13,7 +13,7 @@ use super::MAX_DISPATCH_RANK;
 
 #[inline(always)]
 fn reduce_n<T: LetoScalar, const N: usize>(
-    op: ReductionOp,
+    op: ClosedReduction,
     a_layout: &CoeusLayout,
     a: &[T],
     axis: usize,
@@ -23,19 +23,16 @@ fn reduce_n<T: LetoScalar, const N: usize>(
     let a_view = to_leto_view::<T, N>(a_layout, a)?;
     let mut out_view = to_leto_view_mut::<T, N>(out_layout, out)?;
     match op {
-        ReductionOp::Sum => {
+        ClosedReduction::Sum => {
             leto_ops::reduce_axis_into::<SumAxis, T, N>(&a_view, axis, &mut out_view)
         }
-        ReductionOp::Prod => {
+        ClosedReduction::Prod => {
             leto_ops::reduce_axis_into::<ProductAxis, T, N>(&a_view, axis, &mut out_view)
         }
-        ReductionOp::Mean => {
-            leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
-        }
-        ReductionOp::Max => {
+        ClosedReduction::Max => {
             leto_ops::reduce_axis_into::<MaxAxis, T, N>(&a_view, axis, &mut out_view)
         }
-        ReductionOp::Min => {
+        ClosedReduction::Min => {
             leto_ops::reduce_axis_into::<MinAxis, T, N>(&a_view, axis, &mut out_view)
         }
     }
@@ -44,13 +41,21 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 /// Keep-dim axis reductions of a coeus CPU tensor into caller-owned output,
 /// dispatched to the matching monomorphized leto reduction kernel.
 ///
+/// The mean, which needs a floating-point element, dispatches through
+/// [`mean_into`].
+///
+/// # Errors
+///
+/// Returns the leto layout or storage error when the rank is outside `1..=6`
+/// or the layouts do not describe a keep-dim reduction along `axis`.
+///
 /// # Examples
 ///
 /// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output, for the
-/// `sum`, `product`, `mean`, `max`, and `min` operators:
+/// `sum`, `product`, `max`, and `min` operators:
 ///
 /// ```
-/// use coeus_core::{Layout, ReductionOp};
+/// use coeus_core::{ClosedReduction, Layout};
 /// use coeus_leto::reduce_into;
 ///
 /// let input = [1.0_f64, 4.0, -2.0, 5.0, 3.0, 6.0];
@@ -58,23 +63,20 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 /// let output_layout = Layout::new([2, 1].into());
 /// let mut out = [0.0_f64; 2];
 ///
-/// reduce_into(ReductionOp::Sum, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_into(ClosedReduction::Sum, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [3.0, 14.0]);
 ///
-/// reduce_into(ReductionOp::Prod, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_into(ClosedReduction::Prod, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [-8.0, 90.0]);
 ///
-/// reduce_into(ReductionOp::Mean, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
-/// assert_eq!(out, [1.0, 14.0 / 3.0]);
-///
-/// reduce_into(ReductionOp::Max, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_into(ClosedReduction::Max, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [4.0, 6.0]);
 ///
-/// reduce_into(ReductionOp::Min, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_into(ClosedReduction::Min, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [-2.0, 3.0]);
 /// ```
 pub fn reduce_into<T: LetoScalar>(
-    op: ReductionOp,
+    op: ClosedReduction,
     a_layout: &CoeusLayout,
     a: &[T],
     axis: usize,

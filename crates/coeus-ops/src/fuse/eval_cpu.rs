@@ -305,11 +305,15 @@ where
 
 /// Evaluate a fused expression DAG with a reduction along `axis` on the CPU.
 ///
+/// Mean is float-only and evaluates through [`evaluate_fused_mean_cpu`].
+///
 /// # Errors
 ///
-/// Returns [`BackendError`] when the expression has no tensor input, child
-/// shapes cannot be broadcast, `axis` is outside the expression rank, or an
-/// empty axis is used with mean, maximum, or minimum.
+/// Returns [`BackendError::FloatOnlyReduction`] for
+/// [`ReductionOp::Mean`](crate::ReductionOp::Mean), and [`BackendError`] when
+/// the expression has no tensor input, child shapes cannot be broadcast,
+/// `axis` is outside the expression rank, or an empty axis is used with
+/// maximum or minimum.
 pub fn evaluate_fused_reduce_cpu<E, T, B>(
     expr: &E,
     op: crate::ReductionOp,
@@ -322,15 +326,8 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    fused_reduction(expr, axis, backend, |axis_len| match op {
-        crate::ReductionOp::Sum => FusedFold::Closed(ClosedReduction::Sum),
-        crate::ReductionOp::Prod => FusedFold::Closed(ClosedReduction::Prod),
-        crate::ReductionOp::Max => FusedFold::Closed(ClosedReduction::Max),
-        crate::ReductionOp::Min => FusedFold::Closed(ClosedReduction::Min),
-        crate::ReductionOp::Mean => FusedFold::Mean {
-            divisor: T::from_f64(f64::from_count(axis_len)),
-        },
-    })
+    let reduction = ClosedReduction::from_op("fused reduction", op)?;
+    fused_reduction(expr, axis, backend, |_| FusedFold::Closed(reduction))
 }
 
 /// Evaluate a fused expression DAG with an arithmetic mean along `axis` on

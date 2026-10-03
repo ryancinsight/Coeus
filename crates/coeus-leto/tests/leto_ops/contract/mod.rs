@@ -1,6 +1,6 @@
 //! Cross-repo contracts for the dynamic-rank Leto adapter.
 
-use coeus_core::{BinaryOp, CpuStorage, CpuUnaryOp, Layout, ReductionOp, Shape, Strides};
+use coeus_core::{BinaryOp, ClosedReduction, CpuStorage, CpuUnaryOp, Layout, Shape, Strides};
 use coeus_leto::{
     argmax_into, argmin_into, batched_matmul_accumulate_into, batched_matmul_into,
     broadcast_layout, broadcast_shape, concat_values, contiguous_values, cumprod_into, cumsum_into,

@@ -1,5 +1,7 @@
 //! Reduction operation tags.
 
+use crate::backend::BackendError;
+
 /// Reduction operation tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReductionOp {
@@ -33,6 +35,27 @@ pub enum ClosedReduction {
     Min,
 }
 
+impl ClosedReduction {
+    /// The closed reduction `op` names.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BackendError::FloatOnlyReduction`] naming `operation` for
+    /// [`ReductionOp::Mean`].
+    pub fn from_op(operation: &'static str, op: ReductionOp) -> Result<Self, BackendError> {
+        match op {
+            ReductionOp::Sum => Ok(Self::Sum),
+            ReductionOp::Prod => Ok(Self::Prod),
+            ReductionOp::Max => Ok(Self::Max),
+            ReductionOp::Min => Ok(Self::Min),
+            ReductionOp::Mean => Err(BackendError::FloatOnlyReduction {
+                operation,
+                reduction: op,
+            }),
+        }
+    }
+}
+
 impl From<ClosedReduction> for ReductionOp {
     fn from(reduction: ClosedReduction) -> Self {
         match reduction {
@@ -46,7 +69,7 @@ impl From<ClosedReduction> for ReductionOp {
 
 #[cfg(test)]
 mod tests {
-    use super::{ClosedReduction, ReductionOp};
+    use super::{BackendError, ClosedReduction, ReductionOp};
 
     #[test]
     fn closed_reductions_name_their_reduction_op() {
@@ -58,6 +81,18 @@ mod tests {
         ];
         for (closed, op) in pairs {
             assert_eq!(ReductionOp::from(closed), op);
+            assert_eq!(ClosedReduction::from_op("reduce", op), Ok(closed));
         }
+    }
+
+    #[test]
+    fn mean_is_rejected_with_the_operation_name() {
+        assert_eq!(
+            ClosedReduction::from_op("fused reduction", ReductionOp::Mean),
+            Err(BackendError::FloatOnlyReduction {
+                operation: "fused reduction",
+                reduction: ReductionOp::Mean,
+            })
+        );
     }
 }
