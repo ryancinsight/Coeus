@@ -6,7 +6,7 @@
 use super::validation;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{Float, FloatElement, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// Functional (stateless) RMS normalization.
@@ -19,7 +19,7 @@ use coeus_tensor::Tensor;
 /// Returns a typed module or backend failure when the input is not rank two,
 /// the weight shape differs from the trailing dimension, epsilon is invalid,
 /// or a backend operation fails.
-pub fn rms_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn rms_norm<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: Option<&Var<T, B>>,
     eps: f64,
@@ -63,7 +63,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RMSNorm<T, B> {
 }
 
 /// Implements the [`crate::module::Module`] interface for [`RMSNorm`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T, B> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for RMSNorm<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone()]
     }
