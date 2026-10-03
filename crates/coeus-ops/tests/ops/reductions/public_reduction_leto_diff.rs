@@ -5,10 +5,10 @@
 //! so bitwise equality is the correct oracle for both scalar widths.
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, NumericElement,
-    Scalar, SequentialBackend,
+    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement,
+    MoiraiBackend, NumericElement, ReductionOp, Scalar, SequentialBackend,
 };
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, ReductionOps};
 use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
@@ -153,12 +153,83 @@ where
         .is_nan());
 }
 
+/// The float-bound provider entry point computes the keep-dim axis mean.
+fn check_provider_mean<T, B>(backend: &B)
+where
+    T: Scalar + leto_ops::Scalar + FloatElement,
+    B: BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    let data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0].map(<T as FloatElement>::from_f64);
+    let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
+    let mut mean = Tensor::<T, B>::zeros_on([2usize, 1], backend)
+        .expect("invariant: test backend operation succeeds");
+    let (mean_storage, mean_layout) = mean
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
+    ReductionOps::reduce_mean(
+        backend,
+        tensor.storage(),
+        tensor.layout(),
+        1,
+        mean_storage,
+        mean_layout,
+    )
+    .expect("valid provider mean");
+    assert_same_bits(
+        mean.as_slice(),
+        [2.0, 5.0].map(<T as FloatElement>::from_f64),
+        "provider axis-1 mean",
+    );
+}
+
+/// Integer mean would truncate the quotient, so the generic `reduce` path
+/// rejects it with a typed error instead of returning `[1, 4]` for the true
+/// means `[1.5, 4.5]`, and leaves the output unwritten.
+fn check_integer_mean_rejected<B>(backend: &B)
+where
+    B: BackendOps<i32> + ComputeBackend<Error = BackendError> + Default,
+    B::DeviceBuffer<i32>: CpuAddressableStorage<i32> + CpuAddressableStorageMut<i32>,
+{
+    let tensor = tensor_from_slice::<i32, B>(&[2, 2], &[1, 2, 4, 5], backend);
+    let mut out = Tensor::<i32, B>::zeros_on([2usize, 1], backend)
+        .expect("invariant: test backend operation succeeds");
+    let (out_storage, out_layout) = out
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
+    let error = backend
+        .reduce(
+            ReductionOp::Mean,
+            tensor.storage(),
+            tensor.layout(),
+            1,
+            out_storage,
+            out_layout,
+        )
+        .expect_err("invariant: integer mean is float-only");
+    assert_eq!(
+        error,
+        BackendError::FloatOnlyReduction {
+            operation: "reduction",
+            reduction: ReductionOp::Mean,
+        }
+    );
+    assert_eq!(
+        out.as_slice(),
+        &[0, 0],
+        "rejected mean must not write output"
+    );
+}
+
 #[test]
 fn sequential_public_reductions_match_reference() {
     let backend = SequentialBackend;
     check_reductions::<f32, _>(&backend);
     check_reductions::<f64, _>(&backend);
+    check_provider_mean::<f32, _>(&backend);
+    check_provider_mean::<f64, _>(&backend);
     check_empty_mean(&backend);
+    check_integer_mean_rejected(&backend);
 }
 
 #[test]
@@ -166,5 +237,8 @@ fn moirai_public_reductions_match_reference() {
     let backend = MoiraiBackend;
     check_reductions::<f32, _>(&backend);
     check_reductions::<f64, _>(&backend);
+    check_provider_mean::<f32, _>(&backend);
+    check_provider_mean::<f64, _>(&backend);
     check_empty_mean(&backend);
+    check_integer_mean_rejected(&backend);
 }

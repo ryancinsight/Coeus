@@ -1,7 +1,10 @@
 //! Reduction CPU kernel delegations: reduce, argmax/argmin, topk, cumulative
 //! sum/product scans.
 
-use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{
+    BackendError, ClosedReduction, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement,
+    Layout, Scalar,
+};
 
 use super::error::map_leto_error;
 use super::CpuBackend;
@@ -22,6 +25,8 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
+
+    let op = ClosedReduction::from_op("reduction", op)?;
     coeus_leto::reduce_into(
         op,
         a_layout,
