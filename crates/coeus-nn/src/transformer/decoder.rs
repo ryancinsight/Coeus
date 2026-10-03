@@ -3,7 +3,7 @@
 use super::decoder_layer::TransformerDecoderLayer;
 use crate::module::ModuleError;
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
-use coeus_core::MoiraiBackend;
+use coeus_core::{FloatElement, MoiraiBackend};
 
 /// Stack of N `TransformerDecoderLayer`s.
 ///
@@ -25,7 +25,7 @@ pub struct TransformerDecoder<
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
@@ -79,7 +79,7 @@ where
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,

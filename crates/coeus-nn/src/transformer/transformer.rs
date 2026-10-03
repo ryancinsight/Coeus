@@ -4,7 +4,7 @@ use super::decoder::TransformerDecoder;
 use super::encoder::TransformerEncoder;
 use crate::module::{prefixed_parameters, Module, ModuleError};
 use coeus_autograd::{AttentionMask, CausalMask, NullMask, Var};
-use coeus_core::MoiraiBackend;
+use coeus_core::{FloatElement, MoiraiBackend};
 
 /// Full Sequence-to-Sequence Transformer model.
 ///
@@ -26,7 +26,7 @@ pub struct Transformer<
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,
@@ -91,7 +91,7 @@ where
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,

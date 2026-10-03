@@ -107,7 +107,8 @@ pub enum ReductionOp {
     Sum,
     /// Product of all elements.
     Prod,
-    /// Arithmetic mean of all elements.
+    /// Arithmetic mean of all elements, defined only for floating-point
+    /// element types.
     Mean,
     /// Maximum element.
     Max,

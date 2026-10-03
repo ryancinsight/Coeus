@@ -1,12 +1,12 @@
 //! Reduction sub-trait.
 //!
 //! [`ReductionOps`] is the interface-segregated sub-trait for all reduction
-//! kernel dispatch (reduce, argmax, argmin, topk, cumsum, suffix_sum, cumprod,
-//! suffix_prod). The argmax/argmin/topk defaults are CPU-only and route to
+//! kernel dispatch (reduce, mean, argmax, argmin, topk, cumsum, suffix_sum,
+//! cumprod, suffix_prod). The argmax/argmin/topk defaults are CPU-only and route to
 //! Leto through [`super::super::CpuBackend`]. Cumulative scan methods are
 //! required provider operations; no host-staging default is available.
 
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{ComputeBackend, FloatElement, Layout, Scalar};
 
 use super::super::defaults;
 use super::super::ops::ReductionOp;
@@ -22,6 +22,10 @@ use super::super::CpuBackend;
 pub trait ReductionOps<T: Scalar>: ComputeBackend {
     /// Reduction operations along an axis.
     ///
+    /// [`ReductionOp::Mean`] is float-only; its typed entry point is
+    /// [`ReductionOps::mean`]. Providers whose generic path cannot prove a
+    /// floating-point element type reject it with a typed error.
+    ///
     /// # Errors
     ///
     /// Returns the backend-associated error when layout validation, provider
@@ -35,6 +39,30 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error>;
+
+    /// Arithmetic mean along an axis.
+    ///
+    /// The `FloatElement` bound makes integer mean unrepresentable: integer
+    /// division would truncate the quotient. The default routes to the
+    /// provider's native [`ReductionOp::Mean`] kernel.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout validation, provider
+    /// execution, or output dispatch fails.
+    fn mean(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement,
+    {
+        self.reduce(ReductionOp::Mean, a, a_layout, axis, c, c_layout)
+    }
 
     /// Compute the indices of the maximum values along `axis`.
     fn argmax(

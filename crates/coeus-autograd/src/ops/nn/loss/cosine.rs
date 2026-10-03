@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -97,7 +97,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 /// `x1`: `[N, D]`, `x2`: `[N, D]`, `y`: `[N]` (elements 1 or -1).
 /// The complete forward and backward computation stays on the selected
 /// provider; no input-sized host staging occurs beyond the `y` boundary upload.
-pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn cosine_embedding_loss<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     y: &[T],
@@ -137,7 +137,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     )
     .expect("invariant: validated [N, D] norm2 reduction");
 
-    let eps = T::from_f64(1e-8);
+    let eps = <T as FloatElement>::from_f64(1e-8);
     let eps_tensor = Tensor::full_on([n, 1], eps, &backend);
     let dot_col = dot.reshape([n, 1]);
     let n1_col = norm1_sq.reshape([n, 1]);
@@ -201,7 +201,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             margin,
             n,
             d,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on([1], T::ONE / T::from_count(n), &backend),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

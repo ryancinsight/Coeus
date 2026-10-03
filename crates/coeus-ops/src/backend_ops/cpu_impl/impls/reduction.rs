@@ -2,7 +2,7 @@ use super::super::reduction;
 use super::super::CpuBackend;
 use crate::backend_ops::ops::ReductionOp;
 use crate::backend_ops::traits::ReductionOps;
-use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{CpuAddressableStorageMut, FloatElement, Layout, Scalar};
 
 impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ReductionOps<T> for B
 where
@@ -19,6 +19,21 @@ where
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
         reduction::reduce(self, op, a, a_layout, axis, c, c_layout)
+    }
+
+    #[inline]
+    fn mean(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement,
+    {
+        reduction::mean(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]

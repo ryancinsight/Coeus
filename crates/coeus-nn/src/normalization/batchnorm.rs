@@ -15,7 +15,7 @@
 use super::validation;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_core::{Float, FloatElement, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 
@@ -217,7 +217,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
     for BatchNorm<T, B, DIM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -285,7 +285,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>
+    BatchNorm<T, B, DIM>
+{
     /// Rank-`DIM` forward path: `[N, C, spatial...] -> [N, C, spatial...]`.
     /// Separated from the `Module` trait surface so the 2D-input adapter above
     /// can call it without going through the trait vtable.
