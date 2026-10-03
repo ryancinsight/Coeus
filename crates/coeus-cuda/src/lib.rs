@@ -45,4 +45,4 @@ mod fusion;
 mod fuse_api;
 
 pub use backend::{CudaBackend, CudaScalar};
-pub use fuse_api::{evaluate_fused, evaluate_fused_reduce};
+pub use fuse_api::{evaluate_fused, evaluate_fused_mean, evaluate_fused_reduce};
