@@ -183,7 +183,7 @@ where
     }
 
     match fold {
-        FusedFold::Mean(divisor) => acc / divisor,
+        FusedFold::Mean(reciprocal) => acc * reciprocal,
         FusedFold::Reduce(_) => acc,
     }
 }
@@ -335,12 +335,16 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let divisor: fn(usize) -> T = T::from_count;
-    fused_reduction(expr, axis, backend, FusedFold::Mean(divisor))
+    // Multiply by the correctly rounded reciprocal. Converting the count to
+    // the storage format first can overflow reduced formats (for example
+    // F16::from_count(65_536) is +inf), turning an exactly representable mean
+    // into zero.
+    let reciprocal: fn(usize) -> T = T::from_count_reciprocal;
+    fused_reduction(expr, axis, backend, FusedFold::Mean(reciprocal))
 }
 
 /// Shared fused reduction body; a `Mean` fold carries the conversion from the
-/// axis length to its divisor.
+/// axis length to its correctly rounded reciprocal.
 fn fused_reduction<E, T, B>(
     expr: &E,
     axis: usize,

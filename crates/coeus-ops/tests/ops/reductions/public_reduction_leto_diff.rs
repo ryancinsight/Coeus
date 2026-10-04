@@ -9,8 +9,12 @@ use coeus_core::{
     ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement, MoiraiBackend,
     Scalar, SequentialBackend,
 };
-use coeus_ops::{BackendOps, ReductionOps};
+use coeus_ops::{
+    fuse::{evaluate_fused_mean_cpu, TensorExprExt},
+    BackendOps, ReductionOps,
+};
 use coeus_tensor::{Tensor, Transpose};
+use eunomia::F16;
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
@@ -175,6 +179,43 @@ where
         [2.0, 5.0].map(<T as FloatElement>::from_f64),
         "provider axis-1 mean",
     );
+}
+
+#[test]
+fn sequential_f16_mean_preserves_representable_reciprocal() {
+    const N: usize = 65_536;
+    let backend = SequentialBackend;
+    let mut data = vec![F16::from_f32(0.0); N];
+    data[0] = F16::from_f32(1.0);
+    let tensor = tensor_from_slice::<F16, _>(&[1, N], &data, &backend);
+    let mean = coeus_ops::mean_axis(&tensor, 1, &backend).expect("valid F16 mean axis");
+    assert_eq!(mean.shape(), &[1, 1]);
+    assert_eq!(mean.as_slice()[0].to_f32(), 2.0_f32.powi(-16));
+
+    let mut provider = Tensor::<F16, SequentialBackend>::zeros_on([1usize, 1], &backend);
+    let (provider_storage, provider_layout) = provider.storage_mut_and_layout();
+    ReductionOps::mean(
+        &backend,
+        tensor.storage(),
+        tensor.layout(),
+        1,
+        provider_storage,
+        provider_layout,
+    )
+    .expect("valid provider F16 mean");
+    assert_eq!(provider.as_slice()[0].to_f32(), 2.0_f32.powi(-16));
+}
+
+#[test]
+fn sequential_f16_fused_mean_preserves_representable_reciprocal() {
+    const N: usize = 65_536;
+    let backend = SequentialBackend;
+    let mut data = vec![F16::from_f32(0.0); N];
+    data[0] = F16::from_f32(1.0);
+    let tensor = tensor_from_slice::<F16, _>(&[1, N], &data, &backend);
+    let mean = evaluate_fused_mean_cpu(&tensor.expr(), 1, &backend).expect("valid fused F16 mean");
+    assert_eq!(mean.shape(), &[1, 1]);
+    assert_eq!(mean.as_slice()[0].to_f32(), 2.0_f32.powi(-16));
 }
 
 #[test]

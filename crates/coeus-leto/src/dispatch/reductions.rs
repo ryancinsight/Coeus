@@ -5,8 +5,8 @@ use leto::{
     Array, LetoError, RankMarker, RemoveAxis, Result, SliceStorage, Storage,
 };
 use leto_ops::{
-    CumProdOp, CumSumOp, MaxAxis, MeanAxis, MinAxis, ProductAxis, Scalar as LetoScalar,
-    ScanDirection, ScanOp, SumAxis,
+    CumProdOp, CumSumOp, MaxAxis, MinAxis, ProductAxis, Scalar as LetoScalar, ScanDirection,
+    ScanOp, SumAxis,
 };
 
 use super::MAX_DISPATCH_RANK;
@@ -106,7 +106,12 @@ fn mean_n<T: LetoScalar + FloatElement, const N: usize>(
 ) -> Result<()> {
     let a_view = to_leto_view::<T, N>(a_layout, a)?;
     let mut out_view = to_leto_view_mut::<T, N>(out_layout, out)?;
-    leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
+    leto_ops::reduce_axis_into::<SumAxis, T, N>(&a_view, axis, &mut out_view)?;
+    let reciprocal = T::from_count_reciprocal(a_view.shape()[axis]);
+    for value in out_view.data_mut() {
+        *value = value.mul(reciprocal);
+    }
+    Ok(())
 }
 
 /// Keep-dim arithmetic mean of a coeus CPU tensor along `axis` into

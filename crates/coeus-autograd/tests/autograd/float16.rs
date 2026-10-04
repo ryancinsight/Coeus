@@ -134,3 +134,25 @@ fn f16_mean_gradient_at_count_past_f16_range() {
         "mean_axis gradient must be 1/{N} correctly rounded"
     );
 }
+
+/// The forward mean remains nonzero when the count overflows F16 but its
+/// reciprocal is exactly representable: one followed by zeros has mean 2^-16.
+#[test]
+fn f16_mean_forward_at_count_past_f16_range() {
+    use coeus_autograd::mean;
+
+    const N: usize = 65_536;
+    let mut values = vec![F16::from_f32(0.0); N];
+    values[0] = F16::from_f32(1.0);
+    let input = coeus_autograd::Var::new(
+        Tensor::<F16, SequentialBackend>::from_slice(vec![N], &values),
+        false,
+    );
+    let output = mean(&input);
+    let actual = output.tensor.as_slice()[0].to_f32();
+    let expected = 2.0_f32.powi(-16);
+    assert_eq!(
+        actual, expected,
+        "F16 mean must preserve the exact reciprocal"
+    );
+}

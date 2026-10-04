@@ -176,9 +176,9 @@ The migration is decomposed into these dependency ordered leaves:
 - Status: blocked; priority: correctness; [major] [arch].
 - Outcome: forward mean values and gradients remain correct for F16 and other reduced formats when the sample count cannot be represented as a finite storage-format value.
 - Scope: provider-owned mean accumulation and reciprocal paths consumed by Coeus; no test-only oracle changes or workload reduction.
-- Evidence: `FloatElement::from_count(65_536)` is infinite for F16, so the current Leto `MeanAxis` and Coeus fused/autograd mean paths return zero for an exactly representable `2^-16` mean. The Coeus API migration cannot claim numerical completion until the provider path is fixed and a forward-value regression passes.
-- Blocker: upstream Leto `MeanAxis` and Hephaestus accelerator mean kernels require provider changes; no existing Leto or Hephaestus claim currently owns this correction.
-- Re-open: an upstream provider claim lands a representation-safe mean implementation and device execution evidence; then add exact F16 forward and backward cases here and rerun the backend matrix.
+- Evidence: `FloatElement::from_count(65_536)` is infinite for F16. Coeus now sums and multiplies by `from_count_reciprocal` in its CPU Leto dispatch, fused CPU evaluator, and autograd global mean; value-semantic regressions cover the exact `2^-16` case. The accelerator provider kernels still require the same contract.
+- Blocker: Hephaestus accelerator mean kernels require provider changes and a real device-backed oracle; no existing Hephaestus claim currently owns this correction. Leto's external `MeanAxis` remains unsafe for this reduced-format boundary, so Coeus does not call it for CPU means.
+- Re-open: an upstream Hephaestus claim lands representation-safe accelerator means with device execution evidence; then rerun the complete backend matrix from this Coeus head.
 
 <a id="coeus-autograd-l1-provider-001"></a>
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Collect hosted evidence for the provider-owned L1 loss
