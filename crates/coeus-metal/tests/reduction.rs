@@ -64,6 +64,29 @@ fn native_reductions_and_scans_match_leto() {
         assert_eq!(actual_values, expected_values, "Metal {op:?} parity");
     }
 
+    let mut expected_mean = [0.0_f32; 2];
+    coeus_leto::mean_into(
+        &layout,
+        &input,
+        1,
+        &Layout::new([2, 1].into()),
+        &mut expected_mean,
+    )
+    .expect("Leto mean oracle failed");
+    let mut mean = backend.allocate::<f32>(2);
+    ReductionOps::mean(
+        &backend,
+        &device_input,
+        &layout,
+        1,
+        &mut mean,
+        &Layout::new([2, 1].into()),
+    )
+    .expect("Metal mean failed");
+    let mut mean_values = [0.0_f32; 2];
+    backend.copy_to_host(&mean, &mut mean_values);
+    assert_eq!(mean_values, expected_mean, "Metal mean parity");
+
     let mut expected_scan = [0.0_f32; 6];
     coeus_leto::cumsum_into(&layout, &input, 1, &layout, &mut expected_scan)
         .expect("Leto cumulative-sum oracle failed");
