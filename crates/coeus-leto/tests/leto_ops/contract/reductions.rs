@@ -23,7 +23,7 @@ fn reduction_dispatch_covers_keepdim_axis_ops() {
     assert_eq!(out, vec![3.0, 14.0]);
 
     mean_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
-    assert_eq!(out, vec![1.0, 14.0 / 3.0]);
+    assert_eq!(out, vec![1.0, 14.0 * (1.0 / 3.0)]);
 
     reduce_into(
         ReductionOp::Max,
