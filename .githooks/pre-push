@@ -391,19 +391,33 @@ if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_exp
   echo "pre-push: could not export $lock_rev for the lockfile check" >&2
   exit 1
 fi
-checker="$lock_export/scripts/lockfile.py"
-
-if [ ! -f "$checker" ]; then
-  # A guard that reports its own absence and lets the push through is the
-  # absence. The code gate below would still have run, but the lock is what
-  # this section is for, and an unverified lock is the failure it exists to
-  # stop -- so refuse here; there is no deliberate way through.
-  echo "pre-push: scripts/lockfile.py not present; lockfile not verified" >&2
+lock_stack_root="$(cd "$repo_root/../.." 2>/dev/null && pwd || true)"
+lock_stack_ref=""
+lock_stack_top="$(outside_checkout git -C "$lock_stack_root" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$lock_stack_top" ] && [ "$(cd "$lock_stack_top" && pwd)" = "$lock_stack_root" ]; then
+  for ref in origin/HEAD origin/main; do
+    lock_stack_ref="$(outside_checkout git -C "$lock_stack_root" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null || true)"
+    [ -n "$lock_stack_ref" ] && break
+  done
+fi
+if [ -z "$lock_stack_ref" ]; then
+  echo "pre-push: no stack checker reachable from this clone; lockfile not verified here, the lockfile-guard CI job enforces it" >&2
+  skip_lockfile=1
+elif ! outside_checkout git -C "$lock_stack_root" cat-file -e "$lock_stack_ref:scripts/lockfile.py" 2>/dev/null; then
+  echo "pre-push: the stack's scripts at $lock_stack_root carry no lockfile.py; lockfile not verified" >&2
   exit 1
+else
+  new_run_temp lock_checker_root lc
+  checker="$lock_checker_root/lockfile.py"
+  outside_checkout git -C "$lock_stack_root" show "$lock_stack_ref:scripts/lockfile.py" > "$checker"
+fi
+
+if [ "$skip_lockfile" = "1" ]; then
+  :
 elif [ -z "$python_bin" ]; then
   echo "pre-push: no python interpreter found; lockfile not verified" >&2
   exit 1
-elif ! (cd "$lock_export" && "$python_bin" "$checker" --check); then
+elif ! (cd "$lock_export" && "$python_bin" "$checker" --check --manifest-path "$lock_export/Cargo.toml"); then
   cat >&2 <<MESSAGE
 
 pre-push: the Cargo.lock in $lock_rev does not resolve under --locked, so

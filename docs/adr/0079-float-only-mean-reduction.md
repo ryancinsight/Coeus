@@ -1,6 +1,9 @@
-# Float-only mean reduction
+# ADR 0079: Float-only mean reduction
 
-Status: Accepted
+Status: Accepted  
+Date: 2026-10-04  
+Change class: [major] [arch]  
+Board item: [COEUS-FLOAT-MEAN-PROVIDER-001](../../backlog.md#coeus-float-mean-provider-001)
 
 ## Context
 
