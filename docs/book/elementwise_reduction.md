@@ -28,6 +28,12 @@ let max_val  = a.max_axis(2)?;   // max along axis 2
 let std_dev  = a.std_dev_axis(1, 0)?;  // std dev (biased or unbiased)
 ```
 
+Arithmetic mean is a floating-point operation. `mean` and `mean_axis` require
+the tensor element type to implement `FloatElement`; integer tensors must be
+converted before the reduction. This keeps fractional results visible in the
+type contract and prevents silent integer truncation. Reduced formats use the
+provider's declared accumulation and reciprocal rules.
+
 Reduction ops support backward passes that broadcast the upstream gradient
 back to the original shape.
 

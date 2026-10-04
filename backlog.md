@@ -170,6 +170,16 @@ The migration is decomposed into these dependency ordered leaves:
 - Acceptance: standalone regeneration is idempotent and all configured gates pass against a freshly fetched upstream.
 - Next step: re-run `cargo update` against current remotes and confirm the lock still resolves after any upstream version alignment since the last check.
 
+<a id="coeus-float-mean-provider-001"></a>
+## COEUS-FLOAT-MEAN-PROVIDER-001 — Make reduced-format means representation-safe
+
+- Status: blocked; priority: correctness; [major] [arch].
+- Outcome: forward mean values and gradients remain correct for F16 and other reduced formats when the sample count cannot be represented as a finite storage-format value.
+- Scope: provider-owned mean accumulation and reciprocal paths consumed by Coeus; no test-only oracle changes or workload reduction.
+- Evidence: `FloatElement::from_count(65_536)` is infinite for F16, so the current Leto `MeanAxis` and Coeus fused/autograd mean paths return zero for an exactly representable `2^-16` mean. The Coeus API migration cannot claim numerical completion until the provider path is fixed and a forward-value regression passes.
+- Blocker: upstream Leto `MeanAxis` and Hephaestus accelerator mean kernels require provider changes; no existing Leto or Hephaestus claim currently owns this correction.
+- Re-open: an upstream provider claim lands a representation-safe mean implementation and device execution evidence; then add exact F16 forward and backward cases here and rerun the backend matrix.
+
 <a id="coeus-autograd-l1-provider-001"></a>
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Collect hosted evidence for the provider-owned L1 loss
 
