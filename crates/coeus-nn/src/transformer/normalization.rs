@@ -3,7 +3,10 @@ use coeus_autograd::Var;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
 
-pub(super) fn layer_norm_three_dimensional<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub(super) fn layer_norm_three_dimensional<
+    T: coeus_core::FloatElement + Float,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     module: &'static str,
     input: &Var<T, B>,
     weight: &Var<T, B>,
@@ -25,7 +28,11 @@ pub(super) fn layer_norm_three_dimensional<T: Float, B: coeus_ops::BackendOps<T>
     let centered_squared = coeus_ops::mul(&centered, &centered, &backend);
     let mut standard_deviation = coeus_ops::mean_axis(&centered_squared, 1, &backend)
         .map_err(|source| Backend { module, source })?;
-    let epsilon = Tensor::full_on([1], T::from_f64(eps), &backend);
+    let epsilon = Tensor::full_on(
+        [1],
+        <T as coeus_core::FloatElement>::from_f64(eps),
+        &backend,
+    );
     coeus_ops::add_assign(&mut standard_deviation, &epsilon, &backend)
         .map_err(|source| Backend { module, source })?;
     coeus_ops::sqrt_assign(&mut standard_deviation, &backend)
@@ -52,7 +59,11 @@ pub(super) fn layer_norm_three_dimensional<T: Float, B: coeus_ops::BackendOps<T>
         output,
         normalized,
         inverse_standard_deviation,
-        Tensor::full_on([1], T::from_f64(width as f64), &backend),
+        Tensor::full_on(
+            [1],
+            <T as coeus_core::FloatElement>::from_f64(width as f64),
+            &backend,
+        ),
     );
     Ok(coeus_autograd::reshape(
         &normalized,

@@ -29,7 +29,9 @@ pub struct ProdNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub product_saved: Tensor<T, B>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for ProdNode<T, B> {
+impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for ProdNode<T, B>
+{
     fn op_name(&self) -> &'static str {
         "prod"
     }
@@ -97,7 +99,9 @@ fn read_scalar<T: Scalar, B: ComputeBackend>(tensor: &Tensor<T, B>, backend: &B)
 /// Panics if `input` is empty.
 #[must_use]
 #[inline]
-pub fn prod<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
+pub fn prod<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    input: &Var<T, B>,
+) -> Var<T, B> {
     assert!(
         input.tensor.numel() > 0,
         "prod: empty tensors have no product"

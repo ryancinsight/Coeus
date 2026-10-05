@@ -1,6 +1,6 @@
 //! Provider-owned product reductions.
 
-use crate::backend_ops::{BackendOps, ReductionOp};
+use crate::backend_ops::BackendOps;
 use coeus_core::{BackendError, Scalar};
 use coeus_tensor::Tensor;
 
@@ -9,7 +9,7 @@ use coeus_tensor::Tensor;
 /// The reduction uses the multiplicative identity for empty axes, matching the
 /// CPU Leto contract and the provider kernels.
 #[inline]
-pub fn prod_axis<T: Scalar, B: BackendOps<T> + Default>(
+pub fn prod_axis<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     backend: &B,
@@ -28,14 +28,7 @@ pub fn prod_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out = Tensor::alloc_on(out_shape, backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.reduce(
-        ReductionOp::Prod,
-        a.storage(),
-        a.layout(),
-        axis,
-        out_storage,
-        out_layout,
-    )?;
+    backend.reduce_prod(a.storage(), a.layout(), axis, out_storage, out_layout)?;
 
     Ok(out)
 }
@@ -56,7 +49,7 @@ pub fn prod_axis<T: Scalar, B: BackendOps<T> + Default>(
 /// let result = prod_tensor(&input, &backend).expect("valid product inputs");
 /// assert_eq!(result.as_slice(), &[24.0]);
 /// ```
-pub fn prod_tensor<T: Scalar, B: BackendOps<T> + Default>(
+pub fn prod_tensor<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<Tensor<T, B>, B::Error> {
@@ -78,7 +71,10 @@ pub fn prod_tensor<T: Scalar, B: BackendOps<T> + Default>(
 /// The reduction stays on the selected backend; only the one-element result
 /// crosses the backend boundary.
 #[inline]
-pub fn prod<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, backend: &B) -> T {
+pub fn prod<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    backend: &B,
+) -> T {
     let reduced = prod_tensor(a, backend).expect("prod: provider reduction failed");
     let mut scalar = [T::zero()];
     backend.copy_to_host(reduced.storage(), &mut scalar);

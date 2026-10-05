@@ -133,7 +133,12 @@ pub struct BatchNorm<
     m_cache: RefCell<Option<(usize, Tensor<T, B>, Tensor<T, B>)>>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
+impl<
+        T: coeus_core::FloatElement + Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const DIM: usize,
+    > BatchNorm<T, B, DIM>
+{
     /// Create with ones weight, zeros bias, and initialized running stats.
     pub fn new(num_features: usize, eps: f64, momentum: f64) -> Self {
         let backend = B::default();
@@ -159,11 +164,15 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
         running_var: Tensor<T, B>,
     ) -> Self {
         let backend = B::default();
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let mom_t = Tensor::full_on([1], T::from_f64(momentum), &backend);
-        let one_minus_mom_t = Tensor::full_on([1], T::from_f64(1.0 - momentum), &backend);
-        let minus_half = Tensor::full_on([1], T::from_f64(-0.5), &backend);
-        let two_const = Tensor::full_on([1], T::from_f64(2.0), &backend);
+        let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
+        let mom_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(momentum), &backend);
+        let one_minus_mom_t = Tensor::full_on(
+            [1],
+            coeus_core::FloatElement::from_f64(1.0 - momentum),
+            &backend,
+        );
+        let minus_half = Tensor::full_on([1], coeus_core::FloatElement::from_f64(-0.5), &backend);
+        let two_const = Tensor::full_on([1], coeus_core::FloatElement::from_f64(2.0), &backend);
         let ones_c = Tensor::ones_on([1, num_features], &backend);
         Self {
             num_features,
@@ -205,20 +214,23 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
                 return Ok((cached_m_const.clone(), cached_corr_t.clone()));
             }
         }
-        let m_const = Tensor::full_on([1], T::from_f64(m as f64), backend);
+        let m_const = Tensor::full_on([1], coeus_core::FloatElement::from_f64(m as f64), backend);
         let correction = if m > 1 {
             m as f64 / (m - 1) as f64
         } else {
             1.0
         };
-        let corr_t = Tensor::full_on([1], T::from_f64(correction), backend);
+        let corr_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(correction), backend);
         *cache = Some((m, m_const.clone(), corr_t.clone()));
         Ok((m_const, corr_t))
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
-    for BatchNorm<T, B, DIM>
+impl<
+        T: coeus_core::FloatElement + Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const DIM: usize,
+    > Module<T, B> for BatchNorm<T, B, DIM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -285,7 +297,12 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
+impl<
+        T: coeus_core::FloatElement + Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const DIM: usize,
+    > BatchNorm<T, B, DIM>
+{
     /// Rank-`DIM` forward path: `[N, C, spatial...] -> [N, C, spatial...]`.
     /// Separated from the `Module` trait surface so the 2D-input adapter above
     /// can call it without going through the trait vtable.
@@ -322,7 +339,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
                     ));
                 }
             }
-            // Normalize using running stats: (x - running_mean) / sqrt(running_var + eps)
+            // Normalize using running stats: (x - running_mean) / coeus_core::FloatElement::sqrt(running_var + eps)
             let nhwc = permute_to_nhwc::<T, B, DIM>(&input.tensor, &backend);
             let flat = nhwc.reshape([m, c]);
             let rm_row = rm.reshape([1, c]);
@@ -370,7 +387,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
         let var_t = coeus_ops::mean_axis(&xmu_sq, 0, &backend)
             .map_err(|source| validation::backend(module, source))?; // [1, C]
 
-        // ── 1/sqrt(var + eps) [1, C] ──
+        // ── 1/coeus_core::FloatElement::sqrt(var + eps) [1, C] ──
         let mut stdev = var_t.clone();
         coeus_ops::add_assign(&mut stdev, &self.eps_t, &backend)
             .map_err(|source| validation::backend(module, source))?;

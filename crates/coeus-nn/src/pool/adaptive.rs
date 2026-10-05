@@ -114,7 +114,9 @@ pub struct AdaptiveAvgPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = 
     _marker: PhantomData<(T, B)>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveAvgPool1d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    AdaptiveAvgPool1d<T, B>
+{
     /// Create an `AdaptiveAvgPool1d` with the given output size.
     pub const fn new(output_size: usize) -> Self {
         Self {
@@ -124,7 +126,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveAvgPool1d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveAvgPool1d<T, B>
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for AdaptiveAvgPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -190,7 +193,9 @@ pub struct AdaptiveAvgPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = 
     _marker: PhantomData<(T, B)>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveAvgPool2d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    AdaptiveAvgPool2d<T, B>
+{
     /// Create an `AdaptiveAvgPool2d` pooling to `(out_h, out_w)` output size.
     pub const fn new(out_h: usize, out_w: usize) -> Self {
         Self {
@@ -206,7 +211,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveAvgPool2d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveAvgPool2d<T, B>
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for AdaptiveAvgPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -273,7 +279,9 @@ pub struct AdaptiveMaxPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = 
     _marker: PhantomData<(T, B)>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveMaxPool1d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    AdaptiveMaxPool1d<T, B>
+{
     /// Create an `AdaptiveMaxPool1d` with the given output size.
     pub const fn new(output_size: usize) -> Self {
         Self {
@@ -283,7 +291,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveMaxPool1d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveMaxPool1d<T, B>
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for AdaptiveMaxPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -332,7 +341,9 @@ pub struct AdaptiveMaxPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = 
     _marker: PhantomData<(T, B)>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveMaxPool2d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    AdaptiveMaxPool2d<T, B>
+{
     /// Create an `AdaptiveMaxPool2d` pooling to `(out_h, out_w)` output size.
     pub const fn new(out_h: usize, out_w: usize) -> Self {
         Self {
@@ -348,7 +359,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> AdaptiveMaxPool2d<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveMaxPool2d<T, B>
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for AdaptiveMaxPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

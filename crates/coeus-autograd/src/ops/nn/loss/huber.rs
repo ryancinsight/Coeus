@@ -38,7 +38,9 @@ pub struct HuberLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for HuberLossNode<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for HuberLossNode<T, B>
+{
     fn op_name(&self) -> &'static str {
         "huber_loss"
     }
@@ -102,7 +104,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Hub
 ///
 /// Returns the backend error type when the input shapes differ, the reduction
 /// is empty, or `delta` is non-finite or non-positive.
-pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn huber_loss<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
@@ -138,7 +140,7 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     // Classical Huber branch selection:
     //   quadratic: 0.5 * z²
     //   linear:    delta * |z| - 0.5 * delta²
-    let half = T::from_f64(0.5);
+    let half = <T as coeus_core::FloatElement>::from_f64(0.5);
     let half_sq = half * delta * delta;
     let quadratic = coeus_ops::mul(
         &coeus_ops::mul(&diffs, &diffs, &backend),
@@ -170,7 +172,11 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             delta,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on(
+                [1],
+                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                &backend,
+            ),
         };
         Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
     } else {

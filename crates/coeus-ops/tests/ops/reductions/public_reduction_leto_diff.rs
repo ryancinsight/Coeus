@@ -33,38 +33,40 @@ fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], cont
 
 fn check_reductions<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let data: Vec<T> = (1..=6).map(|value| T::from_f64(value as f64)).collect();
+    let data: Vec<T> = (1..=6)
+        .map(|value| <T as coeus_core::FloatElement>::from_f64(value as f64))
+        .collect();
     let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
 
     let total = coeus_ops::sum(&tensor, backend).expect("valid sum");
     assert_eq!(
         Scalar::to_f64(total).to_bits(),
-        Scalar::to_f64(T::from_f64(21.0)).to_bits()
+        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(21.0)).to_bits()
     );
 
     let product_axis = coeus_ops::prod_axis(&tensor, 1, backend).expect("valid product axis");
     assert_eq!(product_axis.shape(), &[2, 1]);
     assert_same_bits(
         product_axis.as_slice(),
-        [6.0, 120.0].map(T::from_f64),
+        [6.0, 120.0].map(<T as coeus_core::FloatElement>::from_f64),
         "axis-1 product",
     );
 
     let mean = coeus_ops::mean(&tensor, backend).expect("valid mean");
     assert_eq!(
         Scalar::to_f64(mean).to_bits(),
-        Scalar::to_f64(T::from_f64(3.5)).to_bits()
+        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
     );
 
     let sum_axis = coeus_ops::sum_axis(&tensor, 0, backend).expect("valid sum axis");
     assert_eq!(sum_axis.shape(), &[1, 3]);
     assert_same_bits(
         sum_axis.as_slice(),
-        [5.0, 7.0, 9.0].map(T::from_f64),
+        [5.0, 7.0, 9.0].map(<T as coeus_core::FloatElement>::from_f64),
         "axis-0 sum",
     );
 
@@ -72,7 +74,7 @@ where
     assert_eq!(mean_axis.shape(), &[2, 1]);
     assert_same_bits(
         mean_axis.as_slice(),
-        [2.0, 5.0].map(T::from_f64),
+        [2.0, 5.0].map(<T as coeus_core::FloatElement>::from_f64),
         "axis-1 mean",
     );
 
@@ -80,7 +82,7 @@ where
     assert_eq!(max_axis.shape(), &[2, 1]);
     assert_same_bits(
         max_axis.as_slice(),
-        [3.0, 6.0].map(T::from_f64),
+        [3.0, 6.0].map(<T as coeus_core::FloatElement>::from_f64),
         "axis-1 max",
     );
 
@@ -88,7 +90,7 @@ where
     assert_eq!(min_axis.shape(), &[1, 3]);
     assert_same_bits(
         min_axis.as_slice(),
-        [1.0, 2.0, 3.0].map(T::from_f64),
+        [1.0, 2.0, 3.0].map(<T as coeus_core::FloatElement>::from_f64),
         "axis-0 min",
     );
 
@@ -96,7 +98,7 @@ where
     let transposed_mean_scalar = coeus_ops::mean(&transposed, backend).expect("valid mean");
     assert_eq!(
         Scalar::to_f64(transposed_mean_scalar).to_bits(),
-        Scalar::to_f64(T::from_f64(3.5)).to_bits()
+        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
     );
 
     let transposed_sum =
@@ -104,7 +106,7 @@ where
     assert_eq!(transposed_sum.shape(), &[3, 1]);
     assert_same_bits(
         transposed_sum.as_slice(),
-        [5.0, 7.0, 9.0].map(T::from_f64),
+        [5.0, 7.0, 9.0].map(<T as coeus_core::FloatElement>::from_f64),
         "transposed axis-1 sum",
     );
 
@@ -113,7 +115,7 @@ where
     assert_eq!(transposed_mean.shape(), &[3, 1]);
     assert_same_bits(
         transposed_mean.as_slice(),
-        [2.5, 3.5, 4.5].map(T::from_f64),
+        [2.5, 3.5, 4.5].map(<T as coeus_core::FloatElement>::from_f64),
         "transposed axis-1 mean",
     );
 
@@ -121,14 +123,14 @@ where
         coeus_ops::prod_tensor(&transposed, backend).expect("valid strided product");
     assert_same_bits(
         transposed_product.as_slice(),
-        [720.0].map(T::from_f64),
+        [720.0].map(<T as coeus_core::FloatElement>::from_f64),
         "strided global product",
     );
     let shared = transposed.clone();
     let _ = coeus_ops::prod(&shared, backend);
     assert_same_bits(
         &shared.to_vec(),
-        [1.0, 4.0, 2.0, 5.0, 3.0, 6.0].map(T::from_f64),
+        [1.0, 4.0, 2.0, 5.0, 3.0, 6.0].map(<T as coeus_core::FloatElement>::from_f64),
         "COW product input",
     );
 }

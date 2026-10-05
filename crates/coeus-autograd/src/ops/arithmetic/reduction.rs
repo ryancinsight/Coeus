@@ -62,7 +62,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 
 /// ZST tag for mean-along-axis reduction autograd.
 pub struct MeanAxisOp;
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for MeanAxisOp {
+impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
+    ReductionAutogradOp<T, B> for MeanAxisOp
+{
     const OP_NAME: &'static str = "mean_axis";
 
     #[inline(always)]
@@ -79,7 +81,11 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
     fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>> {
         let axis = param.expect("invariant: MeanAxisOp::scaler always receives Some(axis)");
         let axis_len = a.shape()[axis] as f64;
-        Some(Tensor::full_on([1], T::from_f64(1.0 / axis_len), backend))
+        Some(Tensor::full_on(
+            [1],
+            <T as coeus_core::FloatElement>::from_f64(1.0 / axis_len),
+            backend,
+        ))
     }
 }
 
@@ -110,7 +116,7 @@ pub fn sum_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked mean reduction along an axis.
 #[must_use]
 #[inline]
-pub fn mean_axis<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn mean_axis<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
 ) -> Var<T, B> {

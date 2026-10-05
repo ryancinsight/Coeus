@@ -18,7 +18,7 @@ use coeus_core::MoiraiBackend;
 /// - `M` — masking strategy ZST
 #[derive(Clone)]
 pub struct TransformerEncoder<
-    T: coeus_ops::AttentionScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     const N: usize = 6,
@@ -29,7 +29,7 @@ pub struct TransformerEncoder<
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
@@ -79,7 +79,7 @@ where
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
