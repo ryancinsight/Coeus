@@ -6,8 +6,8 @@ use coeus_leto::{
     broadcast_layout, broadcast_shape, concat_values, contiguous_values, cumprod_into, cumsum_into,
     elementwise_add_into, elementwise_binary_into, elementwise_unary_into, from_shape_fn_values,
     matmul_accumulate_into, matmul_into, normal_values, pad_values, permute_layout, reduce_into,
-    reshape_layout, split_values, stack_values, suffix_prod_into, suffix_sum_into, to_leto_view,
-    uniform_values,
+    reduce_mean_into, reduce_prod_into, reshape_layout, split_values, stack_values,
+    suffix_prod_into, suffix_sum_into, to_leto_view, uniform_values,
 };
 use leto::Storage;
 
