@@ -25,7 +25,9 @@ pub struct NllLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for NllLossNode<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for NllLossNode<T, B>
+{
     fn op_name(&self) -> &'static str {
         "nll_loss"
     }

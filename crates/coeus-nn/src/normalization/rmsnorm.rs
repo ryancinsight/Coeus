@@ -19,7 +19,7 @@ use coeus_tensor::Tensor;
 /// Returns a typed module or backend failure when the input is not rank two,
 /// the weight shape differs from the trailing dimension, epsilon is invalid,
 /// or a backend operation fails.
-pub fn rms_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn rms_norm<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: Option<&Var<T, B>>,
     eps: f64,
@@ -45,25 +45,27 @@ pub struct RMSNorm<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
     eps_t: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RMSNorm<T, B> {
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> RMSNorm<T, B> {
     /// Create a new RMSNorm layer for a given feature dimension.
     pub fn new(normalized_shape: usize, eps: f64) -> Self {
         let backend = B::default();
         let weight = Var::new(Tensor::ones_on([normalized_shape], &backend), true);
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
+        let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
         Self { weight, eps, eps_t }
     }
 
     /// Create an RMSNorm layer from existing parameters.
     pub fn from_parts(weight: Var<T, B>, eps: f64) -> Self {
         let backend = B::default();
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
+        let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
         Self { weight, eps, eps_t }
     }
 }
 
 /// Implements the [`crate::module::Module`] interface for [`RMSNorm`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RMSNorm<T, B> {
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for RMSNorm<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone()]
     }

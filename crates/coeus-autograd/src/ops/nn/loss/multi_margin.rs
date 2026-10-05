@@ -28,8 +28,10 @@ pub struct MultiMarginNode<
     pub c: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>
-    BackwardNode<T, B> for MultiMarginNode<T, B>
+impl<
+        T: Float + coeus_core::FloatElement,
+        B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
+    > BackwardNode<T, B> for MultiMarginNode<T, B>
 {
     fn op_name(&self) -> &'static str {
         "multi_margin"

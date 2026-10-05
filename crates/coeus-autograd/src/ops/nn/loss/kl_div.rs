@@ -27,7 +27,9 @@ pub struct KlDivLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlDivLossNode<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for KlDivLossNode<T, B>
+{
     fn op_name(&self) -> &'static str {
         "kl_divergence"
     }
@@ -67,7 +69,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for KlD
 /// host staging occurs.
 ///
 /// Returns a scalar Var (shape `[1]`).
-pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kl_divergence<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -113,7 +115,11 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             target_saved: target.tensor.clone(),
             input_shape,
             n,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on(
+                [1],
+                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                &backend,
+            ),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

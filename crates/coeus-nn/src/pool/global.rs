@@ -17,14 +17,18 @@ pub struct GlobalAvgPool1d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
     PhantomData<(T, B)>,
 );
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool1d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    GlobalAvgPool1d<T, B>
+{
     /// Create a new `GlobalAvgPool1d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool1d<T, B> {
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalAvgPool1d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -58,14 +62,18 @@ pub struct GlobalAvgPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
     PhantomData<(T, B)>,
 );
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool2d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    GlobalAvgPool2d<T, B>
+{
     /// Create a new `GlobalAvgPool2d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool2d<T, B> {
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalAvgPool2d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -101,14 +109,18 @@ pub struct GlobalAvgPool3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
     PhantomData<(T, B)>,
 );
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalAvgPool3d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    GlobalAvgPool3d<T, B>
+{
     /// Create a new `GlobalAvgPool3d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool3d<T, B> {
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalAvgPool3d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -145,14 +157,18 @@ pub struct GlobalMaxPool2d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
     PhantomData<(T, B)>,
 );
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalMaxPool2d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    GlobalMaxPool2d<T, B>
+{
     /// Create a new `GlobalMaxPool2d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMaxPool2d<T, B> {
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalMaxPool2d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -186,14 +202,18 @@ pub struct GlobalMaxPool3d<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
     PhantomData<(T, B)>,
 );
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> GlobalMaxPool3d<T, B> {
+impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>
+    GlobalMaxPool3d<T, B>
+{
     /// Create a new `GlobalMaxPool3d` (zero-sized, no parameters).
     pub const fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMaxPool3d<T, B> {
+impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for GlobalMaxPool3d<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }

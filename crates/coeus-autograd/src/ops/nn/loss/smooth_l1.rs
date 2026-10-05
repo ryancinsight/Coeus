@@ -44,7 +44,7 @@ pub struct SmoothL1LossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for SmoothL1LossNode<T, B>
 {
     fn op_name(&self) -> &'static str {
@@ -93,7 +93,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
 ///
 /// The complete forward and backward computation stays on the selected
 /// provider; no input-sized host staging occurs.
-pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn smooth_l1_loss<
+    T: coeus_core::FloatElement + Float,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     beta: T,
@@ -119,7 +122,7 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let quad_mask = coeus_ops::lt(&abs_z, &beta_tensor.broadcast(shape.clone()), &backend);
     //   quadratic: 0.5 * z² / beta
     //   linear:    |z| - 0.5 * beta
-    let half = T::from_f64(0.5);
+    let half = <T as coeus_core::FloatElement>::from_f64(0.5);
     let inv_beta_tensor = Tensor::full_on([1], T::one() / beta, &backend);
     let quadratic = coeus_ops::mul(
         &coeus_ops::mul(&diffs, &diffs, &backend),
@@ -156,7 +159,11 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             beta,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on(
+                [1],
+                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                &backend,
+            ),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });

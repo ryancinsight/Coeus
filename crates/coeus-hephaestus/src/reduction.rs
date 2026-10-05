@@ -3,7 +3,7 @@ use crate::{
     layout::{ranked, ranked_axis},
     storage::HephaestusStorage,
 };
-use coeus_core::{ComputeBackend, Layout, Scalar, StorageMut};
+use coeus_core::{ComputeBackend, FloatElement, Layout, Scalar, StorageMut};
 use coeus_ops::ReductionOp;
 use hephaestus_core::{
     AxisReductionOps, CombineExpr, ComputeDevice, DeviceBuffer, IdentityToken, MaxOp, MinOp,
@@ -291,6 +291,34 @@ where
     P: ReductionProvider<T>,
     T: Scalar + leto_ops::Scalar,
 {
+    fn reduce_mean(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement,
+    {
+        self.reduce(ReductionOp::Mean, a, a_layout, axis, c, c_layout)
+    }
+
+    fn reduce_prod(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement,
+    {
+        self.reduce(ReductionOp::Prod, a, a_layout, axis, c, c_layout)
+    }
+
     fn reduce(
         &self,
         op: ReductionOp,

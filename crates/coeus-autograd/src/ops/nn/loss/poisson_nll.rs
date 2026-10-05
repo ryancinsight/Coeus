@@ -25,7 +25,9 @@ pub struct PoissonNllNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for PoissonNllNode<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for PoissonNllNode<T, B>
+{
     fn op_name(&self) -> &'static str {
         "poisson_nll"
     }
@@ -69,7 +71,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Poi
 /// share shape. The Stirling `full` correction term is not included (matching
 /// the PyTorch default). The complete forward and backward computation stays
 /// on the selected provider; no input-sized host staging occurs.
-pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn poisson_nll<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -104,7 +106,11 @@ pub fn poisson_nll<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             exp_input,
             n,
             shape,
-            mean_scale: Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend),
+            mean_scale: Tensor::full_on(
+                [1],
+                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                &backend,
+            ),
         };
         Arc::new(node) as Arc<dyn BackwardNode<T, B>>
     });
