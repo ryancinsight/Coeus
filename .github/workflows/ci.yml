@@ -41,7 +41,7 @@ jobs:
   # Atlas ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28.
   semver:
     name: SemVer gate
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@1ba4a8a4ffba9aa06b8f9192cbe43423cd34985a
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
     with:
       package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-hephaestus,coeus-leto,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-rocm,coeus-sparse,coeus-tensor,coeus-wgpu
       rust-toolchain: 1.97.0
