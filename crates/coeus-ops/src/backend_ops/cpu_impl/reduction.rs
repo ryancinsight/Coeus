@@ -27,6 +27,42 @@ where
         .map_err(|error| map_leto_error("reduction", error))
 }
 
+/// Mean along `axis`; needs a `FloatElement` for the reciprocal.
+pub(super) fn reduce_mean<T, B>(
+    _backend: &B,
+    a: &B::DeviceBuffer<T>,
+    a_layout: &Layout,
+    axis: usize,
+    c: &mut B::DeviceBuffer<T>,
+    c_layout: &Layout,
+) -> Result<(), BackendError>
+where
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    coeus_leto::reduce_mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+        .map_err(|error| map_leto_error("reduction", error))
+}
+
+/// Product along `axis`; needs a `FloatElement` for the multiplication.
+pub(super) fn reduce_prod<T, B>(
+    _backend: &B,
+    a: &B::DeviceBuffer<T>,
+    a_layout: &Layout,
+    axis: usize,
+    c: &mut B::DeviceBuffer<T>,
+    c_layout: &Layout,
+) -> Result<(), BackendError>
+where
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    B: CpuBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+{
+    coeus_leto::reduce_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+        .map_err(|error| map_leto_error("reduction", error))
+}
+
 #[inline]
 pub(super) fn argmax<T, B>(
     backend: &B,
