@@ -74,12 +74,15 @@ fn reduce_n_float<T: LetoScalar + coeus_core::FloatElement, const N: usize>(
 ///
 /// # Examples
 ///
-/// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output, for the
-/// `sum`, `product`, `mean`, `max`, and `min` operators:
+/// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output.
+///
+/// `sum`, `max` and `min` go through `reduce_into`; `product` and `mean` need
+/// a `FloatElement` sample and use their own entry points, which
+/// `reduce_into` refuses:
 ///
 /// ```
 /// use coeus_core::{Layout, ReductionOp};
-/// use coeus_leto::reduce_into;
+/// use coeus_leto::{reduce_into, reduce_mean_into, reduce_prod_into};
 ///
 /// let input = [1.0_f64, 4.0, -2.0, 5.0, 3.0, 6.0];
 /// let input_layout = Layout::new([2, 3].into());
@@ -89,10 +92,10 @@ fn reduce_n_float<T: LetoScalar + coeus_core::FloatElement, const N: usize>(
 /// reduce_into(ReductionOp::Sum, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [3.0, 14.0]);
 ///
-/// reduce_into(ReductionOp::Prod, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_prod_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [-8.0, 90.0]);
 ///
-/// reduce_into(ReductionOp::Mean, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_mean_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [1.0, 14.0 / 3.0]);
 ///
 /// reduce_into(ReductionOp::Max, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
