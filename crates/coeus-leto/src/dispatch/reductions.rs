@@ -11,6 +11,10 @@ use leto_ops::{
 
 use super::MAX_DISPATCH_RANK;
 
+/// Axis reduction for an op defined on any scalar.
+///
+/// `Mean` and `Prod` are rejected rather than silently routed: they need a
+/// `FloatElement`, and admitting them here would put that bound on every caller.
 #[inline(always)]
 fn reduce_n<T: LetoScalar, const N: usize>(
     op: ReductionOp,
@@ -26,18 +30,42 @@ fn reduce_n<T: LetoScalar, const N: usize>(
         ReductionOp::Sum => {
             leto_ops::reduce_axis_into::<SumAxis, T, N>(&a_view, axis, &mut out_view)
         }
-        ReductionOp::Prod => {
-            leto_ops::reduce_axis_into::<ProductAxis, T, N>(&a_view, axis, &mut out_view)
-        }
-        ReductionOp::Mean => {
-            leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
-        }
         ReductionOp::Max => {
             leto_ops::reduce_axis_into::<MaxAxis, T, N>(&a_view, axis, &mut out_view)
         }
         ReductionOp::Min => {
             leto_ops::reduce_axis_into::<MinAxis, T, N>(&a_view, axis, &mut out_view)
         }
+        ReductionOp::Mean | ReductionOp::Prod => Err(LetoError::StorageError {
+            reason: format!(
+                "{op:?} requires a FloatElement sample; call reduce_mean_into or                  reduce_prod_into instead"
+            ),
+        }),
+    }
+}
+
+/// Axis reduction for the float-only ops.
+#[inline(always)]
+fn reduce_n_float<T: LetoScalar + coeus_core::FloatElement, const N: usize>(
+    op: ReductionOp,
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    let a_view = to_leto_view::<T, N>(a_layout, a)?;
+    let mut out_view = to_leto_view_mut::<T, N>(out_layout, out)?;
+    match op {
+        ReductionOp::Mean => {
+            leto_ops::reduce_axis_into::<MeanAxis, T, N>(&a_view, axis, &mut out_view)
+        }
+        ReductionOp::Prod => {
+            leto_ops::reduce_axis_into::<ProductAxis, T, N>(&a_view, axis, &mut out_view)
+        }
+        _ => Err(LetoError::StorageError {
+            reason: format!("{op:?} does not need a FloatElement sample; use reduce_into"),
+        }),
     }
 }
 
@@ -46,12 +74,15 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 ///
 /// # Examples
 ///
-/// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output, for the
-/// `sum`, `product`, `mean`, `max`, and `min` operators:
+/// Reduce a `[2,3]` matrix along axis 1 into a `[2,1]` keep-dim output.
+///
+/// `sum`, `max` and `min` go through `reduce_into`; `product` and `mean` need
+/// a `FloatElement` sample and use their own entry points, which
+/// `reduce_into` refuses:
 ///
 /// ```
 /// use coeus_core::{Layout, ReductionOp};
-/// use coeus_leto::reduce_into;
+/// use coeus_leto::{reduce_into, reduce_mean_into, reduce_prod_into};
 ///
 /// let input = [1.0_f64, 4.0, -2.0, 5.0, 3.0, 6.0];
 /// let input_layout = Layout::new([2, 3].into());
@@ -61,10 +92,10 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 /// reduce_into(ReductionOp::Sum, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [3.0, 14.0]);
 ///
-/// reduce_into(ReductionOp::Prod, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_prod_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [-8.0, 90.0]);
 ///
-/// reduce_into(ReductionOp::Mean, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
+/// reduce_mean_into(&input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [1.0, 14.0 / 3.0]);
 ///
 /// reduce_into(ReductionOp::Max, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
@@ -73,6 +104,13 @@ fn reduce_n<T: LetoScalar, const N: usize>(
 /// reduce_into(ReductionOp::Min, &input_layout, &input, 1, &output_layout, &mut out).unwrap();
 /// assert_eq!(out, [-2.0, 3.0]);
 /// ```
+/// Reduce along `axis` for an op that is defined on any scalar.
+///
+/// `Mean` and `Prod` are **not** accepted here: both need a reciprocal or a
+/// multiplication that only a `FloatElement` guarantees, so they have their own
+/// bounded entry points ([`reduce_mean_into`], [`reduce_prod_into`]). Routing
+/// them through this function would force every caller -- including the
+/// reductions that genuinely work on any `T` -- to carry that bound.
 pub fn reduce_into<T: LetoScalar>(
     op: ReductionOp,
     a_layout: &CoeusLayout,
@@ -81,6 +119,13 @@ pub fn reduce_into<T: LetoScalar>(
     out_layout: &CoeusLayout,
     out: &mut [T],
 ) -> Result<()> {
+    if matches!(op, ReductionOp::Mean | ReductionOp::Prod) {
+        return Err(LetoError::StorageError {
+            reason: format!(
+                "{op:?} requires a FloatElement sample; call reduce_mean_into or                  reduce_prod_into instead"
+            ),
+        });
+    }
     match a_layout.ndim() {
         1 => reduce_n::<T, 1>(op, a_layout, a, axis, out_layout, out),
         2 => reduce_n::<T, 2>(op, a_layout, a, axis, out_layout, out),
@@ -88,6 +133,49 @@ pub fn reduce_into<T: LetoScalar>(
         4 => reduce_n::<T, 4>(op, a_layout, a, axis, out_layout, out),
         5 => reduce_n::<T, 5>(op, a_layout, a, axis, out_layout, out),
         6 => reduce_n::<T, 6>(op, a_layout, a, axis, out_layout, out),
+        n => Err(LetoError::StorageError {
+            reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+        }),
+    }
+}
+
+/// Reduce along `axis` with `Mean`.
+pub fn reduce_mean_into<T: LetoScalar + coeus_core::FloatElement>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    reduce_op_into(ReductionOp::Mean, a_layout, a, axis, out_layout, out)
+}
+
+/// Reduce along `axis` with `Prod`.
+pub fn reduce_prod_into<T: LetoScalar + coeus_core::FloatElement>(
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    reduce_op_into(ReductionOp::Prod, a_layout, a, axis, out_layout, out)
+}
+
+fn reduce_op_into<T: LetoScalar + coeus_core::FloatElement>(
+    op: ReductionOp,
+    a_layout: &CoeusLayout,
+    a: &[T],
+    axis: usize,
+    out_layout: &CoeusLayout,
+    out: &mut [T],
+) -> Result<()> {
+    match a_layout.ndim() {
+        1 => reduce_n_float::<T, 1>(op, a_layout, a, axis, out_layout, out),
+        2 => reduce_n_float::<T, 2>(op, a_layout, a, axis, out_layout, out),
+        3 => reduce_n_float::<T, 3>(op, a_layout, a, axis, out_layout, out),
+        4 => reduce_n_float::<T, 4>(op, a_layout, a, axis, out_layout, out),
+        5 => reduce_n_float::<T, 5>(op, a_layout, a, axis, out_layout, out),
+        6 => reduce_n_float::<T, 6>(op, a_layout, a, axis, out_layout, out),
         n => Err(LetoError::StorageError {
             reason: format!("coeus-leto dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
         }),

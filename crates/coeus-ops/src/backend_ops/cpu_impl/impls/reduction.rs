@@ -32,7 +32,7 @@ where
     where
         T: FloatElement,
     {
-        self.reduce(ReductionOp::Mean, a, a_layout, axis, c, c_layout)
+        reduction::reduce_mean(self, a, a_layout, axis, c, c_layout)
     }
 
     fn reduce_prod(
@@ -46,7 +46,7 @@ where
     where
         T: FloatElement,
     {
-        self.reduce(ReductionOp::Prod, a, a_layout, axis, c, c_layout)
+        reduction::reduce_prod(self, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
