@@ -49,7 +49,12 @@ pub struct GroupNorm<
     cache: RefCell<Option<GroupNormCache<T, B>>>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<T, B, G> {
+impl<
+        T: coeus_core::FloatElement + Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const G: usize,
+    > GroupNorm<T, B, G>
+{
     /// Create a new GroupNorm layer.
     ///
     /// # Panics
@@ -87,8 +92,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
             let backend = B::default();
             let ln_weight = Var::new(Tensor::ones_on([group_size], &backend), false);
             let ln_bias = Var::new(Tensor::zeros_on([group_size], &backend), false);
-            let eps_t = Tensor::full_on([1], T::from_f64(self.eps), &backend);
-            let d_const = Tensor::full_on([1], T::from_f64(group_size as f64), &backend);
+            let eps_t =
+                Tensor::full_on([1], coeus_core::FloatElement::from_f64(self.eps), &backend);
+            let d_const = Tensor::full_on(
+                [1],
+                coeus_core::FloatElement::from_f64(group_size as f64),
+                &backend,
+            );
             *cache = Some(GroupNormCache {
                 group_size,
                 ln_weight,
@@ -103,8 +113,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
 }
 
 /// Implements the [`crate::module::Module`] interface for [`GroupNorm`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, B>
-    for GroupNorm<T, B, G>
+impl<
+        T: coeus_core::FloatElement + Float,
+        B: coeus_ops::BackendOps<T> + Default,
+        const G: usize,
+    > Module<T, B> for GroupNorm<T, B, G>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -254,7 +267,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, 
 /// - `C % num_groups != 0`.
 /// - `weight` or `bias` is present and not shaped `[C]`.
 /// - `eps` is not finite or is negative.
-pub fn group_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn group_norm<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     num_groups: usize,
     weight: Option<&Tensor<T, B>>,
@@ -321,8 +334,8 @@ where
     let mut var =
         mean_axis(&xmu_sq, 1, &backend).map_err(|source| validation::backend(MODULE, source))?;
 
-    // stdev = sqrt(var + eps): reuse var buffer
-    let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
+    // stdev = coeus_core::FloatElement::sqrt(var + eps): reuse var buffer
+    let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
     add_assign(&mut var, &eps_t, &backend).map_err(|source| validation::backend(MODULE, source))?;
     sqrt_assign(&mut var, &backend).map_err(|source| validation::backend(MODULE, source))?; // now holds stdev
 

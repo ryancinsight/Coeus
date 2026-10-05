@@ -6,7 +6,7 @@
 //! Leto through [`super::super::CpuBackend`]. Cumulative scan methods are
 //! required provider operations; no host-staging default is available.
 
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use coeus_core::{ComputeBackend, FloatElement, Layout, Scalar};
 
 use super::super::defaults;
 use super::super::ops::ReductionOp;
@@ -35,6 +35,49 @@ pub trait ReductionOps<T: Scalar>: ComputeBackend {
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error>;
+
+    /// Reduce along `axis` with `MeanAxis`.
+    ///
+    /// Split out from [`reduce`](Self::reduce) because a mean needs a reciprocal
+    /// and a product needs multiplication, and both are only meaningful for a
+    /// `FloatElement`. Leaving them reachable through the shared `reduce` would
+    /// force that bound on every caller -- including `Sum`, `Max` and `Min`,
+    /// whose domains are wider and must stay that way.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout validation, provider
+    /// execution, or output dispatch fails.
+    fn reduce_mean(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement;
+
+    /// Reduce along `axis` with `ProductAxis`.
+    ///
+    /// Split from [`reduce`](Self::reduce) for the same reason as
+    /// [`reduce_mean`](Self::reduce_mean).
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error when layout validation, provider
+    /// execution, or output dispatch fails.
+    fn reduce_prod(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement;
 
     /// Compute the indices of the maximum values along `axis`.
     fn argmax(

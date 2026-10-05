@@ -21,7 +21,9 @@ pub struct L1LossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for L1LossNode<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for L1LossNode<T, B>
+{
     fn op_name(&self) -> &'static str {
         "l1_loss"
     }
@@ -62,7 +64,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for L1L
 /// `pred` and `target` must have identical shape. The mean reduction covers
 /// every element, not only the leading dimension. All arithmetic remains on
 /// the selected backend: Leto for CPU and Hephaestus for accelerator backends.
-pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn l1_loss<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -91,7 +93,11 @@ pub fn l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             .as_ref()
             .expect("invariant: tracked output has a gradient buffer")
             .clone();
-        let mean_scale = Tensor::full_on([1], T::one() / T::from_f64(n as f64), &backend);
+        let mean_scale = Tensor::full_on(
+            [1],
+            T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+            &backend,
+        );
         let node = L1LossNode {
             output_grad,
             inputs: vec![pred.clone(), target.clone()],

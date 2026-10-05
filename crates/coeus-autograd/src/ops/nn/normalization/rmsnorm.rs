@@ -21,7 +21,9 @@ pub struct RMSNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub rms_clone: Tensor<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for RMSNormNode<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for RMSNormNode<T, B>
+{
     #[inline]
     fn op_name(&self) -> &'static str {
         "rmsnorm"
@@ -79,7 +81,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for RMS
 }
 
 /// Tracked RMS Normalization.
-pub fn rmsnorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn rmsnorm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     out_tensor: Tensor<T, B>,

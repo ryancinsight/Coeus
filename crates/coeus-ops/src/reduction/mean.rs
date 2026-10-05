@@ -1,6 +1,6 @@
 // ── Mean reduction ──
 
-use crate::backend_ops::{BackendOps, ReductionOp};
+use crate::backend_ops::BackendOps;
 use coeus_core::{BackendError, Scalar};
 use coeus_tensor::Tensor;
 
@@ -19,12 +19,12 @@ use coeus_tensor::Tensor;
 /// assert!((result - 3.5).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn mean<T: Scalar, B: BackendOps<T> + Default>(
+pub fn mean<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
     if a.numel() == 0 {
-        return Ok(T::zero() / T::from_f64(0.0));
+        return Ok(T::zero() / <T as coeus_core::FloatElement>::from_f64(0.0));
     }
     let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([a.numel()])
@@ -56,7 +56,7 @@ pub fn mean<T: Scalar, B: BackendOps<T> + Default>(
 /// assert!((s[1] - 5.0).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn mean_axis<T: Scalar, B: BackendOps<T> + Default>(
+pub fn mean_axis<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     backend: &B,
@@ -75,14 +75,7 @@ pub fn mean_axis<T: Scalar, B: BackendOps<T> + Default>(
     let mut out = Tensor::alloc_on(out_shape, backend);
 
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.reduce(
-        ReductionOp::Mean,
-        a.storage(),
-        a.layout(),
-        axis,
-        out_storage,
-        out_layout,
-    )?;
+    backend.reduce_mean(a.storage(), a.layout(), axis, out_storage, out_layout)?;
 
     Ok(out)
 }

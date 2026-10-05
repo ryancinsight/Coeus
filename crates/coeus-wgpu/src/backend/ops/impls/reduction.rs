@@ -1,5 +1,5 @@
 use crate::backend::{WgpuBackend, WgpuScalar};
-use coeus_core::Layout;
+use coeus_core::{FloatElement, Layout};
 use coeus_hephaestus::{HephaestusBackend, ReductionProvider};
 use hephaestus_core::{
     CumProdOp, CumSumOp, DialectScalar, IdentityToken, MaxOp, MinOp, OpIdentity, ProdOp, SumOp,
@@ -47,6 +47,34 @@ where
         HephaestusBackend::<WgpuBackend>::new()
             .reduce(op, a, a_layout, axis, c, c_layout)
             .map_err(Into::into)
+    }
+
+    fn reduce_mean(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement,
+    {
+        self.reduce(coeus_ops::ReductionOp::Mean, a, a_layout, axis, c, c_layout)
+    }
+
+    fn reduce_prod(
+        &self,
+        a: &Self::DeviceBuffer<T>,
+        a_layout: &Layout,
+        axis: usize,
+        c: &mut Self::DeviceBuffer<T>,
+        c_layout: &Layout,
+    ) -> Result<(), Self::Error>
+    where
+        T: FloatElement,
+    {
+        self.reduce(coeus_ops::ReductionOp::Prod, a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
