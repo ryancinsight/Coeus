@@ -1,17 +1,24 @@
 """Execute the installed lock hooks against real Git and Cargo fixtures.
 
 The hooks are the stack's single owned copies. Their lock stage does not run a
-member checker: it extracts `scripts/lockfile.py` from the stack's fetched
-default branch (`origin/HEAD`, else `origin/main` of the repository two levels
-above the member) and runs that. Outside a stack checkout there is no checker
-to run, and the stage defers to the `lockfile-guard` CI job.
+member checker: it extracts `scripts/lockfile.py` from the fetched default
+(`origin/HEAD`, else `origin/main`) of the stack this checkout belongs to --
+the nearest ancestor that registers its members under `repos/` in its
+`.gitmodules` and has one of them share this checkout's object store -- and
+runs that. Outside a stack checkout there is no checker to run, and the stage
+defers to the `lockfile-guard` CI job; a push from there is still refused,
+since the trusted credential scanner is just as unreachable and a credential
+cannot be taken back once pushed.
 
-The fixtures therefore build a stack (`stack/`, one commit carrying `scripts/`,
-published as `refs/remotes/origin/main`) with the member at `stack/repos/member`,
-and a clone outside any stack (`alone/`). The checker the fixture stack carries
-is a recording stand-in (`STACK_CHECKER`): what these tests judge is how the
-hooks locate, invoke, and obey a checker, and what that checker's verdicts are
-is judged by the checker's own tests (atlas `scripts/tests/test_lockfile_*.py`).
+The fixtures therefore build a stack (`stack/`, one commit carrying
+`.gitmodules` and `scripts/`, published as `refs/remotes/origin/main`) with
+the member at `stack/repos/member`, and a clone outside any stack (`alone/`).
+The checker the fixture stack carries is a recording stand-in
+(`STACK_CHECKER`), and its credential scanner a clean-range stand-in
+(`SECRET_SCANNER`) so the stage that refuses an unscanned push does not decide
+the lock verdicts these tests judge. What these tests judge is how the hooks
+locate, invoke, and obey a checker, and what that checker's verdicts are is
+judged by the checker's own tests (atlas `scripts/tests/test_lockfile_*.py`).
 """
 
 from __future__ import annotations
@@ -92,6 +99,11 @@ if mode == "cargo" and "--check" in arguments:
     sys.exit(resolved.returncode)
 sys.exit(0)
 '''
+
+# The credential scanner a fixture stack publishes when the tests do not judge
+# it: `pre-push` refuses a push it could not scan, so every stack that reaches
+# that stage carries one. This stand-in reports a clean range.
+SECRET_SCANNER = "import sys\nsys.exit(0)\n"
 
 
 class HookInstallationTests(unittest.TestCase):
@@ -183,17 +195,28 @@ class LockHookTests(unittest.TestCase):
         """Make a one-commit stack whose fetched default carries `checker`.
 
         `None` publishes a default whose `scripts/` lacks `lockfile.py`, as a
-        stack default cut before the checker existed does.
+        stack default cut before the checker existed does. The `.gitmodules`
+        registering `repos/member` is what makes this directory a stack to the
+        hooks (stacks are found by that identity, not by depth), and the
+        credential scanner stand-in is what carries a push past the stage that
+        refuses an unscanned one.
         """
         self.run_git(self.stack.parent, "init", "-q", str(self.stack))
         (self.stack / "scripts").mkdir()
+        (self.stack / ".gitmodules").write_text(
+            '[submodule "member"]\n\tpath = repos/member\n\turl = ./member\n',
+            encoding="utf-8", newline="\n",
+        )
+        (self.stack / "scripts" / "atlas-secret-scan.py").write_text(
+            SECRET_SCANNER, encoding="utf-8", newline="\n"
+        )
         if checker is None:
             (self.stack / "scripts" / "other.py").write_text("pass\n", encoding="utf-8")
         else:
             (self.stack / "scripts" / "lockfile.py").write_text(
                 checker, encoding="utf-8", newline="\n"
             )
-        self.run_git(self.stack, "add", "scripts")
+        self.run_git(self.stack, "add", ".gitmodules", "scripts")
         self.run_git(self.stack, "commit", "-qm", "Publish the stack scripts")
         head = self.run_git(self.stack, "rev-parse", "HEAD").stdout.strip()
         self.run_git(self.stack, "update-ref", "refs/remotes/origin/main", head)
@@ -208,8 +231,17 @@ class LockHookTests(unittest.TestCase):
             shutil.copyfile(REPOSITORY / ".githooks" / hook, destination)
             destination.chmod(0o755)
         (path / "Cargo.toml").write_text(MANIFEST, encoding="utf-8", newline="\n")
-        (path / "Cargo.lock").write_text(LOCK, encoding="utf-8", newline="\n")
         self.commit_all(path, "Seed the member")
+        # The member's fetched default: `pre-push` measures its range against
+        # it, and the secret scan's trusted allowlist reads its revision. It
+        # stops just before the lock, so the lock-seeding commit is always
+        # inside the pushed range and the lock stage is never skipped as
+        # touching no dependency state (a range that changes no manifest and
+        # no lock cannot make the lock worse, and is left alone).
+        head = self.run_git(path, "rev-parse", "HEAD").stdout.strip()
+        self.run_git(path, "update-ref", "refs/remotes/origin/main", head)
+        (path / "Cargo.lock").write_text(LOCK, encoding="utf-8", newline="\n")
+        self.commit_all(path, "Seed the lock")
         return path
 
     def commit_all(self, repository: Path, message: str) -> None:
@@ -223,9 +255,10 @@ class LockHookTests(unittest.TestCase):
     def hook(self, name, *, member=None, **variables):
         member = self.member if member is None else member
         environment = self.environment | variables
-        # `pre-push` alone reads a push range from stdin. These fixtures have
-        # no `origin` remote, so no base resolves and the whole pushed revision
-        # is judged -- never `HEAD` in its place.
+        # `pre-push` alone reads a push range from stdin. The member's fetched
+        # default stops just before its lock (see `make_member`), so the pushed
+        # range carries dependency state and is judged as a range -- never
+        # `HEAD` in its place.
         input_text = None
         if name == "pre-push":
             head = self.run_git(member, "rev-parse", "HEAD").stdout.strip()
@@ -239,8 +272,8 @@ class LockHookTests(unittest.TestCase):
         """Put the member where `hook` judges its lock.
 
         `pre-commit` judges the index and returns before any checker work when
-        no `Cargo.lock` is staged; `pre-push` judges the pushed commit, which
-        the seed commit already carries.
+        no `Cargo.lock` is staged; `pre-push` judges the pushed range, which
+        the lock-seeding commit already carries.
         """
         if hook == "pre-commit":
             self.stage_lock(LOCK + "# touched\n")
@@ -503,21 +536,29 @@ class LockHookTests(unittest.TestCase):
         self.assertIn("--locked was passed", result.stderr)
         self.assertEqual((self.member / "Cargo.lock").read_bytes(), before)
 
-    def test_outside_a_stack_the_lock_is_left_to_the_ci_job(self) -> None:
+    def test_outside_a_stack_the_lock_is_left_to_ci_and_a_push_is_refused(self) -> None:
         # No stack above this clone: there is no checker to run, and the one arm
         # that lets a lock through unchecked says so and names its enforcer.
+        # `pre-push` says the same and is then refused: the trusted credential
+        # scanner is just as unreachable, and a credential cannot be taken back
+        # once pushed, so an unscanned range never leaves the machine.
         self.make_member(self.alone)
         (self.alone / "Cargo.lock").write_text("# flattened\n", encoding="utf-8")
         self.run_git(self.alone, "add", "Cargo.lock")
         for hook in HOOKS:
             with self.subTest(hook=hook):
                 result = self.hook(hook, member=self.alone, LOCKFILE_STUB="fail")
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn(
-                    f"{hook}: no stack checker reachable from this clone; lockfile not "
-                    "verified here, the lockfile-guard CI job enforces it",
-                    result.stderr,
-                )
+                self.assertIn("no Atlas stack above this clone", result.stderr)
+                self.assertIn("is not verified here", result.stderr)
+                if hook == "pre-commit":
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                else:
+                    self.assertNotEqual(result.returncode, 0, result.stderr)
+                    self.assertIn(
+                        "credential scanner is not reachable from this clone",
+                        result.stderr,
+                    )
+        self.assertEqual(self.calls(), [])
         self.assertEqual(self.calls(), [])
 
 
