@@ -125,9 +125,21 @@ class HookInstallationTests(unittest.TestCase):
 
 class LockHookTests(unittest.TestCase):
     def setUp(self) -> None:
-        # Cargo's Git cache requires a full path on Windows, not the shortened
-        # user-profile path returned by the system temporary directory.
-        self.directory = tempfile.TemporaryDirectory(dir=Path(__file__).parent)
+        # The synthetic stack must not sit inside the Coeus repository: the
+        # hooks reject a candidate stack nested in another repository because
+        # it may be a member carrying a misleading `.gitmodules`. Keep the
+        # Windows path long-form for Cargo's Git cache while placing the
+        # fixture under the operating system temporary root, as Atlas's owner
+        # hook tests do.
+        fixture_root = None
+        if os.name == "nt":
+            local_app_data = Path(
+                os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")
+            )
+            fixture_root = local_app_data / "Temp"
+        self.directory = tempfile.TemporaryDirectory(
+            prefix="coeus-hooks-", dir=fixture_root
+        )
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name).resolve()
         self.stack = self.root / "stack"
