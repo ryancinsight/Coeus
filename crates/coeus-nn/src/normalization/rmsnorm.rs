@@ -19,7 +19,10 @@ use coeus_tensor::Tensor;
 /// Returns a typed module or backend failure when the input is not rank two,
 /// the weight shape differs from the trailing dimension, epsilon is invalid,
 /// or a backend operation fails.
-pub fn rms_norm<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn rms_norm<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Var<T, B>,
     weight: Option<&Var<T, B>>,
     eps: f64,
@@ -63,8 +66,10 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
 }
 
 /// Implements the [`crate::module::Module`] interface for [`RMSNorm`].
-impl<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for RMSNorm<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for RMSNorm<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone()]

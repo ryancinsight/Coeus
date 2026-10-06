@@ -267,7 +267,10 @@ impl<
 /// - `C % num_groups != 0`.
 /// - `weight` or `bias` is present and not shaped `[C]`.
 /// - `eps` is not finite or is negative.
-pub fn group_norm<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn group_norm<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Tensor<T, B>,
     num_groups: usize,
     weight: Option<&Tensor<T, B>>,

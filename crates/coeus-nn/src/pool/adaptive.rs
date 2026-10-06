@@ -130,8 +130,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveAvgPool1d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveAvgPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -215,8 +217,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveAvgPool2d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveAvgPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -295,8 +299,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveMaxPool1d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveMaxPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -363,8 +369,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveMaxPool2d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveMaxPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

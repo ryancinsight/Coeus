@@ -140,7 +140,10 @@ pub fn bce_with_logits<
 /// Negative Log-Likelihood Loss.
 /// log_probs: `[N, C]` log-probabilities, targets: `[N]` class indices.
 #[inline]
-pub fn nll_loss<T: Float + FloatElement + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nll_loss<
+    T: Float + FloatElement + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     log_probs: &Var<T, B>,
     targets: &[usize],
 ) -> Var<T, B>
@@ -179,7 +182,10 @@ where
 /// Returns the backend error type when the input shapes differ, the reduction
 /// is empty, or `delta` is non-finite or non-positive.
 #[inline]
-pub fn huber_loss<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn huber_loss<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
@@ -190,7 +196,10 @@ pub fn huber_loss<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, 
 /// L1 (mean absolute error) loss.
 /// pred: `[N]`, target: `[N]`. Computes `mean(|pred - target|)`.
 #[inline]
-pub fn l1_loss<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn l1_loss<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -202,7 +211,10 @@ pub fn l1_loss<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: 
 /// Computes `mean(exp(input) - target * input)` (PyTorch
 /// `PoissonNLLLoss(log_input=True, full=False)`).
 #[inline]
-pub fn poisson_nll<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn poisson_nll<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -212,7 +224,10 @@ pub fn poisson_nll<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
 /// Soft-margin (logistic) loss. input: `[..]`, target: `[..]` in `{-1, +1}`.
 /// Computes `mean(log(1 + exp(-target * input)))` (PyTorch `SoftMarginLoss`).
 #[inline]
-pub fn soft_margin<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn soft_margin<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -263,7 +278,10 @@ pub fn triplet_margin_loss<
 /// `input` is log-probabilities and `target` is probabilities. Computes
 /// `mean(target * (log(target) - input))`.
 #[inline]
-pub fn kl_divergence<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn kl_divergence<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -426,7 +444,10 @@ where
 /// `target[i][j] >= 0` are valid class indices and `-1` means ignore padding.
 /// Computes `mean_i sum_{t: target[i][t] >= 0} sum_{j != t} max(0, 1 - (x[i][t] - x[i][j]))`.
 #[inline]
-pub fn multi_label_margin_loss<T: Float + FloatElement + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn multi_label_margin_loss<
+    T: Float + FloatElement + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &Var<T, B>,
     target: &[isize],
 ) -> Var<T, B>
@@ -445,7 +466,10 @@ where
 ///
 /// Composed from existing autograd ops. When `full=true`, adds `0.5 * log(2π)`.
 #[inline]
-pub fn gaussian_nll_loss<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn gaussian_nll_loss<
+    T: Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Var<T, B>,
     target: &Var<T, B>,
     var: &Var<T, B>,
@@ -455,11 +479,10 @@ pub fn gaussian_nll_loss<T: Float + coeus_leto::RealScalar, B: coeus_ops::Backen
     let diff_sq = coeus_autograd::mul(&diff, &diff);
     let var_term = coeus_autograd::div(&diff_sq, var);
     let log_var = coeus_autograd::log(var);
-    let loss =
-        coeus_autograd::scalar_mul(
-            &coeus_autograd::add(&var_term, &log_var),
-            <T as coeus_core::Scalar>::from_f64(0.5),
-        );
+    let loss = coeus_autograd::scalar_mul(
+        &coeus_autograd::add(&var_term, &log_var),
+        <T as coeus_core::Scalar>::from_f64(0.5),
+    );
     if full {
         let two_pi = <T as coeus_core::Scalar>::from_f64(2.0 * std::f64::consts::PI);
         coeus_autograd::scalar_add(
@@ -474,7 +497,10 @@ pub fn gaussian_nll_loss<T: Float + coeus_leto::RealScalar, B: coeus_ops::Backen
 /// Sum of all finite elements, treating NaN as zero (`torch.nansum`).
 ///
 /// Returns a scalar `Var` (shape `[1]`).
-pub fn nansum<T: coeus_core::Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nansum<
+    T: coeus_core::Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &coeus_autograd::Var<T, B>,
 ) -> coeus_autograd::Var<T, B>
 where
@@ -487,7 +513,10 @@ where
 /// Mean of all finite elements, treating NaN as missing (`torch.nanmean`).
 ///
 /// Returns a scalar `Var` (shape `[1]`).
-pub fn nanmean<T: coeus_core::Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nanmean<
+    T: coeus_core::Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &coeus_autograd::Var<T, B>,
 ) -> coeus_autograd::Var<T, B>
 where
