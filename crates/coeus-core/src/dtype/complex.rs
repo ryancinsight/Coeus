@@ -162,26 +162,10 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
 }
 
 impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
-    #[inline(always)]
-    fn zero() -> Self {
-        Self {
-            re: <T as Scalar>::zero(),
-            im: <T as Scalar>::zero(),
-        }
-    }
-
-    #[inline(always)]
-    fn one() -> Self {
-        Self {
-            re: <T as Scalar>::one(),
-            im: <T as Scalar>::zero(),
-        }
-    }
-
-    #[inline(always)]
-    fn to_f64(self) -> f64 {
-        <T as eunomia::NumericElement>::to_f64(self.re)
-    }
+    // `zero/one/to_f64/abs_val` resolve to the eunomia-SSOT defaults on
+    // `Scalar` (identical constructions). `sqrt_val` stays implemented
+    // below: it is the principal complex root over |z| (see ADR 0069 S1
+    // log) and is not delegated.
 
     #[inline(always)]
     fn from_f64(v: f64) -> Self {
@@ -202,15 +186,6 @@ impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
             v
         };
         Self { re: u, im: v }
-    }
-
-    #[inline(always)]
-    fn abs_val(self) -> Self {
-        let mag = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
-        Self {
-            re: mag,
-            im: T::zero(),
-        }
     }
 
     #[inline(always)]

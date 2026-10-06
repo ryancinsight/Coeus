@@ -321,10 +321,13 @@ pub trait CpuUnaryDispatch: private::Sealed {
 ///
 /// # Examples
 ///
-/// Scalar operations on contiguous slices (the SIMD seam):
+/// Slice kernels come from the `leto_ops::Scalar` supertrait — the stack's single
+/// slice-kernel surface (SSOT) with its hermes-SIMD dispatch. They are resolved
+/// through this trait's bound, never redeclared here:
 ///
 /// ```
 /// use coeus_core::Scalar;
+/// use leto_ops::Scalar as LetoScalar;
 ///
 /// let a = [1.0_f32, 2.0, 3.0];
 /// let b = [4.0_f32, 5.0, 6.0];
@@ -338,12 +341,18 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// let mut acc = [10.0_f32, 10.0, 10.0];
 /// f32::axpy_slice(2.0, &a, &mut acc);
 /// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
+///
+/// fn requires_coeus_scalar<T: Scalar>() {}
+/// requires_coeus_scalar::<f32>();
 /// ```
 pub trait Scalar:
     NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone + leto_ops::Scalar
 {
-    /// Additive identity.
-    fn zero() -> Self;
+    /// Additive identity: the eunomia `ZERO` const (SSOT).
+    #[inline(always)]
+    fn zero() -> Self {
+        <Self as NumericElement>::ZERO
+    }
 
     /// Return whether every byte in this value's representation is zero.
     ///
@@ -354,20 +363,38 @@ pub trait Scalar:
         bytemuck::bytes_of(self).iter().all(|&byte| byte == 0)
     }
 
-    /// Multiplicative identity.
-    fn one() -> Self;
+    /// Multiplicative identity: the eunomia `ONE` const (SSOT).
+    #[inline(always)]
+    fn one() -> Self {
+        <Self as NumericElement>::ONE
+    }
 
-    /// Convert this scalar to `f64`.
-    fn to_f64(self) -> f64;
+    /// Convert this scalar to `f64`: the eunomia `to_f64` (SSOT).
+    #[inline(always)]
+    fn to_f64(self) -> f64 {
+        <Self as NumericElement>::to_f64(self)
+    }
 
     /// Construct a scalar from `f64`.
+    ///
+    /// Stays abstract: integers need it and eunomia has no int-inclusive
+    /// `from_f64` (`TryFromCount` refuses out-of-range counts instead of
+    /// saturating). Float impls delegate to `FloatElement::from_f64`.
     fn from_f64(v: f64) -> Self;
 
-    /// Scalar square root.
-    fn sqrt_val(self) -> Self;
+    /// Scalar square root: the eunomia `sqrt` (SSOT) — exact `isqrt` for
+    /// integers, IEEE `sqrt` for floats. `Complex` keeps its own principal
+    /// root (see ADR 0069 S1 log), so this default serves reals and integers.
+    #[inline(always)]
+    fn sqrt_val(self) -> Self {
+        <Self as NumericElement>::sqrt(self)
+    }
 
-    /// Scalar absolute value.
-    fn abs_val(self) -> Self;
+    /// Scalar absolute value: the eunomia `abs` (SSOT).
+    #[inline(always)]
+    fn abs_val(self) -> Self {
+        <Self as NumericElement>::abs(self)
+    }
 
     /// Addition defined for every input: integers wrap modulo 2^bits on
     /// overflow (two's-complement `wrapping_add`); floats follow IEEE 754
@@ -388,144 +415,23 @@ pub trait Scalar:
     /// the wrap/IEEE split and the rationale.
     fn total_mul(self, rhs: Self) -> Self;
 
-    // The slice-kernel default methods below are the backend
-    // extension surface — the per-type seam onto `hermes-simd`'s
-    // SIMD-effect SSOT. They are mode-stable across the rebase (`hermes-simd`
-    // override routes the floating-point slice-bytes-vectorisation at the
-    // type-monomorphization site). They MUST stay on `Scalar`, not
-    // `NumericElement`, because the kernel surface is backend-agnostic but
-    // the SIMD dispatch is backend-specific.
-
-    /// Elementwise `a + b` into `out` over equal-length contiguous slices.
-    ///
-    /// One of the four per-type seams onto the SIMD-effect SSOT (`hermes-simd`):
-    /// the default is a scalar loop; reduced/extended precision and integer types
-    /// use it unchanged, while `f32`/`f64` override these to delegate to
-    /// `hermes_simd::elementwise_{add,sub,mul,div}`. Each op is independent per
-    /// lane, so the SIMD result is bitwise-identical to the scalar default; no
-    /// reassociation occurs. `out`, `a`, and `b` must have equal length.
-    #[inline]
-    fn add_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-        for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-            *o = x + y;
-        }
-    }
-
-    /// Elementwise `a - b` into `out`. See [`Scalar::add_slice`].
-    #[inline]
-    fn sub_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-        for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-            *o = x - y;
-        }
-    }
-
-    /// Elementwise `a * b` into `out`. See [`Scalar::add_slice`].
-    #[inline]
-    fn mul_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-        for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-            *o = x * y;
-        }
-    }
-
-    /// Elementwise `a / b` into `out`. See [`Scalar::add_slice`].
-    #[inline]
-    fn div_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-        for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-            *o = x / y;
-        }
-    }
-
-    /// Dot product of two equal-length contiguous slices.
-    ///
-    /// This is the per-type seam onto the SIMD-effect SSOT for vector products.
-    /// The default is a native-precision scalar fold; `f32`/`f64` override to
-    /// `hermes_simd::dot`. Floating-point SIMD may reassociate the summation,
-    /// so callers that compare against a sequential fold must use an
-    /// analytically derived epsilon bound.
-    #[inline]
-    fn dot_slice(a: &[Self], b: &[Self]) -> Self {
-        assert_eq!(a.len(), b.len(), "dot_slice: length mismatch");
-
-        let mut acc = Self::zero();
-        for (&x, &y) in a.iter().zip(b.iter()) {
-            acc += x * y;
-        }
-        acc
-    }
+    // Slice kernels (`add/sub/mul/div/sum/dot/axpy/min/max_slice`) are NOT
+    // redeclared here. They live once on the `leto_ops::Scalar` supertrait —
+    // the stack's single slice-kernel surface with its hermes-SIMD dispatch —
+    // and every `T: Scalar` resolves them through that bound (DIP: depend on
+    // the provider abstraction, never redeclare it). `scale_slice` below stays
+    // because no provider owns it yet; it is this trait's only kernel surface.
 
     /// In-place multiplication of every contiguous slice element by `scalar`.
     ///
-    /// This is the per-type seam onto the SIMD-effect SSOT for scalar scaling.
-    /// The operation is lane-independent, so native-float SIMD overrides remain
-    /// bitwise-identical to the scalar default for ordinary IEEE operands.
+    /// Coeus-only until a provider adopts it: the operation is
+    /// lane-independent, so native-float SIMD overrides remain bitwise-identical
+    /// to the scalar default for ordinary IEEE operands.
     #[inline]
     fn scale_slice(data: &mut [Self], scalar: Self) {
         for value in data {
             *value *= scalar;
         }
-    }
-
-    /// Fused scaled accumulate: `out[i] += alpha * x[i]` over a contiguous slice.
-    ///
-    /// The per-type seam onto the SIMD-effect SSOT for AXPY (BLAS level-1). The
-    /// operation is lane-independent; native-float overrides route to
-    /// `hermes_simd::axpy` and remain within the type's rounding error of this
-    /// scalar default (differential tests use an epsilon bound, not bitwise
-    /// equality). `x` and `out` must have equal length.
-    #[inline]
-    fn axpy_slice(alpha: Self, x: &[Self], out: &mut [Self]) {
-        assert_eq!(x.len(), out.len(), "axpy_slice: length mismatch");
-        for (o, &xi) in out.iter_mut().zip(x.iter()) {
-            *o += alpha * xi;
-        }
-    }
-
-    /// Sum of a contiguous slice — per-type seam onto the SIMD-effect SSOT.
-    ///
-    /// Default is a sequential left fold; `f32`/`f64` override to
-    /// `hermes_simd::sum`. Summation is associative only approximately in
-    /// floating point, so the SIMD result may differ from the sequential fold
-    /// within the type's rounding error (differential tests use an epsilon
-    /// bound, not bitwise equality). Empty slice sums to `Self::zero()`.
-    #[inline]
-    fn sum_slice(s: &[Self]) -> Self {
-        match s.split_first() {
-            Some((&first, rest)) => {
-                let mut acc = first;
-                for &v in rest {
-                    acc += v;
-                }
-                acc
-            }
-            None => Self::zero(),
-        }
-    }
-
-    /// Minimum of a non-empty contiguous slice. `f32`/`f64` override to
-    /// `hermes_simd::min`. min is exactly associative, so the SIMD result is
-    /// value-identical to the sequential fold for non-NaN inputs.
-    #[inline]
-    fn min_slice(s: &[Self]) -> Self {
-        let mut acc = s[0];
-        for &v in &s[1..] {
-            if v < acc {
-                acc = v;
-            }
-        }
-        acc
-    }
-
-    /// Maximum of a non-empty contiguous slice. `f32`/`f64` override to
-    /// `hermes_simd::max`. See [`Scalar::min_slice`].
-    #[inline]
-    fn max_slice(s: &[Self]) -> Self {
-        let mut acc = s[0];
-        for &v in &s[1..] {
-            if v > acc {
-                acc = v;
-            }
-        }
-        acc
     }
 }
 
@@ -545,7 +451,7 @@ pub trait Scalar:
 /// assert!(!x.is_nan());
 /// assert!(x.is_finite());
 /// ```
-pub trait Float: Scalar + FloatOps + eunomia::FloatElement {
+pub trait Float: Scalar + FloatOps + eunomia::FloatElement + leto_ops::RealScalar {
     /// Largest finite value.
     const MAX: Self;
     /// Smallest positive normal value.
@@ -620,7 +526,12 @@ pub trait Float: Scalar + FloatOps + eunomia::FloatElement {
     /// True if self is NaN.
     fn is_nan(self) -> bool;
     /// True if self is positive or negative infinity.
-    fn is_infinite(self) -> bool;
+    ///
+    /// IEEE identity over the sibling predicates; no per-type impl needed.
+    #[inline(always)]
+    fn is_infinite(self) -> bool {
+        !<Self as Float>::is_nan(self) && !<Self as Float>::is_finite(self)
+    }
     /// True if self is a finite (non-infinite, non-NaN) value.
     fn is_finite(self) -> bool;
 }
@@ -630,8 +541,11 @@ pub trait Float: Scalar + FloatOps + eunomia::FloatElement {
 /// Provides bitwise operations and integer-specific math.
 /// Implemented for i8, i16, i32, i64, u8, u16, u32, u64.
 pub trait Int: Scalar {
-    /// Count of set bits (popcount).
-    fn count_ones(self) -> u32;
+    /// Count of set bits (popcount): the eunomia `count_ones` (SSOT).
+    #[inline(always)]
+    fn count_ones(self) -> u32 {
+        <Self as NumericElement>::count_ones(self)
+    }
     /// Count of unset bits.
     fn count_zeros(self) -> u32;
     /// Count of leading zero bits.
@@ -644,8 +558,11 @@ pub trait Int: Scalar {
     fn rotate_right(self, n: u32) -> Self;
     /// Integer power: self^exp.
     fn pow(self, exp: u32) -> Self;
-    /// Absolute value.
-    fn abs(self) -> Self;
+    /// Absolute value: the eunomia `abs` (SSOT).
+    #[inline(always)]
+    fn abs(self) -> Self {
+        <Self as NumericElement>::abs(self)
+    }
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 //!
 //! Contiguous, unpadded, unit-dilation conv1d windows are row-contiguous dot
 //! products. CPU `BackendOps::conv1d` routes those reductions through
-//! `Scalar::dot_slice` (`hermes_simd::dot` for native floats), while padded
+//! `leto_ops::Scalar::dot_slice` (`hermes_simd::dot` for native floats), while padded
 //! cases keep the general layout-indexed path. The reference below is an
 //! independent scalar convolution over the public shape contract.
 

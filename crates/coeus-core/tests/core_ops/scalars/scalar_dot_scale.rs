@@ -1,4 +1,5 @@
 use coeus_core::Scalar;
+use leto_ops::Scalar as LetoScalar;
 
 fn sequential_dot(data_a: &[f32], data_b: &[f32]) -> f32 {
     data_a.iter().zip(data_b).map(|(&x, &y)| x * y).sum::<f32>()
@@ -79,7 +80,7 @@ fn axpy_slice_default_matches_integer_reference() {
 }
 
 #[test]
-#[should_panic(expected = "axpy_slice: length mismatch")]
+#[should_panic(expected = "axpy_slice: x.len() != out.len()")]
 fn axpy_slice_rejects_length_mismatch() {
     let x = [1.0_f32, 2.0];
     let mut out = [0.0_f32; 1];

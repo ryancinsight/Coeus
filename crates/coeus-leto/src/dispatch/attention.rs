@@ -17,7 +17,7 @@ use crate::{to_leto_view, to_leto_view_mut};
 /// Leto currently defines its real-field attention contract for `f32` and
 /// `f64`. This trait keeps that provider support boundary explicit at Coeus's
 /// generic dispatch seam.
-pub trait AttentionScalar: Float + RealScalar {
+pub trait AttentionScalar: Float {
     #[doc(hidden)]
     fn attention_forward(
         query: &ArrayView<'_, Self, 3>,
@@ -294,3 +294,4 @@ pub fn scaled_dot_product_attention_backward_accumulate<T: AttentionScalar>(
         LetoAttentionGradients::new(query_gradient, key_gradient, value_gradient),
     )
 }
+

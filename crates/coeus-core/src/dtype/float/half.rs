@@ -6,29 +6,11 @@ macro_rules! impl_scalar_float_half {
     ($t:ty, $max:expr, $min_pos:expr) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            #[inline(always)]
-            fn zero() -> Self {
-                Self::ZERO
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                Self::ONE
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                <Self as NumericElement>::to_f64(self)
-            }
+            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
+            // defaults on `Scalar` (these bodies already delegated there).
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 <Self as eunomia::FloatElement>::from_f64(v)
-            }
-            #[inline(always)]
-            fn sqrt_val(self) -> Self {
-                <Self as NumericElement>::sqrt(self)
-            }
-            #[inline(always)]
-            fn abs_val(self) -> Self {
-                <Self as NumericElement>::abs(self)
             }
             #[inline(always)]
             fn total_add(self, rhs: Self) -> Self {
@@ -275,11 +257,6 @@ macro_rules! impl_scalar_float_half {
             #[inline(always)]
             fn is_nan(self) -> bool {
                 <Self as NumericElement>::is_nan(self)
-            }
-            #[inline(always)]
-            fn is_infinite(self) -> bool {
-                let f = <Self as NumericElement>::to_f64(self);
-                f.is_infinite()
             }
             #[inline(always)]
             fn is_finite(self) -> bool {

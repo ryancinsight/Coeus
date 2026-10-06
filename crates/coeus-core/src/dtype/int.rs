@@ -7,29 +7,13 @@ macro_rules! impl_scalar_int_signed {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            #[inline(always)]
-            fn zero() -> Self {
-                0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
+            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
+            // defaults on `Scalar`. Note `sqrt_val` now takes the exact
+            // integer `isqrt` route instead of the f64 round-trip below it
+            // replaces.
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
-            }
-            #[inline(always)]
-            fn sqrt_val(self) -> Self {
-                (self.to_f64().sqrt()) as Self
-            }
-            #[inline(always)]
-            fn abs_val(self) -> Self {
-                self.abs()
             }
             #[inline(always)]
             fn total_add(self, rhs: Self) -> Self {
@@ -41,10 +25,7 @@ macro_rules! impl_scalar_int_signed {
             }
         }
         impl Int for $t {
-            #[inline(always)]
-            fn count_ones(self) -> u32 {
-                self.count_ones()
-            }
+            // `count_ones` resolves to the eunomia-SSOT default on `Int`.
             #[inline(always)]
             fn count_zeros(self) -> u32 {
                 self.count_zeros()
@@ -69,10 +50,7 @@ macro_rules! impl_scalar_int_signed {
             fn pow(self, exp: u32) -> Self {
                 self.pow(exp)
             }
-            #[inline(always)]
-            fn abs(self) -> Self {
-                self.abs()
-            }
+            // `abs` resolves to the eunomia-SSOT default on `Int`.
         }
     };
 }
@@ -81,29 +59,13 @@ macro_rules! impl_scalar_int_unsigned {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            #[inline(always)]
-            fn zero() -> Self {
-                0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
+            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
+            // defaults on `Scalar`. Note `sqrt_val` now takes the exact
+            // integer `isqrt` route instead of the f64 round-trip below it
+            // replaces.
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
-            }
-            #[inline(always)]
-            fn sqrt_val(self) -> Self {
-                (self.to_f64().sqrt()) as Self
-            }
-            #[inline(always)]
-            fn abs_val(self) -> Self {
-                self
             }
             #[inline(always)]
             fn total_add(self, rhs: Self) -> Self {
@@ -115,10 +77,7 @@ macro_rules! impl_scalar_int_unsigned {
             }
         }
         impl Int for $t {
-            #[inline(always)]
-            fn count_ones(self) -> u32 {
-                self.count_ones()
-            }
+            // `count_ones` resolves to the eunomia-SSOT default on `Int`.
             #[inline(always)]
             fn count_zeros(self) -> u32 {
                 self.count_zeros()
@@ -143,10 +102,7 @@ macro_rules! impl_scalar_int_unsigned {
             fn pow(self, exp: u32) -> Self {
                 self.pow(exp)
             }
-            #[inline(always)]
-            fn abs(self) -> Self {
-                self
-            }
+            // `abs` resolves to the eunomia-SSOT default on `Int`.
         }
     };
 }

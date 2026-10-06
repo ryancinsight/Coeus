@@ -2,7 +2,7 @@
 //!
 //! Contiguous, unpadded, unit-dilation conv3d kernel rows are row-contiguous dot
 //! products. CPU `BackendOps::conv3d` routes those reductions through
-//! `Scalar::dot_slice` (`hermes_simd::dot` for native floats), while padded or
+//! `leto_ops::Scalar::dot_slice` (`hermes_simd::dot` for native floats), while padded or
 //! dilated cases keep the general layout-indexed path.
 
 use coeus_core::{CpuAddressableStorageMut, Layout, MoiraiBackend, SequentialBackend, Shape};

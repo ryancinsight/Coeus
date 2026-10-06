@@ -90,7 +90,7 @@ use coeus_tensor::Tensor;
 /// itself to read perturbed values back off the backend; naming it here once
 /// lets a generic check function state a single bound instead of repeating
 /// gradcheck's own where-clause at every call site.
-pub trait GradcheckScalar: Float + coeus_leto::RealScalar
+pub trait GradcheckScalar: Float
 where
     MoiraiBackend: coeus_ops::BackendOps<Self>,
     <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<Self>: CpuAddressableStorage<Self>,
@@ -99,7 +99,7 @@ where
 
 impl<T> GradcheckScalar for T
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float,
     MoiraiBackend: coeus_ops::BackendOps<T>,
     <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
@@ -220,3 +220,4 @@ pub fn weighted<T: GradcheckScalar>(
 ) -> Var<T, MoiraiBackend> {
     sum(&mul(output, w))
 }
+

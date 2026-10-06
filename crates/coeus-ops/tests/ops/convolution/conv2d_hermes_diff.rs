@@ -2,7 +2,7 @@
 //!
 //! Contiguous, unpadded, unit-dilation, unit-stride conv2d rows are accumulated
 //! as output-stationary AXPY operations. CPU `BackendOps::conv2d` routes those
-//! row accumulations through `Scalar::axpy_slice` (`hermes_simd::axpy` for
+//! row accumulations through `leto_ops::Scalar::axpy_slice` (`hermes_simd::axpy` for
 //! native floats), while strided, padded, or dilated cases keep scalar or
 //! layout-indexed paths.
 

@@ -2,7 +2,7 @@
 //!
 //! Contiguous, unpadded, unit-stride/unit-dilation conv3d weight-gradient
 //! width rows are row-contiguous dot products. CPU `BackendOps::conv3d_backward`
-//! routes those reductions through `Scalar::dot_slice` (`hermes_simd::dot` for
+//! routes those reductions through `leto_ops::Scalar::dot_slice` (`hermes_simd::dot` for
 //! native floats), while padded or dilated cases keep the general layout-indexed
 //! path. The reference below is an independent scalar implementation over the
 //! public shape contract.

@@ -66,7 +66,7 @@ where
     }
 }
 
-impl<T: Float + leto_ops::RealScalar, B: CpuBackend> ScalarPowerOps<T> for B
+impl<T: Float, B: CpuBackend> ScalarPowerOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -89,3 +89,4 @@ where
         )
     }
 }
+

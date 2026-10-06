@@ -5,29 +5,13 @@ macro_rules! impl_scalar_float_native {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            #[inline(always)]
-            fn zero() -> Self {
-                0.0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1.0 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
+            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
+            // defaults on `Scalar`. Only the int-inclusive `from_f64` (kept
+            // abstract for integers) is implemented, delegating to
+            // `FloatElement::from_f64` — identical to `v as Self` for natives.
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
-                v as Self
-            }
-            #[inline(always)]
-            fn sqrt_val(self) -> Self {
-                self.sqrt()
-            }
-            #[inline(always)]
-            fn abs_val(self) -> Self {
-                self.abs()
+                <Self as FloatElement>::from_f64(v)
             }
             #[inline(always)]
             fn total_add(self, rhs: Self) -> Self {
@@ -37,76 +21,12 @@ macro_rules! impl_scalar_float_native {
             fn total_mul(self, rhs: Self) -> Self {
                 self * rhs
             }
-            #[inline]
-            fn add_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-                if hermes_simd::elementwise_add::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-                        *o = x + y;
-                    }
-                }
-            }
-            #[inline]
-            fn sub_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-                if hermes_simd::elementwise_sub::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-                        *o = x - y;
-                    }
-                }
-            }
-            #[inline]
-            fn mul_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-                if hermes_simd::elementwise_mul::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-                        *o = x * y;
-                    }
-                }
-            }
-            #[inline]
-            fn div_slice(a: &[Self], b: &[Self], out: &mut [Self]) {
-                if hermes_simd::elementwise_div::<$t>(a, b, out).is_err() {
-                    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
-                        *o = x / y;
-                    }
-                }
-            }
-            #[inline]
-            fn dot_slice(a: &[Self], b: &[Self]) -> Self {
-                assert_eq!(a.len(), b.len(), "dot_slice: length mismatch");
-                match hermes_simd::dot::<$t>(a, b) {
-                    Ok(value) => value,
-                    Err(_) => {
-                        let mut acc = 0.0 as Self;
-                        for (&x, &y) in a.iter().zip(b.iter()) {
-                            acc += x * y;
-                        }
-                        acc
-                    }
-                }
-            }
+            // Slice kernels resolve through the `leto_ops::Scalar` supertrait
+            // (single SSOT with hermes-SIMD dispatch); only the coeus-only
+            // `scale_slice` is overridden here.
             #[inline]
             fn scale_slice(data: &mut [Self], scalar: Self) {
                 hermes_simd::scale::<$t>(data, scalar);
-            }
-            #[inline]
-            fn axpy_slice(alpha: Self, x: &[Self], out: &mut [Self]) {
-                assert_eq!(x.len(), out.len(), "axpy_slice: length mismatch");
-                if hermes_simd::axpy::<$t>(alpha, x, out).is_err() {
-                    for (o, &xi) in out.iter_mut().zip(x.iter()) {
-                        *o += alpha * xi;
-                    }
-                }
-            }
-            #[inline]
-            fn sum_slice(s: &[Self]) -> Self {
-                hermes_simd::sum::<$t>(s)
-            }
-            #[inline]
-            fn min_slice(s: &[Self]) -> Self {
-                hermes_simd::min::<$t>(s)
-            }
-            #[inline]
-            fn max_slice(s: &[Self]) -> Self {
-                hermes_simd::max::<$t>(s)
             }
         }
         impl FloatOps for $t {
@@ -319,10 +239,6 @@ macro_rules! impl_scalar_float_native {
             #[inline(always)]
             fn is_nan(self) -> bool {
                 self.is_nan()
-            }
-            #[inline(always)]
-            fn is_infinite(self) -> bool {
-                self.is_infinite()
             }
             #[inline(always)]
             fn is_finite(self) -> bool {
