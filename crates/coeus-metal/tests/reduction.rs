@@ -29,10 +29,10 @@ fn native_reductions_and_scans_match_leto() {
     let mut device_input = backend.allocate::<f32>(input.len());
     backend.copy_to_device(&input, &mut device_input);
 
+    // Sum, Min and Max are defined on any scalar: the shared dispatch is
+    // their contract on both sides.
     for (op, expected) in [
         (ReductionOp::Sum, [6.0_f32, 15.0]),
-        (ReductionOp::Prod, [6.0_f32, 120.0]),
-        (ReductionOp::Mean, [2.0_f32, 5.0]),
         (ReductionOp::Min, [1.0_f32, 4.0]),
         (ReductionOp::Max, [3.0_f32, 6.0]),
     ] {
@@ -63,6 +63,58 @@ fn native_reductions_and_scans_match_leto() {
         backend.copy_to_host(&actual, &mut actual_values);
         assert_eq!(actual_values, expected_values, "Metal {op:?} parity");
     }
+
+    // Mean and Prod are float-only: both the Leto oracle and the provider
+    // route them through their bounded entry points.
+    let mut expected_values = [0.0_f32; 2];
+    coeus_leto::reduce_mean_into(
+        &layout,
+        &input,
+        1,
+        &Layout::new([2, 1].into()),
+        &mut expected_values,
+    )
+    .expect("Leto mean oracle failed");
+    assert_eq!(expected_values, [2.0_f32, 5.0], "Leto mean oracle contract");
+
+    let mut actual = backend.allocate::<f32>(2);
+    ReductionOps::reduce_mean(
+        &backend,
+        &device_input,
+        &layout,
+        1,
+        &mut actual,
+        &Layout::new([2, 1].into()),
+    )
+    .expect("Metal mean failed");
+    let mut actual_values = [0.0_f32; 2];
+    backend.copy_to_host(&actual, &mut actual_values);
+    assert_eq!(actual_values, expected_values, "Metal Mean parity");
+
+    let mut expected_values = [0.0_f32; 2];
+    coeus_leto::reduce_prod_into(
+        &layout,
+        &input,
+        1,
+        &Layout::new([2, 1].into()),
+        &mut expected_values,
+    )
+    .expect("Leto prod oracle failed");
+    assert_eq!(expected_values, [6.0_f32, 120.0], "Leto prod oracle contract");
+
+    let mut actual = backend.allocate::<f32>(2);
+    ReductionOps::reduce_prod(
+        &backend,
+        &device_input,
+        &layout,
+        1,
+        &mut actual,
+        &Layout::new([2, 1].into()),
+    )
+    .expect("Metal prod failed");
+    let mut actual_values = [0.0_f32; 2];
+    backend.copy_to_host(&actual, &mut actual_values);
+    assert_eq!(actual_values, expected_values, "Metal Prod parity");
 
     let mut expected_scan = [0.0_f32; 6];
     coeus_leto::cumsum_into(&layout, &input, 1, &layout, &mut expected_scan)
