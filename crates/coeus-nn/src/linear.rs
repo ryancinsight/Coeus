@@ -83,7 +83,9 @@ where
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T, B> {
+impl<T: Scalar + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for Linear<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut params = vec![self.weight.clone()];
         if let Some(ref b) = self.bias {

@@ -6,7 +6,7 @@ use coeus_autograd::Var;
 use coeus_core::Float;
 
 /// Functional softmax along `dim`.
-pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn softmax<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
 ) -> Var<T, B> {
@@ -27,7 +27,9 @@ impl Softmax {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softmax {
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for Softmax
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
