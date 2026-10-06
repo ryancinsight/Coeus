@@ -30,9 +30,7 @@ pub struct LogSoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for LogSoftmaxNode<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for LogSoftmaxNode<T, B> {
     #[inline]
     fn op_name(&self) -> &'static str {
         "log_softmax"
@@ -133,5 +131,3 @@ pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
-
-

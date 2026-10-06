@@ -37,7 +37,7 @@ pub struct CosineEmbeddingLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Defa
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for CosineEmbeddingLossNode<T, B>
 {
     #[inline]
@@ -97,10 +97,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 /// `x1`: `[N, D]`, `x2`: `[N, D]`, `y`: `[N]` (elements 1 or -1).
 /// The complete forward and backward computation stays on the selected
 /// provider; no input-sized host staging occurs beyond the `y` boundary upload.
-pub fn cosine_embedding_loss<
-    T: coeus_core::FloatElement + Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     y: &[T],
@@ -326,7 +323,3 @@ mod tests {
         let _ = cosine_embedding_loss(&x1, &x2, &y, 0.5);
     }
 }
-
-
-
-

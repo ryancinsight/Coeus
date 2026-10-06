@@ -11,22 +11,22 @@ impl<T: Float + core::ops::Neg<Output = T>> private::Sealed for Complex<T> {}
 impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
     #[inline(always)]
     fn exp_op(self) -> Self {
-        let r = self.re.exp();
+        let r = <T as Float>::exp(self.re);
         Self {
-            re: r * self.im.cos(),
-            im: r * self.im.sin(),
+            re: r * <T as Float>::cos(self.im),
+            im: r * <T as Float>::sin(self.im),
         }
     }
 
     #[inline(always)]
     fn log_op(self) -> Self {
         let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
-        let theta = T::from_f64(
+        let theta = <T as crate::Scalar>::from_f64(
             <T as eunomia::NumericElement>::to_f64(self.im)
                 .atan2(<T as eunomia::NumericElement>::to_f64(self.re)),
         );
         Self {
-            re: r.ln(),
+            re: <T as Float>::ln(r),
             im: theta,
         }
     }
@@ -38,29 +38,29 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
 
     #[inline(always)]
     fn tanh_op(self) -> Self {
-        let two = T::from_f64(2.0);
+        let two = <T as crate::Scalar>::from_f64(2.0);
         let x2 = self.re * two;
         let y2 = self.im * two;
-        let denom = x2.cosh() + y2.cos();
+        let denom = <T as Float>::cosh(x2) + <T as Float>::cos(y2);
         Self {
-            re: x2.sinh() / denom,
-            im: y2.sin() / denom,
+            re: <T as Float>::sinh(x2) / denom,
+            im: <T as Float>::sin(y2) / denom,
         }
     }
 
     #[inline(always)]
     fn sin_op(self) -> Self {
         Self {
-            re: self.re.sin() * self.im.cosh(),
-            im: self.re.cos() * self.im.sinh(),
+            re: <T as Float>::sin(self.re) * <T as Float>::cosh(self.im),
+            im: <T as Float>::cos(self.re) * <T as Float>::sinh(self.im),
         }
     }
 
     #[inline(always)]
     fn cos_op(self) -> Self {
         Self {
-            re: self.re.cos() * self.im.cosh(),
-            im: T::zero() - (self.re.sin() * self.im.sinh()),
+            re: <T as Float>::cos(self.re) * <T as Float>::cosh(self.im),
+            im: T::zero() - (<T as Float>::sin(self.re) * <T as Float>::sinh(self.im)),
         }
     }
 
@@ -186,7 +186,7 @@ impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
     #[inline(always)]
     fn from_f64(v: f64) -> Self {
         Self {
-            re: T::from_f64(v),
+            re: <T as crate::Scalar>::from_f64(v),
             im: T::zero(),
         }
     }
@@ -194,8 +194,8 @@ impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
     #[inline(always)]
     fn sqrt_val(self) -> Self {
         let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
-        let u = <T as Float>::sqrt((r + self.re) / T::from_f64(2.0));
-        let v = <T as Float>::sqrt((r - self.re) / T::from_f64(2.0));
+        let u = <T as Float>::sqrt((r + self.re) / <T as crate::Scalar>::from_f64(2.0));
+        let v = <T as Float>::sqrt((r - self.re) / <T as crate::Scalar>::from_f64(2.0));
         let v = if <T as eunomia::NumericElement>::to_f64(self.im) < 0.0 {
             T::zero() - v
         } else {

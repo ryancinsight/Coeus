@@ -17,9 +17,7 @@ pub struct SoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub dim_u: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for SoftmaxNode<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for SoftmaxNode<T, B> {
     #[inline]
     fn op_name(&self) -> &'static str {
         "softmax"
@@ -201,5 +199,3 @@ mod tests {
         .expect("softmin backward must match central differences");
     }
 }
-
-

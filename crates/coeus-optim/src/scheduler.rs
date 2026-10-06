@@ -215,7 +215,8 @@ where
     #[inline]
     pub fn step(&mut self) -> Result<(), B::Error> {
         let new_lr = self.strategy.lr(self.base_lr, self.step);
-        self.optimizer.set_lr(T::from_f64(new_lr));
+        self.optimizer
+            .set_lr(<T as coeus_core::Scalar>::from_f64(new_lr));
         self.optimizer.step()?;
         self.step += 1;
         Ok(())

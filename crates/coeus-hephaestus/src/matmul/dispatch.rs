@@ -28,7 +28,7 @@ pub fn matmul<B, T>(
 ) -> Result<(), B::Error>
 where
     B: MatmulBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     let lhs = ranked::<2>(MATMUL, a_layout)?;
     let rhs = ranked::<2>(MATMUL, b_layout)?;

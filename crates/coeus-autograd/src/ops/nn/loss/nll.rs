@@ -25,9 +25,7 @@ pub struct NllLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for NllLossNode<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for NllLossNode<T, B> {
     fn op_name(&self) -> &'static str {
         "nll_loss"
     }
@@ -63,7 +61,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 /// indices. The complete forward and backward computation stays on the
 /// selected provider; no input-sized host staging occurs beyond the one-hot
 /// target-mask boundary upload.
-pub fn nll_loss<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nll_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     log_probs: &Var<T, B>,
     targets: &[usize],
 ) -> Var<T, B>
@@ -168,6 +166,3 @@ mod tests {
         let _ = nll_loss(&log_probs, &targets);
     }
 }
-
-
-

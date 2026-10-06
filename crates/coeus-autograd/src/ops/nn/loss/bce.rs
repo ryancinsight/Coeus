@@ -25,7 +25,7 @@ pub struct BinaryCrossEntropyNode<T: Scalar, B: coeus_ops::BackendOps<T> + Defau
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for BinaryCrossEntropyNode<T, B>
 {
     fn op_name(&self) -> &'static str {
@@ -65,10 +65,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 /// float targets (0.0 or 1.0), `eps`: numerical stability clamp (e.g.
 /// `<T as coeus_core::FloatElement>::from_f64(1e-7)`). The complete forward and backward computation stays
 /// on the selected provider; no input-sized host staging occurs.
-pub fn binary_cross_entropy<
-    T: coeus_core::FloatElement + Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     eps: T,
@@ -188,6 +185,3 @@ mod tests {
         let _ = binary_cross_entropy(&pred, &target, 1e-7);
     }
 }
-
-
-

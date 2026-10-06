@@ -166,7 +166,7 @@ where
     }
 
     if matches!(op, crate::ReductionOp::Mean) {
-        acc / T::from_f64(axis_len as f64)
+        acc / <T as coeus_core::Scalar>::from_f64(axis_len as f64)
     } else {
         acc
     }

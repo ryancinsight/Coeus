@@ -107,9 +107,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
         Self::new(
             params,
             lr,
-            T::from_f64(0.9),
-            T::from_f64(0.999),
-            T::from_f64(1e-8),
+            <T as coeus_core::Scalar>::from_f64(0.9),
+            <T as coeus_core::Scalar>::from_f64(0.999),
+            <T as coeus_core::Scalar>::from_f64(1e-8),
             weight_decay,
         )
     }

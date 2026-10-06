@@ -33,8 +33,7 @@ fn map_attention_error(operation: &'static str, error: leto_ops::AttentionError)
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar + coeus_leto::AttentionScalar, B: CpuBackend> AttentionOps<T>
-    for B
+impl<T: Scalar + coeus_leto::AttentionScalar, B: CpuBackend> AttentionOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

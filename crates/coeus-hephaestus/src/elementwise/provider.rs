@@ -14,7 +14,7 @@ use hephaestus_core::{
 /// Provider implementation of the common ranked elementwise operation set.
 pub trait ElementwiseProvider<T>: HephaestusProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Provider-owned generic elementwise kernels.
     type Operations: HephaestusElementwiseOps<Self::Device, T>
@@ -53,7 +53,7 @@ where
 /// Provider implementation of scalar exponentiation over strided views.
 pub trait ScalarPowerProvider<T>: HephaestusProvider
 where
-    T: Float + leto_ops::Scalar,
+    T: Float,
 {
     /// Provider-owned generic elementwise kernels.
     type Operations: ScalarPowerDispatch<Self::Device, T> + Default;

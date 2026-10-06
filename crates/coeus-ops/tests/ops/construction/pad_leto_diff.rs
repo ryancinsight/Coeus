@@ -29,7 +29,7 @@ fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -39,7 +39,7 @@ where
         .collect();
     let tensor = tensor_from_slice::<T, B>(&[3, 2], &data, backend);
     let transposed = tensor.transpose();
-    let fill = T::from_f64(-1.0);
+    let fill = <T as coeus_core::Scalar>::from_f64(-1.0);
     let expected: Vec<T> = [
         -1.0, -1.0, -1.0, -1.0, 1.0, 2.0, 3.0, -1.0, 4.0, 5.0, 6.0, -1.0,
     ]

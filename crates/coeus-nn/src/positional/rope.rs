@@ -48,8 +48,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
             for i in 0..half_dim {
                 let theta = base.powf(-2.0 * (i as f64) / (d_head as f64));
                 let angle = (pos as f64) * theta;
-                let c = T::from_f64(angle.cos());
-                let s = T::from_f64(angle.sin());
+                let c = <T as coeus_core::Scalar>::from_f64(angle.cos());
+                let s = <T as coeus_core::Scalar>::from_f64(angle.sin());
 
                 // GPT-NeoX/LLaMA stores each frequency in both half-vectors.
                 cos_values[pos * d_head + i] = c;
@@ -129,8 +129,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for RotaryEmbedding<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for RotaryEmbedding<T, B>
 where
     B: coeus_ops::RotateHalfOps<T>,
 {
@@ -151,4 +150,3 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Tensor<T, B> {
     table.slice(&[(0, seq_len), (0, d_model)])
 }
-

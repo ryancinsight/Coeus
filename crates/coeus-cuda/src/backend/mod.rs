@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 pub mod ops;
 
 /// Scalar types supported by the CUDA backend and Hephaestus fusion.
-pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
+pub trait CudaScalar: Scalar + hephaestus_cuda::CudaFusionScalar {}
 
 impl CudaScalar for f32 {}
 impl CudaScalar for f64 {}

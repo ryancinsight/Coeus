@@ -27,9 +27,7 @@ impl Softmax {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for Softmax
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Softmax {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -67,4 +65,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
         Ok(softmax(input, normalized))
     }
 }
-

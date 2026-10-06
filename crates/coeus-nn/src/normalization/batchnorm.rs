@@ -133,12 +133,7 @@ pub struct BatchNorm<
     m_cache: RefCell<Option<(usize, Tensor<T, B>, Tensor<T, B>)>>,
 }
 
-impl<
-        T: coeus_core::FloatElement + Float,
-        B: coeus_ops::BackendOps<T> + Default,
-        const DIM: usize,
-    > BatchNorm<T, B, DIM>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
     /// Create with ones weight, zeros bias, and initialized running stats.
     pub fn new(num_features: usize, eps: f64, momentum: f64) -> Self {
         let backend = B::default();
@@ -226,11 +221,8 @@ impl<
     }
 }
 
-impl<
-        T: coeus_core::FloatElement + Float,
-        B: coeus_ops::BackendOps<T> + Default,
-        const DIM: usize,
-    > Module<T, B> for BatchNorm<T, B, DIM>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
+    for BatchNorm<T, B, DIM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -297,12 +289,7 @@ impl<
     }
 }
 
-impl<
-        T: coeus_core::FloatElement + Float,
-        B: coeus_ops::BackendOps<T> + Default,
-        const DIM: usize,
-    > BatchNorm<T, B, DIM>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNorm<T, B, DIM> {
     /// Rank-`DIM` forward path: `[N, C, spatial...] -> [N, C, spatial...]`.
     /// Separated from the `Module` trait surface so the 2D-input adapter above
     /// can call it without going through the trait vtable.

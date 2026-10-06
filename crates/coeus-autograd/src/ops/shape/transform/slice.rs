@@ -84,5 +84,3 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
-
-

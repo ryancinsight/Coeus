@@ -11,7 +11,7 @@
 //     tie_count = sum_axis(mask_raw, axis)
 //     mask = mask_raw / broadcast(tie_count, input_shape)
 //     grad_in = broadcast(grad_out, input_shape) * mask
-//   eps = T::from_f64(1e-30) — exploits the fact that floating-point max is exact.
+//   eps = <T as coeus_core::Scalar>::from_f64(1e-30) — exploits the fact that floating-point max is exact.
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
@@ -33,8 +33,8 @@ pub struct MaxAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>
-    BackwardNode<T, B> for MaxAxisNode<T, B>
+impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for MaxAxisNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -89,10 +89,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>
 ///
 /// Backward: indicator gradient distributed equally across tied maxima.
 #[inline]
-pub fn max_axis<
-    T: Scalar + FloatOps,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
 ) -> Var<T, B> {
@@ -136,8 +133,8 @@ pub struct MinAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>
-    BackwardNode<T, B> for MinAxisNode<T, B>
+impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for MinAxisNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -189,10 +186,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>
 ///
 /// Backward: indicator gradient distributed equally across tied minima.
 #[inline]
-pub fn min_axis<
-    T: Scalar + FloatOps,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     axis: usize,
 ) -> Var<T, B> {
@@ -224,5 +218,3 @@ pub fn min_axis<
         creator,
     }
 }
-
-

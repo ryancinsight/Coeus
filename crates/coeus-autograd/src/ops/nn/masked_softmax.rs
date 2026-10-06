@@ -223,5 +223,3 @@ mod tests {
             .all(|v| v.is_finite()));
     }
 }
-
-

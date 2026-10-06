@@ -299,9 +299,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for LogSigmoi
 ///
 /// Matches `torch.nn.functional.tanhshrink`.
 #[inline]
-pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
-    input: &Var<T, B>,
-) -> Var<T, B> {
+pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(input: &Var<T, B>) -> Var<T, B> {
     coeus_autograd::sub(input, &coeus_autograd::tanh(input))
 }
 
@@ -310,9 +308,7 @@ pub fn tanhshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 pub struct Tanhshrink;
 
 /// Implements the [`crate::module::Module`] interface for [`Tanhshrink`].
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for Tanhshrink
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Tanhshrink {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
@@ -323,4 +319,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
         Ok(tanhshrink(input))
     }
 }
-

@@ -7,7 +7,7 @@ use hephaestus_core::PoolingMode;
 impl<P, T> PoolOps<T> for HephaestusBackend<P>
 where
     P: PoolingProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn max_pool1d(
         &self,

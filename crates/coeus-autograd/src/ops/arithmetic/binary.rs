@@ -8,10 +8,8 @@ use std::sync::Arc;
 
 /// ZST tag for element-wise addition autograd.
 pub struct AddOp;
-impl<
-        T: Scalar,
-        B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
-    > BinaryAutogradOp<T, B> for AddOp
+impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>
+    BinaryAutogradOp<T, B> for AddOp
 {
     const OP_NAME: &'static str = "add";
 
@@ -54,10 +52,8 @@ impl<
 
 /// ZST tag for element-wise subtraction autograd.
 pub struct SubOp;
-impl<
-        T: Scalar,
-        B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
-    > BinaryAutogradOp<T, B> for SubOp
+impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>
+    BinaryAutogradOp<T, B> for SubOp
 {
     const OP_NAME: &'static str = "sub";
 
@@ -100,10 +96,8 @@ impl<
 
 /// ZST tag for element-wise multiplication autograd.
 pub struct MulOp;
-impl<
-        T: Scalar,
-        B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
-    > BinaryAutogradOp<T, B> for MulOp
+impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>
+    BinaryAutogradOp<T, B> for MulOp
 {
     const OP_NAME: &'static str = "mul";
 
@@ -148,10 +142,8 @@ impl<
 
 /// ZST tag for element-wise division autograd.
 pub struct DivOp;
-impl<
-        T: Scalar,
-        B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
-    > BinaryAutogradOp<T, B> for DivOp
+impl<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>
+    BinaryAutogradOp<T, B> for DivOp
 {
     const OP_NAME: &'static str = "div";
 
@@ -207,9 +199,7 @@ impl<
 ///   ∂/∂a = 1        (identity)
 ///   ∂/∂b = −q       (matches PyTorch `-grad * self.div(other, floor)`)
 pub struct RemainderOp;
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B>
-    for RemainderOp
-{
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B> for RemainderOp {
     const OP_NAME: &'static str = "remainder";
 
     #[inline(always)]
@@ -279,10 +269,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B>
 /// ```
 #[must_use]
 #[inline]
-pub fn add<
-    T: Scalar,
-    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
->(
+pub fn add<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {
@@ -292,10 +279,7 @@ pub fn add<
 /// Tracked element-wise subtraction.
 #[must_use]
 #[inline]
-pub fn sub<
-    T: Scalar,
-    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
->(
+pub fn sub<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {
@@ -328,10 +312,7 @@ pub fn sub<
 /// ```
 #[must_use]
 #[inline]
-pub fn mul<
-    T: Scalar,
-    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
->(
+pub fn mul<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {
@@ -341,10 +322,7 @@ pub fn mul<
 /// Tracked element-wise division.
 #[must_use]
 #[inline]
-pub fn div<
-    T: Scalar,
-    B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
->(
+pub fn div<T: Scalar, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {
@@ -448,5 +426,3 @@ pub fn remainder<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     binary_op::<T, B, RemainderOp>(a, b)
 }
-
-

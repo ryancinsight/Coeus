@@ -41,9 +41,7 @@ pub trait VarScalarExt<T: Scalar>: Sized {
     fn scalar_div(self, s: T) -> Self::Output;
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T>
-    for Var<T, B>
-{
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T> for Var<T, B> {
     type Output = Var<T, B>;
 
     #[inline]
@@ -67,9 +65,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T>
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T>
-    for &Var<T, B>
-{
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T> for &Var<T, B> {
     type Output = Var<T, B>;
 
     #[inline]
@@ -92,5 +88,3 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> VarScalarExt<T>
         free_scalar_div(self, s)
     }
 }
-
-

@@ -50,10 +50,7 @@ impl AlphaDropout {
     }
 }
 
-fn alpha_dropout_with_mask<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     p: f64,
     seed: u64,
@@ -123,9 +120,7 @@ fn alpha_dropout_with_mask<
     ))
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AlphaDropout
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AlphaDropout {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -182,9 +177,7 @@ impl FeatureAlphaDropout {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for FeatureAlphaDropout
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeatureAlphaDropout {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -232,9 +225,7 @@ impl GaussianNoise {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GaussianNoise
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GaussianNoise {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -323,10 +314,8 @@ impl LocalResponseNorm {
     }
 }
 
-impl<
-        T: Float + std::ops::Neg<Output = T>,
-        B: coeus_ops::BackendOps<T> + Default,
-    > Module<T, B> for LocalResponseNorm
+impl<T: Float + std::ops::Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for LocalResponseNorm
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -396,4 +385,3 @@ where
         Ok(coeus_autograd::reshape(&y3, shape))
     }
 }
-

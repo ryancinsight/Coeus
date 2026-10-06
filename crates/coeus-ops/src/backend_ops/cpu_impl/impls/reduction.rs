@@ -4,7 +4,7 @@ use crate::backend_ops::ops::ReductionOp;
 use crate::backend_ops::traits::ReductionOps;
 use coeus_core::{CpuAddressableStorageMut, FloatElement, Layout, Scalar};
 
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ReductionOps<T> for B
+impl<T: Scalar, B: CpuBackend> ReductionOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -17,8 +17,7 @@ where
         axis: usize,
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
-    ) -> Result<(), Self::Error>
-    {
+    ) -> Result<(), Self::Error> {
         reduction::reduce(self, op, a, a_layout, axis, c, c_layout)
     }
 

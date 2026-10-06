@@ -100,7 +100,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Lay
 }
 
 /// Tracked Layer Normalization.
-pub fn layernorm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn layernorm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
@@ -153,6 +153,3 @@ pub fn layernorm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T
         creator,
     }
 }
-
-
-

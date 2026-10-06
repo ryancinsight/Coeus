@@ -200,4 +200,3 @@ pub fn amin<T: Scalar, B: BackendOps<T> + Default>(
     backend.copy_to_host(reduced.storage(), &mut host);
     Ok(host[0])
 }
-

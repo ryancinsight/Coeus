@@ -5,7 +5,7 @@ use coeus_core::{Layout, Scalar};
 impl<P, T> coeus_ops::MatmulOps<T> for HephaestusBackend<P>
 where
     P: MatmulProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn matmul(
         &self,

@@ -26,9 +26,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GlobalAvgPool1d<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool1d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -71,9 +69,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GlobalAvgPool2d<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool2d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -118,9 +114,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GlobalAvgPool3d<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalAvgPool3d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -166,9 +160,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GlobalMaxPool2d<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMaxPool2d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }
@@ -211,9 +203,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GlobalMaxPool3d<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GlobalMaxPool3d<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }

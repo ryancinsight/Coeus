@@ -119,7 +119,7 @@ impl StatefulUpdateProvider for RocmProvider {
 
 impl<T> PoolingProvider<T> for RocmProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     RocmPoolingOps: PoolingOps<RocmDevice, T>,
 {
     type Operations = RocmPoolingOps;
@@ -127,7 +127,7 @@ where
 
 impl<T> UnfoldFoldProvider<T> for RocmProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     RocmSlidingWindowOps: SlidingWindowOps<RocmDevice, T>,
 {
     type Operations = RocmSlidingWindowOps;

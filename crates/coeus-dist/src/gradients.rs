@@ -75,7 +75,7 @@ pub fn synchronize_gradients<
         return Ok(());
     }
     let backend = B::default();
-    let scale_val = T::from_f64(1.0 / size as f64);
+    let scale_val = <T as coeus_core::Scalar>::from_f64(1.0 / size as f64);
     let scale_tensor = Tensor::full_on([1], scale_val, &backend);
 
     for param in params {

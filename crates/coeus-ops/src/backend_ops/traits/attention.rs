@@ -80,5 +80,3 @@ pub trait AttentionOps<T: Scalar>: ComputeBackend {
     where
         T: AttentionScalar;
 }
-
-

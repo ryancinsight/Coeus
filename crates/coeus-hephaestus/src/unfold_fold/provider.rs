@@ -5,7 +5,7 @@ use hephaestus_core::{ComputeDevice, HephaestusError, SlidingWindowOps};
 /// Provider-owned sliding-window operation marker.
 pub trait UnfoldFoldProvider<T>: HephaestusProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Monomorphized Hephaestus sliding-window operations selected by this provider.
     type Operations: SlidingWindowOps<Self::Device, T> + Default;
@@ -14,7 +14,7 @@ where
 /// Zero-cost binding from a Coeus backend to one Hephaestus sliding-window provider.
 pub trait UnfoldFoldBackend<T>: ComputeBackend
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Concrete Hephaestus device selected by this backend.
     type Device: ComputeDevice + Send + Sync + 'static;
@@ -39,7 +39,7 @@ where
 impl<P, T> UnfoldFoldBackend<T> for HephaestusBackend<P>
 where
     P: UnfoldFoldProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     type Device = P::Device;
     type Operations = P::Operations;

@@ -340,8 +340,7 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
 /// ```
 pub trait Scalar:
-    NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone
-    + leto_ops::Scalar
+    NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone + leto_ops::Scalar
 {
     /// Additive identity.
     fn zero() -> Self;
@@ -546,7 +545,7 @@ pub trait Scalar:
 /// assert!(!x.is_nan());
 /// assert!(x.is_finite());
 /// ```
-pub trait Float: Scalar + FloatOps {
+pub trait Float: Scalar + FloatOps + eunomia::FloatElement {
     /// Largest finite value.
     const MAX: Self;
     /// Smallest positive normal value.

@@ -95,8 +95,8 @@ pub struct BatchNormNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const
     pub m: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>
-    BackwardNode<T, B> for BatchNormNode<T, B, DIM>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BackwardNode<T, B>
+    for BatchNormNode<T, B, DIM>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -214,11 +214,7 @@ pub struct BatchNormArgs<T: Scalar, B: coeus_ops::BackendOps<T> + Default, const
 
 // ── Tracked forward ──
 
-fn batchnorm_nd_inner<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const DIM: usize,
->(
+fn batchnorm_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
@@ -275,11 +271,7 @@ fn batchnorm_nd_inner<
 /// [`batchnorm3d`]; kept public so callers that are themselves const-generic
 /// over the spatial rank (e.g. `coeus-nn`'s `BatchNorm<T, B, DIM>`) can reach
 /// the shared implementation without dispatching through a per-rank wrapper.
-pub fn batchnorm_nd<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
-    const DIM: usize,
->(
+pub fn batchnorm_nd<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
@@ -317,5 +309,3 @@ pub fn batchnorm3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     batchnorm_nd_inner::<T, B, 3>(input, weight, bias, args)
 }
-
-

@@ -294,7 +294,7 @@ pub(crate) enum Scan {
     SuffixProduct,
 }
 
-impl<T: Scalar + leto_ops::Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Scan {
+impl<T: Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Scan {
     const COLUMNS: usize = 2;
     fn expected(&self, one: T) -> Vec<T> {
         let two = one + one;
@@ -334,10 +334,7 @@ impl<T: Scalar + leto_ops::Scalar, B: ReductionOps<T>> OutputWrite<T, B> for Sca
     }
 }
 
-pub(crate) fn scans_preserve_output_clones<T: Scalar + leto_ops::Scalar, B: ReductionOps<T>>(
-    backend: &B,
-    one: T,
-) {
+pub(crate) fn scans_preserve_output_clones<T: Scalar, B: ReductionOps<T>>(backend: &B, one: T) {
     for scan in [
         Scan::CumulativeSum,
         Scan::SuffixSum,

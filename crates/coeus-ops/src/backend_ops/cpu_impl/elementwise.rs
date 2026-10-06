@@ -19,7 +19,7 @@ pub(super) fn elementwise_binary<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -45,7 +45,7 @@ pub(super) fn elementwise_binary_assign<T, B>(
     b_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -63,7 +63,7 @@ pub(super) fn elementwise_unary<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -81,7 +81,7 @@ pub(super) fn elementwise_pow_scalar<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + Float + leto_ops::Scalar + leto_ops::RealScalar,
+    T: Scalar + Float + leto_ops::RealScalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

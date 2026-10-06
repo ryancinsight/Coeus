@@ -56,8 +56,12 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let backend = B::default();
         let ln_weight = Var::new(Tensor::ones_on([spatial], &backend), false);
         let ln_bias = Var::new(Tensor::zeros_on([spatial], &backend), false);
-        let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let d_const = Tensor::full_on([1], T::from_f64(spatial as f64), &backend);
+        let eps_t = Tensor::full_on([1], <T as coeus_core::Scalar>::from_f64(eps), &backend);
+        let d_const = Tensor::full_on(
+            [1],
+            <T as coeus_core::Scalar>::from_f64(spatial as f64),
+            &backend,
+        );
         *cache = Some(InstanceNormCache {
             spatial,
             ln_weight,
@@ -74,10 +78,7 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 // Input is already reshaped to `[N*C, spatial]` by the caller.
 // `weight`/`bias` are the per-channel affine parameters ([C]).
 
-fn instance_norm_forward<
-    T: coeus_core::FloatElement + Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+fn instance_norm_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     flat: &Var<T, B>,
     weight: &Var<T, B>,
     bias: &Var<T, B>,
@@ -173,12 +174,7 @@ pub struct InstanceNorm<
     cache: RefCell<Option<InstanceNormCache<T, B>>>,
 }
 
-impl<
-        T: coeus_core::FloatElement + Float,
-        B: coeus_ops::BackendOps<T> + Default,
-        const DIM: usize,
-    > InstanceNorm<T, B, DIM>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> InstanceNorm<T, B, DIM> {
     /// Create an `InstanceNorm` layer for `DIM` spatial dimensions.
     pub fn new(num_features: usize, eps: f64) -> Self {
         let backend = B::default();
@@ -193,11 +189,8 @@ impl<
 }
 
 /// Implements the [`Module`] interface for every [`InstanceNorm`](crate::normalization::instancenorm::InstanceNorm) rank.
-impl<
-        T: coeus_core::FloatElement + Float,
-        B: coeus_ops::BackendOps<T> + Default,
-        const DIM: usize,
-    > Module<T, B> for InstanceNorm<T, B, DIM>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
+    for InstanceNorm<T, B, DIM>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]

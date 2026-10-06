@@ -167,7 +167,7 @@ pub struct RankedOperand<'a, B, const N: usize> {
 /// kernels.
 pub trait ReductionProvider<T>: HephaestusProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Provider-owned axis-reduction kernel bundle.
     type AxisOperations: AxisReductionOps<Self::Device, T>
@@ -289,7 +289,7 @@ where
 impl<P, T> coeus_ops::ReductionOps<T> for HephaestusBackend<P>
 where
     P: ReductionProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn reduce_mean(
         &self,
@@ -436,7 +436,7 @@ where
     fn scan<T>(&self, request: ScanRequest<'_, P, T>) -> Result<(), HephaestusBackendError>
     where
         P: ReductionProvider<T>,
-        T: Scalar + leto_ops::Scalar,
+        T: Scalar,
     {
         let input_layout = ranked::<2>(request.operation, request.input_layout)?;
         let output_layout = ranked::<2>(request.operation, request.output_layout)?;

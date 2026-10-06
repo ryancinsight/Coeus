@@ -591,6 +591,3 @@ mod tests {
         assert!((eps32.cbrt() - 4.921e-3).abs() < 1e-6, "f32 step {eps32:e}");
     }
 }
-
-
-

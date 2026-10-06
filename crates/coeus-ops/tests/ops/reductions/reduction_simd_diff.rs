@@ -13,7 +13,7 @@ use coeus_ops::backend_ops::ReductionOps;
 use coeus_ops::{CpuBackend, ReductionOp};
 
 /// Reduce the last (unit-stride) axis of a contiguous `[rows, cols]` tensor.
-fn reduce_last_axis<T: Scalar + leto_ops::Scalar, B: CpuBackend>(
+fn reduce_last_axis<T: Scalar, B: CpuBackend>(
     backend: &B,
     op: ReductionOp,
     rows: usize,

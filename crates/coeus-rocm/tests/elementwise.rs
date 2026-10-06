@@ -103,7 +103,7 @@ fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
 
 fn assert_integer_comparisons<T>(backend: &Backend, lhs: &[T], rhs: &[T])
 where
-    T: Scalar + leto_ops::Scalar + Debug + PartialEq,
+    T: Scalar + Debug + PartialEq,
     coeus_rocm::RocmProvider: coeus_hephaestus::ElementwiseProvider<T>,
 {
     let layout = Layout::new([lhs.len()].into());

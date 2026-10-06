@@ -10,7 +10,7 @@ pub fn argmax<T, B>(
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
 ) where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
@@ -32,7 +32,7 @@ pub fn argmin<T, B>(
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
 ) where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];
@@ -62,7 +62,7 @@ pub fn topk<T, B>(
     indices: &mut B::DeviceBuffer<i64>,
     indices_layout: &Layout,
 ) where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
 {
     let mut host_a = vec![T::zero(); a_layout.shape().iter().product()];

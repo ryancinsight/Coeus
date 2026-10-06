@@ -19,7 +19,7 @@ pub(super) fn reduce<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -37,7 +37,7 @@ pub(super) fn reduce_mean<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    T: Scalar + coeus_core::FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -55,7 +55,7 @@ pub(super) fn reduce_prod<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    T: Scalar + coeus_core::FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -72,7 +72,7 @@ pub(super) fn argmax<T, B>(
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
 ) where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -95,7 +95,7 @@ pub(super) fn argmin<T, B>(
     c: &mut B::DeviceBuffer<i64>,
     c_layout: &Layout,
 ) where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -122,7 +122,7 @@ pub(super) fn topk<T, B>(
     indices: &mut B::DeviceBuffer<i64>,
     _indices_layout: &Layout,
 ) where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -147,7 +147,7 @@ pub(super) fn cumsum<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -165,7 +165,7 @@ pub(super) fn suffix_sum<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -183,7 +183,7 @@ pub(super) fn cumprod<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -201,7 +201,7 @@ pub(super) fn suffix_prod<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

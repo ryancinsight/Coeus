@@ -8,7 +8,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{ComputeBackend, Float, FloatElement, MoiraiBackend};
+use coeus_core::{ComputeBackend, Float, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// Sinusoidal (non-learnable) positional encoding layer.
@@ -24,7 +24,7 @@ pub struct SinusoidalEncoding<T: coeus_core::Scalar, B: ComputeBackend + Default
     pub d_model: usize,
 }
 
-impl<T: Float + FloatElement, B: ComputeBackend + Default> SinusoidalEncoding<T, B> {
+impl<T: Float, B: ComputeBackend + Default> SinusoidalEncoding<T, B> {
     /// Build the encoding table.
     ///
     /// - `max_len`: maximum sequence length supported.
@@ -62,10 +62,8 @@ impl<T: Float + FloatElement, B: ComputeBackend + Default> SinusoidalEncoding<T,
     }
 }
 
-impl<
-        T: Float,
-        B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
-    > Module<T, B> for SinusoidalEncoding<T, B>
+impl<T: Float, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default> Module<T, B>
+    for SinusoidalEncoding<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![] // non-learnable
@@ -151,4 +149,3 @@ mod tests {
         assert_eq!(prefix.shape(), &[2, 6]);
     }
 }
-

@@ -213,7 +213,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
         }
 
         let mean = if count > 0 {
-            sum / T::from_f64(count as f64)
+            sum / <T as coeus_core::Scalar>::from_f64(count as f64)
         } else {
             T::zero()
         };
@@ -282,7 +282,7 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
 
         let g_idx = grad_out_layout.physical_index(&[ni, ci, ol]);
         let g_val = unsafe { grad_out_ptr.read(g_idx) };
-        let g_share = g_val / T::from_f64(count as f64);
+        let g_share = g_val / <T as coeus_core::Scalar>::from_f64(count as f64);
 
         for ik in 0..k_size {
             let l_in = ol as isize * stride_s + ik as isize * dil_s - pad_s;

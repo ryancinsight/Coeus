@@ -28,7 +28,7 @@ pub struct MarginRankingLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Defaul
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for MarginRankingLossNode<T, B>
 {
     fn op_name(&self) -> &'static str {
@@ -71,10 +71,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 /// Returns a scalar Var (shape `[1]`). The complete forward and backward
 /// computation stays on the selected provider; no input-sized host staging
 /// occurs.
-pub fn margin_ranking_loss<
-    T: coeus_core::FloatElement + Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input1: &Var<T, B>,
     input2: &Var<T, B>,
     target: &[T],
@@ -201,6 +198,3 @@ mod tests {
         let _ = margin_ranking_loss(&input1, &input2, &target, 1.0);
     }
 }
-
-
-

@@ -233,7 +233,3 @@ where
     };
     where_cond(&relu(x), x, &mul(&w, x))
 }
-
-
-
-

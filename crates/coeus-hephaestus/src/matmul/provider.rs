@@ -5,7 +5,7 @@ use hephaestus_core::{ComputeDevice, DenseProductOps, HephaestusError};
 /// Provider-owned scalar dense-product operation marker.
 pub trait MatmulProvider<T>: HephaestusProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Monomorphized Hephaestus operation marker selected by this provider.
     type Operations: DenseProductOps<Self::Device, T> + Default;
@@ -20,7 +20,7 @@ where
 /// [`crate::matmul`] rather than carrying its own kernel.
 pub trait MatmulBackend<T>: ComputeBackend
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Concrete Hephaestus device selected by this backend.
     type Device: ComputeDevice + Send + Sync + 'static;
@@ -42,7 +42,7 @@ where
 impl<P, T> MatmulBackend<T> for HephaestusBackend<P>
 where
     P: MatmulProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     type Device = P::Device;
     type Operations = P::Operations;

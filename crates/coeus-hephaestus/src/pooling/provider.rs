@@ -5,7 +5,7 @@ use hephaestus_core::{ComputeDevice, HephaestusError, PoolingOps};
 /// Provider-owned pooling operation marker.
 pub trait PoolingProvider<T>: HephaestusProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Monomorphized Hephaestus pooling operations selected by this provider.
     type Operations: PoolingOps<Self::Device, T> + Default;
@@ -14,7 +14,7 @@ where
 /// Zero-cost binding from a Coeus backend to one Hephaestus pooling provider.
 pub trait PoolingBackend<T>: ComputeBackend
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Concrete Hephaestus device selected by this backend.
     type Device: ComputeDevice + Send + Sync + 'static;
@@ -39,7 +39,7 @@ where
 impl<P, T> PoolingBackend<T> for HephaestusBackend<P>
 where
     P: PoolingProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     type Device = P::Device;
     type Operations = P::Operations;

@@ -119,5 +119,3 @@ pub fn embedding_with_padding_idx<
         creator,
     }
 }
-
-

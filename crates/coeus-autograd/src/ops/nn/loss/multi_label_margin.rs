@@ -34,7 +34,7 @@ pub struct MultiLabelMarginLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Def
     pub c: usize,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for MultiLabelMarginLossNode<T, B>
 {
     fn op_name(&self) -> &'static str {
@@ -102,10 +102,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 /// provider; no input-sized host staging occurs beyond the target boundary
 /// upload (the per-row target scores are gathered with `gather`). The
 /// pairwise formulation builds an `[N, C, C]` active tensor via broadcast.
-pub fn multi_label_margin_loss<
-    T: Float + coeus_core::FloatElement,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn multi_label_margin_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     target: &[isize],
 ) -> Var<T, B>
@@ -328,7 +325,3 @@ mod tests {
         let _ = multi_label_margin_loss(&x, &target);
     }
 }
-
-
-
-

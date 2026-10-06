@@ -22,7 +22,7 @@ unary_autograd!(ErfOp, "erf", erf, |g, x, _y, b| {
     let gauss = coeus_ops::exp(&neg_x_sq, b);
     let two_over_sqrt_pi = Tensor::full_on(
         gauss.shape(),
-        T::from_f64(core::f64::consts::FRAC_2_SQRT_PI),
+        <T as coeus_core::Scalar>::from_f64(core::f64::consts::FRAC_2_SQRT_PI),
         b,
     );
     let scaled = coeus_ops::mul(&gauss, &two_over_sqrt_pi, b);
@@ -35,7 +35,7 @@ unary_autograd!(ErfcOp, "erfc", erfc, |g, x, _y, b| {
     let gauss = coeus_ops::exp(&neg_x_sq, b);
     let neg_two_over_sqrt_pi = Tensor::full_on(
         gauss.shape(),
-        T::from_f64(-core::f64::consts::FRAC_2_SQRT_PI),
+        <T as coeus_core::Scalar>::from_f64(-core::f64::consts::FRAC_2_SQRT_PI),
         b,
     );
     let scaled = coeus_ops::mul(&gauss, &neg_two_over_sqrt_pi, b);
@@ -142,7 +142,11 @@ unary_autograd!(AcoshOp, "acosh", acosh, |g, x, _y, b| {
 
 // `d/dx log2(x) = 1/(x·ln 2)`.
 unary_autograd!(Log2Op, "log2", log2, |g, x, _y, b| {
-    let ln2 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_2), b);
+    let ln2 = Tensor::full_on(
+        x.shape(),
+        <T as coeus_core::Scalar>::from_f64(core::f64::consts::LN_2),
+        b,
+    );
     let x_ln2 = coeus_ops::mul(x, &ln2, b);
     let inv = coeus_ops::recip(&x_ln2, b);
     coeus_ops::mul(g, &inv, b)
@@ -150,7 +154,11 @@ unary_autograd!(Log2Op, "log2", log2, |g, x, _y, b| {
 
 // `d/dx log10(x) = 1/(x·ln 10)`.
 unary_autograd!(Log10Op, "log10", log10, |g, x, _y, b| {
-    let ln10 = Tensor::full_on(x.shape(), T::from_f64(core::f64::consts::LN_10), b);
+    let ln10 = Tensor::full_on(
+        x.shape(),
+        <T as coeus_core::Scalar>::from_f64(core::f64::consts::LN_10),
+        b,
+    );
     let x_ln10 = coeus_ops::mul(x, &ln10, b);
     let inv = coeus_ops::recip(&x_ln10, b);
     coeus_ops::mul(g, &inv, b)
@@ -158,7 +166,11 @@ unary_autograd!(Log10Op, "log10", log10, |g, x, _y, b| {
 
 // `d/dx exp2(x) = 2ˣ·ln 2`, using the stored output `y = 2ˣ`.
 unary_autograd!(Exp2Op, "exp2", exp2, |g, _x, y, b| {
-    let ln2 = Tensor::full_on(y.shape(), T::from_f64(core::f64::consts::LN_2), b);
+    let ln2 = Tensor::full_on(
+        y.shape(),
+        <T as coeus_core::Scalar>::from_f64(core::f64::consts::LN_2),
+        b,
+    );
     let y_ln2 = coeus_ops::mul(y, &ln2, b);
     coeus_ops::mul(g, &y_ln2, b)
 });
@@ -192,5 +204,3 @@ pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     coeus_ops::lgamma(&a.tensor, &backend)
 }
-
-

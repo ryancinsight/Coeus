@@ -4,7 +4,7 @@ use coeus_core::{CpuAddressableStorageMut, Float, Scalar};
 
 impl<T, B> ConvOps<T> for B
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

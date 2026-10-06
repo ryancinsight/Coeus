@@ -214,5 +214,3 @@ pub fn reduction_op<
         node
     })
 }
-
-

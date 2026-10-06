@@ -76,10 +76,7 @@ pub fn norm_p_tensor<
 /// output element. Tracked autograd uses this tensor form to retain the norm
 /// on the selected provider for backward.
 #[inline]
-pub fn norm_p<
-    T: Float,
-    B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default,
->(
+pub fn norm_p<T: Float, B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default>(
     a: &Tensor<T, B>,
     p: T,
     backend: &B,
@@ -515,4 +512,3 @@ mod tests {
         let _ = frobenius_norm_batched(&x, &b);
     }
 }
-

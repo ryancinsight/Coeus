@@ -18,11 +18,13 @@ where
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let data: Vec<T> = (1..=6).map(|value| T::from_f64(value as f64)).collect();
+    let data: Vec<T> = (1..=6)
+        .map(|value| <T as coeus_core::Scalar>::from_f64(value as f64))
+        .collect();
     let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
 
     let axis1_prefix = coeus_ops::cumsum(&tensor, 1);

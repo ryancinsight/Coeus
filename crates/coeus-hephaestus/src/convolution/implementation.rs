@@ -6,7 +6,7 @@ use coeus_ops::{ConvOps, ConvolutionBackward, ConvolutionForward};
 impl<P, T> ConvOps<T> for HephaestusBackend<P>
 where
     P: ConvolutionProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn convolution_forward<const R: usize, const D: usize>(
         &self,

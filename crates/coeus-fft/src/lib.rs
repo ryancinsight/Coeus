@@ -25,7 +25,7 @@ use std::ops::Neg;
 use std::sync::Arc;
 
 /// Scalar types supported by Apollo-backed Coeus FFT operations.
-pub trait FftScalar: Float + FloatElement + Neg<Output = Self> {
+pub trait FftScalar: Float + Neg<Output = Self> {
     /// Compute a 1-D forward FFT for a contiguous real signal.
     fn fft_1d_impl(signal: &[Self]) -> Vec<Complex<Self>>;
 

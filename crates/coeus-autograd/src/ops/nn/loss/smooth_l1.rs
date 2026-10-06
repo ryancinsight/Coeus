@@ -44,7 +44,7 @@ pub struct SmoothL1LossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for SmoothL1LossNode<T, B>
 {
     fn op_name(&self) -> &'static str {
@@ -93,10 +93,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 ///
 /// The complete forward and backward computation stays on the selected
 /// provider; no input-sized host staging occurs.
-pub fn smooth_l1_loss<
-    T: coeus_core::FloatElement + Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     beta: T,
@@ -251,6 +248,3 @@ mod tests {
         }
     }
 }
-
-
-

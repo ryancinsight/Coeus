@@ -15,7 +15,7 @@
 
 use crate::backend_ops::BackendOps;
 use crate::binary;
-use coeus_core::{Float, FloatElement};
+use coeus_core::Float;
 use coeus_tensor::Tensor;
 
 /// Number of elements along `axis` — the denominator for `var_axis` variants.
@@ -28,7 +28,7 @@ fn axis_count(shape: &[usize], axis: usize) -> usize {
 /// `unbiased = true` divides by `(N − 1)` (PyTorch/JAX default);
 /// `unbiased = false` divides by `N` (population variance).
 #[inline]
-pub fn var<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn var<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
@@ -43,7 +43,7 @@ pub fn var<T: Float + FloatElement, B: BackendOps<T> + Default>(
 /// `unbiased=false` → divide by `N`), matching PyTorch's
 /// `torch.var_mean(input, correction=...)` for flattened input.
 #[inline]
-pub fn var_mean<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn var_mean<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
@@ -67,7 +67,7 @@ pub fn var_mean<T: Float + FloatElement, B: BackendOps<T> + Default>(
 
 /// Variance along a specific axis, reducing it to size 1.
 #[inline]
-pub fn var_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn var_axis<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     unbiased: bool,
@@ -78,7 +78,7 @@ pub fn var_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
 
 /// Standard deviation over all elements with optional Bessel correction.
 #[inline]
-pub fn std_dev<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn std_dev<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
@@ -91,7 +91,7 @@ pub fn std_dev<T: Float + FloatElement, B: BackendOps<T> + Default>(
 /// Returns `(std_dev, mean)`. Composed on [`var_mean`] and native `T::sqrt`;
 /// matches `torch.std_mean(input, correction=...)` for flattened input.
 #[inline]
-pub fn std_mean<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn std_mean<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
@@ -102,7 +102,7 @@ pub fn std_mean<T: Float + FloatElement, B: BackendOps<T> + Default>(
 
 /// Standard deviation along a specific axis, reducing it to size 1.
 #[inline]
-pub fn std_dev_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn std_dev_axis<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     unbiased: bool,
@@ -124,7 +124,7 @@ pub fn std_dev_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
     clippy::type_complexity,
     reason = "The paired tensor return preserves the established variance/mean API."
 )]
-pub fn var_mean_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn var_mean_axis<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     unbiased: bool,
@@ -153,7 +153,7 @@ pub fn var_mean_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
     clippy::type_complexity,
     reason = "The paired tensor return preserves the established standard-deviation/mean API."
 )]
-pub fn std_mean_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn std_mean_axis<T: Float, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     unbiased: bool,
@@ -163,5 +163,3 @@ pub fn std_mean_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
     let std = crate::unary::sqrt(&v, backend);
     Ok((std, mu))
 }
-
-

@@ -344,4 +344,3 @@ impl<
         self.forward_cross(input, input, input, None)
     }
 }
-

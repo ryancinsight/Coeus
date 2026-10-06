@@ -45,7 +45,7 @@ where
     ) -> Result<(), HephaestusBackendError>
     where
         P: ElementwiseProvider<T>,
-        T: Scalar + leto_ops::Scalar,
+        T: Scalar,
     {
         reject_broadcast_output("elementwise_binary", output_layout)?;
         let rank = lhs_layout
@@ -150,7 +150,7 @@ where
     ) -> Result<(), HephaestusBackendError>
     where
         P: ElementwiseProvider<T>,
-        T: Scalar + leto_ops::Scalar,
+        T: Scalar,
     {
         let lhs_layout = ranked::<N>("elementwise_binary", lhs_layout)?;
         let rhs_layout = ranked::<N>("elementwise_binary", rhs_layout)?;
@@ -185,7 +185,7 @@ where
     ) -> Result<(), HephaestusBackendError>
     where
         P: ElementwiseProvider<T>,
-        T: Scalar + leto_ops::Scalar,
+        T: Scalar,
     {
         reject_broadcast_output("elementwise_unary", output_layout)?;
         let rank = input_layout.ndim().max(output_layout.ndim());
@@ -265,7 +265,7 @@ where
     ) -> Result<(), HephaestusBackendError>
     where
         P: ElementwiseProvider<T>,
-        T: Scalar + leto_ops::Scalar,
+        T: Scalar,
     {
         let input_layout = ranked::<N>("elementwise_unary", input_layout)?;
         let output_layout = ranked::<N>("elementwise_unary", output_layout)?;
@@ -289,7 +289,7 @@ where
 impl<P, T> ScalarPowerOps<T> for HephaestusBackend<P>
 where
     P: ScalarPowerProvider<T>,
-    T: Float + leto_ops::Scalar,
+    T: Float,
 {
     fn elementwise_pow_scalar(
         &self,
@@ -382,7 +382,7 @@ where
     ) -> Result<(), HephaestusBackendError>
     where
         P: ScalarPowerProvider<T>,
-        T: Float + leto_ops::Scalar,
+        T: Float,
     {
         let input_layout = ranked::<N>("elementwise scalar power", input_layout)?;
         let output_layout = ranked::<N>("elementwise scalar power", output_layout)?;
@@ -406,7 +406,7 @@ where
 impl<P, T> ElementwiseOps<T> for HephaestusBackend<P>
 where
     P: ElementwiseProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn elementwise_binary(
         &self,

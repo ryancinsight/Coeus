@@ -172,8 +172,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for Bilinear<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Bilinear<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -234,4 +233,3 @@ where
         Ok(self.bilinear_forward(x1, x1))
     }
 }
-

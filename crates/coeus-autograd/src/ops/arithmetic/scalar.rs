@@ -55,5 +55,3 @@ pub fn scalar_div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let scalar_var = Var::new(scalar_tensor, false);
     binary_op::<T, B, DivOp>(x, &scalar_var)
 }
-
-

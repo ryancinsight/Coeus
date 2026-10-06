@@ -41,7 +41,7 @@ fn device_matmul<T, B>(
     c_layout: &Layout,
 ) -> Vec<T>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -69,7 +69,7 @@ where
 
 fn check_contiguous_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -97,7 +97,7 @@ where
 
 fn check_transposed_input_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

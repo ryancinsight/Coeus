@@ -39,4 +39,3 @@ pub fn minimum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     sub(a, &relu(&sub(a, b)))
 }
-

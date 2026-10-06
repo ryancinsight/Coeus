@@ -93,4 +93,3 @@ mod tests {
         assert_eq!(d.tensor.to_contiguous().as_slice(), &[1.0, 2.0, 10.0, 20.0]);
     }
 }
-

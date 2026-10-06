@@ -20,8 +20,7 @@ where
     pub broadcast_dims: Vec<usize>,
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for BroadcastNode<T, B>
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for BroadcastNode<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -127,5 +126,3 @@ where
         creator,
     }
 }
-
-

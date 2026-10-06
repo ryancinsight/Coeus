@@ -197,5 +197,3 @@ pub fn sdp_attention<
     });
     Ok((out_var, attn_weights))
 }
-
-

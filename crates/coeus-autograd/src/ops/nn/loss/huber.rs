@@ -38,9 +38,7 @@ pub struct HuberLossNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for HuberLossNode<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for HuberLossNode<T, B> {
     fn op_name(&self) -> &'static str {
         "huber_loss"
     }
@@ -104,7 +102,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 ///
 /// Returns the backend error type when the input shapes differ, the reduction
 /// is empty, or `delta` is non-finite or non-positive.
-pub fn huber_loss<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
     delta: T,
@@ -289,6 +287,3 @@ mod tests {
         assert!(huber_loss(&pred, &target, f64::NAN).is_err());
     }
 }
-
-
-

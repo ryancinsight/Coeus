@@ -63,7 +63,7 @@ where
             for oi in 0..output_size {
                 let start = region_start(oi, l, output_size);
                 let end = region_end(oi, l, output_size);
-                let count = T::from_f64((end - start) as f64);
+                let count = <T as coeus_core::Scalar>::from_f64((end - start) as f64);
                 let mut acc = T::zero();
                 for li in start..end {
                     acc += input.get(&[ni, ci, li]);
@@ -170,7 +170,7 @@ where
             for ow in 0..out_w {
                 let ws = region_start(ow, w, out_w);
                 let we = region_end(ow, w, out_w);
-                let count = T::from_f64(((he - hs) * (we - ws)) as f64);
+                let count = <T as coeus_core::Scalar>::from_f64(((he - hs) * (we - ws)) as f64);
                 let mut acc = T::zero();
                 for hi in hs..he {
                     for wi in ws..we {

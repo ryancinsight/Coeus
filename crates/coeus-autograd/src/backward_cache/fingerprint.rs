@@ -118,5 +118,3 @@ impl<T: Scalar, B: ComputeBackend + Default> Traversal<T, B> {
         (self.hasher.finish(), graph_info, self.order)
     }
 }
-
-

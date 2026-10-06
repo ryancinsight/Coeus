@@ -14,7 +14,7 @@ use leto::{ConvolutionParameters, Layout as LetoLayout, TransposedConvolutionPar
 pub struct Forward<'a, B, T>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Input storage.
     pub input: &'a B::DeviceBuffer<T>,
@@ -35,7 +35,7 @@ where
 impl<'a, B, T> From<CoeusConvolutionForward<'a, B, T>> for Forward<'a, B, T>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn from(request: CoeusConvolutionForward<'a, B, T>) -> Self {
         Self {
@@ -54,7 +54,7 @@ where
 pub struct Backward<'a, B, T>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Output-gradient storage.
     pub grad_output: &'a B::DeviceBuffer<T>,
@@ -83,7 +83,7 @@ where
 impl<'a, B, T> From<CoeusConvolutionBackward<'a, B, T>> for Backward<'a, B, T>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn from(request: CoeusConvolutionBackward<'a, B, T>) -> Self {
         Self {
@@ -105,7 +105,7 @@ where
 fn configuration<B, T>(operation: &'static str, error: impl std::fmt::Display) -> B::Error
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     B::convolution_configuration_error(operation, error.to_string())
 }
@@ -116,7 +116,7 @@ fn bias_layout<B, T>(
 ) -> Result<LetoLayout<1>, B::Error>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     LetoLayout::c_contiguous([B::convolution_buffer(storage).len()])
         .map_err(|error| configuration::<B, T>(operation, error))
@@ -136,7 +136,7 @@ pub fn regular_forward<B, T, const R: usize, const D: usize>(
 ) -> Result<(), B::Error>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     forward::<B, T, R, D>(
         request,
@@ -158,7 +158,7 @@ pub fn regular_backward<B, T, const R: usize, const D: usize>(
 ) -> Result<(), B::Error>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     backward::<B, T, R, D>(
         request,
@@ -181,7 +181,7 @@ pub fn transposed_forward<B, T, const R: usize, const D: usize>(
 ) -> Result<(), B::Error>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     forward::<B, T, R, D>(
         request,
@@ -209,7 +209,7 @@ pub fn transposed_backward<B, T, const R: usize, const D: usize>(
 ) -> Result<(), B::Error>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     backward::<B, T, R, D>(
         request,
@@ -233,7 +233,7 @@ fn forward<B, T, const R: usize, const D: usize>(
 ) -> Result<(), B::Error>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     let operation = match kind {
         ConvolutionKind::Regular(_) => "convolution",
@@ -312,7 +312,7 @@ fn backward<B, T, const R: usize, const D: usize>(
 ) -> Result<(), B::Error>
 where
     B: ConvolutionBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     let operation = match kind {
         ConvolutionKind::Regular(_) => "convolution backward",

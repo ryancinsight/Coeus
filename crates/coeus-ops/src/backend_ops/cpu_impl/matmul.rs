@@ -17,7 +17,7 @@ pub(super) fn matmul<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -43,7 +43,7 @@ pub(super) fn batched_matmul<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -69,7 +69,7 @@ pub(super) fn matmul_accumulate<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -95,7 +95,7 @@ pub(super) fn batched_matmul_accumulate<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

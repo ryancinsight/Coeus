@@ -15,7 +15,7 @@ pub(super) fn parameters<B, T, const S: usize>(
 ) -> Result<WindowParameters<S>, B::Error>
 where
     B: PoolingBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     WindowParameters::new(kernel, stride, padding, dilation)
         .map_err(|error| B::pooling_configuration_error(operation, error.to_string()))
@@ -31,7 +31,7 @@ pub fn forward<B, T, const R: usize, const S: usize>(
 ) -> Result<(), B::Error>
 where
     B: PoolingBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     let input_layout = ranked_exact::<R>(operation, input.1)?;
     let output_layout = ranked_exact::<R>(operation, output.1)?;
@@ -56,7 +56,7 @@ pub fn backward<B, T, const R: usize, const S: usize>(
 ) -> Result<(), B::Error>
 where
     B: PoolingBackend<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     let grad_output_layout = ranked_exact::<R>(operation, grad_output.1)?;
     let grad_input_layout = ranked_exact::<R>(operation, grad_input.1)?;

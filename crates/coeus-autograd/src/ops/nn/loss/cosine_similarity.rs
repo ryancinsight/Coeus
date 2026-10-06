@@ -53,7 +53,7 @@ fn broadcast_rows<T: Scalar, B: coeus_ops::BackendOps<T>>(
         .broadcast([row_count, feature_count])
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for CosineSimilarityNode<T, B>
 {
     fn op_name(&self) -> &'static str {
@@ -139,10 +139,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 /// Panics when the inputs do not share a two-dimensional non-empty shape,
 /// `dim` is not one, or `eps` is not finite and strictly positive.
 #[must_use]
-pub fn cosine_similarity<
-    T: Float + coeus_core::FloatElement,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     dim: usize,
@@ -255,7 +252,3 @@ pub fn cosine_similarity<
         creator,
     }
 }
-
-
-
-

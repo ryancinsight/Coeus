@@ -34,7 +34,11 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> PReLU<T, B> {
     pub fn new(num_parameters: usize, init: f64) -> Self {
         let backend = B::default();
         let weight = Var::new(
-            coeus_tensor::Tensor::full_on([num_parameters], T::from_f64(init), &backend),
+            coeus_tensor::Tensor::full_on(
+                [num_parameters],
+                <T as coeus_core::Scalar>::from_f64(init),
+                &backend,
+            ),
             true,
         );
         Self { weight }
@@ -47,8 +51,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Default for PReLU<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for PReLU<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for PReLU<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -68,4 +71,3 @@ where
         Ok(prelu(input, &self.weight))
     }
 }
-

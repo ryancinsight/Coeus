@@ -49,9 +49,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SwiGlu<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for SwiGlu<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for SwiGlu<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut params = self.linear_inner.parameters();
         params.extend(self.linear_outer.parameters());
@@ -70,4 +68,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
         Ok(coeus_autograd::mul(&gated, &outer))
     }
 }
-

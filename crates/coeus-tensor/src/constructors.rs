@@ -2,9 +2,7 @@
 // Factory functions for creating tensors.
 
 use crate::tensor::Tensor;
-use coeus_core::{
-    ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, FloatElement, Scalar, Shape,
-};
+use coeus_core::{ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, Scalar, Shape};
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
 where
@@ -115,7 +113,7 @@ where
     }
 }
 
-impl<T: Float + FloatElement, B: ComputeBackend + Default> Tensor<T, B>
+impl<T: Float, B: ComputeBackend + Default> Tensor<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

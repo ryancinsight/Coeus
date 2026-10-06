@@ -3,10 +3,7 @@ use coeus_autograd::Var;
 use coeus_core::Float;
 use coeus_tensor::Tensor;
 
-pub(super) fn layer_norm_three_dimensional<
-    T: coeus_core::FloatElement + Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub(super) fn layer_norm_three_dimensional<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     module: &'static str,
     input: &Var<T, B>,
     weight: &Var<T, B>,

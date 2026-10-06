@@ -68,4 +68,3 @@ pub fn reduce_broadcast<
 
     current
 }
-

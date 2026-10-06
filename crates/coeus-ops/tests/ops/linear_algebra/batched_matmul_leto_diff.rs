@@ -56,13 +56,15 @@ fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
 
 fn check_equal_batch_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let a: Vec<T> = (1..=12).map(|value| T::from_f64(value as f64)).collect();
+    let a: Vec<T> = (1..=12)
+        .map(|value| <T as coeus_core::Scalar>::from_f64(value as f64))
+        .collect();
     let b: Vec<T> = (1..=12)
-        .map(|value| T::from_f64((value + 20) as f64))
+        .map(|value| <T as coeus_core::Scalar>::from_f64((value + 20) as f64))
         .collect();
 
     let a_tensor = tensor_from_slice::<T, B>(&[2, 2, 3], &a, backend);
@@ -76,11 +78,13 @@ where
 
 fn check_rhs_broadcast_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let a: Vec<T> = (1..=12).map(|value| T::from_f64(value as f64)).collect();
+    let a: Vec<T> = (1..=12)
+        .map(|value| <T as coeus_core::Scalar>::from_f64(value as f64))
+        .collect();
     let b: Vec<T> = [2.0, 3.0, 5.0, 7.0, 11.0, 13.0]
         .into_iter()
         .map(T::from_f64)
@@ -97,7 +101,7 @@ where
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

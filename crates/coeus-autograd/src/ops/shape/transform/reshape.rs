@@ -127,5 +127,3 @@ mod flatten_tests {
         assert_eq!(x.grad().unwrap().shape(), &[2, 3, 4]);
     }
 }
-
-

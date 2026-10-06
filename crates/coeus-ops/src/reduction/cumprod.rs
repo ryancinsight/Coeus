@@ -14,7 +14,7 @@ use coeus_tensor::Tensor;
 ///
 /// Panics if `dim` is out of range or if backend dispatch rejects the layout.
 #[inline]
-pub fn cumprod<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
+pub fn cumprod<T: Scalar, B: BackendOps<T> + Default>(
     x: &Tensor<T, B>,
     dim: usize,
     backend: &B,
@@ -44,7 +44,7 @@ pub fn cumprod<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
 ///
 /// Panics if `dim` is out of range or if backend dispatch rejects the layout.
 #[inline]
-pub fn suffix_prod<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
+pub fn suffix_prod<T: Scalar, B: BackendOps<T> + Default>(
     x: &Tensor<T, B>,
     dim: usize,
     backend: &B,

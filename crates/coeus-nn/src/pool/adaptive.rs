@@ -33,7 +33,7 @@ where
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
-        let inv = T::from_f64(1.0 / (end - start) as f64);
+        let inv = <T as coeus_core::Scalar>::from_f64(1.0 / (end - start) as f64);
         // Column `o`, rows `start..end`: flat index `l * out_len + o`.
         for slot in pt
             .iter_mut()
@@ -82,7 +82,11 @@ where
         vec![rows, out_len, in_len],
     );
     let ob = coeus_autograd::broadcast_to(&outside_var, vec![rows, out_len, in_len]);
-    let masked = coeus_autograd::masked_fill(&xb, &ob, T::from_f64(f64::NEG_INFINITY));
+    let masked = coeus_autograd::masked_fill(
+        &xb,
+        &ob,
+        <T as coeus_core::Scalar>::from_f64(f64::NEG_INFINITY),
+    );
     coeus_autograd::max_axis(&masked, 2)
 }
 
@@ -126,8 +130,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveAvgPool1d<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveAvgPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -211,8 +214,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveAvgPool2d<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveAvgPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -291,8 +293,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveMaxPool1d<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveMaxPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -359,8 +360,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveMaxPool2d<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AdaptiveMaxPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

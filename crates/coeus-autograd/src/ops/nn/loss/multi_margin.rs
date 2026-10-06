@@ -28,10 +28,8 @@ pub struct MultiMarginNode<
     pub c: usize,
 }
 
-impl<
-        T: Float + coeus_core::FloatElement,
-        B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
-    > BackwardNode<T, B> for MultiMarginNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>
+    BackwardNode<T, B> for MultiMarginNode<T, B>
 {
     fn op_name(&self) -> &'static str {
         "multi_margin"
@@ -79,7 +77,7 @@ impl<
 /// The complete forward and backward computation stays on the selected
 /// provider; the `targets: &[usize]` host slice is a one-hot boundary upload.
 pub fn multi_margin<
-    T: Float + coeus_core::FloatElement,
+    T: Float,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     x: &Var<T, B>,
@@ -309,6 +307,3 @@ mod tests {
         let _ = multi_margin(&x, &targets, 1.0, 1.0);
     }
 }
-
-
-

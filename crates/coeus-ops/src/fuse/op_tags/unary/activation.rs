@@ -27,10 +27,10 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluGrad {
     }
     #[inline(always)]
     fn apply(x: T) -> T {
-        let half = T::from_f64(0.5);
+        let half = <T as coeus_core::Scalar>::from_f64(0.5);
         let one = T::one();
-        let inv_sqrt_two = T::from_f64(core::f64::consts::FRAC_1_SQRT_2);
-        let inv_sqrt_two_pi = T::from_f64(0.3989422804014327);
+        let inv_sqrt_two = <T as coeus_core::Scalar>::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+        let inv_sqrt_two_pi = <T as coeus_core::Scalar>::from_f64(0.3989422804014327);
         let x2 = x * x;
         half * (one + (x * inv_sqrt_two).erf_op())
             + x * ((T::zero() - half * x2).exp_op()) * inv_sqrt_two_pi
@@ -147,9 +147,9 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanh {
         "0.5 * {} * (1.0 + tanh(0.7978845608 * ({} + 0.044715 * {} * {} * {})))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        let c1 = T::from_f64(0.7978845608);
-        let c2 = T::from_f64(0.044715);
-        let half = T::from_f64(0.5);
+        let c1 = <T as coeus_core::Scalar>::from_f64(0.7978845608);
+        let c2 = <T as coeus_core::Scalar>::from_f64(0.044715);
+        let half = <T as coeus_core::Scalar>::from_f64(0.5);
         let one = T::one();
         let v = c1 * (x + c2 * x * x * x);
         half * x * (one + v.tanh_op())
@@ -167,10 +167,10 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanhGrad {
          0.7978845608 * (1.0 + 0.134145 * {} * {})";
     #[inline(always)]
     fn apply(x: T) -> T {
-        let c1 = T::from_f64(0.7978845608);
-        let c2 = T::from_f64(0.044715);
-        let c3 = T::from_f64(0.134145);
-        let half = T::from_f64(0.5);
+        let c1 = <T as coeus_core::Scalar>::from_f64(0.7978845608);
+        let c2 = <T as coeus_core::Scalar>::from_f64(0.044715);
+        let c3 = <T as coeus_core::Scalar>::from_f64(0.134145);
+        let half = <T as coeus_core::Scalar>::from_f64(0.5);
         let one = T::one();
         let v = c1 * (x + c2 * x * x * x);
         let t = v.tanh_op();

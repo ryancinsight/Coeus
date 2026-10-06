@@ -113,7 +113,7 @@ impl StatefulUpdateProvider for MetalProvider {
 
 impl<T> PoolingProvider<T> for MetalProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     MetalPoolingOps: PoolingOps<MetalDevice, T>,
 {
     type Operations = MetalPoolingOps;
@@ -121,7 +121,7 @@ where
 
 impl<T> UnfoldFoldProvider<T> for MetalProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
     MetalSlidingWindowOps: SlidingWindowOps<MetalDevice, T>,
 {
     type Operations = MetalSlidingWindowOps;

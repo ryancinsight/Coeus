@@ -5,7 +5,7 @@ use hephaestus_core::{ComputeDevice, ConvolutionOps, HephaestusError};
 /// Provider-owned scalar convolution operation marker.
 pub trait ConvolutionProvider<T>: HephaestusProvider
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Monomorphized Hephaestus operation marker selected by this provider.
     type Operations: ConvolutionOps<Self::Device, T> + Default;
@@ -18,7 +18,7 @@ where
 /// preserve backend-specific error types at the consumer boundary.
 pub trait ConvolutionBackend<T>: ComputeBackend
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     /// Concrete Hephaestus device selected by this backend.
     type Device: ComputeDevice + Send + Sync + 'static;
@@ -43,7 +43,7 @@ where
 impl<P, T> ConvolutionBackend<T> for HephaestusBackend<P>
 where
     P: ConvolutionProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     type Device = P::Device;
     type Operations = P::Operations;

@@ -308,7 +308,7 @@ fn half_sum_of_squares<T: Scalar>(values: &[T]) -> T {
     let sum = values.iter().fold(T::zero(), |accumulator, value| {
         accumulator + *value * *value
     });
-    sum / T::from_f64(2.0)
+    sum / <T as coeus_core::Scalar>::from_f64(2.0)
 }
 
 fn euclidean_norm<T: Scalar>(values: &[T]) -> T {
@@ -337,7 +337,7 @@ fn infinity_norm<T: Scalar>(values: &[T]) -> T {
 /// largest finite magnitude the type round-trips.
 fn is_finite<T: Scalar>(value: T) -> bool {
     let magnitude = value.abs_val();
-    magnitude >= T::zero() && magnitude <= T::from_f64(f64::MAX)
+    magnitude >= T::zero() && magnitude <= <T as coeus_core::Scalar>::from_f64(f64::MAX)
 }
 
 fn check_finite<T: Scalar>(

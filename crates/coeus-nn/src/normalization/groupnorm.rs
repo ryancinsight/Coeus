@@ -49,12 +49,7 @@ pub struct GroupNorm<
     cache: RefCell<Option<GroupNormCache<T, B>>>,
 }
 
-impl<
-        T: coeus_core::FloatElement + Float,
-        B: coeus_ops::BackendOps<T> + Default,
-        const G: usize,
-    > GroupNorm<T, B, G>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<T, B, G> {
     /// Create a new GroupNorm layer.
     ///
     /// # Panics
@@ -113,11 +108,8 @@ impl<
 }
 
 /// Implements the [`crate::module::Module`] interface for [`GroupNorm`].
-impl<
-        T: coeus_core::FloatElement + Float,
-        B: coeus_ops::BackendOps<T> + Default,
-        const G: usize,
-    > Module<T, B> for GroupNorm<T, B, G>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> Module<T, B>
+    for GroupNorm<T, B, G>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![self.weight.clone(), self.bias.clone()]
@@ -267,7 +259,7 @@ impl<
 /// - `C % num_groups != 0`.
 /// - `weight` or `bias` is present and not shaped `[C]`.
 /// - `eps` is not finite or is negative.
-pub fn group_norm<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn group_norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     num_groups: usize,
     weight: Option<&Tensor<T, B>>,

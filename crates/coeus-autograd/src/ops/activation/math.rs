@@ -101,7 +101,7 @@ pub fn abs<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
 // `d/dx √x = 1 / (2√x) = grad_out / (2·y)` where `y = √x` (stored forward output).
 
 unary_autograd!(SqrtOp, "sqrt", sqrt, |g, _x, y, b| {
-    let two = Tensor::full_on(y.shape(), T::from_f64(2.0), b);
+    let two = Tensor::full_on(y.shape(), <T as coeus_core::Scalar>::from_f64(2.0), b);
     let denom = coeus_ops::mul(y, &two, b);
     coeus_ops::div(g, &denom, b)
 });
@@ -153,7 +153,7 @@ where
         };
 
         let exp = f64::from_bits(self.exp_bits);
-        let exp_t = T::from_f64(exp);
+        let exp_t = <T as coeus_core::Scalar>::from_f64(exp);
         let n = self.input_tensor.numel();
         if n == 0 {
             return Ok(());
@@ -257,7 +257,11 @@ where
             let exp_m1 = exp - 1.0;
             let ln_x = coeus_ops::log(&self.input_tensor, &backend);
             let scaled = {
-                let scale = Tensor::full_on(ln_x.shape(), T::from_f64(exp_m1), &backend);
+                let scale = Tensor::full_on(
+                    ln_x.shape(),
+                    <T as coeus_core::Scalar>::from_f64(exp_m1),
+                    &backend,
+                );
                 coeus_ops::mul(&ln_x, &scale, &backend)
             };
             let x_pow_n_m1 = coeus_ops::exp(&scaled, &backend);
@@ -305,7 +309,7 @@ fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
 /// # Parity contract
 ///
 /// Matches `torch.Tensor.pow(scalar)` semantics:
-/// - When `exp` is integer-valued in `T` (i.e. `T::from_f64(exp).is_integer()`),
+/// - When `exp` is integer-valued in `T` (i.e. `<T as coeus_core::Scalar>::from_f64(exp).is_integer()`),
 ///   the forward is a sign-preserving integer power `(-x)^k = (-1)^k · x^k`,
 ///   with `x = 0` mapping to `1` when `k = 0`, to `0` when `k > 0`, and to
 ///   `+inf` when `k < 0` (delegated to PyTorch's IEEE-compliant convention).
@@ -313,7 +317,7 @@ fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
 ///
 /// # Precision
 /// Forward and backward execute in the native precision of `T` without widening.
-/// The exponent is converted once via `T::from_f64(exp)`; the integer-exponent
+/// The exponent is converted once via `<T as coeus_core::Scalar>::from_f64(exp)`; the integer-exponent
 /// branch uses repeated multiplication in `T` (no `powf` fallback).
 #[must_use]
 #[inline]
@@ -325,7 +329,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let exp_t = T::from_f64(exp);
+    let exp_t = <T as coeus_core::Scalar>::from_f64(exp);
 
     let n = a.tensor.numel();
     let out_tensor = if exp_t.is_integer() && n > 0 {
@@ -595,7 +599,3 @@ unary_autograd!({Scalar + FloatOps} RoundOp, "round", round, |g, _x, _y, b| {
 unary_autograd!({Scalar + FloatOps} TruncOp, "trunc", trunc, |g, _x, _y, b| {
     super::zero_unary_grad(g, b)
 });
-
-
-
-

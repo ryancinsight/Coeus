@@ -98,9 +98,7 @@ impl GLU {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GLU
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GLU {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
@@ -453,4 +451,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Celu {
         Ok(celu(input, self.alpha))
     }
 }
-

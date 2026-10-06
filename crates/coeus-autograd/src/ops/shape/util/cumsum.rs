@@ -5,14 +5,13 @@ use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-pub struct CumSumNode<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default> {
+pub struct CumSumNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub output_grad: Arc<GradBuffer<T, B>>,
     pub inputs: Vec<Var<T, B>>,
     pub dim: usize,
 }
 
-impl<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for CumSumNode<T, B>
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for CumSumNode<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -53,7 +52,7 @@ where
 ///
 /// Backward propagation uses the reverse cumulative sum along the same axis,
 /// matching the transpose of the lower-triangular cumulative-sum operator.
-pub fn cumsum<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn cumsum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     dim: usize,
 ) -> Var<T, B>
@@ -88,5 +87,3 @@ where
         creator,
     }
 }
-
-

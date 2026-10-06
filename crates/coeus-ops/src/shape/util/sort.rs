@@ -71,7 +71,7 @@ where
             for (a, (val, orig_idx)) in pairs.into_iter().enumerate() {
                 let flat = o * (axis_len * inner) + a * inner + i;
                 out_vals[flat] = val;
-                out_idx[flat] = T::from_f64(orig_idx as f64);
+                out_idx[flat] = <T as coeus_core::Scalar>::from_f64(orig_idx as f64);
             }
         }
     }

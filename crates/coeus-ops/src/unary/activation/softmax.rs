@@ -98,7 +98,7 @@ where
             for lane in 0..axis {
                 let idx = base + lane * post_count;
                 if mask_values[idx] != T::zero() {
-                    let value = (input_values[idx] - row_max).exp();
+                    let value = <T as Float>::exp(input_values[idx] - row_max);
                     output[idx] = value;
                     row_sum += value;
                 }
@@ -165,4 +165,3 @@ where
     let mask = Tensor::from_slice_on(shape.to_vec(), &mask_data, backend);
     masked_softmax(input, &mask, dim, backend)
 }
-

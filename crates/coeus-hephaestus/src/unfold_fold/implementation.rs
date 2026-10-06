@@ -6,7 +6,7 @@ use coeus_ops::UnfoldFoldOps;
 impl<P, T> UnfoldFoldOps<T> for HephaestusBackend<P>
 where
     P: UnfoldFoldProvider<T>,
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar,
 {
     fn unfold1d(
         &self,

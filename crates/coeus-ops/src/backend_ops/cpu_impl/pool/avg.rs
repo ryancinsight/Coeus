@@ -65,7 +65,7 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
         }
 
         let mean = if count > 0 {
-            sum / T::from_f64(count as f64)
+            sum / <T as coeus_core::Scalar>::from_f64(count as f64)
         } else {
             T::zero()
         };
@@ -151,7 +151,7 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
                                 if count > 0 {
                                     let go_idx = go_layout.physical_index(&[ni, ci, oh, ow]);
                                     let gval = unsafe { go_ptr.read(go_idx) };
-                                    sum += gval / T::from_f64(count as f64);
+                                    sum += gval / <T as coeus_core::Scalar>::from_f64(count as f64);
                                 }
                             }
                         }
@@ -246,7 +246,7 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
         }
 
         let mean = if count > 0 {
-            sum / T::from_f64(count as f64)
+            sum / <T as coeus_core::Scalar>::from_f64(count as f64)
         } else {
             T::zero()
         };
@@ -351,7 +351,10 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
                                                 let go_idx =
                                                     go_layout.physical_index(&[ni, ci, od, oh, ow]);
                                                 let gval = unsafe { go_ptr.read(go_idx) };
-                                                sum += gval / T::from_f64(count as f64);
+                                                sum += gval
+                                                    / <T as coeus_core::Scalar>::from_f64(
+                                                        count as f64,
+                                                    );
                                             }
                                         }
                                     }

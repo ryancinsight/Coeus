@@ -71,7 +71,7 @@ impl<T: Scalar> LevenbergMarquardtConfig<T> {
     /// evaluated once per construction, not per iteration.
     fn epsilon() -> T {
         let mut epsilon = T::one();
-        let two = T::from_f64(2.0);
+        let two = <T as coeus_core::Scalar>::from_f64(2.0);
         while T::one() + epsilon / two > T::one() {
             epsilon = epsilon / two;
         }
@@ -90,9 +90,9 @@ impl<T: Scalar> Default for LevenbergMarquardtConfig<T> {
             // single-digit iterations; the cap is a runaway guard, not a budget
             // callers are expected to tune.
             max_iterations: 100,
-            initial_damping: T::from_f64(1e-3),
-            damping_increase: T::from_f64(10.0),
-            damping_decrease: T::from_f64(10.0),
+            initial_damping: <T as coeus_core::Scalar>::from_f64(1e-3),
+            damping_increase: <T as coeus_core::Scalar>::from_f64(10.0),
+            damping_decrease: <T as coeus_core::Scalar>::from_f64(10.0),
         }
     }
 }

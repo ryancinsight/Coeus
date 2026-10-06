@@ -30,10 +30,8 @@ pub struct PairwiseDistanceNode<
     pub shape: coeus_core::Shape,
 }
 
-impl<
-        T: Float + coeus_core::FloatElement,
-        B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
-    > BackwardNode<T, B> for PairwiseDistanceNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>
+    BackwardNode<T, B> for PairwiseDistanceNode<T, B>
 {
     fn op_name(&self) -> &'static str {
         "pairwise_distance"
@@ -91,7 +89,7 @@ impl<
 /// The complete forward and backward computation stays on the selected
 /// provider; no input-sized host staging occurs.
 pub fn pairwise_distance<
-    T: Float + coeus_core::FloatElement,
+    T: Float,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     x1: &Var<T, B>,
@@ -267,6 +265,3 @@ mod tests {
         let _ = pairwise_distance(&x1, &x2, 2.0, 1e-6);
     }
 }
-
-
-

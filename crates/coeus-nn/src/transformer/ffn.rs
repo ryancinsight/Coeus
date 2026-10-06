@@ -21,10 +21,7 @@ pub fn feed_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     feed_forward_with_training(input, w1, b1, w2, b2, dropout_p, dropout_p > 0.0)
 }
 
-pub(super) fn feed_forward_with_training<
-    T: Float,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub(super) fn feed_forward_with_training<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     w1: &Var<T, B>,
     b1: Option<&Var<T, B>>,
@@ -130,9 +127,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> FeedForward<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for FeedForward<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForward<T, B> {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = self.linear1.parameters();
         p.extend(self.linear2.parameters());
@@ -160,4 +155,3 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
         )
     }
 }
-

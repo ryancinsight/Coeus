@@ -3,7 +3,7 @@ use super::super::CpuBackend;
 use crate::backend_ops::traits::PoolOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar};
 
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> PoolOps<T> for B
+impl<T: Scalar, B: CpuBackend> PoolOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

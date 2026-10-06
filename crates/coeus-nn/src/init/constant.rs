@@ -5,7 +5,11 @@ use coeus_tensor::Tensor;
 /// Initialize weights with a constant value.
 pub fn constant<T: Float, B: coeus_ops::BackendOps<T> + Default>(weight: &mut Var<T, B>, val: f64) {
     let shape = weight.tensor.shape_cloned();
-    weight.tensor = Tensor::full_on(shape, T::from_f64(val), &B::default());
+    weight.tensor = Tensor::full_on(
+        shape,
+        <T as coeus_core::Scalar>::from_f64(val),
+        &B::default(),
+    );
 }
 
 /// Initialize weights with zeros.

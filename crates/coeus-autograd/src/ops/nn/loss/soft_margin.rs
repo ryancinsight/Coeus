@@ -25,9 +25,7 @@ pub struct SoftMarginNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub mean_scale: Tensor<T, B>,
 }
 
-impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for SoftMarginNode<T, B>
-{
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for SoftMarginNode<T, B> {
     fn op_name(&self) -> &'static str {
         "soft_margin"
     }
@@ -78,7 +76,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 /// Forward uses the provider `softplus(-m)` (stable for any margin) and
 /// backward computes `-target * sigmoid(-m) / n` and `-input * sigmoid(-m) / n`
 /// entirely on the selected provider.
-pub fn soft_margin<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn soft_margin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -220,6 +218,3 @@ mod tests {
         let _ = soft_margin(&input, &target);
     }
 }
-
-
-

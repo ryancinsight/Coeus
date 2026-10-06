@@ -11,10 +11,7 @@ use coeus_tensor::Tensor;
 /// # Panics
 /// - `dim` is out of range.
 #[inline]
-pub fn cumsum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
-    x: &Tensor<T, B>,
-    dim: usize,
-) -> Tensor<T, B> {
+pub fn cumsum<T: Scalar, B: BackendOps<T> + Default>(x: &Tensor<T, B>, dim: usize) -> Tensor<T, B> {
     let ndim = x.ndim();
     assert!(
         dim < ndim,
@@ -39,7 +36,7 @@ pub fn cumsum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
 /// # Panics
 /// - `dim` is out of range.
 #[inline]
-pub fn suffix_sum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
+pub fn suffix_sum<T: Scalar, B: BackendOps<T> + Default>(
     x: &Tensor<T, B>,
     dim: usize,
 ) -> Tensor<T, B> {

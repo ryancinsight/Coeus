@@ -102,7 +102,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             if r < p {
                 T::zero()
             } else {
-                T::from_f64(scale)
+                <T as coeus_core::Scalar>::from_f64(scale)
             }
         });
 
@@ -139,6 +139,3 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
-
-
-

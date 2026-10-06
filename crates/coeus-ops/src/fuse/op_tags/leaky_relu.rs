@@ -30,7 +30,7 @@ impl LeakyReluTag {
     /// Apply LeakyReLU: `x >= 0 ? x : slope * x`.
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
-        let slope = T::from_f64(self.slope());
+        let slope = <T as coeus_core::Scalar>::from_f64(self.slope());
         if x >= T::zero() {
             x
         } else {
@@ -74,7 +74,7 @@ impl LeakyReluGradTag {
     /// `x = 0` exactly or merely rounds into it.
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
-        let slope = T::from_f64(self.slope());
+        let slope = <T as coeus_core::Scalar>::from_f64(self.slope());
         if x > T::zero() {
             T::one()
         } else {

@@ -62,9 +62,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
 /// Forward uses the efficient `mul` + `sum` + `sqrt` backend path (no
 /// host-side fold). Backward: `∂y/∂x_i = x_i / y`.
 #[inline]
-pub fn norm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
-    a: &Var<T, B>,
-) -> Var<T, B> {
+pub fn norm<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
     let backend = B::default();
     let norm_val = coeus_ops::norm(&a.tensor, &backend).expect("norm");
     let out_tensor = Tensor::full_on([1], norm_val, &backend);
@@ -167,10 +165,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
 ///
 /// Matches `coeus_ops::norm_p` but returns a `[1]` tensor for autograd.
 #[inline]
-pub fn norm_p<
-    T: Float + coeus_core::FloatElement,
-    B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
->(
+pub fn norm_p<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default>(
     a: &Var<T, B>,
     p: T,
 ) -> Var<T, B> {
@@ -457,6 +452,3 @@ mod tests {
         let _ = norm_p_axis(&input, 2.0, 3);
     }
 }
-
-
-

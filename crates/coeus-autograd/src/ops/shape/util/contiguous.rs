@@ -62,5 +62,3 @@ pub fn contiguous<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(x: &Var<T, B
         }
     })
 }
-
-
