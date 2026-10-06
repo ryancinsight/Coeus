@@ -2,7 +2,7 @@
 // Factory functions for creating tensors.
 
 use crate::tensor::Tensor;
-use coeus_core::{ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, Scalar, Shape};
+use coeus_core::{ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, NumericElement, Scalar, Shape};
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
 where
@@ -67,9 +67,9 @@ where
     pub fn eye_on(n: usize, backend: &B) -> Self {
         let values = coeus_leto::from_shape_fn_values(&[n, n], |index| {
             if index[0] == index[1] {
-                T::one()
+                <T as NumericElement>::ONE
             } else {
-                T::zero()
+                <T as NumericElement>::ZERO
             }
         })
         .expect("coeus-leto identity generation failed");
@@ -104,7 +104,7 @@ where
         let step = if n > 1 {
             (end - start) / T::try_from_count(n - 1)?
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         };
         let values = (0..n)
             .map(|index| T::try_from_count(index).map(|count| start + step * count))
@@ -155,7 +155,7 @@ where
     /// `T` (no `f64` widen-compute-narrow detour).
     #[inline]
     pub fn geomspace_on(start: T, end: T, n: usize, backend: &B) -> Self {
-        let zero = T::zero();
+        let zero = <T as NumericElement>::ZERO;
         assert!(
             start != zero && end != zero,
             "geomspace requires non-zero start/end"
@@ -165,9 +165,9 @@ where
             "geomspace requires start/end to have the same sign"
         );
         let sign = Float::signum(start);
-        let start_abs = Float::abs(start);
-        let end_abs = Float::abs(end);
-        let one = T::one();
+        let start_abs = <T as NumericElement>::abs(start);
+        let end_abs = <T as NumericElement>::abs(end);
+        let one = <T as NumericElement>::ONE;
         let ratio = if n > 1 {
             Float::powf(end_abs / start_abs, one / T::from_count(n - 1))
         } else {
@@ -184,3 +184,6 @@ where
         Self::from_slice_on([n], &values, backend)
     }
 }
+
+
+

@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -151,14 +151,14 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     )
     .expect("cosine_embedding_loss: denom clamp");
     let den = coeus_ops::sqrt(&den_sq_safe, &backend);
-    let inv_den = coeus_ops::div(&Tensor::full_on([n, 1], T::one(), &backend), &den, &backend);
+    let inv_den = coeus_ops::div(&Tensor::full_on([n, 1], <T as NumericElement>::ONE, &backend), &den, &backend);
     let cos = coeus_ops::mul(&dot_col, &inv_den, &backend);
     let dot_over_n1sq = coeus_ops::div(&dot_col, &n1_col, &backend);
     let dot_over_n2sq = coeus_ops::div(&dot_col, &n2_col, &backend);
 
     // Loss per row: y == 1 → 1 - cos; else relu(cos - margin).
     let y_tensor = Tensor::from_slice_on([n], y, &backend).reshape([n, 1]);
-    let ones = Tensor::full_on([n, 1], T::one(), &backend);
+    let ones = Tensor::full_on([n, 1], <T as NumericElement>::ONE, &backend);
     let y_is_one = coeus_ops::eq(&y_tensor, &ones, &backend);
     let pos_loss = coeus_ops::sub(&ones, &cos, &backend);
     let neg_diff = coeus_ops::sub(&cos, &Tensor::full_on([n, 1], margin, &backend), &backend);
@@ -203,7 +203,7 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             d,
             mean_scale: Tensor::full_on(
                 [1],
-                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                <T as NumericElement>::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
                 &backend,
             ),
         };
@@ -323,3 +323,6 @@ mod tests {
         let _ = cosine_embedding_loss(&x1, &x2, &y, 0.5);
     }
 }
+
+
+

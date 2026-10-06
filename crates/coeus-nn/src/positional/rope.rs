@@ -9,7 +9,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_core::{Float, MoiraiBackend, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Rotary Positional Embedding (RoPE) layer.
@@ -41,8 +41,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         );
         let backend = B::default();
 
-        let mut cos_values = vec![T::zero(); max_len * d_head];
-        let mut sin_values = vec![T::zero(); max_len * d_head];
+        let mut cos_values = vec![<T as NumericElement>::ZERO; max_len * d_head];
+        let mut sin_values = vec![<T as NumericElement>::ZERO; max_len * d_head];
         let half_dim = d_head / 2;
         for pos in 0..max_len {
             for i in 0..half_dim {
@@ -150,3 +150,6 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Tensor<T, B> {
     table.slice(&[(0, seq_len), (0, d_model)])
 }
+
+
+

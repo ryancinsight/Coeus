@@ -10,7 +10,7 @@ const OPERATION: &str = "attention backward";
 pub(in crate::attention) struct Backward<'a, B, T>
 where
     B: AttentionBackend<T>,
-    T: Scalar + Float + AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     pub grad_output: &'a B::DeviceBuffer<T>,
     pub grad_output_layout: &'a Layout,
@@ -31,7 +31,7 @@ where
 pub(in crate::attention) fn execute<B, T>(mut request: Backward<'_, B, T>) -> Result<(), B::Error>
 where
     B: AttentionBackend<T>,
-    T: Scalar + Float + AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     let grad_output_layout = layouts::tensor(OPERATION, request.grad_output_layout)?;
     let query_layout = layouts::tensor(OPERATION, request.query_layout)?;
@@ -131,3 +131,5 @@ where
         )
         .map_err(|source| B::attention_dispatch_error(OPERATION, source))
 }
+
+

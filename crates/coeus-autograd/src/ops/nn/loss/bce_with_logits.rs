@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -97,7 +97,7 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         &target.tensor,
         &backend,
     );
-    let mean_scale = T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64);
+    let mean_scale = <T as NumericElement>::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64);
     let scale = Tensor::full_on([1], mean_scale, &backend);
     let requires_grad =
         crate::grad_mode::should_track_var(logits) || crate::grad_mode::should_track_var(target);
@@ -128,3 +128,6 @@ pub fn bce_with_logits<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
+
+
+

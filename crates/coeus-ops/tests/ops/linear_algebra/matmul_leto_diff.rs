@@ -9,8 +9,7 @@
 use coeus_core::Layout;
 use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, MoiraiBackend, Scalar, SequentialBackend, Shape,
-    Strides,
-};
+    Strides, NumericElement};
 use coeus_ops::backend_ops::MatmulOps;
 use coeus_ops::CpuBackend;
 
@@ -19,10 +18,10 @@ fn layout(shape: &[usize]) -> Layout {
 }
 
 fn matmul_reference<T: Scalar>(a: &[T], m: usize, k: usize, b: &[T], n: usize) -> Vec<T> {
-    let mut out = vec![T::zero(); m * n];
+    let mut out = vec![<T as NumericElement>::ZERO; m * n];
     for row in 0..m {
         for col in 0..n {
-            let mut acc = T::zero();
+            let mut acc = <T as NumericElement>::ZERO;
             for inner in 0..k {
                 acc += a[row * k + inner] * b[inner * n + col];
             }
@@ -62,7 +61,7 @@ where
         )
         .expect("valid matmul test layouts");
 
-    let mut out = vec![T::zero(); c_layout.numel()];
+    let mut out = vec![<T as NumericElement>::ZERO; c_layout.numel()];
     backend.copy_to_host(&c_buffer, &mut out);
     out
 }
@@ -136,8 +135,8 @@ fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            NumericElement::to_f64(actual).to_bits(),
+            NumericElement::to_f64(reference).to_bits(),
             "matmul mismatch at index {index}",
         );
     }
@@ -182,3 +181,8 @@ fn test_parallel_matmul_loop() {
         assert_eq!(got.len(), m * n);
     }
 }
+
+
+
+
+

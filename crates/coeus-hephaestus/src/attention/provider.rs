@@ -5,7 +5,7 @@ use hephaestus_core::{AttentionOps, AttentionScalar, HephaestusError};
 /// Provider-owned scalar attention operation marker.
 pub trait AttentionProvider<T>: HephaestusProvider
 where
-    T: Scalar + Float + AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     /// Monomorphized Hephaestus operation marker selected by this provider.
     type Operations: AttentionOps<Self::Device, T> + Default;
@@ -18,7 +18,7 @@ where
 /// and provider invocation as a single monomorphized implementation.
 pub trait AttentionBackend<T>: coeus_core::ComputeBackend
 where
-    T: Scalar + Float + AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     /// Hephaestus provider selected by this Coeus backend.
     type Provider: AttentionProvider<T>;
@@ -121,7 +121,7 @@ where
 impl<P, T> AttentionBackend<T> for HephaestusBackend<P>
 where
     P: AttentionProvider<T>,
-    T: Scalar + Float + AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     type Provider = P;
 
@@ -135,3 +135,5 @@ where
         crate::HephaestusBackendError::device(operation, source)
     }
 }
+
+

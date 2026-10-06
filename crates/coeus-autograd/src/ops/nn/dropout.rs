@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -100,7 +100,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
             let r = rng.borrow_mut().next_f64();
             if r < p {
-                T::zero()
+                <T as NumericElement>::ZERO
             } else {
                 <T as coeus_core::Scalar>::from_f64(scale)
             }
@@ -139,3 +139,6 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
+
+
+

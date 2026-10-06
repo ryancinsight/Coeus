@@ -1,6 +1,6 @@
 //! Direct operation-boundary checks, including untouched backing-storage lanes.
 
-use coeus_core::{BackendError, ComputeBackend, Float, Layout, Scalar};
+use coeus_core::{BackendError, ComputeBackend, Float, Layout, Scalar, NumericElement};
 use coeus_ops::{CtcBatch, CtcOps};
 
 fn layout(shape: &[usize], strides: &[usize], offset: usize) -> Layout {
@@ -27,7 +27,7 @@ fn exact_storage<T: Scalar, B: ComputeBackend>(
     buffer: &B::DeviceBuffer<T>,
     expected: &[T],
 ) {
-    let mut actual = vec![T::zero(); expected.len()];
+    let mut actual = vec![<T as NumericElement>::ZERO; expected.len()];
     backend.copy_to_host(buffer, &mut actual);
     assert_eq!(actual, expected);
 }
@@ -78,7 +78,7 @@ where
     // posterior and dyadic seeded update are exact in every tested format.
     let input = upload(
         &backend,
-        &[<T as Float>::NAN, T::zero(), <T as Float>::NAN, T::zero()],
+        &[<T as Float>::NAN, <T as NumericElement>::ZERO, <T as Float>::NAN, <T as NumericElement>::ZERO],
     );
     let mut loss = upload(&backend, &[sentinel; 3]);
     let scalar = layout(&[1], &[1], 1);
@@ -91,7 +91,7 @@ where
             &scalar,
         )
         .expect("invariant: offset input and scalar output have valid footprints");
-    exact_storage(&backend, &loss, &[sentinel, T::zero(), sentinel]);
+    exact_storage(&backend, &loss, &[sentinel, <T as NumericElement>::ZERO, sentinel]);
     let seed = <T as Scalar>::from_f64(2.5);
     let upstream = upload(
         &backend,
@@ -124,7 +124,7 @@ where
     B: CtcOps<T> + ComputeBackend<Error = BackendError> + Default,
 {
     let backend = B::default();
-    let input = upload(&backend, &[T::zero(); 2]);
+    let input = upload(&backend, &[<T as NumericElement>::ZERO; 2]);
     let valid = Layout::new([1, 1, 2].into());
     let scalar = Layout::new([1].into());
     let sentinel = <T as Scalar>::from_f64(7.0);
@@ -225,14 +225,14 @@ where
     B: CtcOps<T> + ComputeBackend<Error = BackendError> + Default,
 {
     let backend = B::default();
-    let input = upload(&backend, &[T::zero(); 2]);
+    let input = upload(&backend, &[<T as NumericElement>::ZERO; 2]);
     let valid = Layout::new([1, 1, 2].into());
     let scalar = Layout::new([1].into());
-    let mut loss = upload(&backend, &[T::zero()]);
+    let mut loss = upload(&backend, &[<T as NumericElement>::ZERO]);
     let state = backend
         .ctc_forward(&input, &valid, sequences(), &mut loss, &scalar)
         .expect("invariant: one-frame target has a unique alignment");
-    let upstream = upload(&backend, &[T::one(); 2]);
+    let upstream = upload(&backend, &[<T as NumericElement>::ONE; 2]);
     let sentinel = <T as Scalar>::from_f64(7.0);
     let mut gradient = upload(&backend, &[sentinel; 2]);
     for (upstream_layout, gradient_layout, operation, shape_count, stride_count) in [
@@ -350,3 +350,6 @@ where
         exact_storage(&backend, &gradient, &[sentinel; 2]);
     }
 }
+
+
+

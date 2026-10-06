@@ -4,7 +4,7 @@
 // matching `torch.tril(input, diagonal=k)` and `torch.triu(input, diagonal=k)`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Return the lower-triangular part of `input`, zeroing elements above the
@@ -49,7 +49,7 @@ where
             if col <= row + k {
                 input.get(&idx)
             } else {
-                T::zero()
+                <T as NumericElement>::ZERO
             }
         })
         .collect();
@@ -97,7 +97,7 @@ where
             if col >= row + k {
                 input.get(&idx)
             } else {
-                T::zero()
+                <T as NumericElement>::ZERO
             }
         })
         .collect();
@@ -181,3 +181,6 @@ mod tests {
         );
     }
 }
+
+
+

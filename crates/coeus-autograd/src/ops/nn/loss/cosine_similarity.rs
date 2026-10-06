@@ -11,7 +11,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -160,7 +160,7 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         "cosine_similarity currently supports dim=1; got dim={dim}"
     );
     assert!(
-        eps > T::zero() && !<T as Float>::is_nan(eps) && !<T as Float>::is_infinite(eps),
+        eps > <T as NumericElement>::ZERO && !<T as coeus_core::NumericElement>::is_nan(eps) && !<T as Float>::is_infinite(eps),
         "cosine_similarity requires finite eps > 0"
     );
 
@@ -252,3 +252,7 @@ pub fn cosine_similarity<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         creator,
     }
 }
+
+
+
+

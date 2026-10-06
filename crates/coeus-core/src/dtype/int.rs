@@ -1,3 +1,4 @@
+use eunomia::NumericElement;
 // ── Integer implementations ──
 // Scalar + Int for i8, i16, i32, i64, u8, u16, u32, u64.
 
@@ -7,10 +8,8 @@ macro_rules! impl_scalar_int_signed {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
-            // defaults on `Scalar`. Note `sqrt_val` now takes the exact
-            // integer `isqrt` route instead of the f64 round-trip below it
-            // replaces.
+            // `Scalar` keeps only what no provider owns; identities live on
+            // `NumericElement` and are used directly at call sites.
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
@@ -25,7 +24,6 @@ macro_rules! impl_scalar_int_signed {
             }
         }
         impl Int for $t {
-            // `count_ones` resolves to the eunomia-SSOT default on `Int`.
             #[inline(always)]
             fn count_zeros(self) -> u32 {
                 self.count_zeros()
@@ -50,7 +48,6 @@ macro_rules! impl_scalar_int_signed {
             fn pow(self, exp: u32) -> Self {
                 self.pow(exp)
             }
-            // `abs` resolves to the eunomia-SSOT default on `Int`.
         }
     };
 }
@@ -59,10 +56,8 @@ macro_rules! impl_scalar_int_unsigned {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
-            // defaults on `Scalar`. Note `sqrt_val` now takes the exact
-            // integer `isqrt` route instead of the f64 round-trip below it
-            // replaces.
+            // `Scalar` keeps only what no provider owns; identities live on
+            // `NumericElement` and are used directly at call sites.
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 v as Self
@@ -77,7 +72,6 @@ macro_rules! impl_scalar_int_unsigned {
             }
         }
         impl Int for $t {
-            // `count_ones` resolves to the eunomia-SSOT default on `Int`.
             #[inline(always)]
             fn count_zeros(self) -> u32 {
                 self.count_zeros()
@@ -102,7 +96,6 @@ macro_rules! impl_scalar_int_unsigned {
             fn pow(self, exp: u32) -> Self {
                 self.pow(exp)
             }
-            // `abs` resolves to the eunomia-SSOT default on `Int`.
         }
     };
 }
@@ -121,30 +114,30 @@ macro_rules! impl_cpu_unary_dispatch_int {
         impl $crate::dtype::CpuUnaryDispatch for $t {
             #[inline(always)]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
-                use $crate::dtype::{CpuUnaryOp, Scalar};
+                use $crate::dtype::{CpuUnaryOp};
                 match op {
                     CpuUnaryOp::Relu => {
-                        if x > Self::zero() {
+                        if x > <Self as NumericElement>::ZERO {
                             x
                         } else {
-                            Self::zero()
+                            <Self as NumericElement>::ZERO
                         }
                     }
                     CpuUnaryOp::ReluGrad => {
-                        if x > Self::zero() {
-                            Self::one()
+                        if x > <Self as NumericElement>::ZERO {
+                            <Self as NumericElement>::ONE
                         } else {
-                            Self::zero()
+                            <Self as NumericElement>::ZERO
                         }
                     }
-                    CpuUnaryOp::Neg => Self::zero() - x,
-                    CpuUnaryOp::Abs => x.abs_val(),
-                    CpuUnaryOp::Sqrt => x.sqrt_val(),
-                    CpuUnaryOp::SigmoidGrad => x * (Self::one() - x),
-                    CpuUnaryOp::TanhGrad => Self::one() - x * x,
+                    CpuUnaryOp::Neg => <Self as NumericElement>::ZERO - x,
+                    CpuUnaryOp::Abs => x.abs(),
+                    CpuUnaryOp::Sqrt => x.sqrt(),
+                    CpuUnaryOp::SigmoidGrad => x * (<Self as NumericElement>::ONE - x),
+                    CpuUnaryOp::TanhGrad => <Self as NumericElement>::ONE - x * x,
                     CpuUnaryOp::LeakyRelu(slope_bits) => {
                         let slope = Self::from_f64(f64::from_bits(slope_bits));
-                        if x >= Self::zero() {
+                        if x >= <Self as NumericElement>::ZERO {
                             x
                         } else {
                             slope * x
@@ -154,26 +147,28 @@ macro_rules! impl_cpu_unary_dispatch_int {
                     // Matches PyTorch's contract which returns slope (not 1) at x = 0.
                     CpuUnaryOp::LeakyReluGrad(slope_bits) => {
                         let slope = Self::from_f64(f64::from_bits(slope_bits));
-                        if x > Self::zero() {
-                            Self::one()
+                        if x > <Self as NumericElement>::ZERO {
+                            <Self as NumericElement>::ONE
                         } else {
                             slope
                         }
                     }
                     CpuUnaryOp::Recip => {
-                        if x == Self::zero() {
-                            Self::zero()
+                        if x == <Self as NumericElement>::ZERO {
+                            <Self as NumericElement>::ZERO
                         } else {
-                            Self::one() / x
+                            <Self as NumericElement>::ONE / x
                         }
                     }
                     CpuUnaryOp::Sign => {
-                        if x > Self::zero() {
-                            Self::one()
-                        } else if x < Self::zero() {
-                            Self::zero() - Self::one()
+                        if x > <Self as NumericElement>::ZERO {
+                            <Self as NumericElement>::ONE
+                        } else if x < <Self as NumericElement>::ZERO {
+                            // Two's complement: !ZERO = -1 for signed types.
+                            // This branch is unreachable for unsigned types (x >= 0 always).
+                            !<Self as NumericElement>::ZERO
                         } else {
-                            Self::zero()
+                            <Self as NumericElement>::ZERO
                         }
                     }
                     // Floor/ceil/round/trunc are identity for integers.
@@ -196,3 +191,7 @@ impl_cpu_unary_dispatch_int!(u8);
 impl_cpu_unary_dispatch_int!(u16);
 impl_cpu_unary_dispatch_int!(u32);
 impl_cpu_unary_dispatch_int!(u64);
+
+
+
+

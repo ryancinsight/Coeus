@@ -7,7 +7,7 @@
 // The sort is stable (preserves relative order of equal elements).
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Stably sorts `input` along `axis`, like PyTorch `torch.sort` or NumPy `sort`.
@@ -41,8 +41,8 @@ where
     let inner: usize = shape[axis + 1..].iter().product();
     let numel: usize = shape.iter().product();
 
-    let mut out_vals = vec![T::zero(); numel];
-    let mut out_idx = vec![T::zero(); numel];
+    let mut out_vals = vec![<T as NumericElement>::ZERO; numel];
+    let mut out_idx = vec![<T as NumericElement>::ZERO; numel];
 
     // Iterate over every (outer, inner) slice and sort along `axis`.
     for o in 0..outer {
@@ -82,3 +82,6 @@ where
         Tensor::from_slice(shape, &out_idx),
     )
 }
+
+
+

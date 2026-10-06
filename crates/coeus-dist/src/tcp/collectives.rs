@@ -6,7 +6,7 @@ use crate::host_access::{
     with_tensor_host_bytes,
 };
 use crate::ops::ReduceOpTag;
-use coeus_core::{ComputeBackend, Scalar};
+use coeus_core::{ComputeBackend, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// A socket-based communicator for distributed training.
@@ -316,7 +316,7 @@ impl Communicator for TcpCommunicator {
 
             if rank == root {
                 let mut reduced = get_tensor_host_data(tensor, backend).into_owned();
-                let mut incoming = vec![T::zero(); numel];
+                let mut incoming = vec![<T as NumericElement>::ZERO; numel];
                 for other in (0..size).filter(|&other| other != root) {
                     recv_slice_data(&mut incoming, |slice| self.mesh.recv(other, slice))?;
                     for (acc, &value) in reduced.iter_mut().zip(&incoming) {
@@ -411,3 +411,6 @@ impl Communicator for TcpCommunicator {
         })
     }
 }
+
+
+

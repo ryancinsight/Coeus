@@ -9,7 +9,7 @@
 // All kernels follow the PyTorch nn.Unfold / nn.Fold convention.
 
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
 
 pub(super) mod validation;
 
@@ -68,7 +68,7 @@ pub(crate) fn unfold1d<T: Scalar, B: Backend>(
             let src = input_layout.physical_index(&[ni, ci, l_in as usize]);
             unsafe { input_ptr.read(src) }
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         };
 
         let dst = output_layout.physical_index(&[ni, ck_idx, lo]);
@@ -102,7 +102,7 @@ pub(crate) fn fold1d<T: Scalar, B: Backend>(
 
     // Zero output first.
     for v in output.as_mut_slice().iter_mut() {
-        *v = T::zero();
+        *v = <T as NumericElement>::ZERO;
     }
 
     let input_slice = input.as_slice();
@@ -200,7 +200,7 @@ pub(crate) fn unfold2d<T: Scalar, B: Backend>(
             let src = input_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
             unsafe { input_ptr.read(src) }
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         };
 
         let dst = output_layout.physical_index(&[ni, ckk_idx, lo]);
@@ -247,7 +247,7 @@ pub(crate) fn fold2d<T: Scalar, B: Backend>(
 
     // Zero output first.
     for v in output.as_mut_slice().iter_mut() {
-        *v = T::zero();
+        *v = <T as NumericElement>::ZERO;
     }
 
     let input_slice = input.as_slice();
@@ -291,3 +291,6 @@ pub(crate) fn fold2d<T: Scalar, B: Backend>(
         }
     }
 }
+
+
+

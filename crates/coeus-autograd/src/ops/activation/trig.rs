@@ -2,6 +2,7 @@ use super::unary_op;
 use super::UnaryAutogradOp;
 use crate::var::Var;
 use coeus_core::Float;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 
 // ── Exponential / logarithm ────────────────────────────────────────────────
@@ -70,7 +71,7 @@ unary_autograd!(TanOp, "tan", tan, |g, x, _y, b| {
 // `d/dx asin(x) = 1/√(1 − x²)`.
 unary_autograd!(AsinOp, "asin", asin, |g, x, _y, b| {
     let x_sq = coeus_ops::mul(x, x, b);
-    let one = Tensor::full_on(x.shape(), T::one(), b);
+    let one = Tensor::full_on(x.shape(), <T as NumericElement>::ONE, b);
     let one_minus_xsq = coeus_ops::sub(&one, &x_sq, b);
     let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, b);
     let inv_sqrt = coeus_ops::recip(&sqrt_val, b);
@@ -80,7 +81,7 @@ unary_autograd!(AsinOp, "asin", asin, |g, x, _y, b| {
 // `d/dx acos(x) = −1/√(1 − x²)`.
 unary_autograd!(AcosOp, "acos", acos, |g, x, _y, b| {
     let x_sq = coeus_ops::mul(x, x, b);
-    let one = Tensor::full_on(x.shape(), T::one(), b);
+    let one = Tensor::full_on(x.shape(), <T as NumericElement>::ONE, b);
     let one_minus_xsq = coeus_ops::sub(&one, &x_sq, b);
     let sqrt_val = coeus_ops::sqrt(&one_minus_xsq, b);
     let inv_sqrt = coeus_ops::recip(&sqrt_val, b);
@@ -91,7 +92,7 @@ unary_autograd!(AcosOp, "acos", acos, |g, x, _y, b| {
 // `d/dx atan(x) = 1/(1 + x²)`.
 unary_autograd!(AtanOp, "atan", atan, |g, x, _y, b| {
     let x_sq = coeus_ops::mul(x, x, b);
-    let one = Tensor::full_on(x.shape(), T::one(), b);
+    let one = Tensor::full_on(x.shape(), <T as NumericElement>::ONE, b);
     let one_plus_xsq = coeus_ops::add(&one, &x_sq, b);
     let inv = coeus_ops::recip(&one_plus_xsq, b);
     coeus_ops::mul(g, &inv, b)
@@ -112,7 +113,7 @@ unary_autograd!(CoshOp, "cosh", cosh, |g, x, _y, b| {
 // `d/dx atanh(x) = 1/(1 − x²)`.
 unary_autograd!(AtanhOp, "atanh", atanh, |g, x, _y, b| {
     let x_sq = coeus_ops::mul(x, x, b);
-    let one = Tensor::full_on(x.shape(), T::one(), b);
+    let one = Tensor::full_on(x.shape(), <T as NumericElement>::ONE, b);
     let one_minus_xsq = coeus_ops::sub(&one, &x_sq, b);
     let inv = coeus_ops::recip(&one_minus_xsq, b);
     coeus_ops::mul(g, &inv, b)
@@ -121,7 +122,7 @@ unary_autograd!(AtanhOp, "atanh", atanh, |g, x, _y, b| {
 // `d/dx asinh(x) = 1/√(x² + 1)`.
 unary_autograd!(AsinhOp, "asinh", asinh, |g, x, _y, b| {
     let x_sq = coeus_ops::mul(x, x, b);
-    let one = Tensor::full_on(x.shape(), T::one(), b);
+    let one = Tensor::full_on(x.shape(), <T as NumericElement>::ONE, b);
     let xsq_plus_one = coeus_ops::add(&x_sq, &one, b);
     let sqrt_val = coeus_ops::sqrt(&xsq_plus_one, b);
     let inv = coeus_ops::recip(&sqrt_val, b);
@@ -131,7 +132,7 @@ unary_autograd!(AsinhOp, "asinh", asinh, |g, x, _y, b| {
 // `d/dx acosh(x) = 1/√(x² − 1)`.
 unary_autograd!(AcoshOp, "acosh", acosh, |g, x, _y, b| {
     let x_sq = coeus_ops::mul(x, x, b);
-    let one = Tensor::full_on(x.shape(), T::one(), b);
+    let one = Tensor::full_on(x.shape(), <T as NumericElement>::ONE, b);
     let xsq_minus_one = coeus_ops::sub(&x_sq, &one, b);
     let sqrt_val = coeus_ops::sqrt(&xsq_minus_one, b);
     let inv = coeus_ops::recip(&sqrt_val, b);
@@ -183,7 +184,7 @@ unary_autograd!(Expm1Op, "expm1", expm1, |g, x, _y, b| {
 
 // `d/dx log1p(x) = 1/(1 + x)`.
 unary_autograd!(Log1pOp, "log1p", log1p, |g, x, _y, b| {
-    let one = Tensor::full_on(x.shape(), T::one(), b);
+    let one = Tensor::full_on(x.shape(), <T as NumericElement>::ONE, b);
     let one_plus_x = coeus_ops::add(&one, x, b);
     let inv = coeus_ops::recip(&one_plus_x, b);
     coeus_ops::mul(g, &inv, b)
@@ -204,3 +205,6 @@ pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     coeus_ops::lgamma(&a.tensor, &backend)
 }
+
+
+

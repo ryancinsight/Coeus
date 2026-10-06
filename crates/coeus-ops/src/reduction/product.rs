@@ -1,7 +1,7 @@
 //! Provider-owned product reductions.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{BackendError, Scalar};
+use coeus_core::{BackendError, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Product along a specific axis, reducing it to size 1.
@@ -76,7 +76,10 @@ pub fn prod<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> T {
     let reduced = prod_tensor(a, backend).expect("prod: provider reduction failed");
-    let mut scalar = [T::zero()];
+    let mut scalar = [<T as NumericElement>::ZERO];
     backend.copy_to_host(reduced.storage(), &mut scalar);
     scalar[0]
 }
+
+
+

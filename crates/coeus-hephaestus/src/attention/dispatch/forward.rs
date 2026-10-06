@@ -8,7 +8,7 @@ use hephaestus_core::{
 pub(in crate::attention) struct Forward<'a, B, T>
 where
     B: AttentionBackend<T>,
-    T: Scalar + Float + AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     pub query: &'a B::DeviceBuffer<T>,
     pub query_layout: &'a Layout,
@@ -29,7 +29,7 @@ where
 pub(in crate::attention) fn execute<B, T>(request: Forward<'_, B, T>) -> Result<(), B::Error>
 where
     B: AttentionBackend<T>,
-    T: Scalar + Float + AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     const OPERATION: &str = "attention forward";
     let query_layout = layouts::tensor(OPERATION, request.query_layout)?;
@@ -83,3 +83,5 @@ where
         )
         .map_err(|source| B::attention_dispatch_error(OPERATION, source))
 }
+
+

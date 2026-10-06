@@ -1,5 +1,5 @@
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
 
 #[inline]
 pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
@@ -45,7 +45,7 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
         let ci = temp2 % c;
         let ni = temp2 / c;
 
-        let mut sum = T::zero();
+        let mut sum = <T as NumericElement>::ZERO;
         let mut count = 0usize;
 
         for ikh in 0..k_size {
@@ -67,7 +67,7 @@ pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
         let mean = if count > 0 {
             sum / <T as coeus_core::Scalar>::from_f64(count as f64)
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         };
 
         let output_idx = output_layout.physical_index(&[ni, ci, oh, ow]);
@@ -121,7 +121,7 @@ pub(crate) fn avg_pool2d_backward<T: Scalar, B: Backend>(
         let ci = temp2 % c;
         let ni = temp2 / c;
 
-        let mut sum = T::zero();
+        let mut sum = <T as NumericElement>::ZERO;
 
         for ikh in 0..k_size {
             let numer_h = hi as isize + pad_s - ikh as isize * dil_s;
@@ -216,7 +216,7 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
         let ci = temp3 % c;
         let ni = temp3 / c;
 
-        let mut sum = T::zero();
+        let mut sum = <T as NumericElement>::ZERO;
         let mut count = 0usize;
 
         for ikd in 0..k_size {
@@ -248,7 +248,7 @@ pub(crate) fn avg_pool3d<T: Scalar, B: Backend>(
         let mean = if count > 0 {
             sum / <T as coeus_core::Scalar>::from_f64(count as f64)
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         };
 
         let output_idx = output_layout.physical_index(&[ni, ci, od, oh, ow]);
@@ -306,7 +306,7 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
         let ci = temp3 % c;
         let ni = temp3 / c;
 
-        let mut sum = T::zero();
+        let mut sum = <T as NumericElement>::ZERO;
 
         for ikd in 0..k_size {
             let numer_d = di as isize + pad_s - ikd as isize * dil_s;
@@ -373,3 +373,6 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
         }
     });
 }
+
+
+

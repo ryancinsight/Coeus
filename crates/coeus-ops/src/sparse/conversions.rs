@@ -1,4 +1,4 @@
-use coeus_core::{Backend, CpuAddressableStorageMut, Scalar};
+use coeus_core::{Backend, CpuAddressableStorageMut, Scalar, NumericElement};
 use coeus_sparse::{CooTensor, CsrTensor};
 use coeus_tensor::Tensor;
 
@@ -26,7 +26,7 @@ where
     let mut index = smallvec::SmallVec::<[usize; 4]>::from_elem(0, rank);
     for i in 0..numel {
         let val = slice[i];
-        if val != T::zero() {
+        if val != <T as NumericElement>::ZERO {
             for &idx in &index {
                 indices_vec.push(idx as i64);
             }
@@ -300,3 +300,6 @@ mod tests {
         assert_eq!(dense_recon_csr.as_slice(), dense.as_slice());
     }
 }
+
+
+

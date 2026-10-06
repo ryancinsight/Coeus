@@ -6,8 +6,7 @@
 
 use coeus_core::{
     ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, Scalar,
-    SequentialBackend,
-};
+    SequentialBackend, NumericElement};
 use coeus_ops::BackendOps;
 use coeus_tensor::{Tensor, Transpose};
 
@@ -24,8 +23,8 @@ fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], cont
     assert_eq!(got.len(), expected.len(), "{context} length mismatch");
     for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            NumericElement::to_f64(actual).to_bits(),
+            NumericElement::to_f64(reference).to_bits(),
             "{context} mismatch at index {index}",
         );
     }
@@ -33,7 +32,7 @@ fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], cont
 
 fn check_reductions<T, B>(backend: &B)
 where
-    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -44,8 +43,8 @@ where
 
     let total = coeus_ops::sum(&tensor, backend).expect("valid sum");
     assert_eq!(
-        Scalar::to_f64(total).to_bits(),
-        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(21.0)).to_bits()
+        NumericElement::to_f64(total).to_bits(),
+        NumericElement::to_f64(<T as coeus_core::FloatElement>::from_f64(21.0)).to_bits()
     );
 
     let product_axis = coeus_ops::prod_axis(&tensor, 1, backend).expect("valid product axis");
@@ -58,8 +57,8 @@ where
 
     let mean = coeus_ops::mean(&tensor, backend).expect("valid mean");
     assert_eq!(
-        Scalar::to_f64(mean).to_bits(),
-        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
+        NumericElement::to_f64(mean).to_bits(),
+        NumericElement::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
     );
 
     let sum_axis = coeus_ops::sum_axis(&tensor, 0, backend).expect("valid sum axis");
@@ -97,8 +96,8 @@ where
     let transposed = tensor.transpose();
     let transposed_mean_scalar = coeus_ops::mean(&transposed, backend).expect("valid mean");
     assert_eq!(
-        Scalar::to_f64(transposed_mean_scalar).to_bits(),
-        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
+        NumericElement::to_f64(transposed_mean_scalar).to_bits(),
+        NumericElement::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
     );
 
     let transposed_sum =
@@ -164,3 +163,8 @@ fn moirai_public_reductions_match_reference() {
     check_reductions::<f64, _>(&backend);
     check_empty_mean(&backend);
 }
+
+
+
+
+

@@ -1,6 +1,6 @@
 use super::traits::{reduction_op, ReductionAutogradOp};
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// ZST tag for sum reduction autograd.
@@ -151,10 +151,10 @@ where
         .as_slice()
         .iter()
         .map(|&v| {
-            if <T as Float>::is_nan(v) {
-                T::one()
+            if <T as coeus_core::NumericElement>::is_nan(v) {
+                <T as NumericElement>::ONE
             } else {
-                T::zero()
+                <T as NumericElement>::ZERO
             }
         })
         .collect();
@@ -162,7 +162,7 @@ where
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, <T as NumericElement>::ZERO);
     sum(&cleaned)
 }
 
@@ -181,14 +181,14 @@ where
 {
     let backend = B::default();
     let slice = a.tensor.as_slice();
-    let count = slice.iter().filter(|&&v| !<T as Float>::is_nan(v)).count();
+    let count = slice.iter().filter(|&&v| !<T as coeus_core::NumericElement>::is_nan(v)).count();
     let mask_data: Vec<T> = slice
         .iter()
         .map(|&v| {
-            if <T as Float>::is_nan(v) {
-                T::one()
+            if <T as coeus_core::NumericElement>::is_nan(v) {
+                <T as NumericElement>::ONE
             } else {
-                T::zero()
+                <T as NumericElement>::ZERO
             }
         })
         .collect();
@@ -196,7 +196,7 @@ where
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, <T as NumericElement>::ZERO);
     let s = sum(&cleaned);
     crate::scalar_div(&s, <T as coeus_core::Scalar>::from_f64(count as f64))
 }
@@ -270,3 +270,7 @@ mod nan_reduction_tests {
         );
     }
 }
+
+
+
+

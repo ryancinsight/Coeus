@@ -4,8 +4,8 @@
 use std::marker::PhantomData;
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar,
-    Shape, Storage, StorageMut, Strides,
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, MoiraiBackend,
+    NumericElement, Scalar, Shape, Storage, StorageMut, Strides,
 };
 
 /// Generic N-dimensional tensor.
@@ -183,7 +183,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
                 .expect("tensor host materialization requires a valid layout");
         }
 
-        let mut physical = vec![T::zero(); Storage::len(&self.storage)];
+        let mut physical = vec![<T as NumericElement>::ZERO; Storage::len(&self.storage)];
         backend.copy_to_host(&self.storage, &mut physical);
         coeus_leto::contiguous_values(&self.layout, &physical)
             .expect("tensor host materialization requires a valid layout")
@@ -358,7 +358,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
         let shape = shape.into();
         let numel: usize = shape.iter().product();
         let mut storage = backend.allocate(numel);
-        backend.fill(&mut storage, T::one());
+        backend.fill(&mut storage, <T as NumericElement>::ONE);
         Self::from_storage_and_shape(storage, shape)
     }
 
@@ -440,7 +440,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             }
         } else {
             let storage_len = Storage::len(&self.storage);
-            let mut full_host_storage = vec![T::zero(); storage_len];
+            let mut full_host_storage = vec![<T as NumericElement>::ZERO; storage_len];
             src_backend.copy_to_host(&self.storage, &mut full_host_storage);
 
             if self.is_contiguous() {
@@ -502,3 +502,5 @@ impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
         self.to_backend_on(&B::default(), backend)
     }
 }
+
+

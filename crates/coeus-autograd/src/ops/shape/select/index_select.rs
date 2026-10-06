@@ -8,6 +8,7 @@ use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -78,7 +79,7 @@ where
 
             // Scatter output gradient back into input positions.
             let in_numel: usize = in_shape.iter().product();
-            let mut gi_data = vec![T::zero(); in_numel];
+            let mut gi_data = vec![<T as NumericElement>::ZERO; in_numel];
             for (out_flat, &grad_out_element) in go_s.iter().enumerate() {
                 let mut coords = vec![0usize; ndim];
                 let mut rem = out_flat;
@@ -86,7 +87,7 @@ where
                     coords[d] = rem / out_strides[d];
                     rem %= out_strides[d];
                 }
-                let sel = <T as Scalar>::to_f64(idx_s[coords[dim]]) as usize;
+                let sel = <T as NumericElement>::to_f64(idx_s[coords[dim]]) as usize;
                 let mut in_flat = 0usize;
                 for d in 0..ndim {
                     let c = if d == dim { sel } else { coords[d] };
@@ -148,3 +149,7 @@ where
         creator,
     }
 }
+
+
+
+

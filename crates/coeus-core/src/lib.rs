@@ -28,7 +28,7 @@ pub mod storage;
 pub use backend::{Backend, BackendError, ComputeBackend, MoiraiBackend, SequentialBackend};
 pub use dtype::{
     BinaryOp, Complex, CountRangeError, CpuUnaryDispatch, CpuUnaryOp, Float, FloatElement,
-    FloatOps, Int, ReductionOp, Scalar, TryFromCount,
+    FloatOps, Int, NumericElement, ReductionOp, Scalar, TryFromCount,
 };
 pub use layout::{
     is_contiguous, row_major_strides, ConstLayout, ConstShape, Layout, Shape, Strides,
@@ -37,3 +37,4 @@ pub use ptr::{SendPtr, SendPtrMut};
 pub use storage::{
     CowStorage, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage, Storage, StorageMut,
 };
+

@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Scalar};
+use coeus_core::{ComputeBackend, Scalar, NumericElement};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Write {
@@ -39,15 +39,15 @@ fn scalar_writes<T: Scalar, B: ComputeBackend>(backend: &B, write: Write, one: T
             }
             Write::FillZero => {
                 backend.fill_zero(&mut modified);
-                vec![T::zero(); len]
+                vec![<T as NumericElement>::ZERO; len]
             }
             Write::CopyToDevice => {
                 backend.copy_to_device(&uploaded, &mut modified);
                 uploaded
             }
         };
-        let mut original_values = vec![T::zero(); len];
-        let mut modified_values = vec![T::zero(); len];
+        let mut original_values = vec![<T as NumericElement>::ZERO; len];
+        let mut modified_values = vec![<T as NumericElement>::ZERO; len];
         backend.copy_to_host(&original, &mut original_values);
         backend.copy_to_host(&modified, &mut modified_values);
         assert_eq!(
@@ -66,3 +66,6 @@ fn scalar_writes<T: Scalar, B: ComputeBackend>(backend: &B, write: Write, one: T
         );
     }
 }
+
+
+

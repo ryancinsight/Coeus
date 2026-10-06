@@ -5,6 +5,7 @@
 
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
 use eunomia::Complex;
+use eunomia::NumericElement;
 
 impl<T: Float + core::ops::Neg<Output = T>> private::Sealed for Complex<T> {}
 
@@ -22,8 +23,8 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
     fn log_op(self) -> Self {
         let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
         let theta = <T as crate::Scalar>::from_f64(
-            <T as eunomia::NumericElement>::to_f64(self.im)
-                .atan2(<T as eunomia::NumericElement>::to_f64(self.re)),
+            self.im.to_f64()
+                .atan2(self.re.to_f64()),
         );
         Self {
             re: <T as Float>::ln(r),
@@ -33,7 +34,7 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
 
     #[inline(always)]
     fn exp2_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
@@ -60,7 +61,7 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
     fn cos_op(self) -> Self {
         Self {
             re: <T as Float>::cos(self.re) * <T as Float>::cosh(self.im),
-            im: T::zero() - (<T as Float>::sin(self.re) * <T as Float>::sinh(self.im)),
+            im: <T as NumericElement>::ZERO - (<T as Float>::sin(self.re) * <T as Float>::sinh(self.im)),
         }
     }
 
@@ -81,67 +82,67 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
 
     #[inline(always)]
     fn tan_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn asin_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn acos_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn atan_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn sinh_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn cosh_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn log2_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn log10_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn atanh_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn asinh_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn acosh_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn expm1_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
     fn log1p_op(self) -> Self {
-        Self::zero()
+        <Self as NumericElement>::ZERO
     }
 
     #[inline(always)]
@@ -151,10 +152,10 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
 
     #[inline(always)]
     fn sigmoid_op(self) -> Self {
-        let one = Self::one();
+        let one = <Self as NumericElement>::ONE;
         let exp_neg_z = Self {
-            re: T::zero() - self.re,
-            im: T::zero() - self.im,
+            re: <T as NumericElement>::ZERO - self.re,
+            im: <T as NumericElement>::ZERO - self.im,
         }
         .exp_op();
         one / (one + exp_neg_z)
@@ -162,30 +163,15 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
 }
 
 impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
-    // `zero/one/to_f64/abs_val` resolve to the eunomia-SSOT defaults on
-    // `Scalar` (identical constructions). `sqrt_val` stays implemented
-    // below: it is the principal complex root over |z| (see ADR 0069 S1
-    // log) and is not delegated.
+    // `Scalar` keeps only what no provider owns; identities live on
+    // `NumericElement` and are used directly at call sites.
 
     #[inline(always)]
     fn from_f64(v: f64) -> Self {
         Self {
             re: <T as crate::Scalar>::from_f64(v),
-            im: T::zero(),
+            im: <T as NumericElement>::ZERO,
         }
-    }
-
-    #[inline(always)]
-    fn sqrt_val(self) -> Self {
-        let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
-        let u = <T as Float>::sqrt((r + self.re) / <T as crate::Scalar>::from_f64(2.0));
-        let v = <T as Float>::sqrt((r - self.re) / <T as crate::Scalar>::from_f64(2.0));
-        let v = if <T as eunomia::NumericElement>::to_f64(self.im) < 0.0 {
-            T::zero() - v
-        } else {
-            v
-        };
-        Self { re: u, im: v }
     }
 
     #[inline(always)]
@@ -202,14 +188,14 @@ impl<T: Float + core::ops::Neg<Output = T>> Scalar for Complex<T> {
 impl<T: Float + core::ops::Neg<Output = T>> crate::dtype::CpuUnaryDispatch for Complex<T> {
     #[inline]
     fn eval_unary(op: crate::dtype::CpuUnaryOp, x: Self) -> Self {
-        use crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
+        use crate::dtype::{CpuUnaryOp, FloatOps};
         match op {
             CpuUnaryOp::Relu => panic!("Relu not supported on complex types"),
             CpuUnaryOp::ReluGrad => panic!("ReluGrad not supported on complex types"),
             CpuUnaryOp::Sigmoid => x.sigmoid_op(),
-            CpuUnaryOp::SigmoidGrad => x * (Self::one() - x),
+            CpuUnaryOp::SigmoidGrad => x * (<Self as NumericElement>::ONE - x),
             CpuUnaryOp::Tanh => x.tanh_op(),
-            CpuUnaryOp::TanhGrad => Self::one() - x * x,
+            CpuUnaryOp::TanhGrad => <Self as NumericElement>::ONE - x * x,
             CpuUnaryOp::Gelu => panic!("Gelu not supported on complex types"),
             CpuUnaryOp::GeluGrad => panic!("GeluGrad not supported on complex types"),
             CpuUnaryOp::Sin => x.sin_op(),
@@ -234,23 +220,23 @@ impl<T: Float + core::ops::Neg<Output = T>> crate::dtype::CpuUnaryDispatch for C
             CpuUnaryOp::Exp => x.exp_op(),
             CpuUnaryOp::Log => x.log_op(),
             CpuUnaryOp::Neg => Self {
-                re: T::zero() - x.re,
-                im: T::zero() - x.im,
+                re: <T as NumericElement>::ZERO - x.re,
+                im: <T as NumericElement>::ZERO - x.im,
             },
-            CpuUnaryOp::Abs => x.abs_val(),
-            CpuUnaryOp::Sqrt => x.sqrt_val(),
+            CpuUnaryOp::Abs => x.abs(),
+            CpuUnaryOp::Sqrt => x.sqrt(),
             CpuUnaryOp::Recip => {
                 // 1 / (a + bi) = (a - bi) / (a² + b²)
                 let mag_sq = x.re * x.re + x.im * x.im;
                 Self {
                     re: x.re / mag_sq,
-                    im: T::zero() - x.im / mag_sq,
+                    im: <T as NumericElement>::ZERO - x.im / mag_sq,
                 }
             }
             CpuUnaryOp::Sign => {
                 let mag = <T as Float>::sqrt(x.re * x.re + x.im * x.im);
-                if mag == T::zero() {
-                    Self::zero()
+                if mag == <T as NumericElement>::ZERO {
+                    <Self as NumericElement>::ZERO
                 } else {
                     Self {
                         re: x.re / mag,
@@ -262,3 +248,7 @@ impl<T: Float + core::ops::Neg<Output = T>> crate::dtype::CpuUnaryDispatch for C
         }
     }
 }
+
+
+
+

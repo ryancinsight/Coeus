@@ -7,8 +7,7 @@
 
 use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
-    Shape,
-};
+    Shape, NumericElement};
 use coeus_ops::backend_ops::ReductionOps;
 use coeus_ops::{CpuBackend, ReductionOp};
 
@@ -34,7 +33,7 @@ where
         .reduce(op, &a_buf, &a_layout, 1, &mut c_buf, &c_layout)
         .expect("CPU reduction dispatch");
 
-    let mut out = vec![T::zero(); rows];
+    let mut out = vec![<T as NumericElement>::ZERO; rows];
     backend.copy_to_host(&c_buf, &mut out);
     out
 }
@@ -103,3 +102,7 @@ fn sequential_reduction_matches_reference() {
 fn moirai_reduction_matches_reference() {
     check_f32(&MoiraiBackend);
 }
+
+
+
+

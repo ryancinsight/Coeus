@@ -11,7 +11,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
 
@@ -29,7 +29,7 @@ fn avg_pool_matrix_t<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let mut pt = vec![T::zero(); in_len * out_len];
+    let mut pt = vec![<T as NumericElement>::ZERO; in_len * out_len];
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
@@ -67,11 +67,11 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     // outside[o, l] = 1 where l is NOT in region o → filled with -inf below.
-    let mut outside = vec![T::one(); out_len * in_len];
+    let mut outside = vec![<T as NumericElement>::ONE; out_len * in_len];
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
-        outside[o * in_len + start..o * in_len + end].fill(T::zero());
+        outside[o * in_len + start..o * in_len + end].fill(<T as NumericElement>::ZERO);
     }
     let outside_var = Var::new(
         Tensor::from_slice_on([1, out_len, in_len], &outside, backend),
@@ -416,3 +416,6 @@ where
         Ok(coeus_autograd::reshape(&out, [n, c, oh, ow]))
     }
 }
+
+
+

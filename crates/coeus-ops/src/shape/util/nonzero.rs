@@ -1,7 +1,7 @@
 // ── nonzero — row-major coordinates of non-zero elements ──
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CountRangeError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{CountRangeError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Return the row-major coordinates of all non-zero elements.
@@ -28,7 +28,7 @@ where
 
     for flat in 0..input.numel() {
         let idx = crate::shape::flat_to_nd(flat, shape);
-        if input.get(&idx) != T::zero() {
+        if input.get(&idx) != <T as NumericElement>::ZERO {
             count += 1;
             for coord in idx {
                 out_vec.push(T::try_from_count(coord)?);
@@ -98,3 +98,6 @@ mod tests {
         assert_eq!(out.as_slice(), &[0.0]);
     }
 }
+
+
+

@@ -4,7 +4,7 @@
 //! dynamic-rank `coeus-leto` scan shim. The references below are independent
 //! row-major prefix/suffix scans over exactly representable values.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
@@ -56,8 +56,8 @@ fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N]) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            NumericElement::to_f64(actual).to_bits(),
+            NumericElement::to_f64(reference).to_bits(),
             "scan mismatch at index {index}",
         );
     }
@@ -76,3 +76,6 @@ fn moirai_scans_match_reference() {
     check_backend::<f32, _>(&backend);
     check_backend::<f64, _>(&backend);
 }
+
+
+

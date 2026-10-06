@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -125,7 +125,7 @@ where
     let row_net = coeus_ops::sub(&row_sum, &margin_p, &backend);
     // loss = sum_i row_net_i / (N * C). `mean_axis` divides by N, so scale
     // the mean by 1/C.
-    let inv_c = T::one() / <T as Scalar>::from_f64(c as f64);
+    let inv_c = <T as NumericElement>::ONE / <T as Scalar>::from_f64(c as f64);
     let mean_loss = coeus_ops::mean_axis(&row_net.reshape([n]), 0, &backend)
         .expect("invariant: validated non-empty multi-margin reduction has axis zero");
     let loss = coeus_ops::mul(&mean_loss, &Tensor::full_on([1], inv_c, &backend), &backend);
@@ -133,7 +133,7 @@ where
     // grad_unit = p * relu(m)^(p-1) / (N*C), all j including j == y, but
     // zeroed where the hinge is inactive (m <= 0) so `0^(p-1)` (which is 1
     // for p == 1) never activates a dead sibling.
-    let p_minus_one = p - T::one();
+    let p_minus_one = p - <T as NumericElement>::ONE;
     let raw_coef = coeus_ops::mul(
         &coeus_ops::pow_scalar(&hinge, p_minus_one, &backend),
         &Tensor::full_on(shape.to_vec(), p, &backend),
@@ -147,7 +147,7 @@ where
         &backend,
     )
     .expect("multi_margin: active-hinge mask");
-    let inv_nc = T::one() / <T as Scalar>::from_f64((n * c) as f64);
+    let inv_nc = <T as NumericElement>::ONE / <T as Scalar>::from_f64((n * c) as f64);
     let grad_unit = coeus_ops::mul(
         &coef,
         &Tensor::full_on(shape.to_vec(), inv_nc, &backend),
@@ -307,3 +307,6 @@ mod tests {
         let _ = multi_margin(&x, &targets, 1.0, 1.0);
     }
 }
+
+
+

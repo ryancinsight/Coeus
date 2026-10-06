@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut, NumericElement};
 use coeus_tensor::Tensor;
 use std::borrow::Cow;
 
@@ -18,12 +18,12 @@ pub(crate) fn get_tensor_host_data<'a, T: Scalar, B: ComputeBackend>(
         }
     }
 
-    let mut host_data = vec![T::zero(); numel];
+    let mut host_data = vec![<T as NumericElement>::ZERO; numel];
     if tensor.is_contiguous() && tensor.layout().offset() == 0 {
         backend.copy_to_host(tensor.storage(), &mut host_data);
     } else {
         let storage_len = Storage::len(tensor.storage());
-        let mut full_host_storage = vec![T::zero(); storage_len];
+        let mut full_host_storage = vec![<T as NumericElement>::ZERO; storage_len];
         backend.copy_to_host(tensor.storage(), &mut full_host_storage);
 
         let ndim = tensor.ndim();
@@ -61,7 +61,7 @@ pub(crate) fn copy_host_slice_to_tensor<T: Scalar, B: ComputeBackend>(
         }
     } else {
         let storage_len = Storage::len(tensor.storage());
-        let mut full_host_storage = vec![T::zero(); storage_len];
+        let mut full_host_storage = vec![<T as NumericElement>::ZERO; storage_len];
         backend.copy_to_host(tensor.storage(), &mut full_host_storage);
 
         let ndim = tensor.ndim();
@@ -128,7 +128,7 @@ where
         }
     }
 
-    let mut host_data = vec![T::zero(); numel];
+    let mut host_data = vec![<T as NumericElement>::ZERO; numel];
     let raw_ptr = host_data.as_mut_ptr() as *mut u8;
     let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
     recv_fn(raw_slice)?;
@@ -149,3 +149,6 @@ where
     let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
     recv_fn(raw_slice)
 }
+
+
+

@@ -1,6 +1,7 @@
 use crate::convert::{to_leto_view, to_leto_view_mut};
 use coeus_core::{
-    BinaryOp, CpuUnaryDispatch, CpuUnaryOp as UnaryOp, Layout as CoeusLayout, Scalar as CoeusScalar,
+    BinaryOp, CpuUnaryDispatch, CpuUnaryOp as UnaryOp, Layout as CoeusLayout,
+    NumericElement, Scalar as CoeusScalar,
 };
 use leto::{LetoError, Result};
 use leto_ops::{PowfOp, Scalar as LetoScalar};
@@ -178,22 +179,22 @@ fn binary_assign_n<T: LetoScalar + CoeusScalar, const N: usize>(
             *left = std::ops::Div::div(*left, *right);
         }),
         BinaryOp::Eq => assign!(|left: &mut T, right: &T| {
-            *left = if *left == *right { T::one() } else { T::zero() };
+            *left = if *left == *right { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO };
         }),
         BinaryOp::Ne => assign!(|left: &mut T, right: &T| {
-            *left = if *left != *right { T::one() } else { T::zero() };
+            *left = if *left != *right { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO };
         }),
         BinaryOp::Lt => assign!(|left: &mut T, right: &T| {
-            *left = if *left < *right { T::one() } else { T::zero() };
+            *left = if *left < *right { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO };
         }),
         BinaryOp::Gt => assign!(|left: &mut T, right: &T| {
-            *left = if *left > *right { T::one() } else { T::zero() };
+            *left = if *left > *right { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO };
         }),
         BinaryOp::Le => assign!(|left: &mut T, right: &T| {
-            *left = if *left <= *right { T::one() } else { T::zero() };
+            *left = if *left <= *right { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO };
         }),
         BinaryOp::Ge => assign!(|left: &mut T, right: &T| {
-            *left = if *left >= *right { T::one() } else { T::zero() };
+            *left = if *left >= *right { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO };
         }),
     }
 }
@@ -407,3 +408,5 @@ pub fn elementwise_pow_scalar_into<T: LetoScalar + CoeusScalar + leto_ops::RealS
         }),
     }
 }
+
+

@@ -1,4 +1,4 @@
-use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
+use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar, NumericElement};
 use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::ElementwiseOps;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
@@ -120,7 +120,7 @@ where
         BinaryOp::Le,
         BinaryOp::Ge,
     ] {
-        let mut expected = vec![T::zero(); lhs.len()];
+        let mut expected = vec![<T as NumericElement>::ZERO; lhs.len()];
         coeus_leto::elementwise_binary_into(
             operation,
             &layout,
@@ -143,7 +143,7 @@ where
                 &layout,
             )
             .expect("ROCm integer comparison dispatch failed");
-        let mut actual_values = vec![T::zero(); lhs.len()];
+        let mut actual_values = vec![<T as NumericElement>::ZERO; lhs.len()];
         backend.copy_to_host(&actual, &mut actual_values);
         assert_eq!(
             actual_values, expected,
@@ -429,3 +429,6 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         assert_close(&actual_values, &expected, "activation");
     }
 }
+
+
+

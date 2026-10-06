@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -89,7 +89,7 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     // taken as 0 by convention. All on-provider. `log(target)` is evaluated
     // on a safe copy (0 → 1) so no -inf lane exists; the original target
     // (0 at those positions) zeroes the term, avoiding `0 * -inf = NaN`.
-    let ones = Tensor::full_on(target.tensor.shape_cloned(), T::one(), &backend);
+    let ones = Tensor::full_on(target.tensor.shape_cloned(), <T as NumericElement>::ONE, &backend);
     let zeros = Tensor::zeros_on(target.tensor.shape_cloned(), &backend);
     let zero_mask = coeus_ops::eq(&target.tensor, &zeros, &backend);
     let safe_target = coeus_ops::where_cond(&zero_mask, &ones, &target.tensor, &backend)
@@ -115,7 +115,7 @@ pub fn kl_divergence<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             n,
             mean_scale: Tensor::full_on(
                 [1],
-                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                <T as NumericElement>::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
                 &backend,
             ),
         };
@@ -179,3 +179,6 @@ mod tests {
         let _ = kl_divergence(&input, &target);
     }
 }
+
+
+

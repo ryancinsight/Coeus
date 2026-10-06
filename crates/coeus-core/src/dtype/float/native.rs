@@ -1,17 +1,15 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
-use eunomia::FloatElement;
+use eunomia::{FloatElement, NumericElement};
 
 macro_rules! impl_scalar_float_native {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
-            // defaults on `Scalar`. Only the int-inclusive `from_f64` (kept
-            // abstract for integers) is implemented, delegating to
-            // `FloatElement::from_f64` — identical to `v as Self` for natives.
+            // `Scalar` keeps only what no provider owns; identities live on
+            // `NumericElement` and are used directly at call sites.
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
-                <Self as FloatElement>::from_f64(v)
+                v as Self
             }
             #[inline(always)]
             fn total_add(self, rhs: Self) -> Self {
@@ -157,10 +155,6 @@ macro_rules! impl_scalar_float_native {
                 self.fract()
             }
             #[inline(always)]
-            fn abs(self) -> Self {
-                self.abs()
-            }
-            #[inline(always)]
             fn signum(self) -> Self {
                 self.signum()
             }
@@ -237,12 +231,8 @@ macro_rules! impl_scalar_float_native {
                 self == self.trunc() && self.is_finite()
             }
             #[inline(always)]
-            fn is_nan(self) -> bool {
-                self.is_nan()
-            }
-            #[inline(always)]
-            fn is_finite(self) -> bool {
-                self.is_finite()
+            fn is_infinite(self) -> bool {
+                self.is_infinite()
             }
         }
     };
@@ -250,3 +240,5 @@ macro_rules! impl_scalar_float_native {
 
 impl_scalar_float_native!(f32);
 impl_scalar_float_native!(f64);
+
+

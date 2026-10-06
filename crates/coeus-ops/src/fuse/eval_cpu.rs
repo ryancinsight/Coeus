@@ -1,7 +1,7 @@
 use crate::fuse::expr_node::CpuExprNode;
 use crate::ptr::MutPtr;
 use crate::CpuBackend;
-use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 #[repr(transparent)]
@@ -314,8 +314,8 @@ where
 
     if axis_len == 0 {
         let identity = match op {
-            crate::ReductionOp::Sum => T::zero(),
-            crate::ReductionOp::Prod => T::one(),
+            crate::ReductionOp::Sum => <T as NumericElement>::ZERO,
+            crate::ReductionOp::Prod => <T as NumericElement>::ONE,
             crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min => {
                 unreachable!("invariant: undefined empty reductions were rejected")
             }
@@ -335,3 +335,6 @@ where
 
     Ok(out)
 }
+
+
+

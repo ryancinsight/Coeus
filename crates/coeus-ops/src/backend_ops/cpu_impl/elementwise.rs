@@ -81,7 +81,7 @@ pub(super) fn elementwise_pow_scalar<T, B>(
     c_layout: &Layout,
 ) -> Result<(), B::Error>
 where
-    T: Scalar + Float,
+    T: Float,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -94,4 +94,5 @@ where
     )
     .map_err(|error| map_leto_error("elementwise scalar power", error))
 }
+
 

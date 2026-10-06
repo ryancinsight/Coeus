@@ -2,6 +2,7 @@ use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::Float;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -128,10 +129,10 @@ pub fn pairwise_distance<
     // Backward factors: row_scale = out^(1-p) reshaped to [N, 1] (the
     // `s^(1/p-1)` factor equals `out^(1-p)` since out = s^(1/p));
     // grad_unit = sign(diff) * |diff|^(p-1).
-    let one_minus_p = T::one() - p;
+    let one_minus_p = <T as NumericElement>::ONE - p;
     let row_scale = coeus_ops::pow_scalar(&row_norm, one_minus_p, &backend);
     let row_scale = row_scale.reshape([rows, 1]);
-    let p_minus_one = p - T::one();
+    let p_minus_one = p - <T as NumericElement>::ONE;
     let magnitudes = coeus_ops::abs(&shifted, &backend);
     let grad_unit = coeus_ops::mul(
         &coeus_ops::sign(&shifted, &backend),
@@ -189,8 +190,8 @@ mod tests {
         let out = pairwise_distance(&x1, &x2, 2.0, 1e-6);
         assert_eq!(out.tensor.shape(), &[1]);
         // eps is added to each diff: norm of [3+eps, 4+eps].
-        let eps = 1e-6;
-        let expected = ((3.0 + eps).powi(2) + (4.0 + eps).powi(2)).sqrt();
+        let eps = 1e-6_f64;
+        let expected = f64::sqrt((3.0 + eps).powi(2) + (4.0 + eps).powi(2));
         assert!((out.tensor.as_slice()[0] - expected).abs() < 1e-9);
     }
 
@@ -265,3 +266,6 @@ mod tests {
         let _ = pairwise_distance(&x1, &x2, 2.0, 1e-6);
     }
 }
+
+
+

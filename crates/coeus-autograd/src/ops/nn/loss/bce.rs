@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -47,7 +47,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         if let Some(Some(ref g)) = input_grads.first() {
             // d/dp = -(t/p - (1-t)/(1-p)) / n, all on-provider.
             let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
-            let ones = Tensor::full_on([1], T::one(), &backend);
+            let ones = Tensor::full_on([1], <T as NumericElement>::ONE, &backend);
             let inv_p = coeus_ops::div(&self.targets, &self.probs, &backend);
             let one_minus_t = coeus_ops::sub(&ones, &self.targets, &backend);
             let one_minus_p = coeus_ops::sub(&ones, &self.probs, &backend);
@@ -77,7 +77,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     // Clamp pred to [eps, 1-eps] with two where_cond selects.
     let eps_tensor = Tensor::full_on(shape.clone(), eps, &backend);
-    let one_minus_eps_tensor = Tensor::full_on(shape.clone(), T::one() - eps, &backend);
+    let one_minus_eps_tensor = Tensor::full_on(shape.clone(), <T as NumericElement>::ONE - eps, &backend);
     let below = coeus_ops::lt(&pred.tensor, &eps_tensor, &backend);
     let clamped_low = coeus_ops::where_cond(&below, &eps_tensor, &pred.tensor, &backend)
         .expect("binary_cross_entropy: low clamp");
@@ -86,7 +86,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         .expect("binary_cross_entropy: high clamp");
 
     // loss = -(t * log(p) + (1-t) * log(1-p)), all on-provider.
-    let ones = Tensor::full_on(shape.clone(), T::one(), &backend);
+    let ones = Tensor::full_on(shape.clone(), <T as NumericElement>::ONE, &backend);
     let log_p = coeus_ops::log(&probs, &backend);
     let log_1mp = coeus_ops::log(&coeus_ops::sub(&ones, &probs, &backend), &backend);
     let term = coeus_ops::add(
@@ -117,7 +117,7 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             n,
             mean_scale: Tensor::full_on(
                 [1],
-                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                <T as NumericElement>::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
                 &backend,
             ),
         };
@@ -185,3 +185,6 @@ mod tests {
         let _ = binary_cross_entropy(&pred, &target, 1e-7);
     }
 }
+
+
+

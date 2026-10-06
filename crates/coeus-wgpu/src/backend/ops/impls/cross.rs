@@ -1,5 +1,5 @@
 use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
-use coeus_core::{ComputeBackend, Layout};
+use coeus_core::{ComputeBackend, Layout, NumericElement};
 use coeus_hephaestus::{cross_product, CrossProductProvider, HephaestusStorage};
 use hephaestus_core::CrossProductOps;
 use hephaestus_wgpu::{DialectScalar, WgpuCrossProductOps, WgpuDevice, Wgsl};
@@ -36,14 +36,17 @@ where
                 .map(HephaestusStorage::from_buffer)
                 .map_err(|source| WgpuBackendError::dispatch("cross", source));
         }
-        let mut a_host = vec![T::zero(); numel];
-        let mut b_host = vec![T::zero(); numel];
+        let mut a_host = vec![<T as NumericElement>::ZERO; numel];
+        let mut b_host = vec![<T as NumericElement>::ZERO; numel];
         self.copy_to_host(a, &mut a_host);
         self.copy_to_host(b, &mut b_host);
-        let mut out_host = vec![T::zero(); numel];
+        let mut out_host = vec![<T as NumericElement>::ZERO; numel];
         coeus_ops::cross_fold(&a_host, &b_host, a_layout, dim, &mut out_host);
         let mut output = self.allocate(numel);
         self.copy_to_device(&out_host, &mut output);
         Ok(output)
     }
 }
+
+
+

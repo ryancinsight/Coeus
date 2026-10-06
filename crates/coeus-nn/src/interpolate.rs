@@ -11,7 +11,7 @@
 // Forward-only (no autograd in this implementation).  For training, wrap the
 // result in a `Var` with `requires_grad = false`.
 
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Resize mode.
@@ -42,7 +42,7 @@ where
     let in_s = in_cont.as_slice();
 
     let out_numel = n * c * new_l;
-    let mut out = vec![T::zero(); out_numel];
+    let mut out = vec![<T as NumericElement>::ZERO; out_numel];
 
     for bi in 0..n {
         for ci in 0..c {
@@ -92,7 +92,7 @@ where
     let in_cont = input.to_contiguous();
     let in_s = in_cont.as_slice();
 
-    let mut out = vec![T::zero(); n * c * new_h * new_w];
+    let mut out = vec![<T as NumericElement>::ZERO; n * c * new_h * new_w];
 
     for bi in 0..n {
         for ci in 0..c {
@@ -141,3 +141,6 @@ where
 
     Tensor::from_slice(vec![n, c, new_h, new_w], &out)
 }
+
+
+

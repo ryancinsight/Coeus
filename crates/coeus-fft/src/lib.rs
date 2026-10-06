@@ -19,7 +19,7 @@
 use coeus_autograd::BackwardNode;
 use coeus_autograd::GradBuffer;
 use coeus_autograd::Var;
-use coeus_core::{Complex, ComputeBackend, Float, FloatElement, MoiraiBackend, Scalar};
+use coeus_core::{Complex, ComputeBackend, Float, FloatElement, MoiraiBackend, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::ops::Neg;
 use std::sync::Arc;
@@ -63,7 +63,7 @@ where
     B: ComputeBackend + Default,
 {
     let backend = B::default();
-    let mut current = vec![T::zero(); delta.numel()];
+    let mut current = vec![<T as NumericElement>::ZERO; delta.numel()];
     let delta_host = tensor_to_vec(delta);
     let guard = grad.write();
     backend.copy_to_host(guard.storage(), &mut current);
@@ -80,7 +80,7 @@ where
 {
     let backend = B::default();
     let contiguous = tensor.to_contiguous();
-    let mut host = vec![T::zero(); contiguous.numel()];
+    let mut host = vec![<T as NumericElement>::ZERO; contiguous.numel()];
     backend.copy_to_host(contiguous.storage(), &mut host);
     host
 }
@@ -349,7 +349,7 @@ where
     let spectrum = fft_1d(&x.tensor);
     let energy = tensor_to_vec(&spectrum)
         .iter()
-        .fold(T::zero(), |acc, c| acc + c.re * c.re + c.im * c.im);
+        .fold(<T as NumericElement>::ZERO, |acc, c| acc + c.re * c.re + c.im * c.im);
     let out_tensor = Tensor::from_slice_on([1], &[energy], &backend);
     let requires_grad = coeus_autograd::is_grad_enabled() && x.grad.is_some();
     let grad = if requires_grad {
@@ -370,3 +370,6 @@ where
         creator,
     }
 }
+
+
+

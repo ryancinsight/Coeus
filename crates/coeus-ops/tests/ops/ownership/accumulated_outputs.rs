@@ -1,5 +1,5 @@
 use super::optimizer::{assert_values, upload};
-use coeus_core::{Layout, Scalar};
+use coeus_core::{Layout, Scalar, NumericElement};
 use coeus_ops::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward, PoolOps,
     UnfoldFoldOps,
@@ -130,7 +130,7 @@ pub(crate) fn attention_preserves_output_clones<T: AttentionScalar, B: Attention
     one: T,
 ) {
     let _span = tracing::info_span!("attention_output_ownership").entered();
-    let zero = T::zero();
+    let zero = <T as NumericElement>::ZERO;
     let two = one + one;
     let three = two + one;
     let four = two + two;
@@ -367,3 +367,6 @@ pub(crate) fn windows_preserve_output_clones<T: Scalar, B: UnfoldFoldOps<T>>(bac
     assert_values(backend, &original_fold, &[three, one, two]);
     assert_values(backend, &folded, &[one, four, four]);
 }
+
+
+

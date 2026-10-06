@@ -6,7 +6,7 @@ use hephaestus_core::AttentionScalar;
 impl<P, T> coeus_ops::AttentionOps<T> for HephaestusBackend<P>
 where
     P: AttentionProvider<T>,
-    T: Scalar + Float + AttentionScalar + coeus_ops::AttentionScalar,
+    T: coeus_ops::AttentionScalar + AttentionScalar,
 {
     fn sdp_attention(
         &self,
@@ -84,3 +84,5 @@ where
         )
     }
 }
+
+

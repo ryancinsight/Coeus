@@ -7,15 +7,16 @@
 
 use super::*;
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 
 /// `sqrt(ε)` for `T`, the accuracy floor of a first-order criterion.
 fn sqrt_epsilon<T: Scalar>() -> T {
-    let mut epsilon = T::one();
+    let mut epsilon = <T as NumericElement>::ONE;
     let two = <T as Scalar>::from_f64(2.0);
-    while T::one() + epsilon / two > T::one() {
+    while <T as NumericElement>::ONE + epsilon / two > <T as NumericElement>::ONE {
         epsilon = epsilon / two;
     }
-    epsilon.sqrt_val()
+    epsilon.sqrt()
 }
 
 /// A linear model `r = A·p - b`, whose Jacobian is constant.
@@ -41,7 +42,7 @@ impl<T: Scalar> LeastSquaresProblem<T> for LinearProblem<T> {
     fn residuals(&self, parameters: &[T], residuals: &mut [T]) -> Result<(), ProblemError> {
         for (row, slot) in residuals.iter_mut().enumerate() {
             let base = row * self.parameters;
-            let mut sum = T::zero();
+            let mut sum = <T as NumericElement>::ZERO;
             for (column, parameter) in parameters.iter().enumerate() {
                 sum += self.matrix[base + column] * *parameter;
             }
@@ -88,7 +89,7 @@ impl<T: Scalar> BatchedLeastSquaresProblem<T> for BatchedLinearProblem<T> {
         let target_start = problem_index * self.residuals;
         for (row, slot) in residuals.iter_mut().enumerate() {
             let row_start = matrix_start + row * self.parameters;
-            let mut sum = T::zero();
+            let mut sum = <T as NumericElement>::ZERO;
             for (column, parameter) in parameters.iter().enumerate() {
                 sum += self.matrix[row_start + column] * *parameter;
             }
@@ -121,7 +122,7 @@ struct DecayProblem<T> {
 
 impl<T: Scalar> DecayProblem<T> {
     fn model(&self, b: T, s0: T, d: T) -> T {
-        <T as Scalar>::from_f64((-(Scalar::to_f64(b)) * Scalar::to_f64(d)).exp()) * s0
+        <T as Scalar>::from_f64((-(NumericElement::to_f64(b)) * NumericElement::to_f64(d)).exp()) * s0
     }
 }
 
@@ -146,9 +147,9 @@ impl<T: Scalar> LeastSquaresProblem<T> for DecayProblem<T> {
         // d/ds0 = exp(-b·d); d/dd = -b · s0 · exp(-b·d)
         let (s0, d) = (parameters[0], parameters[1]);
         for (index, b) in self.b_values.iter().enumerate() {
-            let decay = <T as Scalar>::from_f64((-(Scalar::to_f64(*b)) * Scalar::to_f64(d)).exp());
+            let decay = <T as Scalar>::from_f64((-(NumericElement::to_f64(*b)) * NumericElement::to_f64(d)).exp());
             jacobian[index * 2] = decay;
-            jacobian[index * 2 + 1] = T::zero() - *b * s0 * decay;
+            jacobian[index * 2 + 1] = <T as NumericElement>::ZERO - *b * s0 * decay;
         }
         Ok(())
     }
@@ -172,7 +173,7 @@ impl<T: Scalar> LeastSquaresProblem<T> for RosenbrockProblem {
     fn residuals(&self, parameters: &[T], residuals: &mut [T]) -> Result<(), ProblemError> {
         let (x, y) = (parameters[0], parameters[1]);
         residuals[0] = <T as Scalar>::from_f64(10.0) * (y - x * x);
-        residuals[1] = T::one() - x;
+        residuals[1] = <T as NumericElement>::ONE - x;
         Ok(())
     }
 
@@ -181,7 +182,7 @@ impl<T: Scalar> LeastSquaresProblem<T> for RosenbrockProblem {
         jacobian[0] = <T as Scalar>::from_f64(-20.0) * x;
         jacobian[1] = <T as Scalar>::from_f64(10.0);
         jacobian[2] = <T as Scalar>::from_f64(-1.0);
-        jacobian[3] = T::zero();
+        jacobian[3] = <T as NumericElement>::ZERO;
         Ok(())
     }
 }
@@ -200,25 +201,25 @@ impl<T: Scalar> LeastSquaresProblem<T> for DomainLimitedProblem {
     }
 
     fn residuals(&self, parameters: &[T], residuals: &mut [T]) -> Result<(), ProblemError> {
-        if parameters[0] < T::zero() {
+        if parameters[0] < <T as NumericElement>::ZERO {
             return Err(ProblemError::Domain {
                 reason: "parameter must be non-negative".to_owned(),
             });
         }
-        residuals[0] = parameters[0].sqrt_val() - <T as Scalar>::from_f64(2.0);
-        residuals[1] = T::zero();
+        residuals[0] = parameters[0].sqrt() - <T as Scalar>::from_f64(2.0);
+        residuals[1] = <T as NumericElement>::ZERO;
         Ok(())
     }
 
     fn jacobian(&self, parameters: &[T], jacobian: &mut [T]) -> Result<(), ProblemError> {
         let value = parameters[0];
-        let guarded = if value > T::zero() {
+        let guarded = if value > <T as NumericElement>::ZERO {
             value
         } else {
             <T as Scalar>::from_f64(1e-12)
         };
-        jacobian[0] = T::one() / (<T as Scalar>::from_f64(2.0) * guarded.sqrt_val());
-        jacobian[1] = T::zero();
+        jacobian[0] = <T as NumericElement>::ONE / (<T as Scalar>::from_f64(2.0) * guarded.sqrt());
+        jacobian[1] = <T as NumericElement>::ZERO;
         Ok(())
     }
 }
@@ -238,21 +239,21 @@ fn linear_problem_is_solved_exactly<T: LeastSquaresScalar>() {
 
     let report = levenberg_marquardt(
         &problem,
-        &[T::zero(), T::zero()],
+        &[<T as NumericElement>::ZERO, <T as NumericElement>::ZERO],
         &LevenbergMarquardtConfig::default(),
     )
     .expect("a consistent linear system is solvable");
 
     let tolerance = sqrt_epsilon::<T>() * <T as Scalar>::from_f64(100.0);
     assert!(
-        (report.parameters[0] - <T as Scalar>::from_f64(2.0)).abs_val() < tolerance,
+        (report.parameters[0] - <T as Scalar>::from_f64(2.0)).abs() < tolerance,
         "first parameter must recover 2, got {:?}",
-        Scalar::to_f64(report.parameters[0])
+        NumericElement::to_f64(report.parameters[0])
     );
     assert!(
-        (report.parameters[1] - <T as Scalar>::from_f64(-1.0)).abs_val() < tolerance,
+        (report.parameters[1] - <T as Scalar>::from_f64(-1.0)).abs() < tolerance,
         "second parameter must recover -1, got {:?}",
-        Scalar::to_f64(report.parameters[1])
+        NumericElement::to_f64(report.parameters[1])
     );
     assert!(
         report.termination.is_converged(),
@@ -272,7 +273,7 @@ fn decay_model_recovers_known_parameters<T: LeastSquaresScalar>() {
         .to_vec();
     let measured: Vec<T> = b_values
         .iter()
-        .map(|b| <T as Scalar>::from_f64((-(Scalar::to_f64(*b)) * Scalar::to_f64(d)).exp()) * s0)
+        .map(|b| <T as Scalar>::from_f64((-(NumericElement::to_f64(*b)) * NumericElement::to_f64(d)).exp()) * s0)
         .collect();
 
     let problem = DecayProblem { b_values, measured };
@@ -291,32 +292,32 @@ fn decay_model_recovers_known_parameters<T: LeastSquaresScalar>() {
     // an absolute bound would be meaningless for one of them.
     let relative = sqrt_epsilon::<T>() * <T as Scalar>::from_f64(1000.0);
     assert!(
-        (report.parameters[0] - s0).abs_val() / s0 < relative,
+        (report.parameters[0] - s0).abs() / s0 < relative,
         "s0 must recover 1000, got {}",
-        Scalar::to_f64(report.parameters[0])
+        NumericElement::to_f64(report.parameters[0])
     );
     assert!(
-        (report.parameters[1] - d).abs_val() / d < relative,
+        (report.parameters[1] - d).abs() / d < relative,
         "d must recover 7e-4, got {}",
-        Scalar::to_f64(report.parameters[1])
+        NumericElement::to_f64(report.parameters[1])
     );
 }
 
 fn rosenbrock_reaches_its_published_minimum<T: LeastSquaresScalar>() {
     let report = levenberg_marquardt(
         &RosenbrockProblem,
-        &[<T as Scalar>::from_f64(-1.2), T::one()],
+        &[<T as Scalar>::from_f64(-1.2), <T as NumericElement>::ONE],
         &LevenbergMarquardtConfig::default(),
     )
     .expect("Rosenbrock is solvable from the standard start");
 
     let tolerance = sqrt_epsilon::<T>() * <T as Scalar>::from_f64(100.0);
     assert!(
-        (report.parameters[0] - T::one()).abs_val() < tolerance
-            && (report.parameters[1] - T::one()).abs_val() < tolerance,
+        (report.parameters[0] - <T as NumericElement>::ONE).abs() < tolerance
+            && (report.parameters[1] - <T as NumericElement>::ONE).abs() < tolerance,
         "must reach the published minimum (1, 1), got ({}, {})",
-        Scalar::to_f64(report.parameters[0]),
-        Scalar::to_f64(report.parameters[1])
+        NumericElement::to_f64(report.parameters[0]),
+        NumericElement::to_f64(report.parameters[1])
     );
 }
 
@@ -333,9 +334,9 @@ fn domain_rejection_does_not_abort_the_solve<T: LeastSquaresScalar>() {
 
     let tolerance = sqrt_epsilon::<T>() * <T as Scalar>::from_f64(1000.0);
     assert!(
-        (report.parameters[0] - <T as Scalar>::from_f64(4.0)).abs_val() < tolerance,
+        (report.parameters[0] - <T as Scalar>::from_f64(4.0)).abs() < tolerance,
         "sqrt(p) = 2 has the solution p = 4, got {}",
-        Scalar::to_f64(report.parameters[0])
+        NumericElement::to_f64(report.parameters[0])
     );
 }
 
@@ -373,7 +374,7 @@ fn iteration_limit_is_reported_as_unconverged<T: LeastSquaresScalar>() {
     };
     let report = levenberg_marquardt(
         &RosenbrockProblem,
-        &[<T as Scalar>::from_f64(-1.2), T::one()],
+        &[<T as Scalar>::from_f64(-1.2), <T as NumericElement>::ONE],
         &config,
     )
     .expect("solvable");
@@ -394,7 +395,7 @@ fn underdetermined_problem_is_rejected<T: LeastSquaresScalar>() {
 
     let error = levenberg_marquardt(
         &problem,
-        &[T::zero(), T::zero()],
+        &[<T as NumericElement>::ZERO, <T as NumericElement>::ZERO],
         &LevenbergMarquardtConfig::default(),
     )
     .expect_err("one residual cannot determine two parameters");
@@ -412,7 +413,7 @@ fn parameter_count_mismatch_is_rejected<T: LeastSquaresScalar>() {
         parameters: 2,
     };
 
-    let error = levenberg_marquardt(&problem, &[T::zero()], &LevenbergMarquardtConfig::default())
+    let error = levenberg_marquardt(&problem, &[<T as NumericElement>::ZERO], &LevenbergMarquardtConfig::default())
         .expect_err("a one-element start cannot initialize two parameters");
 
     assert!(matches!(
@@ -438,7 +439,7 @@ fn batched_linear_problems_recover_independent_minima<T: LeastSquaresScalar>() {
 
     let reports = batched_levenberg_marquardt(
         &problem,
-        &[T::zero(), T::zero(), T::zero(), T::zero()],
+        &[<T as NumericElement>::ZERO, <T as NumericElement>::ZERO, <T as NumericElement>::ZERO, <T as NumericElement>::ZERO],
         &LevenbergMarquardtConfig::default(),
     )
     .expect("both independent linear systems are solvable");
@@ -449,7 +450,7 @@ fn batched_linear_problems_recover_independent_minima<T: LeastSquaresScalar>() {
     for (report, expected_parameters) in reports.iter().zip(expected) {
         assert!(report.termination.is_converged());
         for (actual, expected) in report.parameters.iter().zip(expected_parameters) {
-            assert!(((*actual - <T as Scalar>::from_f64(expected)).abs_val()) < tolerance);
+            assert!(((*actual - <T as Scalar>::from_f64(expected)).abs()) < tolerance);
         }
     }
 }
@@ -464,7 +465,7 @@ fn batched_parameter_count_mismatch_is_rejected<T: LeastSquaresScalar>() {
     };
 
     let error =
-        batched_levenberg_marquardt(&problem, &[T::zero()], &LevenbergMarquardtConfig::default())
+        batched_levenberg_marquardt(&problem, &[<T as NumericElement>::ZERO], &LevenbergMarquardtConfig::default())
             .expect_err("the flattened leading-axis buffer has the wrong length");
 
     assert!(matches!(
@@ -541,3 +542,5 @@ macro_rules! scalar_suite {
 
 scalar_suite!(single_precision, f32);
 scalar_suite!(double_precision, f64);
+
+

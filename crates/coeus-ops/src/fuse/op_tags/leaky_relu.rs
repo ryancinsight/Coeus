@@ -1,6 +1,7 @@
 //! Non-ZST tag types for LeakyReLU (carry a runtime slope parameter).
 
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 
 /// LeakyRelu tag — NOT a ZST; carries slope encoded as `f64::to_bits()`.
 ///
@@ -31,7 +32,7 @@ impl LeakyReluTag {
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
         let slope = <T as coeus_core::Scalar>::from_f64(self.slope());
-        if x >= T::zero() {
+        if x >= <T as NumericElement>::ZERO {
             x
         } else {
             slope * x
@@ -75,10 +76,13 @@ impl LeakyReluGradTag {
     #[inline(always)]
     pub fn apply<T: Scalar>(&self, x: T) -> T {
         let slope = <T as coeus_core::Scalar>::from_f64(self.slope());
-        if x > T::zero() {
-            T::one()
+        if x > <T as NumericElement>::ZERO {
+            <T as NumericElement>::ONE
         } else {
             slope
         }
     }
 }
+
+
+

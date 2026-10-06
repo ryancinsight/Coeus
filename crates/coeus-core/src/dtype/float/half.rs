@@ -1,13 +1,12 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
-use eunomia::NumericElement;
-use eunomia::{Bf16, F16};
+use eunomia::{Bf16, F16, NumericElement};
 
 macro_rules! impl_scalar_float_half {
     ($t:ty, $max:expr, $min_pos:expr) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
-            // `zero/one/to_f64/sqrt_val/abs_val` resolve to the eunomia-SSOT
-            // defaults on `Scalar` (these bodies already delegated there).
+            // `Scalar` keeps only what no provider owns; identities live on
+            // `NumericElement` and are used directly at call sites.
             #[inline(always)]
             fn from_f64(v: f64) -> Self {
                 <Self as eunomia::FloatElement>::from_f64(v)
@@ -124,7 +123,7 @@ macro_rules! impl_scalar_float_half {
             #[inline(always)]
             fn gelu_op(self) -> Self {
                 let half = Self::from_f64(0.5);
-                let one = Self::one();
+                let one = <Self as NumericElement>::ONE;
                 let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
                 half * self * (one + (self * inv_sqrt_two).erf_op())
             }
@@ -165,10 +164,6 @@ macro_rules! impl_scalar_float_half {
             fn fract(self) -> Self {
                 let v = <Self as NumericElement>::to_f64(self);
                 <Self as eunomia::FloatElement>::from_f64(v.fract())
-            }
-            #[inline(always)]
-            fn abs(self) -> Self {
-                <Self as NumericElement>::abs(self)
             }
             #[inline(always)]
             fn signum(self) -> Self {
@@ -255,12 +250,9 @@ macro_rules! impl_scalar_float_half {
                 f.is_finite() && f == f.trunc()
             }
             #[inline(always)]
-            fn is_nan(self) -> bool {
-                <Self as NumericElement>::is_nan(self)
-            }
-            #[inline(always)]
-            fn is_finite(self) -> bool {
-                <Self as NumericElement>::is_finite(self)
+            fn is_infinite(self) -> bool {
+                let f = <Self as NumericElement>::to_f64(self);
+                f.is_infinite()
             }
         }
     };
@@ -270,3 +262,5 @@ macro_rules! impl_scalar_float_half {
 impl_scalar_float_half!(F16, F16(0x7BFF), F16(0x0040));
 // Bf16: largest finite ≈ 3.3895e38, smallest positive normal = 2^-126
 impl_scalar_float_half!(Bf16, Bf16(0x7F7F), Bf16(0x0080));
+
+

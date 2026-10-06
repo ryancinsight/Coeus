@@ -17,6 +17,7 @@
 
 use crate::backend_ops::{BackendOps, CrossOps};
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 
 /// Flat inner product: `Σ_i aᵢ bᵢ` after flattening.
@@ -42,7 +43,7 @@ pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T
     let n = a.numel();
     assert_eq!(n, b.numel(), "dot: numel mismatch: a={n}, b={}", b.numel());
     if n == 0 {
-        return T::zero();
+        return <T as NumericElement>::ZERO;
     }
     let backend = B::default();
     let flatten = |x: &Tensor<T, B>| -> Tensor<T, B> {
@@ -120,6 +121,7 @@ pub fn cross<T: Scalar, B: CrossOps<T> + Default>(
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
+use coeus_core::NumericElement;
     use coeus_tensor::Tensor as CoTensor;
 
     type B = SequentialBackend;
@@ -285,3 +287,6 @@ mod tests {
         let _ = cross::<f32, B>(&a, &b, 5);
     }
 }
+
+
+

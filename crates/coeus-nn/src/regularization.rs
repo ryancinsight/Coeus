@@ -6,6 +6,7 @@
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::Float;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 
 // ── AlphaDropout ──────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             for _channel in 0..channels {
                 let kept = rng.next_f64() >= p;
                 keep.extend(std::iter::repeat_n(
-                    if kept { T::one() } else { T::zero() },
+                    if kept { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO },
                     spatial,
                 ));
             }
@@ -84,9 +85,9 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         keep.extend((0..numel).map(|_| {
             if rng.next_f64() >= p {
-                T::one()
+                <T as NumericElement>::ONE
             } else {
-                T::zero()
+                <T as NumericElement>::ZERO
             }
         }));
     }
@@ -101,10 +102,10 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let saturation_data = keep
         .iter()
         .map(|&value| {
-            if value == T::zero() {
+            if value == <T as NumericElement>::ZERO {
                 saturation
             } else {
-                T::zero()
+                <T as NumericElement>::ZERO
             }
         })
         .collect::<Vec<_>>();
@@ -245,7 +246,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GaussianN
 
         // Box-Muller transform: two uniform samples → one normal sample.
         let mut rng = coeus_autograd::ops::nn::dropout::Xorshift64::new(42);
-        let mut noise = vec![T::zero(); numel];
+        let mut noise = vec![<T as NumericElement>::ZERO; numel];
         let std = self.std;
         let mut i = 0;
         while i < numel {
@@ -355,12 +356,12 @@ where
         // `M @ sq` over the channel axis is each channel's squared response
         // summed across its size-neighbourhood (with boundary clamping implicit
         // in the band), differentiable through `sq`.
-        let mut m_data = vec![T::zero(); c * c];
+        let mut m_data = vec![<T as NumericElement>::ZERO; c * c];
         for i in 0..c {
             let lo = i.saturating_sub(half);
             let hi = (i + half + 1).min(c);
             for cell in m_data[i * c + lo..i * c + hi].iter_mut() {
-                *cell = T::one();
+                *cell = <T as NumericElement>::ONE;
             }
         }
         let m = Var::new(Tensor::from_slice_on([c, c], &m_data, &backend), false);
@@ -385,3 +386,6 @@ where
         Ok(coeus_autograd::reshape(&y3, shape))
     }
 }
+
+
+

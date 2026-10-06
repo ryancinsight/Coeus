@@ -5,7 +5,7 @@
 // L_out = (L + 2*padding - dilation*(kernel_size-1) - 1) / stride + 1
 
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
 
 // ── Max Pool 1D forward ──
 
@@ -71,7 +71,7 @@ pub(crate) fn max_pool1d<T: Scalar, B: Backend>(
 
         let output_idx = output_layout.physical_index(&[ni, ci, ol]);
         unsafe {
-            output_ptr.write(output_idx, max_val.unwrap_or(T::zero()));
+            output_ptr.write(output_idx, max_val.unwrap_or(<T as NumericElement>::ZERO));
         }
     });
 }
@@ -199,7 +199,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
         let ci = temp % c;
         let ni = temp / c;
 
-        let mut sum = T::zero();
+        let mut sum = <T as NumericElement>::ZERO;
         let mut count = 0usize;
 
         for ik in 0..k_size {
@@ -215,7 +215,7 @@ pub(crate) fn avg_pool1d<T: Scalar, B: Backend>(
         let mean = if count > 0 {
             sum / <T as coeus_core::Scalar>::from_f64(count as f64)
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         };
 
         let output_idx = output_layout.physical_index(&[ni, ci, ol]);
@@ -297,3 +297,6 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
     }
     let _ = backend;
 }
+
+
+

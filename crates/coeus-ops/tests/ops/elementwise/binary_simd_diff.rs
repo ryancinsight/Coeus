@@ -8,8 +8,7 @@
 
 use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
-    Shape,
-};
+    Shape, NumericElement};
 use coeus_ops::backend_ops::ElementwiseOps;
 use coeus_ops::{BinaryOp, CpuBackend};
 
@@ -51,7 +50,7 @@ where
         .elementwise_binary(op, &a_buf, &layout, &b_buf, &layout, &mut c_buf, &layout)
         .expect("valid binary test layouts");
 
-    let mut out = vec![T::zero(); n];
+    let mut out = vec![<T as NumericElement>::ZERO; n];
     backend.copy_to_host(&c_buf, &mut out);
     out
 }
@@ -79,8 +78,8 @@ where
         for i in 0..n {
             // Bitwise-exact: single IEEE op per lane, scalar == SIMD.
             assert_eq!(
-                Scalar::to_f64(got[i]).to_bits(),
-                Scalar::to_f64(expected[i]).to_bits(),
+                NumericElement::to_f64(got[i]).to_bits(),
+                NumericElement::to_f64(expected[i]).to_bits(),
                 "{op:?} mismatch at i={i}, n={n}",
             );
         }
@@ -120,3 +119,8 @@ fn moirai_f64_matches_scalar_reference() {
         check_op::<f64, _>(&backend, op);
     }
 }
+
+
+
+
+

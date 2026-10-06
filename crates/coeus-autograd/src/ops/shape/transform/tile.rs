@@ -9,6 +9,7 @@ use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -86,7 +87,7 @@ where
             }
 
             // Sum output gradients over repeated copies into the input gradient.
-            let mut gi_data = vec![T::zero(); in_numel];
+            let mut gi_data = vec![<T as NumericElement>::ZERO; in_numel];
             for (out_flat, &grad_out_element) in go_s.iter().enumerate() {
                 let mut in_flat = 0usize;
                 let mut rem = out_flat;
@@ -156,3 +157,6 @@ where
         creator,
     }
 }
+
+
+

@@ -20,7 +20,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -67,7 +67,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         // At |z| == beta the mask is false → L1 piece with sign(z) (right
         // limit); at z == 0 sign(0) = 0 matches PyTorch's reduce-at-zero.
         let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
-        let inv_beta_tensor = Tensor::full_on([1], T::one() / self.beta, &backend);
+        let inv_beta_tensor = Tensor::full_on([1], <T as NumericElement>::ONE / self.beta, &backend);
         let quad = coeus_ops::mul(
             &coeus_ops::mul(&self.diffs, &scale, &backend),
             &inv_beta_tensor,
@@ -105,7 +105,7 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         "smooth_l1_loss requires pred and target to have identical shapes"
     );
     assert!(
-        beta > T::zero(),
+        beta > <T as NumericElement>::ZERO,
         "smooth_l1_loss requires beta > 0; got beta = 0 (would divide by zero)"
     );
     let n = pred.tensor.numel();
@@ -120,7 +120,7 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     //   quadratic: 0.5 * z² / beta
     //   linear:    |z| - 0.5 * beta
     let half = <T as coeus_core::FloatElement>::from_f64(0.5);
-    let inv_beta_tensor = Tensor::full_on([1], T::one() / beta, &backend);
+    let inv_beta_tensor = Tensor::full_on([1], <T as NumericElement>::ONE / beta, &backend);
     let quadratic = coeus_ops::mul(
         &coeus_ops::mul(&diffs, &diffs, &backend),
         &coeus_ops::mul(
@@ -158,7 +158,7 @@ pub fn smooth_l1_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             shape,
             mean_scale: Tensor::full_on(
                 [1],
-                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                <T as NumericElement>::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
                 &backend,
             ),
         };
@@ -248,3 +248,6 @@ mod tests {
         }
     }
 }
+
+
+

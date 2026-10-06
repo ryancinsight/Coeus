@@ -19,7 +19,7 @@
 
 use crate::backend_ops::BackendOps;
 use coeus_core::{
-    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar,
+    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,
 };
 use coeus_tensor::Tensor;
 
@@ -154,7 +154,7 @@ where
             let stride = a.shape()[1];
             let trace = (0..n)
                 .map(|i| a_s[i * stride + i])
-                .fold(T::zero(), |acc, x| acc + x);
+                .fold(<T as NumericElement>::ZERO, |acc, x| acc + x);
             return Ok(Tensor::from_slice(vec![1], &[trace]));
         }
 
@@ -184,7 +184,7 @@ where
             .iter()
             .zip(b_cont.as_slice().iter())
             .map(|(&x, &y)| x * y)
-            .fold(T::zero(), |acc, v| acc + v);
+            .fold(<T as NumericElement>::ZERO, |acc, v| acc + v);
         return Ok(Tensor::from_slice(vec![1], &[dot]));
     }
 
@@ -214,7 +214,7 @@ where
             .map(|i| {
                 (0..k)
                     .map(|j| a_s[i * k + j] * b_s[j])
-                    .fold(T::zero(), |acc, v| acc + v)
+                    .fold(<T as NumericElement>::ZERO, |acc, v| acc + v)
             })
             .collect();
         return Ok(Tensor::from_slice(vec![m], &data));
@@ -234,7 +234,7 @@ where
                 (0..n).map(move |j| {
                     (0..k)
                         .map(|l| a_s[i * k + l] * b_s[j * k + l])
-                        .fold(T::zero(), |acc, v| acc + v)
+                        .fold(<T as NumericElement>::ZERO, |acc, v| acc + v)
                 })
             })
             .collect();
@@ -262,7 +262,7 @@ where
                     (0..n).map(move |j| {
                         (0..k)
                             .map(|l| a_s[bi * m * k + i * k + l] * b_s[bi * k * n + l * n + j])
-                            .fold(T::zero(), |acc, v| acc + v)
+                            .fold(<T as NumericElement>::ZERO, |acc, v| acc + v)
                     })
                 })
             })
@@ -284,7 +284,7 @@ where
                 (0..m).map(move |i| {
                     (0..k)
                         .map(|j| a_s[bi * m * k + i * k + j] * b_s[bi * k + j])
-                        .fold(T::zero(), |acc, v| acc + v)
+                        .fold(<T as NumericElement>::ZERO, |acc, v| acc + v)
                 })
             })
             .collect();
@@ -447,3 +447,6 @@ mod tests {
         assert_eq!(out.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
     }
 }
+
+
+

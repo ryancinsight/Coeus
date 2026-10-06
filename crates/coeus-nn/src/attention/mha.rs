@@ -7,7 +7,7 @@
 use crate::init::kaiming_uniform;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::{AttentionMask, Var};
-use coeus_core::{Float, MoiraiBackend, Scalar};
+use coeus_core::{Float, MoiraiBackend, Scalar, NumericElement};
 use std::marker::PhantomData;
 
 /// Multi-head self/cross-attention.
@@ -138,7 +138,7 @@ pub fn multi_head_attention_cross<
     }
 
     let d_head = d_model / H;
-    let scale = T::one() / <T as Scalar>::from_f64((d_head as f64).sqrt());
+    let scale = <T as NumericElement>::ONE / <T as Scalar>::from_f64((d_head as f64).sqrt());
 
     let batch = dimensions.batch;
     let seq_q = dimensions.seq_q;
@@ -344,3 +344,6 @@ impl<
         self.forward_cross(input, input, input, None)
     }
 }
+
+
+

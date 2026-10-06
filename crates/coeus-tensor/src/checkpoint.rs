@@ -1,7 +1,7 @@
 //! Bounded, validated rkyv archives for named tensor state.
 
 use crate::Tensor;
-use coeus_core::{ComputeBackend, Scalar, Storage};
+use coeus_core::{ComputeBackend, NumericElement, Scalar, Storage};
 use rkyv::{rancor::Error as ArchiveError, Archive, Deserialize, Serialize};
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
@@ -261,7 +261,7 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
                 let offset = contiguous.layout().offset();
                 bytemuck::cast_slice(&slice[offset..offset + contiguous.numel()]).to_vec()
             } else {
-                let mut host = vec![T::zero(); contiguous.numel()];
+                let mut host = vec![<T as NumericElement>::ZERO; contiguous.numel()];
                 backend.copy_to_host(contiguous.storage(), &mut host);
                 bytemuck::cast_slice(&host).to_vec()
             };
@@ -469,3 +469,5 @@ mod tests {
         assert_eq!(error.to_string(), "duplicate tensor name 'duplicate'");
     }
 }
+
+

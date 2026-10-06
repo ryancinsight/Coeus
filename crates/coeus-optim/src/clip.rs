@@ -4,7 +4,7 @@
 // Uses zero-copy CpuAddressable storage reads (Cow-safe: no unnecessary allocation).
 
 use coeus_autograd::Var;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement};
 
 /// Clip the global L2 gradient norm across `params` to `max_norm`.
 ///
@@ -57,7 +57,7 @@ where
     I: Iterator<Item = &'a Var<T, B>> + Clone,
 {
     // Pass 1: sum of squared gradient elements (native T precision).
-    let mut total_sq = T::zero();
+    let mut total_sq = <T as NumericElement>::ZERO;
     for param in params.clone() {
         let Some(ref grad_arc) = param.grad else {
             continue;
@@ -69,8 +69,8 @@ where
             total_sq += v * v;
         }
     }
-    // sqrt in native T precision (Scalar::sqrt_val).
-    let total_norm = total_sq.sqrt_val();
+    // sqrt in native T precision (eunomia SSOT, qualified past `Float::sqrt`).
+    let total_norm = <T as NumericElement>::sqrt(total_sq);
 
     // Pass 2: scale if over the limit.
     if total_norm > max_norm {
@@ -89,3 +89,6 @@ where
 
     total_norm
 }
+
+
+

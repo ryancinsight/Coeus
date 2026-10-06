@@ -3,7 +3,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -134,17 +134,17 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
         };
 
         let shape = self.input_tensor.shape_cloned();
-        let ones = Tensor::full_on(shape.clone(), T::one(), &backend);
+        let ones = Tensor::full_on(shape.clone(), <T as NumericElement>::ONE, &backend);
         let zeros = Tensor::zeros_on(shape.clone(), &backend);
         let abs_x = coeus_ops::abs(&self.input_tensor, &backend);
         let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)
             .expect("norm_p backward: safe absolute value");
-        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::one(), &backend);
+        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - <T as NumericElement>::ONE, &backend);
 
         let norm_broad = self.norm_tensor.broadcast(shape.clone());
         let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)
             .expect("norm_p backward: safe norm");
-        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::one() - self.p, &backend);
+        let norm_factor = coeus_ops::pow_scalar(&safe_norm, <T as NumericElement>::ONE - self.p, &backend);
         let signed = coeus_ops::mul(
             &coeus_ops::sign(&self.input_tensor, &backend),
             &abs_power,
@@ -240,17 +240,17 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Defa
         };
 
         let shape = self.input_tensor.shape_cloned();
-        let ones = Tensor::full_on(shape.clone(), T::one(), &backend);
+        let ones = Tensor::full_on(shape.clone(), <T as NumericElement>::ONE, &backend);
         let zeros = Tensor::zeros_on(shape.clone(), &backend);
         let abs_x = coeus_ops::abs(&self.input_tensor, &backend);
         let safe_abs = coeus_ops::where_cond(&abs_x, &abs_x, &ones, &backend)
             .expect("norm_p_axis backward: safe absolute value");
-        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - T::one(), &backend);
+        let abs_power = coeus_ops::pow_scalar(&safe_abs, self.p - <T as NumericElement>::ONE, &backend);
 
         let norm_broad = self.norm_tensor.broadcast(shape.clone());
         let safe_norm = coeus_ops::where_cond(&norm_broad, &norm_broad, &ones, &backend)
             .expect("norm_p_axis backward: safe norm");
-        let norm_factor = coeus_ops::pow_scalar(&safe_norm, T::one() - self.p, &backend);
+        let norm_factor = coeus_ops::pow_scalar(&safe_norm, <T as NumericElement>::ONE - self.p, &backend);
         let signed = coeus_ops::mul(
             &coeus_ops::sign(&self.input_tensor, &backend),
             &abs_power,
@@ -452,3 +452,6 @@ mod tests {
         let _ = norm_p_axis(&input, 2.0, 3);
     }
 }
+
+
+

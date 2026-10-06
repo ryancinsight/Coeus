@@ -82,7 +82,7 @@
 //! [`GradcheckError::TriviallyZero`]; give the loss a non-uniform weighting so
 //! the output Jacobian is actually probed.
 
-use coeus_core::{CpuAddressableStorage, Float, Scalar};
+use coeus_core::{CpuAddressableStorage, Float, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 use crate::var::Var;
@@ -94,7 +94,7 @@ use crate::var::Var;
 /// widening in this module routes through here to name [`Scalar`] once.
 #[inline]
 fn widen<T: Scalar>(value: T) -> f64 {
-    <T as Scalar>::to_f64(value)
+    <T as NumericElement>::to_f64(value)
 }
 
 /// Round an `f64` back into the differentiated scalar type.
@@ -121,8 +121,8 @@ fn narrow<T: Scalar>(value: f64) -> T {
 /// the exact representable epsilon — not an approximation of it. It converges
 /// in one iteration per mantissa bit (53 for `f64`, 11 for `F16`).
 fn machine_epsilon<T: Float>() -> f64 {
-    let one = T::one();
-    let mut epsilon = T::one();
+    let one = <T as NumericElement>::ONE;
+    let mut epsilon = <T as NumericElement>::ONE;
     loop {
         let halved = narrow::<T>(widen(epsilon) * 0.5);
         if one + halved == one {
@@ -591,3 +591,7 @@ mod tests {
         assert!((eps32.cbrt() - 4.921e-3).abs() < 1e-6, "f32 step {eps32:e}");
     }
 }
+
+
+
+

@@ -1,7 +1,7 @@
 // ── Sum reduction ──
 
 use crate::backend_ops::{BackendOps, ReductionOp, ReductionOps};
-use coeus_core::{BackendError, Scalar};
+use coeus_core::{BackendError, Scalar, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Sum all elements.
@@ -24,7 +24,7 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> Result<T, B::Error> {
     if a.numel() == 0 {
-        return Ok(T::zero());
+        return Ok(<T as NumericElement>::ZERO);
     }
     let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([a.numel()])
@@ -33,7 +33,7 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
         contiguous.reshape([a.numel()])
     };
     let reduced = sum_axis(&reshaped, 0, backend)?;
-    let mut host_scalar = [T::zero()];
+    let mut host_scalar = [<T as NumericElement>::ZERO];
     backend.copy_to_host(reduced.storage(), &mut host_scalar);
     Ok(host_scalar[0])
 }
@@ -171,7 +171,7 @@ pub fn amax<T: Scalar, B: BackendOps<T> + Default>(
         a.to_contiguous_on(backend).reshape([a.numel()])
     };
     let reduced = max_axis(&flat, 0, backend)?;
-    let mut host = [T::zero()];
+    let mut host = [<T as NumericElement>::ZERO];
     backend.copy_to_host(reduced.storage(), &mut host);
     Ok(host[0])
 }
@@ -196,7 +196,10 @@ pub fn amin<T: Scalar, B: BackendOps<T> + Default>(
         a.to_contiguous_on(backend).reshape([a.numel()])
     };
     let reduced = min_axis(&flat, 0, backend)?;
-    let mut host = [T::zero()];
+    let mut host = [<T as NumericElement>::ZERO];
     backend.copy_to_host(reduced.storage(), &mut host);
     Ok(host[0])
 }
+
+
+

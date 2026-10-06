@@ -1,6 +1,7 @@
 //! Damped Gauss-Newton (Levenberg-Marquardt) for small dense problems.
 
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 use leto::{Array1, Array2};
 use leto_ops::{cholesky_solve, RealScalar};
 
@@ -114,10 +115,10 @@ where
     }
 
     let mut parameters = initial_parameters.to_vec();
-    let mut residuals = vec![T::zero(); residual_count];
-    let mut jacobian = vec![T::zero(); residual_count * parameter_count];
-    let mut trial_parameters = vec![T::zero(); parameter_count];
-    let mut trial_residuals = vec![T::zero(); residual_count];
+    let mut residuals = vec![<T as NumericElement>::ZERO; residual_count];
+    let mut jacobian = vec![<T as NumericElement>::ZERO; residual_count * parameter_count];
+    let mut trial_parameters = vec![<T as NumericElement>::ZERO; parameter_count];
+    let mut trial_residuals = vec![<T as NumericElement>::ZERO; residual_count];
 
     problem.residuals(&parameters, &mut residuals)?;
     check_finite(&residuals, "residuals", 0)?;
@@ -196,7 +197,7 @@ where
         }
         // Relative against the previous cost, so the test means the same thing
         // whether residuals are in millimetres or signal counts.
-        if previous_cost > T::zero()
+        if previous_cost > <T as NumericElement>::ZERO
             && (previous_cost - cost) <= config.cost_tolerance * previous_cost
         {
             return Ok(report(
@@ -233,8 +234,8 @@ fn solve_damped<T: LeastSquaresScalar>(
     damping: &mut T,
     config: &LevenbergMarquardtConfig<T>,
 ) -> Option<Vec<T>> {
-    let mut damped = vec![T::zero(); parameter_count * parameter_count];
-    let negative_gradient: Vec<T> = gradient.iter().map(|value| T::zero() - *value).collect();
+    let mut damped = vec![<T as NumericElement>::ZERO; parameter_count * parameter_count];
+    let negative_gradient: Vec<T> = gradient.iter().map(|value| <T as NumericElement>::ZERO - *value).collect();
 
     let rhs = Array1::from_shape_vec([parameter_count], negative_gradient).ok()?;
 
@@ -245,10 +246,10 @@ fn solve_damped<T: LeastSquaresScalar>(
             // A structurally zero diagonal means the parameter has no local
             // influence; fall back to absolute damping so the row stays
             // solvable rather than scaling by nothing.
-            let scale = if diagonal > T::zero() {
+            let scale = if diagonal > <T as NumericElement>::ZERO {
                 diagonal
             } else {
-                T::one()
+                <T as NumericElement>::ONE
             };
             damped[index * parameter_count + index] = diagonal + *damping * scale;
         }
@@ -273,10 +274,10 @@ fn solve_damped<T: LeastSquaresScalar>(
 /// `JᵀJ`, row-major and symmetric.
 fn jacobian_transpose_jacobian<T: Scalar>(jacobian: &[T], parameter_count: usize) -> Vec<T> {
     let residual_count = jacobian.len() / parameter_count;
-    let mut product = vec![T::zero(); parameter_count * parameter_count];
+    let mut product = vec![<T as NumericElement>::ZERO; parameter_count * parameter_count];
     for row in 0..parameter_count {
         for column in row..parameter_count {
-            let mut sum = T::zero();
+            let mut sum = <T as NumericElement>::ZERO;
             for residual in 0..residual_count {
                 let base = residual * parameter_count;
                 sum += jacobian[base + row] * jacobian[base + column];
@@ -294,7 +295,7 @@ fn jacobian_transpose_times<T: Scalar>(
     residuals: &[T],
     parameter_count: usize,
 ) -> Vec<T> {
-    let mut gradient = vec![T::zero(); parameter_count];
+    let mut gradient = vec![<T as NumericElement>::ZERO; parameter_count];
     for (residual_index, residual) in residuals.iter().enumerate() {
         let base = residual_index * parameter_count;
         for (parameter, slot) in gradient.iter_mut().enumerate() {
@@ -305,7 +306,7 @@ fn jacobian_transpose_times<T: Scalar>(
 }
 
 fn half_sum_of_squares<T: Scalar>(values: &[T]) -> T {
-    let sum = values.iter().fold(T::zero(), |accumulator, value| {
+    let sum = values.iter().fold(<T as NumericElement>::ZERO, |accumulator, value| {
         accumulator + *value * *value
     });
     sum / <T as coeus_core::Scalar>::from_f64(2.0)
@@ -314,15 +315,15 @@ fn half_sum_of_squares<T: Scalar>(values: &[T]) -> T {
 fn euclidean_norm<T: Scalar>(values: &[T]) -> T {
     values
         .iter()
-        .fold(T::zero(), |accumulator, value| {
+        .fold(<T as NumericElement>::ZERO, |accumulator, value| {
             accumulator + *value * *value
         })
-        .sqrt_val()
+        .sqrt()
 }
 
 fn infinity_norm<T: Scalar>(values: &[T]) -> T {
-    values.iter().fold(T::zero(), |accumulator, value| {
-        let magnitude = value.abs_val();
+    values.iter().fold(<T as NumericElement>::ZERO, |accumulator, value| {
+        let magnitude = value.abs();
         if magnitude > accumulator {
             magnitude
         } else {
@@ -336,8 +337,8 @@ fn infinity_norm<T: Scalar>(values: &[T]) -> T {
 /// NaN fails every comparison, and an infinity fails the bound against the
 /// largest finite magnitude the type round-trips.
 fn is_finite<T: Scalar>(value: T) -> bool {
-    let magnitude = value.abs_val();
-    magnitude >= T::zero() && magnitude <= <T as coeus_core::Scalar>::from_f64(f64::MAX)
+    let magnitude = value.abs();
+    magnitude >= <T as NumericElement>::ZERO && magnitude <= <T as coeus_core::Scalar>::from_f64(f64::MAX)
 }
 
 fn check_finite<T: Scalar>(
@@ -370,3 +371,6 @@ fn report<T>(
         termination,
     }
 }
+
+
+

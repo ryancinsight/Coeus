@@ -6,7 +6,8 @@ mod float;
 mod int;
 mod traits;
 
-pub use eunomia::{Complex, CountRangeError, FloatElement, TryFromCount};
+pub use eunomia::{Complex, CountRangeError, FloatElement, NumericElement, TryFromCount};
 pub use traits::{
     BinaryOp, CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, ReductionOp, Scalar,
 };
+

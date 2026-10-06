@@ -348,11 +348,9 @@ pub trait CpuUnaryDispatch: private::Sealed {
 pub trait Scalar:
     NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone + leto_ops::Scalar
 {
-    /// Additive identity: the eunomia `ZERO` const (SSOT).
-    #[inline(always)]
-    fn zero() -> Self {
-        <Self as NumericElement>::ZERO
-    }
+    // No `zero/one/to_f64/sqrt_val/abs_val`: use the eunomia SSOT directly
+    // (`NumericElement::{ZERO, ONE, to_f64, sqrt, abs}`). This trait keeps
+    // only what no provider owns.
 
     /// Return whether every byte in this value's representation is zero.
     ///
@@ -363,38 +361,12 @@ pub trait Scalar:
         bytemuck::bytes_of(self).iter().all(|&byte| byte == 0)
     }
 
-    /// Multiplicative identity: the eunomia `ONE` const (SSOT).
-    #[inline(always)]
-    fn one() -> Self {
-        <Self as NumericElement>::ONE
-    }
-
-    /// Convert this scalar to `f64`: the eunomia `to_f64` (SSOT).
-    #[inline(always)]
-    fn to_f64(self) -> f64 {
-        <Self as NumericElement>::to_f64(self)
-    }
-
     /// Construct a scalar from `f64`.
     ///
-    /// Stays abstract: integers need it and eunomia has no int-inclusive
+    /// Owned here: integers need it and eunomia has no int-inclusive
     /// `from_f64` (`TryFromCount` refuses out-of-range counts instead of
-    /// saturating). Float impls delegate to `FloatElement::from_f64`.
+    /// saturating).
     fn from_f64(v: f64) -> Self;
-
-    /// Scalar square root: the eunomia `sqrt` (SSOT) — exact `isqrt` for
-    /// integers, IEEE `sqrt` for floats. `Complex` keeps its own principal
-    /// root (see ADR 0069 S1 log), so this default serves reals and integers.
-    #[inline(always)]
-    fn sqrt_val(self) -> Self {
-        <Self as NumericElement>::sqrt(self)
-    }
-
-    /// Scalar absolute value: the eunomia `abs` (SSOT).
-    #[inline(always)]
-    fn abs_val(self) -> Self {
-        <Self as NumericElement>::abs(self)
-    }
 
     /// Addition defined for every input: integers wrap modulo 2^bits on
     /// overflow (two's-complement `wrapping_add`); floats follow IEEE 754
@@ -475,7 +447,10 @@ pub trait Float: Scalar + FloatOps + eunomia::FloatElement + leto_ops::RealScala
     /// Fractional part.
     fn fract(self) -> Self;
     /// Absolute value.
-    fn abs(self) -> Self;
+    ///
+    /// Inherited from [`NumericElement::abs`] via the supertrait chain.
+    /// Use `<T as NumericElement>::abs(x)` or `x.abs()` at call sites.
+    // fn abs — provided by NumericElement supertrait, removed to avoid ambiguity
     /// Sign function: -1, 0, or 1.
     fn signum(self) -> Self;
     /// Square root.
@@ -523,17 +498,10 @@ pub trait Float: Scalar + FloatOps + eunomia::FloatElement + leto_ops::RealScala
     /// Used by `pow(x, scalar)` to dispatch between sign-preserving integer
     /// power and the fractional-power `exp(n·ln(x))` composition.
     fn is_integer(self) -> bool;
-    /// True if self is NaN.
-    fn is_nan(self) -> bool;
+    // fn is_nan — provided by NumericElement supertrait, removed to avoid ambiguity
+    // fn is_finite — provided by NumericElement supertrait, removed to avoid ambiguity
     /// True if self is positive or negative infinity.
-    ///
-    /// IEEE identity over the sibling predicates; no per-type impl needed.
-    #[inline(always)]
-    fn is_infinite(self) -> bool {
-        !<Self as Float>::is_nan(self) && !<Self as Float>::is_finite(self)
-    }
-    /// True if self is a finite (non-infinite, non-NaN) value.
-    fn is_finite(self) -> bool;
+    fn is_infinite(self) -> bool;
 }
 
 /// Integer extension trait.
@@ -541,11 +509,8 @@ pub trait Float: Scalar + FloatOps + eunomia::FloatElement + leto_ops::RealScala
 /// Provides bitwise operations and integer-specific math.
 /// Implemented for i8, i16, i32, i64, u8, u16, u32, u64.
 pub trait Int: Scalar {
-    /// Count of set bits (popcount): the eunomia `count_ones` (SSOT).
-    #[inline(always)]
-    fn count_ones(self) -> u32 {
-        <Self as NumericElement>::count_ones(self)
-    }
+    // No `count_ones`/`abs`: use `NumericElement` directly. This trait keeps
+    // only the bit intrinsics no provider owns.
     /// Count of unset bits.
     fn count_zeros(self) -> u32;
     /// Count of leading zero bits.
@@ -558,11 +523,6 @@ pub trait Int: Scalar {
     fn rotate_right(self, n: u32) -> Self;
     /// Integer power: self^exp.
     fn pow(self, exp: u32) -> Self;
-    /// Absolute value: the eunomia `abs` (SSOT).
-    #[inline(always)]
-    fn abs(self) -> Self {
-        <Self as NumericElement>::abs(self)
-    }
 }
 
 #[cfg(test)]
@@ -590,3 +550,4 @@ mod cpu_unary_op_tests {
         assert_eq!(CpuUnaryOp::Relu.parameter_pair(), None);
     }
 }
+

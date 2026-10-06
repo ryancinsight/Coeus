@@ -8,8 +8,7 @@
 
 use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, CpuUnaryDispatch, CpuUnaryOp, Layout, MoiraiBackend,
-    Scalar, SequentialBackend, Shape,
-};
+    Scalar, SequentialBackend, Shape, NumericElement};
 use coeus_ops::backend_ops::ElementwiseOps;
 use coeus_ops::CpuBackend;
 
@@ -63,7 +62,7 @@ where
         .elementwise_unary(op, &input_buffer, &layout, &mut output_buffer, &layout)
         .expect("valid unary test layouts");
 
-    let mut output = vec![T::zero(); input.len()];
+    let mut output = vec![<T as NumericElement>::ZERO; input.len()];
     backend.copy_to_host(&output_buffer, &mut output);
     output
 }
@@ -95,8 +94,8 @@ where
 
         for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
             assert_eq!(
-                Scalar::to_f64(actual).to_bits(),
-                Scalar::to_f64(reference).to_bits(),
+                NumericElement::to_f64(actual).to_bits(),
+                NumericElement::to_f64(reference).to_bits(),
                 "{op:?} mismatch at index {index}"
             );
         }
@@ -116,3 +115,8 @@ fn moirai_unary_matches_scalar_reference() {
     check_unary::<f32, _>(&backend);
     check_unary::<f64, _>(&backend);
 }
+
+
+
+
+

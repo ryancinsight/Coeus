@@ -15,6 +15,7 @@
 use crate::backend_ops::{BackendOps, ElementwiseOps, ReductionOps, ScalarPowerOps};
 use crate::binary;
 use coeus_core::Float;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 
 /// Euclidean (L2) norm over all elements: `sqrt(sum(x²))`.
@@ -60,14 +61,14 @@ pub fn norm_p_tensor<
     let n = a.numel();
     assert!(n > 0, "norm_p: empty tensor has no norm");
     assert!(
-        p > T::zero() && <T as Float>::is_finite(p),
+        p > <T as NumericElement>::ZERO && <T as coeus_core::NumericElement>::is_finite(p),
         "norm_p: ord must be a finite positive number, got {p:?}"
     );
     let magnitudes = crate::abs(a, backend);
     let powered = crate::pow_scalar(&magnitudes, p, backend);
     let flattened = powered.reshape([n]);
     let summed = super::sum_axis(&flattened, 0, backend).expect("norm_p: provider sum");
-    crate::pow_scalar(&summed, T::one() / p, backend)
+    crate::pow_scalar(&summed, <T as NumericElement>::ONE / p, backend)
 }
 
 /// `L_p` norm over all elements returned as a provider-resident `[1]` tensor.
@@ -82,7 +83,7 @@ pub fn norm_p<T: Float, B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<
     backend: &B,
 ) -> T {
     let result = norm_p_tensor(a, p, backend);
-    let mut scalar = [T::zero()];
+    let mut scalar = [<T as NumericElement>::ZERO];
     backend.copy_to_host(result.storage(), &mut scalar);
     scalar[0]
 }
@@ -113,14 +114,14 @@ pub fn norm_p_axis<
     let n_axis = a.shape()[axis];
     assert!(n_axis > 0, "norm_p_axis: axis {axis} has zero elements");
     assert!(
-        p > T::zero() && <T as Float>::is_finite(p),
+        p > <T as NumericElement>::ZERO && <T as coeus_core::NumericElement>::is_finite(p),
         "norm_p_axis: ord must be a finite positive number, got {p:?}"
     );
 
     let magnitudes = crate::abs(a, backend);
     let powered = crate::pow_scalar(&magnitudes, p, backend);
     let summed = super::sum_axis(&powered, axis, backend).expect("norm_p_axis: provider sum");
-    crate::pow_scalar(&summed, T::one() / p, backend)
+    crate::pow_scalar(&summed, <T as NumericElement>::ONE / p, backend)
 }
 
 /// Frobenius (matrix L2) norm over a single 2-D tensor: `sqrt(Σ aᵢⱼ²)`.
@@ -186,6 +187,7 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
+use coeus_core::NumericElement;
 
     fn v3() -> Tensor<f64, SequentialBackend> {
         Tensor::from_slice(vec![5], &[1.0f64, -2.0, 3.0, -4.0, 5.0])
@@ -512,3 +514,7 @@ mod tests {
         let _ = frobenius_norm_batched(&x, &b);
     }
 }
+
+
+
+

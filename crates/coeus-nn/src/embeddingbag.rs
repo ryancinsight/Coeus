@@ -168,7 +168,7 @@ where
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
         let mut indices = Vec::with_capacity(input.tensor.numel());
         for (position, &index) in input.tensor.as_slice().iter().enumerate() {
-            let value = <T as Scalar>::to_f64(index);
+            let value = index.to_f64();
             if !value.is_finite()
                 || value < 0.0
                 || value.trunc() != value
@@ -189,3 +189,6 @@ where
         self.forward_with_offsets(&indices, None)
     }
 }
+
+
+

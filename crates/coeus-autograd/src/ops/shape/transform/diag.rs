@@ -7,6 +7,7 @@ use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -136,7 +137,7 @@ where
                 // Embed gi_diag into zeros of input_shape.
                 let gi_cont = gi_diag.to_contiguous();
                 let gi_s = gi_cont.as_slice();
-                let mut data = vec![T::zero(); rows * cols];
+                let mut data = vec![<T as NumericElement>::ZERO; rows * cols];
                 for r in 0..gi_rows.min(rows) {
                     for c in 0..gi_cols.min(cols) {
                         data[r * cols + c] = gi_s[r * gi_cols + c];
@@ -191,3 +192,6 @@ where
         creator,
     }
 }
+
+
+

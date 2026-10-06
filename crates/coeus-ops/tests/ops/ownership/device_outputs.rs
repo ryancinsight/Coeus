@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Float, Layout, Scalar};
+use coeus_core::{ComputeBackend, Float, Layout, Scalar, NumericElement};
 use coeus_ops::{
     BinaryOp, ElementwiseOps, MatmulOps, ReductionOp, ReductionOps, ScalarPowerOps, UnaryOp,
 };
@@ -79,7 +79,7 @@ where
             expected,
             "{operation:?} computed incorrect logical output"
         );
-        let mut actual_storage = vec![T::zero(); expected_storage.len()];
+        let mut actual_storage = vec![<T as NumericElement>::ZERO; expected_storage.len()];
         backend.copy_to_host(destination.storage(), &mut actual_storage);
         assert_eq!(
             actual_storage, expected_storage,
@@ -279,7 +279,7 @@ impl<T: Float, B: ScalarPowerOps<T>> OutputWrite<T, B> for Square {
         backend.elementwise_pow_scalar(
             input.storage(),
             input_layout,
-            T::one() + T::one(),
+            <T as NumericElement>::ONE + <T as NumericElement>::ONE,
             output,
             output_layout,
         )
@@ -345,3 +345,6 @@ pub(crate) fn scans_preserve_output_clones<T: Scalar, B: ReductionOps<T>>(backen
         rejects_invalid_output_write(backend, scan, one);
     }
 }
+
+
+

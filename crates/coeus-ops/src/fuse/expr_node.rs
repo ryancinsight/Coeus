@@ -121,7 +121,7 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
     fn collect_inputs<'expression>(&'expression self, _list: &mut Vec<&'expression Tensor<T, B>>) {}
 
     fn to_shader_expr(&self, _input_map: &HashMap<*const Tensor<T, B>, usize>) -> String {
-        let val = <T as Scalar>::to_f64(self.0);
+        let val = self.0.to_f64();
         if val.is_infinite() {
             if val.is_sign_positive() {
                 "3.40282347e+38".to_string()
@@ -336,3 +336,6 @@ impl<T: Scalar, B: ComputeBackend> TensorExprExt<T, B> for Tensor<T, B> {
 pub fn scalar<T: Scalar, B: ComputeBackend>(val: T) -> Expr<ScalarVal<T>> {
     Expr(ScalarVal(val))
 }
+
+
+

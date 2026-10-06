@@ -1,3 +1,4 @@
+use eunomia::NumericElement;
 use std::alloc::{GlobalAlloc, Layout as AllocLayout};
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -155,7 +156,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     where
         T: crate::Scalar,
     {
-        Self::filled(len, T::zero())
+        Self::filled(len, <T as NumericElement>::ZERO)
     }
 
     /// Allocate and initialize every element with `value` without first
@@ -273,3 +274,6 @@ impl<T: crate::Scalar> CpuAddressableStorageMut<T> for CpuStorage<T> {
         self.raw_slice_mut_cow()
     }
 }
+
+
+

@@ -23,7 +23,7 @@ unsafe impl HephaestusProvider for CudaBackend {
 
 impl<T> AttentionProvider<T> for CudaBackend
 where
-    T: CudaScalar + Float + AttentionScalar + coeus_ops::AttentionScalar,
+    T: CudaScalar + coeus_ops::AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
 {
     type Operations = CudaAttentionOps;
@@ -31,7 +31,7 @@ where
 
 impl<T> AttentionBackend<T> for CudaBackend
 where
-    T: CudaScalar + Float + AttentionScalar + coeus_ops::AttentionScalar,
+    T: CudaScalar + coeus_ops::AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
 {
     type Provider = Self;
@@ -49,7 +49,7 @@ where
 
 impl<T> coeus_ops::AttentionOps<T> for CudaBackend
 where
-    T: CudaScalar + Float + AttentionScalar + coeus_ops::AttentionScalar,
+    T: CudaScalar + coeus_ops::AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
 {
     fn sdp_attention(
@@ -122,3 +122,4 @@ where
         )
     }
 }
+

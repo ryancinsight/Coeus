@@ -1,5 +1,5 @@
 use super::UnaryOpTag;
-use coeus_core::{FloatOps, Scalar};
+use coeus_core::{FloatOps, Scalar, NumericElement};
 
 #[derive(Clone, Copy)]
 /// ReLU operation tag.
@@ -8,10 +8,10 @@ impl<T: Scalar> UnaryOpTag<T> for Relu {
     const WGSL_TEMPLATE: &'static str = "max(({}), 0.0)";
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x > T::zero() {
+        if x > <T as NumericElement>::ZERO {
             x
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         }
     }
 }
@@ -23,7 +23,7 @@ impl<T: Scalar> UnaryOpTag<T> for Neg {
     const WGSL_TEMPLATE: &'static str = "-(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        T::zero() - x
+        <T as NumericElement>::ZERO - x
     }
 }
 
@@ -34,7 +34,7 @@ impl<T: Scalar> UnaryOpTag<T> for Abs {
     const WGSL_TEMPLATE: &'static str = "abs(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.abs_val()
+        x.abs()
     }
 }
 
@@ -45,7 +45,7 @@ impl<T: Scalar> UnaryOpTag<T> for Sqrt {
     const WGSL_TEMPLATE: &'static str = "sqrt(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        x.sqrt_val()
+        x.sqrt()
     }
 }
 
@@ -56,7 +56,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Recip {
     const WGSL_TEMPLATE: &'static str = "(1.0 / ({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        T::one() / x
+        <T as NumericElement>::ONE / x
     }
 }
 
@@ -67,12 +67,12 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sign {
     const WGSL_TEMPLATE: &'static str = "sign(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        if x > T::zero() {
-            T::one()
-        } else if x < T::zero() {
-            T::zero() - T::one()
+        if x > <T as NumericElement>::ZERO {
+            <T as NumericElement>::ONE
+        } else if x < <T as NumericElement>::ZERO {
+            <T as NumericElement>::ZERO - <T as NumericElement>::ONE
         } else {
-            T::zero()
+            <T as NumericElement>::ZERO
         }
     }
 }
@@ -84,7 +84,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Floor {
     const WGSL_TEMPLATE: &'static str = "floor(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).floor())
+        <T as Scalar>::from_f64(x.to_f64().floor())
     }
 }
 
@@ -95,7 +95,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Ceil {
     const WGSL_TEMPLATE: &'static str = "ceil(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).ceil())
+        <T as Scalar>::from_f64(x.to_f64().ceil())
     }
 }
 
@@ -109,7 +109,7 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Round {
     const WGSL_TEMPLATE: &'static str = "round(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).round_ties_even())
+        <T as Scalar>::from_f64(x.to_f64().round_ties_even())
     }
 }
 
@@ -120,6 +120,10 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Trunc {
     const WGSL_TEMPLATE: &'static str = "trunc(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as Scalar>::to_f64(x).trunc())
+        <T as Scalar>::from_f64(x.to_f64().trunc())
     }
 }
+
+
+
+

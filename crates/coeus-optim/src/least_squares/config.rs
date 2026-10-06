@@ -1,6 +1,7 @@
 //! Solver configuration and termination vocabulary.
 
 use coeus_core::Scalar;
+use coeus_core::NumericElement;
 
 /// Why the solver stopped.
 ///
@@ -70,9 +71,9 @@ impl<T: Scalar> LevenbergMarquardtConfig<T> {
     /// bisection on the round-tripped value — exact for IEEE binary formats and
     /// evaluated once per construction, not per iteration.
     fn epsilon() -> T {
-        let mut epsilon = T::one();
+        let mut epsilon = <T as NumericElement>::ONE;
         let two = <T as coeus_core::Scalar>::from_f64(2.0);
-        while T::one() + epsilon / two > T::one() {
+        while <T as NumericElement>::ONE + epsilon / two > <T as NumericElement>::ONE {
             epsilon = epsilon / two;
         }
         epsilon
@@ -81,7 +82,7 @@ impl<T: Scalar> LevenbergMarquardtConfig<T> {
 
 impl<T: Scalar> Default for LevenbergMarquardtConfig<T> {
     fn default() -> Self {
-        let sqrt_epsilon = Self::epsilon().sqrt_val();
+        let sqrt_epsilon = Self::epsilon().sqrt();
         Self {
             gradient_tolerance: sqrt_epsilon,
             step_tolerance: sqrt_epsilon,
@@ -111,3 +112,6 @@ pub struct LeastSquaresReport<T> {
     /// Why the solver stopped.
     pub termination: Termination,
 }
+
+
+

@@ -26,7 +26,7 @@ mod storage;
 
 pub use backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 
-use coeus_core::{BackendError, ComputeBackend, Layout};
+use coeus_core::{BackendError, ComputeBackend, Layout, NumericElement};
 use coeus_ops::fuse::ExprNode;
 use coeus_tensor::Tensor;
 
@@ -220,8 +220,8 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     if axis_len == 0 {
         let identity = match op {
-            coeus_ops::ReductionOp::Sum => T::zero(),
-            coeus_ops::ReductionOp::Prod => T::one(),
+            coeus_ops::ReductionOp::Sum => <T as NumericElement>::ZERO,
+            coeus_ops::ReductionOp::Prod => <T as NumericElement>::ONE,
             coeus_ops::ReductionOp::Mean
             | coeus_ops::ReductionOp::Max
             | coeus_ops::ReductionOp::Min => {
@@ -240,3 +240,6 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }
+
+
+

@@ -3,7 +3,7 @@
 use crate::autodiff_cache::ComputeGraphCache;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
-use coeus_core::{ComputeBackend, MoiraiBackend, Scalar, Shape};
+use coeus_core::{ComputeBackend, MoiraiBackend, Scalar, Shape, NumericElement};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -208,7 +208,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
     #[inline]
     pub fn zero_grad(&self) {
         if let Some(ref g) = self.grad {
-            B::default().fill(g.write().storage_mut(), T::zero());
+            B::default().fill(g.write().storage_mut(), <T as NumericElement>::ZERO);
         }
     }
 
@@ -348,3 +348,6 @@ mod tests {
         );
     }
 }
+
+
+

@@ -1,5 +1,5 @@
 use coeus_autograd::Var;
-use coeus_core::{Float, Layout, Scalar};
+use coeus_core::{Float, Layout, Scalar, NumericElement};
 use coeus_ops::RandomInitOps;
 use coeus_tensor::Tensor;
 
@@ -28,7 +28,7 @@ fn finite<T: Float, E: std::error::Error + 'static>(
     value: f64,
 ) -> std::result::Result<T, InitializationError<E>> {
     let converted = <T as Scalar>::from_f64(value);
-    if value.is_finite() && <T as Float>::is_finite(converted) {
+    if value.is_finite() && <T as coeus_core::NumericElement>::is_finite(converted) {
         Ok(converted)
     } else {
         Err(InitializationError::NonFiniteParameter { parameter, value })
@@ -51,22 +51,22 @@ where
 {
     let layout = dense_layout(weight);
     validate_layout(&layout)?;
-    if !<T as Float>::is_finite(low) {
+    if !<T as coeus_core::NumericElement>::is_finite(low) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "low",
-            value: <T as Scalar>::to_f64(low),
+            value: low.to_f64(),
         });
     }
-    if !<T as Float>::is_finite(high) {
+    if !<T as coeus_core::NumericElement>::is_finite(high) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "high",
-            value: <T as Scalar>::to_f64(high),
+            value: high.to_f64(),
         });
     }
     if low > high {
         return Err(InitializationError::InvalidUniformBounds {
-            low: <T as Scalar>::to_f64(low),
-            high: <T as Scalar>::to_f64(high),
+            low: low.to_f64(),
+            high: high.to_f64(),
         });
     }
     let storage = B::default()
@@ -91,21 +91,21 @@ where
 {
     let layout = dense_layout(weight);
     validate_layout(&layout)?;
-    if !<T as Float>::is_finite(mean) {
+    if !<T as coeus_core::NumericElement>::is_finite(mean) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "mean",
-            value: <T as Scalar>::to_f64(mean),
+            value: mean.to_f64(),
         });
     }
-    if !<T as Float>::is_finite(std_dev) {
+    if !<T as coeus_core::NumericElement>::is_finite(std_dev) {
         return Err(InitializationError::NonFiniteParameter {
             parameter: "std_dev",
-            value: <T as Scalar>::to_f64(std_dev),
+            value: std_dev.to_f64(),
         });
     }
-    if std_dev < T::zero() {
+    if std_dev < <T as NumericElement>::ZERO {
         return Err(InitializationError::NegativeStandardDeviation {
-            value: <T as Scalar>::to_f64(std_dev),
+            value: std_dev.to_f64(),
         });
     }
     let storage = B::default()
@@ -246,8 +246,8 @@ where
 {
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
     let fan = T::from_count(fan);
-    let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
-    uniform_typed_with_seed(weight, T::zero() - limit, limit, seed)
+    let limit = <T as NumericElement>::sqrt(<T as Scalar>::from_f64(6.0) / fan);
+    uniform_typed_with_seed(weight, <T as NumericElement>::ZERO - limit, limit, seed)
 }
 
 /// Apply Xavier uniform initialization using seed 42.
@@ -281,8 +281,8 @@ where
 {
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
     let fan = T::from_count(fan);
-    let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
-    normal_typed_with_seed(weight, T::zero(), std_dev, seed)
+    let std_dev = <T as NumericElement>::sqrt(<T as Scalar>::from_f64(2.0) / fan);
+    normal_typed_with_seed(weight, <T as NumericElement>::ZERO, std_dev, seed)
 }
 
 /// Apply Xavier normal initialization using seed 42.
@@ -315,8 +315,8 @@ where
 {
     let fan = positive_fan::<B::Error>(fan_in)?;
     let fan = T::from_count(fan);
-    let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
-    uniform_typed_with_seed(weight, T::zero() - limit, limit, seed)
+    let limit = <T as NumericElement>::sqrt(<T as Scalar>::from_f64(6.0) / fan);
+    uniform_typed_with_seed(weight, <T as NumericElement>::ZERO - limit, limit, seed)
 }
 
 /// Apply Kaiming uniform initialization using seed 42.
@@ -349,8 +349,8 @@ where
 {
     let fan = positive_fan::<B::Error>(fan_in)?;
     let fan = T::from_count(fan);
-    let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
-    normal_typed_with_seed(weight, T::zero(), std_dev, seed)
+    let std_dev = <T as NumericElement>::sqrt(<T as Scalar>::from_f64(2.0) / fan);
+    normal_typed_with_seed(weight, <T as NumericElement>::ZERO, std_dev, seed)
 }
 
 /// Apply Kaiming normal initialization using seed 42.
@@ -365,3 +365,8 @@ where
 {
     kaiming_normal_with_seed(weight, fan_in, 42)
 }
+
+
+
+
+

@@ -63,7 +63,7 @@ where
     let src_s = src_cont.as_slice();
 
     // Zero-copy fast path: if src contributes no updates, scatter_add is identity.
-    if src_s.iter().all(|v| <T as Scalar>::to_f64(*v) == 0.0) {
+    if src_s.iter().all(|v| v.to_f64() == 0.0) {
         return input.to_contiguous();
     }
 
@@ -89,7 +89,7 @@ where
     let out_s = output.as_mut_slice();
 
     for flat in 0..idx_numel {
-        let scatter_idx = <T as Scalar>::to_f64(idx_s[flat]) as usize;
+        let scatter_idx = idx_s[flat].to_f64() as usize;
         assert!(
             scatter_idx < out_dim,
             "scatter_add: index {scatter_idx} out of bounds for dim {dim} size {out_dim}"
@@ -132,3 +132,6 @@ mod tests {
         assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());
     }
 }
+
+
+
