@@ -214,7 +214,7 @@ pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 /// Panics (via the underlying broadcast) if `weight`'s channel count is
 /// neither `1` nor `x`'s size along dim `1`.
 #[must_use]
-pub fn prelu<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     weight: &Var<T, B>,
 ) -> Var<T, B>
@@ -233,3 +233,7 @@ where
     };
     where_cond(&relu(x), x, &mul(&w, x))
 }
+
+
+
+

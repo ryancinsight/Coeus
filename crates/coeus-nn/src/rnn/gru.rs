@@ -20,7 +20,7 @@ use coeus_tensor::Tensor;
 ///
 /// Fused implementation uses a single `[3*H]` projection for efficiency.
 #[derive(Clone)]
-pub struct GRUCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+pub struct GRUCell<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Input-to-hidden projection: `[input_size, 3*hidden_size]`.
     pub w_ih: Linear<T, B>,
     /// Hidden-to-hidden projection: `[hidden_size, 3*hidden_size]`.
@@ -31,7 +31,7 @@ pub struct GRUCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> GRUCell<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> GRUCell<T, B> {
     /// Create with Kaiming-initialized weights and zero biases.
     ///
     /// # Errors
@@ -115,7 +115,7 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> G
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for GRUCell<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -158,7 +158,7 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
 /// ∴ output is all zeros for any sequence length.
 /// ```
 #[derive(Clone)]
-pub struct Gru<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+pub struct Gru<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     cell: GRUCell<T, B>,
     /// Number of input features per timestep.
     pub input_size: usize,
@@ -166,7 +166,7 @@ pub struct Gru<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> 
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Gru<T, B>
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Gru<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -224,7 +224,7 @@ where
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for Gru<T, B>
 where
     B::DeviceBuffer<T>:
@@ -243,3 +243,5 @@ where
         Ok(self.forward_seq(x)?.0)
     }
 }
+
+

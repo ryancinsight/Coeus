@@ -25,7 +25,7 @@ pub enum RnnNonlinearity {
 /// ```
 /// where `f` is [`RnnNonlinearity`] (`tanh` or `relu`).
 #[derive(Clone)]
-pub struct RNNCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+pub struct RNNCell<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     /// Input-to-hidden projection: `[input_size, hidden_size]`.
     pub w_ih: Linear<T, B>,
     /// Hidden-to-hidden projection: `[hidden_size, hidden_size]`.
@@ -38,7 +38,7 @@ pub struct RNNCell<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> RNNCell<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> RNNCell<T, B> {
     /// Create with Kaiming-initialized weights, zero biases, and the given nonlinearity.
     ///
     /// # Errors
@@ -95,7 +95,7 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> R
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for RNNCell<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -126,7 +126,7 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
 /// Output layout: `[batch, seq_len, hidden_size]`.
 /// Final hidden state: `h_n` of shape `[batch, hidden_size]`.
 #[derive(Clone)]
-pub struct Rnn<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
+pub struct Rnn<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> {
     cell: RNNCell<T, B>,
     /// Number of input features per timestep.
     pub input_size: usize,
@@ -134,7 +134,7 @@ pub struct Rnn<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend> 
     pub hidden_size: usize,
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Rnn<T, B>
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Rnn<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -192,7 +192,7 @@ where
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for Rnn<T, B>
 where
     B::DeviceBuffer<T>:
@@ -211,3 +211,5 @@ where
         Ok(self.forward_seq(x)?.0)
     }
 }
+
+

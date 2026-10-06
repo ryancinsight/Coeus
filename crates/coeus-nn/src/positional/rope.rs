@@ -76,7 +76,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     pub fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>>
     where
         B: coeus_ops::RotateHalfOps<T>,
-        T: coeus_leto::RealScalar,
     {
         let shape = x.tensor.shape();
         let ndim = shape.len();
@@ -130,7 +129,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for RotaryEmbedding<T, B>
 where
     B: coeus_ops::RotateHalfOps<T>,
@@ -152,3 +151,4 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Tensor<T, B> {
     table.slice(&[(0, seq_len), (0, d_model)])
 }
+

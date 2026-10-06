@@ -49,7 +49,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> SwiGlu<T, B> {
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for SwiGlu<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -70,3 +70,4 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
         Ok(coeus_autograd::mul(&gated, &outer))
     }
 }
+

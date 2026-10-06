@@ -38,7 +38,7 @@ use coeus_tensor::Tensor;
 /// crosses `B::copy_to_host`, not both full operands.
 #[inline]
 #[must_use]
-pub fn dot<T: Scalar + leto_ops::RealScalar, B: BackendOps<T> + Default>(
+pub fn dot<T: Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
 ) -> T {
@@ -288,3 +288,4 @@ mod tests {
         let _ = cross::<f32, B>(&a, &b, 5);
     }
 }
+

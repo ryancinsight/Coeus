@@ -14,7 +14,7 @@ use coeus_core::Scalar;
 #[must_use]
 pub fn diff<T, B>(x: &Var<T, B>, n: usize, dim: usize) -> Var<T, B>
 where
-    T: Scalar + leto_ops::RealScalar,
+    T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,
 {
     let ndim = x.tensor.ndim();
@@ -93,3 +93,4 @@ mod tests {
         assert_eq!(d.tensor.to_contiguous().as_slice(), &[1.0, 2.0, 10.0, 20.0]);
     }
 }
+

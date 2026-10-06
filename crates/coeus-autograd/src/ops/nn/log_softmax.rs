@@ -30,7 +30,7 @@ pub struct LogSoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for LogSoftmaxNode<T, B>
 {
     #[inline]
@@ -86,7 +86,7 @@ impl<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Bac
 ///
 /// # Backward
 /// `∂L/∂x_i = g_i − softmax_i · Σ_j g_j` — computed in `T` precision via tensor ops.
-pub fn log_softmax<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn log_softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     axis: usize,
 ) -> Var<T, B> {
@@ -133,3 +133,5 @@ pub fn log_softmax<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> 
         creator,
     }
 }
+
+

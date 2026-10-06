@@ -20,7 +20,7 @@ where
     pub broadcast_dims: Vec<usize>,
 }
 
-impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for BroadcastNode<T, B>
 where
     B::DeviceBuffer<T>:
@@ -62,7 +62,7 @@ where
 /// incompatible for broadcasting.
 #[must_use]
 #[inline]
-pub fn broadcast_to<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn broadcast_to<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     target_shape: impl Into<Vec<usize>>,
 ) -> Var<T, B>
@@ -127,3 +127,5 @@ where
         creator,
     }
 }
+
+

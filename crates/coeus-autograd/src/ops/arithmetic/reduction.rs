@@ -50,13 +50,13 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
     fn forward(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Tensor<T, B> {
         let total = coeus_ops::sum(a, backend).expect("invariant: mean input is valid");
         let n = a.numel() as f64;
-        Tensor::from_slice_on([1], &[total / T::from_f64(n)], backend)
+        Tensor::from_slice_on([1], &[total / <T as coeus_core::Scalar>::from_f64(n)], backend)
     }
 
     #[inline(always)]
     fn scaler(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Option<Tensor<T, B>> {
         let n = a.numel() as f64;
-        Some(Tensor::full_on([1], T::from_f64(1.0 / n), backend))
+        Some(Tensor::full_on([1], <T as coeus_core::Scalar>::from_f64(1.0 / n), backend))
     }
 }
 
@@ -190,7 +190,7 @@ where
     );
     let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
     let s = sum(&cleaned);
-    crate::scalar_div(&s, T::from_f64(count as f64))
+    crate::scalar_div(&s, <T as coeus_core::Scalar>::from_f64(count as f64))
 }
 
 #[cfg(test)]
@@ -262,3 +262,5 @@ mod nan_reduction_tests {
         );
     }
 }
+
+

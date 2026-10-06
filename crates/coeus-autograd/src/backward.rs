@@ -14,7 +14,7 @@ use coeus_tensor::Tensor;
 /// is only ever read before any reduction has touched index `d` or higher, so
 /// its extent still equals the corresponding extent of the incoming gradient.
 pub fn reduce_broadcast<
-    T: Scalar + leto_ops::RealScalar,
+    T: Scalar,
     B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
 >(
     grad: Tensor<T, B>,
@@ -68,3 +68,4 @@ pub fn reduce_broadcast<
 
     current
 }
+

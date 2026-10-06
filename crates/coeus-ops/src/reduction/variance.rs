@@ -163,3 +163,5 @@ pub fn std_mean_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
     let std = crate::unary::sqrt(&v, backend);
     Ok((std, mu))
 }
+
+

@@ -328,3 +328,7 @@ mod tests {
         let _ = multi_label_margin_loss(&x, &target);
     }
 }
+
+
+
+

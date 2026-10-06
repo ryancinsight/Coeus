@@ -12,7 +12,7 @@ use coeus_tensor::Tensor;
 /// Implemented via tensor ops: max_axis → sub → exp → sum_axis → log → sub.
 /// Returns a tensor of the same shape as `input`.
 #[inline]
-pub fn log_softmax_axis<T: Float + leto_ops::RealScalar, B: BackendOps<T> + Default>(
+pub fn log_softmax_axis<T: Float, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     axis: usize,
     backend: &B,
@@ -165,3 +165,4 @@ where
     let mask = Tensor::from_slice_on(shape.to_vec(), &mask_data, backend);
     masked_softmax(input, &mask, dim, backend)
 }
+

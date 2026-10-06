@@ -589,7 +589,7 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-metal --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-metal --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-metal \
-            -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_metal_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_metal_value_and_gradient_contract) or test(invalid_rank_is_typed_without_device_acquisition) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_metal_parity) or test(partial_update_preserves_metal_parent_and_shared_source)"
+            -E "test(reductions_and_scans_match_axis_values) or test(norm_p_dispatches_with_metal_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_metal_value_and_gradient_contract) or test(invalid_rank_is_typed_without_device_acquisition) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_metal_parity) or test(partial_update_preserves_metal_parent_and_shared_source)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-metal --doc
 
   rocm-hardware:

@@ -341,6 +341,7 @@ pub trait CpuUnaryDispatch: private::Sealed {
 /// ```
 pub trait Scalar:
     NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone
+    + leto_ops::Scalar
 {
     /// Additive identity.
     fn zero() -> Self;

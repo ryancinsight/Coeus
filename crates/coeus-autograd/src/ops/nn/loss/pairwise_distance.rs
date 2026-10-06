@@ -267,3 +267,6 @@ mod tests {
         let _ = pairwise_distance(&x1, &x2, 2.0, 1e-6);
     }
 }
+
+
+

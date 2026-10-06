@@ -33,7 +33,7 @@ pub struct MaxAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>
+impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>
     BackwardNode<T, B> for MaxAxisNode<T, B>
 {
     #[inline]
@@ -90,7 +90,7 @@ impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + 
 /// Backward: indicator gradient distributed equally across tied maxima.
 #[inline]
 pub fn max_axis<
-    T: Scalar + FloatOps + leto_ops::RealScalar,
+    T: Scalar + FloatOps,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     a: &Var<T, B>,
@@ -136,7 +136,7 @@ pub struct MinAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>
+impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>
     BackwardNode<T, B> for MinAxisNode<T, B>
 {
     #[inline]
@@ -190,7 +190,7 @@ impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + 
 /// Backward: indicator gradient distributed equally across tied minima.
 #[inline]
 pub fn min_axis<
-    T: Scalar + FloatOps + leto_ops::RealScalar,
+    T: Scalar + FloatOps,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     a: &Var<T, B>,
@@ -224,3 +224,5 @@ pub fn min_axis<
         creator,
     }
 }
+
+

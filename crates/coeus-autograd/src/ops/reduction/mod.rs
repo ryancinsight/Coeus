@@ -42,7 +42,7 @@ pub use variance::{
 /// constrains exp input to (−∞, 0], eliminating overflow at any precision.
 #[inline]
 pub fn log_sum_exp<
-    T: coeus_core::Float + leto_ops::RealScalar,
+    T: coeus_core::Float,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x: &crate::Var<T, B>,
@@ -55,3 +55,4 @@ pub fn log_sum_exp<
     let log_sum = crate::ops::activation::log(&sum_exp);
     crate::ops::arithmetic::add(&log_sum, &x_max)
 }
+

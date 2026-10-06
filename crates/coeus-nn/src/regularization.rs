@@ -51,7 +51,7 @@ impl AlphaDropout {
 }
 
 fn alpha_dropout_with_mask<
-    T: Float + coeus_leto::RealScalar,
+    T: Float,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -123,7 +123,7 @@ fn alpha_dropout_with_mask<
     ))
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for AlphaDropout
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -182,7 +182,7 @@ impl FeatureAlphaDropout {
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for FeatureAlphaDropout
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -232,7 +232,7 @@ impl GaussianNoise {
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for GaussianNoise
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -324,7 +324,7 @@ impl LocalResponseNorm {
 }
 
 impl<
-        T: Float + std::ops::Neg<Output = T> + coeus_leto::RealScalar,
+        T: Float + std::ops::Neg<Output = T>,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for LocalResponseNorm
 where
@@ -396,3 +396,4 @@ where
         Ok(coeus_autograd::reshape(&y3, shape))
     }
 }
+

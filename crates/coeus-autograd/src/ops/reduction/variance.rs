@@ -151,3 +151,6 @@ pub fn std_dev_axis<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOp
 ) -> Var<T, B> {
     std_mean_axis(a, axis, unbiased).0
 }
+
+
+

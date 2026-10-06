@@ -25,7 +25,7 @@ pub struct MaskedSoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub op: &'static str,
 }
 
-impl<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
     for MaskedSoftmaxNode<T, B>
 {
     #[inline]
@@ -73,7 +73,7 @@ fn build_var<T, B>(
     op: &'static str,
 ) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: coeus_ops::BackendOps<T> + Default,
 {
     let backend = B::default();
@@ -110,7 +110,7 @@ where
 #[must_use]
 pub fn masked_softmax<T, B>(input: &Var<T, B>, mask: &Tensor<T, B>, dim: isize) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -129,7 +129,7 @@ where
 #[must_use]
 pub fn causal_softmax<T, B>(input: &Var<T, B>, dim: isize) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -223,3 +223,5 @@ mod tests {
             .all(|v| v.is_finite()));
     }
 }
+
+

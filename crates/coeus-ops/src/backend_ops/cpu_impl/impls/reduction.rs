@@ -18,8 +18,6 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error>
-    where
-        T: leto_ops::RealScalar,
     {
         reduction::reduce(self, op, a, a_layout, axis, c, c_layout)
     }

@@ -27,7 +27,7 @@ pub struct DepthwiseConv3d<T: Float, B: coeus_ops::BackendOps<T> + Default = Moi
 
 impl<T, B> DepthwiseConv3d<T, B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float,
     B: coeus_ops::BackendOps<T> + Default,
 {
     /// Construct a depthwise convolution with unit stride and dilation.
@@ -70,7 +70,7 @@ where
 
 impl<T, B> Module<T, B> for DepthwiseConv3d<T, B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -192,3 +192,4 @@ mod tests {
             .is_some());
     }
 }
+

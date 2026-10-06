@@ -21,6 +21,20 @@ elementwise, reductions, scan, cross-entropy, random init, rotate-half, and
 stateful update. Attention and convolution are **not** implemented for this
 provider.
 
+The reduction tests check a row-major `[2, 3]` matrix along axis 1, with
+`[2, 1]` keep-dimension reduction output. Sum, product, mean, minimum,
+maximum, and the four inclusive prefix/suffix sum/product scans each use
+exact expectations derived from their mathematical definitions. Leto and
+Metal are checked separately against those values, so agreement between
+providers cannot hide a shared error. Product and mean use the float-bound
+entry points on both providers.
+
+The Leto check runs without a Metal device. The Metal check requires a
+device; set `HEPHAESTUS_METAL_REQUIRE_DEVICE=1` to make device acquisition
+failure fail the test, as the macOS provider job does. A device-free local
+run verifies the CPU expectations and compilation of the Metal calls,
+but does not establish Metal execution correctness.
+
 ## Documentation
 
 API docs: <https://docs.rs/coeus-metal>

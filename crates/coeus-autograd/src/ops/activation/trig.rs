@@ -192,3 +192,5 @@ pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let backend = B::default();
     coeus_ops::lgamma(&a.tensor, &backend)
 }
+
+

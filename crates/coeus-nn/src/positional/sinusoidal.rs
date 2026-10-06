@@ -63,7 +63,7 @@ impl<T: Float + FloatElement, B: ComputeBackend + Default> SinusoidalEncoding<T,
 }
 
 impl<
-        T: Float + coeus_leto::RealScalar,
+        T: Float,
         B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
     > Module<T, B> for SinusoidalEncoding<T, B>
 {
@@ -151,3 +151,4 @@ mod tests {
         assert_eq!(prefix.shape(), &[2, 6]);
     }
 }
+

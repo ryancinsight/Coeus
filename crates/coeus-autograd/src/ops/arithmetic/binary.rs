@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// ZST tag for element-wise addition autograd.
 pub struct AddOp;
 impl<
-        T: Scalar + leto_ops::RealScalar,
+        T: Scalar,
         B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
     > BinaryAutogradOp<T, B> for AddOp
 {
@@ -55,7 +55,7 @@ impl<
 /// ZST tag for element-wise subtraction autograd.
 pub struct SubOp;
 impl<
-        T: Scalar + leto_ops::RealScalar,
+        T: Scalar,
         B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
     > BinaryAutogradOp<T, B> for SubOp
 {
@@ -101,7 +101,7 @@ impl<
 /// ZST tag for element-wise multiplication autograd.
 pub struct MulOp;
 impl<
-        T: Scalar + leto_ops::RealScalar,
+        T: Scalar,
         B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
     > BinaryAutogradOp<T, B> for MulOp
 {
@@ -149,7 +149,7 @@ impl<
 /// ZST tag for element-wise division autograd.
 pub struct DivOp;
 impl<
-        T: Scalar + leto_ops::RealScalar,
+        T: Scalar,
         B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
     > BinaryAutogradOp<T, B> for DivOp
 {
@@ -207,7 +207,7 @@ impl<
 ///   ∂/∂a = 1        (identity)
 ///   ∂/∂b = −q       (matches PyTorch `-grad * self.div(other, floor)`)
 pub struct RemainderOp;
-impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B>
+impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BinaryAutogradOp<T, B>
     for RemainderOp
 {
     const OP_NAME: &'static str = "remainder";
@@ -280,7 +280,7 @@ impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Bi
 #[must_use]
 #[inline]
 pub fn add<
-    T: Scalar + leto_ops::RealScalar,
+    T: Scalar,
     B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
 >(
     a: &Var<T, B>,
@@ -293,7 +293,7 @@ pub fn add<
 #[must_use]
 #[inline]
 pub fn sub<
-    T: Scalar + leto_ops::RealScalar,
+    T: Scalar,
     B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
 >(
     a: &Var<T, B>,
@@ -329,7 +329,7 @@ pub fn sub<
 #[must_use]
 #[inline]
 pub fn mul<
-    T: Scalar + leto_ops::RealScalar,
+    T: Scalar,
     B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
 >(
     a: &Var<T, B>,
@@ -342,7 +342,7 @@ pub fn mul<
 #[must_use]
 #[inline]
 pub fn div<
-    T: Scalar + leto_ops::RealScalar,
+    T: Scalar,
     B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
 >(
     a: &Var<T, B>,
@@ -442,9 +442,11 @@ pub fn ge<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// ```
 #[must_use]
 #[inline]
-pub fn remainder<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn remainder<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {
     binary_op::<T, B, RemainderOp>(a, b)
 }
+
+

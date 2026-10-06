@@ -397,3 +397,5 @@ pub fn celu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let bits = alpha.to_bits();
     parameterized_unary_op::<T, B, CeluSpec>(a, bits)
 }
+
+

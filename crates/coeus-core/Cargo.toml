@@ -19,6 +19,7 @@ moirai    = { workspace = true }
 hermes-simd = { workspace = true }
 eunomia = { workspace = true }
 themis = { workspace = true }
+leto-ops = { workspace = true }
 bytemuck   = { workspace = true }
 smallvec   = { workspace = true }
 thiserror  = { workspace = true }

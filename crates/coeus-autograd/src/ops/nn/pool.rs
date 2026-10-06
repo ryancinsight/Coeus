@@ -440,3 +440,6 @@ pub fn avg_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Var<T, B> {
     avg_pool_nd_inner::<T, B, 3>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
+
+
+
