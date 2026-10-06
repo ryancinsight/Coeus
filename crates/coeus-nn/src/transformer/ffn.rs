@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 /// Functional (stateless) transformer feed-forward block.
 ///
 /// Computes: `Linear1(d_model→d_ff) → GELU → Dropout(p) → Linear2(d_ff→d_model)`.
-pub fn feed_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn feed_forward<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     w1: &Var<T, B>,
     b1: Option<&Var<T, B>>,
@@ -21,7 +21,10 @@ pub fn feed_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     feed_forward_with_training(input, w1, b1, w2, b2, dropout_p, dropout_p > 0.0)
 }
 
-pub(super) fn feed_forward_with_training<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub(super) fn feed_forward_with_training<
+    T: Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Var<T, B>,
     w1: &Var<T, B>,
     b1: Option<&Var<T, B>>,
@@ -51,7 +54,7 @@ pub(super) fn feed_forward_with_training<T: Float, B: coeus_ops::BackendOps<T> +
     Ok(linear_from_parts(&x, w2, b2))
 }
 
-fn linear_from_parts<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+fn linear_from_parts<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
     bias: Option<&Var<T, B>>,
@@ -97,7 +100,7 @@ pub struct FeedForward<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Defa
     _marker: PhantomData<(T, B)>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> FeedForward<T, B> {
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> FeedForward<T, B> {
     /// Create a FeedForward sub-layer.
     ///
     /// # Arguments
@@ -127,7 +130,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> FeedForward<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for FeedForward<T, B> {
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for FeedForward<T, B>
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = self.linear1.parameters();
         p.extend(self.linear2.parameters());

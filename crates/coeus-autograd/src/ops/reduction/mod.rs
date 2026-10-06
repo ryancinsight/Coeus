@@ -41,7 +41,10 @@ pub use variance::{
 /// Precision: all computation in native `T` precision; max-subtraction
 /// constrains exp input to (−∞, 0], eliminating overflow at any precision.
 #[inline]
-pub fn log_sum_exp<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn log_sum_exp<
+    T: coeus_core::Float + leto_ops::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x: &crate::Var<T, B>,
     axis: usize,
 ) -> crate::Var<T, B> {

@@ -13,7 +13,7 @@ use coeus_core::MoiraiBackend;
 /// - `SelfM` — self-attention masking strategy ZST
 /// - `CrossM` — cross-attention masking strategy ZST
 pub struct TransformerDecoder<
-    T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     const N: usize = 6,
@@ -25,7 +25,7 @@ pub struct TransformerDecoder<
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
@@ -79,7 +79,7 @@ where
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
@@ -110,7 +110,7 @@ impl<
 
 /// Manual Clone impl.
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,

@@ -75,7 +75,7 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 // `weight`/`bias` are the per-channel affine parameters ([C]).
 
 fn instance_norm_forward<
-    T: coeus_core::FloatElement + Float,
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     flat: &Var<T, B>,
@@ -174,7 +174,7 @@ pub struct InstanceNorm<
 }
 
 impl<
-        T: coeus_core::FloatElement + Float,
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
         const DIM: usize,
     > InstanceNorm<T, B, DIM>
@@ -194,7 +194,7 @@ impl<
 
 /// Implements the [`Module`] interface for every [`InstanceNorm`](crate::normalization::instancenorm::InstanceNorm) rank.
 impl<
-        T: coeus_core::FloatElement + Float,
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
         const DIM: usize,
     > Module<T, B> for InstanceNorm<T, B, DIM>

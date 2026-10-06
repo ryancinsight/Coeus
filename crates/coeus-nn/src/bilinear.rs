@@ -22,7 +22,7 @@ use coeus_tensor::Tensor;
 ///
 /// # Panics
 /// Panics if input shapes are incompatible.
-pub fn bilinear<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn bilinear<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x1: &Var<T, B>,
     x2: &Var<T, B>,
     weight: &Var<T, B>,
@@ -113,7 +113,7 @@ pub struct Bilinear<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBack
     pub out_features: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Bilinear<T, B> {
     /// Create with Xavier-initialized weight and zero bias.
     ///
     /// # Errors

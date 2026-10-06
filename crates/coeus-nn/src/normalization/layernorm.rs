@@ -58,7 +58,7 @@ impl<const N: usize> From<[usize; N]> for NormalizedShape {
 /// Returns a typed module or backend failure when the input rank, trailing
 /// dimensions, affine parameter shapes, or epsilon violate the LayerNorm
 /// contract, or when a backend operation fails.
-pub fn layer_norm<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn layer_norm<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     normalized_shape: impl Into<NormalizedShape>,
     weight: Option<&Var<T, B>>,
@@ -179,7 +179,10 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
         &self,
         input: &Var<T, B>,
         normalized_size: usize,
-    ) -> Result<Var<T, B>, ModuleError<B::Error>> {
+    ) -> Result<Var<T, B>, ModuleError<B::Error>>
+    where
+        T: coeus_leto::RealScalar,
+    {
         const MODULE: &str = "LayerNorm";
         let batch = input.tensor.shape()[0];
         let backend = B::default();
@@ -239,7 +242,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
 }
 
 /// Implements the [`crate::module::Module`] interface for [`LayerNorm`].
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for LayerNorm<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -258,7 +261,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
+impl<T: coeus_core::FloatElement + Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     /// Forward pass for any rank ≥ 2 input.
     ///
     /// The configured suffix is flattened into one normalized feature axis for

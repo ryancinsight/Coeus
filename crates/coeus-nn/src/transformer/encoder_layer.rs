@@ -13,7 +13,7 @@ use coeus_core::MoiraiBackend;
 /// Borrowed parameters for functional transformer encoder-layer execution.
 pub struct TransformerEncoderLayerParams<
     'a,
-    T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
 > {
     /// LayerNorm1 gamma `[d_model]`.
@@ -49,7 +49,7 @@ pub struct TransformerEncoderLayerParams<
 }
 
 fn apply_dropout<
-    T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x: &Var<T, B>,
@@ -67,7 +67,7 @@ fn apply_dropout<
 /// `x1 = x + Dropout(SelfAttn(LN1(x)))`
 /// `x2 = x1 + Dropout(Linear2(Dropout(GELU(Linear1(LN2(x1))))))`.
 pub fn transformer_encoder_layer<
-    T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     const H: usize,
     M: AttentionMask,
@@ -143,7 +143,7 @@ pub fn transformer_encoder_layer<
 ///   x₂ = x₁ + Dropout(FFN(LayerNorm(x₁)))
 /// ```
 pub struct TransformerEncoderLayer<
-    T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     M: AttentionMask = NullMask,
@@ -163,7 +163,7 @@ pub struct TransformerEncoderLayer<
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         M: AttentionMask,
@@ -237,7 +237,7 @@ impl<
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         M: AttentionMask,
@@ -267,7 +267,7 @@ impl<
 
 /// Manual Clone impl.
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         M: AttentionMask,

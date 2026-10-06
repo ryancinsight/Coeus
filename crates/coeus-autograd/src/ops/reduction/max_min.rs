@@ -33,8 +33,8 @@ pub struct MaxAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for MaxAxisNode<T, B>
+impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>
+    BackwardNode<T, B> for MaxAxisNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -61,7 +61,11 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 
         let max_broad = self.max_tensor.broadcast(self.input_tensor.shape_cloned());
 
-        let eps = Tensor::full_on(self.input_tensor.shape(), T::from_f64(1e-30), &backend);
+        let eps = Tensor::full_on(
+            self.input_tensor.shape(),
+            <T as coeus_core::Scalar>::from_f64(1e-30),
+            &backend,
+        );
         let diff = coeus_ops::sub(&self.input_tensor, &max_broad, &backend);
         let abs_diff = coeus_ops::abs(&diff, &backend);
         let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
@@ -85,7 +89,10 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 ///
 /// Backward: indicator gradient distributed equally across tied maxima.
 #[inline]
-pub fn max_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
+pub fn max_axis<
+    T: Scalar + FloatOps + leto_ops::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
     axis: usize,
 ) -> Var<T, B> {
@@ -129,8 +136,8 @@ pub struct MinAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for MinAxisNode<T, B>
+impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>
+    BackwardNode<T, B> for MinAxisNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -156,7 +163,11 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
         };
 
         let min_broad = self.min_tensor.broadcast(self.input_tensor.shape_cloned());
-        let eps = Tensor::full_on(self.input_tensor.shape(), T::from_f64(1e-30), &backend);
+        let eps = Tensor::full_on(
+            self.input_tensor.shape(),
+            <T as coeus_core::Scalar>::from_f64(1e-30),
+            &backend,
+        );
         let diff = coeus_ops::sub(&self.input_tensor, &min_broad, &backend);
         let abs_diff = coeus_ops::abs(&diff, &backend);
         let shifted = coeus_ops::sub(&eps, &abs_diff, &backend);
@@ -178,7 +189,10 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 ///
 /// Backward: indicator gradient distributed equally across tied minima.
 #[inline]
-pub fn min_axis<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
+pub fn min_axis<
+    T: Scalar + FloatOps + leto_ops::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
     axis: usize,
 ) -> Var<T, B> {
