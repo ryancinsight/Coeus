@@ -100,7 +100,11 @@ fn native_reductions_and_scans_match_leto() {
         &mut expected_values,
     )
     .expect("Leto prod oracle failed");
-    assert_eq!(expected_values, [6.0_f32, 120.0], "Leto prod oracle contract");
+    assert_eq!(
+        expected_values,
+        [6.0_f32, 120.0],
+        "Leto prod oracle contract"
+    );
 
     let mut actual = backend.allocate::<f32>(2);
     ReductionOps::reduce_prod(
