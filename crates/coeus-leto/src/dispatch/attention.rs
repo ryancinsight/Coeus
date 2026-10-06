@@ -6,7 +6,7 @@ use coeus_core::Float;
 use leto::{ArrayView, ArrayViewMut, LetoError};
 use leto_ops::{
     AttentionError, AttentionGradients as LetoAttentionGradients, AttentionMask, AttentionOperand,
-    AttentionResult, GroupedKeepMask, RealScalar,
+    AttentionResult, GroupedKeepMask,
 };
 
 use super::convolution::{ReadOperand, WriteOperand};
@@ -294,4 +294,3 @@ pub fn scaled_dot_product_attention_backward_accumulate<T: AttentionScalar>(
         LetoAttentionGradients::new(query_gradient, key_gradient, value_gradient),
     )
 }
-

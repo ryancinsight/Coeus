@@ -1,6 +1,6 @@
 use super::{layouts, masks};
 use crate::{attention::provider::AttentionBackend, HephaestusProvider};
-use coeus_core::{Float, Layout, Scalar, StorageMut};
+use coeus_core::{Layout, StorageMut};
 use hephaestus_core::{
     plan_attention_forward, AttentionForwardOperands, AttentionOps, AttentionScalar, StridedView,
 };
@@ -83,5 +83,3 @@ where
         )
         .map_err(|source| B::attention_dispatch_error(OPERATION, source))
 }
-
-

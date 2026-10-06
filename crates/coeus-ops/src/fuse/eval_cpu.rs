@@ -1,7 +1,7 @@
 use crate::fuse::expr_node::CpuExprNode;
 use crate::ptr::MutPtr;
 use crate::CpuBackend;
-use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
+use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 #[repr(transparent)]
@@ -335,6 +335,3 @@ where
 
     Ok(out)
 }
-
-
-

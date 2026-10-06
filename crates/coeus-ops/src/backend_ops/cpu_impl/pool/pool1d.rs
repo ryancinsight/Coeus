@@ -5,7 +5,9 @@
 // L_out = (L + 2*padding - dilation*(kernel_size-1) - 1) / stride + 1
 
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, NumericElement, Scalar,
+};
 
 // ── Max Pool 1D forward ──
 
@@ -297,6 +299,3 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
     }
     let _ = backend;
 }
-
-
-

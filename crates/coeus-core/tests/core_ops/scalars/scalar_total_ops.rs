@@ -7,7 +7,7 @@
 //! type is covered by adding it to the list here rather than by a hand-added
 //! copy of the whole test.
 
-use coeus_core::{Complex, Float, Scalar, NumericElement};
+use coeus_core::{Complex, Float, NumericElement, Scalar};
 use eunomia::{Bf16, F16};
 use std::fmt::Debug;
 
@@ -105,6 +105,3 @@ fn total_add_and_mul_are_defined_for_every_scalar_type() {
     assert_complex_total_ops::<F16>();
     assert_complex_total_ops::<Bf16>();
 }
-
-
-

@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut, NumericElement};
+use coeus_core::{ComputeBackend, NumericElement, Scalar, Storage, StorageMut};
 use coeus_tensor::Tensor;
 use std::borrow::Cow;
 
@@ -149,6 +149,3 @@ where
     let raw_slice = unsafe { std::slice::from_raw_parts_mut(raw_ptr, bytes_len) };
     recv_fn(raw_slice)
 }
-
-
-

@@ -6,8 +6,8 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::Scalar;
 use coeus_core::NumericElement;
+use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -43,8 +43,12 @@ where
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let grad_input =
-                coeus_ops::masked_fill(grad_out, &self.mask_tensor, <T as NumericElement>::ZERO, &backend);
+            let grad_input = coeus_ops::masked_fill(
+                grad_out,
+                &self.mask_tensor,
+                <T as NumericElement>::ZERO,
+                &backend,
+            );
             let lock = g.write();
             coeus_ops::add_assign(lock, &grad_input, &backend)?;
         }
@@ -97,6 +101,3 @@ where
         creator,
     }
 }
-
-
-

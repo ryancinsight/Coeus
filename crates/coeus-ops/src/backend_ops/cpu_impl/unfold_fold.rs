@@ -9,7 +9,9 @@
 // All kernels follow the PyTorch nn.Unfold / nn.Fold convention.
 
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, NumericElement, Scalar,
+};
 
 pub(super) mod validation;
 
@@ -291,6 +293,3 @@ pub(crate) fn fold2d<T: Scalar, B: Backend>(
         }
     }
 }
-
-
-

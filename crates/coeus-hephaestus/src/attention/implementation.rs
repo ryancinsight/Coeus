@@ -1,6 +1,6 @@
 use super::provider::{AttentionBackend, AttentionProvider};
 use crate::HephaestusBackend;
-use coeus_core::{Float, Layout, Scalar};
+use coeus_core::{Float, Layout};
 use hephaestus_core::AttentionScalar;
 
 impl<P, T> coeus_ops::AttentionOps<T> for HephaestusBackend<P>
@@ -84,5 +84,3 @@ where
         )
     }
 }
-
-

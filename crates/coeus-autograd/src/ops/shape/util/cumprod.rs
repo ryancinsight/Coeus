@@ -18,8 +18,8 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::Scalar;
 use coeus_core::NumericElement;
+use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -193,6 +193,3 @@ where
         creator,
     }
 }
-
-
-

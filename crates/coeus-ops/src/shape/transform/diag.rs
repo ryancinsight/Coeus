@@ -6,7 +6,7 @@
 // These match the PyTorch `torch.diag(input, diagonal=k)` semantics.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Create a 2-D diagonal matrix from a 1-D vector `v`.
@@ -167,6 +167,3 @@ mod tests {
         assert_eq!(m2.as_slice(), m.as_slice());
     }
 }
-
-
-

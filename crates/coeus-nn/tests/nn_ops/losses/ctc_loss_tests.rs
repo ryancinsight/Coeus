@@ -8,7 +8,7 @@ mod layouts;
 mod oracle;
 
 use coeus_autograd::{ctc_loss, log_softmax, Var};
-use coeus_core::{BackendError, Float, MoiraiBackend, Scalar, SequentialBackend, NumericElement};
+use coeus_core::{BackendError, Float, MoiraiBackend, NumericElement, Scalar, SequentialBackend};
 use coeus_nn::ctc_loss as nn_ctc_loss;
 use coeus_ops::{BackendOps, CtcBatch, CtcOps};
 use coeus_tensor::Tensor;
@@ -76,7 +76,11 @@ fn alignment_case<T, B>(
         let time = index / (shape[1] * shape[2]);
         let sample = index / shape[2] % shape[1];
         if time >= input_lengths[sample] {
-            assert_eq!(actual, <T as NumericElement>::ZERO, "padded frame {time}, sample {sample}");
+            assert_eq!(
+                actual,
+                <T as NumericElement>::ZERO,
+                "padded frame {time}, sample {sample}"
+            );
         } else {
             close(actual, reference, operations);
         }
@@ -261,6 +265,3 @@ fn likelihood_and_gradient_match_alignment_enumeration() {
     cases::<F16, MoiraiBackend>();
     cases::<Bf16, MoiraiBackend>();
 }
-
-
-

@@ -502,5 +502,3 @@ impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B> {
         self.to_backend_on(&B::default(), backend)
     }
 }
-
-

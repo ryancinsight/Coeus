@@ -1,5 +1,5 @@
 use crate::{HephaestusBackend, HephaestusProvider};
-use coeus_core::{ComputeBackend, Layout, Scalar, NumericElement};
+use coeus_core::{ComputeBackend, Layout, NumericElement, Scalar};
 
 /// Generic host-fold `CrossOps` for every Hephaestus provider without a
 /// `CrossProductProvider<T>` impl — currently `RocmProvider` and
@@ -37,6 +37,3 @@ where
         Ok(output)
     }
 }
-
-
-

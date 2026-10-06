@@ -10,4 +10,3 @@ pub use eunomia::{Complex, CountRangeError, FloatElement, NumericElement, TryFro
 pub use traits::{
     BinaryOp, CpuUnaryDispatch, CpuUnaryOp, Float, FloatOps, Int, ReductionOp, Scalar,
 };
-

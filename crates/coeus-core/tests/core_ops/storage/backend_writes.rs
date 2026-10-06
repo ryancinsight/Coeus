@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Scalar, NumericElement};
+use coeus_core::{ComputeBackend, NumericElement, Scalar};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Write {
@@ -66,6 +66,3 @@ fn scalar_writes<T: Scalar, B: ComputeBackend>(backend: &B, write: Write, one: T
         );
     }
 }
-
-
-

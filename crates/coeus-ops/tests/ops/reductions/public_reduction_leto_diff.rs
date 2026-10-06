@@ -5,8 +5,9 @@
 //! so bitwise equality is the correct oracle for both scalar widths.
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, Scalar,
-    SequentialBackend, NumericElement};
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, NumericElement,
+    Scalar, SequentialBackend,
+};
 use coeus_ops::BackendOps;
 use coeus_tensor::{Tensor, Transpose};
 
@@ -163,8 +164,3 @@ fn moirai_public_reductions_match_reference() {
     check_reductions::<f64, _>(&backend);
     check_empty_mean(&backend);
 }
-
-
-
-
-

@@ -1,7 +1,7 @@
 //! Solver configuration and termination vocabulary.
 
-use coeus_core::Scalar;
 use coeus_core::NumericElement;
+use coeus_core::Scalar;
 
 /// Why the solver stopped.
 ///
@@ -112,6 +112,3 @@ pub struct LeastSquaresReport<T> {
     /// Why the solver stopped.
     pub termination: Termination,
 }
-
-
-

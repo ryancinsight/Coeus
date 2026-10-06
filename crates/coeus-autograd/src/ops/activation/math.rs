@@ -3,7 +3,9 @@ use super::UnaryAutogradOp;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatOps, Scalar, NumericElement};
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatOps, NumericElement, Scalar,
+};
 use coeus_tensor::Tensor;
 use std::ops::Neg;
 use std::sync::Arc;
@@ -217,7 +219,11 @@ where
                 let abs_pow_m1 = int_pow_positive(abs_x, k_m1);
                 let local = if k_m1_odd {
                     // k-1 odd → sign(x) factor: x^(k-1) carries sign(x).
-                    let sgn = if x < <T as NumericElement>::ZERO { -one } else { one };
+                    let sgn = if x < <T as NumericElement>::ZERO {
+                        -one
+                    } else {
+                        one
+                    };
                     coef * sgn * abs_pow_m1
                 } else {
                     // k-1 even → x^(k-1) is always non-negative.
@@ -242,7 +248,11 @@ where
                 let abs_x = <T as coeus_core::NumericElement>::abs(x);
                 let denom_abs = int_pow_positive(abs_x, exp_total);
                 let denom = if exp_total_odd {
-                    let sgn = if x < <T as NumericElement>::ZERO { -one } else { one };
+                    let sgn = if x < <T as NumericElement>::ZERO {
+                        -one
+                    } else {
+                        one
+                    };
                     sgn * denom_abs
                 } else {
                     denom_abs
@@ -359,7 +369,11 @@ where
                 let abs_x = <T as coeus_core::NumericElement>::abs(x);
                 let abs_pow = int_pow_positive(abs_x, k);
                 out_host[i] = if (k & 1) == 1 {
-                    let sgn = if x < <T as NumericElement>::ZERO { -one } else { one };
+                    let sgn = if x < <T as NumericElement>::ZERO {
+                        -one
+                    } else {
+                        one
+                    };
                     sgn * abs_pow
                 } else {
                     abs_pow
@@ -379,7 +393,11 @@ where
                 let abs_x = <T as coeus_core::NumericElement>::abs(x);
                 let denom_abs = int_pow_positive(abs_x, k);
                 let denom = if (k & 1) == 1 {
-                    let sgn = if x < <T as NumericElement>::ZERO { -one } else { one };
+                    let sgn = if x < <T as NumericElement>::ZERO {
+                        -one
+                    } else {
+                        one
+                    };
                     sgn * denom_abs
                 } else {
                     denom_abs
@@ -599,7 +617,3 @@ unary_autograd!({Scalar + FloatOps} RoundOp, "round", round, |g, _x, _y, b| {
 unary_autograd!({Scalar + FloatOps} TruncOp, "trunc", trunc, |g, _x, _y, b| {
     super::zero_unary_grad(g, b)
 });
-
-
-
-

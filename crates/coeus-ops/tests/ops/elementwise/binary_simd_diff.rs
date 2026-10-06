@@ -7,8 +7,9 @@
 //! (no epsilon), across sizes that span the parallel chunk boundary (8192).
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
-    Shape, NumericElement};
+    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, NumericElement, Scalar,
+    SequentialBackend, Shape,
+};
 use coeus_ops::backend_ops::ElementwiseOps;
 use coeus_ops::{BinaryOp, CpuBackend};
 
@@ -119,8 +120,3 @@ fn moirai_f64_matches_scalar_reference() {
         check_op::<f64, _>(&backend, op);
     }
 }
-
-
-
-
-

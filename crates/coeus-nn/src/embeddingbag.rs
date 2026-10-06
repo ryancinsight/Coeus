@@ -189,6 +189,3 @@ where
         self.forward_with_offsets(&indices, None)
     }
 }
-
-
-

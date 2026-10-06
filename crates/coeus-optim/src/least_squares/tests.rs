@@ -6,8 +6,8 @@
 //! problem's conditioning, never from what the implementation happens to hit.
 
 use super::*;
-use coeus_core::Scalar;
 use coeus_core::NumericElement;
+use coeus_core::Scalar;
 
 /// `sqrt(ε)` for `T`, the accuracy floor of a first-order criterion.
 fn sqrt_epsilon<T: Scalar>() -> T {
@@ -122,7 +122,8 @@ struct DecayProblem<T> {
 
 impl<T: Scalar> DecayProblem<T> {
     fn model(&self, b: T, s0: T, d: T) -> T {
-        <T as Scalar>::from_f64((-(NumericElement::to_f64(b)) * NumericElement::to_f64(d)).exp()) * s0
+        <T as Scalar>::from_f64((-(NumericElement::to_f64(b)) * NumericElement::to_f64(d)).exp())
+            * s0
     }
 }
 
@@ -147,7 +148,9 @@ impl<T: Scalar> LeastSquaresProblem<T> for DecayProblem<T> {
         // d/ds0 = exp(-b·d); d/dd = -b · s0 · exp(-b·d)
         let (s0, d) = (parameters[0], parameters[1]);
         for (index, b) in self.b_values.iter().enumerate() {
-            let decay = <T as Scalar>::from_f64((-(NumericElement::to_f64(*b)) * NumericElement::to_f64(d)).exp());
+            let decay = <T as Scalar>::from_f64(
+                (-(NumericElement::to_f64(*b)) * NumericElement::to_f64(d)).exp(),
+            );
             jacobian[index * 2] = decay;
             jacobian[index * 2 + 1] = <T as NumericElement>::ZERO - *b * s0 * decay;
         }
@@ -273,7 +276,11 @@ fn decay_model_recovers_known_parameters<T: LeastSquaresScalar>() {
         .to_vec();
     let measured: Vec<T> = b_values
         .iter()
-        .map(|b| <T as Scalar>::from_f64((-(NumericElement::to_f64(*b)) * NumericElement::to_f64(d)).exp()) * s0)
+        .map(|b| {
+            <T as Scalar>::from_f64(
+                (-(NumericElement::to_f64(*b)) * NumericElement::to_f64(d)).exp(),
+            ) * s0
+        })
         .collect();
 
     let problem = DecayProblem { b_values, measured };
@@ -413,8 +420,12 @@ fn parameter_count_mismatch_is_rejected<T: LeastSquaresScalar>() {
         parameters: 2,
     };
 
-    let error = levenberg_marquardt(&problem, &[<T as NumericElement>::ZERO], &LevenbergMarquardtConfig::default())
-        .expect_err("a one-element start cannot initialize two parameters");
+    let error = levenberg_marquardt(
+        &problem,
+        &[<T as NumericElement>::ZERO],
+        &LevenbergMarquardtConfig::default(),
+    )
+    .expect_err("a one-element start cannot initialize two parameters");
 
     assert!(matches!(
         error,
@@ -439,7 +450,12 @@ fn batched_linear_problems_recover_independent_minima<T: LeastSquaresScalar>() {
 
     let reports = batched_levenberg_marquardt(
         &problem,
-        &[<T as NumericElement>::ZERO, <T as NumericElement>::ZERO, <T as NumericElement>::ZERO, <T as NumericElement>::ZERO],
+        &[
+            <T as NumericElement>::ZERO,
+            <T as NumericElement>::ZERO,
+            <T as NumericElement>::ZERO,
+            <T as NumericElement>::ZERO,
+        ],
         &LevenbergMarquardtConfig::default(),
     )
     .expect("both independent linear systems are solvable");
@@ -464,9 +480,12 @@ fn batched_parameter_count_mismatch_is_rejected<T: LeastSquaresScalar>() {
         parameters: 2,
     };
 
-    let error =
-        batched_levenberg_marquardt(&problem, &[<T as NumericElement>::ZERO], &LevenbergMarquardtConfig::default())
-            .expect_err("the flattened leading-axis buffer has the wrong length");
+    let error = batched_levenberg_marquardt(
+        &problem,
+        &[<T as NumericElement>::ZERO],
+        &LevenbergMarquardtConfig::default(),
+    )
+    .expect_err("the flattened leading-axis buffer has the wrong length");
 
     assert!(matches!(
         error,
@@ -542,5 +561,3 @@ macro_rules! scalar_suite {
 
 scalar_suite!(single_precision, f32);
 scalar_suite!(double_precision, f64);
-
-

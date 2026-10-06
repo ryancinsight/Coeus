@@ -2,7 +2,9 @@
 // Factory functions for creating tensors.
 
 use crate::tensor::Tensor;
-use coeus_core::{ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, NumericElement, Scalar, Shape};
+use coeus_core::{
+    ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, NumericElement, Scalar, Shape,
+};
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
 where
@@ -184,6 +186,3 @@ where
         Self::from_slice_on([n], &values, backend)
     }
 }
-
-
-

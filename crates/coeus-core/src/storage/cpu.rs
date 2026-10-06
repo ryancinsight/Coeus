@@ -274,6 +274,3 @@ impl<T: crate::Scalar> CpuAddressableStorageMut<T> for CpuStorage<T> {
         self.raw_slice_mut_cow()
     }
 }
-
-
-

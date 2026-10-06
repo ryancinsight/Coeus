@@ -1,5 +1,5 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
-use eunomia::{FloatElement, NumericElement};
+use eunomia::FloatElement;
 
 macro_rules! impl_scalar_float_native {
     ($t:ty) => {
@@ -240,5 +240,3 @@ macro_rules! impl_scalar_float_native {
 
 impl_scalar_float_native!(f32);
 impl_scalar_float_native!(f64);
-
-

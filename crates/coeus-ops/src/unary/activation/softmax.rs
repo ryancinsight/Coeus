@@ -165,6 +165,3 @@ where
     let mask = Tensor::from_slice_on(shape.to_vec(), &mask_data, backend);
     masked_softmax(input, &mask, dim, backend)
 }
-
-
-

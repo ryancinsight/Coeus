@@ -7,7 +7,7 @@
 // dimension (the most common use case in embeddings and selection).
 
 use crate::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Scatter-assign `values` into `input` at row indices given by `indices`.
@@ -110,7 +110,3 @@ mod tests {
         assert!((out.as_slice()[0] - 9.0).abs() < 1e-6);
     }
 }
-
-
-
-

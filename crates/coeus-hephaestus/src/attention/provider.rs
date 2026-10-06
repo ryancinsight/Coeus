@@ -1,5 +1,5 @@
 use crate::{reduction::HephaestusBackend, HephaestusProvider};
-use coeus_core::{Float, Layout, Scalar};
+use coeus_core::Layout;
 use hephaestus_core::{AttentionOps, AttentionScalar, HephaestusError};
 
 /// Provider-owned scalar attention operation marker.
@@ -135,5 +135,3 @@ where
         crate::HephaestusBackendError::device(operation, source)
     }
 }
-
-

@@ -7,7 +7,7 @@
 use crate::init::kaiming_uniform;
 use crate::module::{Module, ModuleError};
 use coeus_autograd::{AttentionMask, Var};
-use coeus_core::{Float, MoiraiBackend, Scalar, NumericElement};
+use coeus_core::{Float, MoiraiBackend, NumericElement, Scalar};
 use std::marker::PhantomData;
 
 /// Multi-head self/cross-attention.
@@ -344,6 +344,3 @@ impl<
         self.forward_cross(input, input, input, None)
     }
 }
-
-
-

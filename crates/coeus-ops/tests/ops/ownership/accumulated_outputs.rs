@@ -1,5 +1,5 @@
 use super::optimizer::{assert_values, upload};
-use coeus_core::{Layout, Scalar, NumericElement};
+use coeus_core::{Layout, NumericElement, Scalar};
 use coeus_ops::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward, PoolOps,
     UnfoldFoldOps,
@@ -367,6 +367,3 @@ pub(crate) fn windows_preserve_output_clones<T: Scalar, B: UnfoldFoldOps<T>>(bac
     assert_values(backend, &original_fold, &[three, one, two]);
     assert_values(backend, &folded, &[one, four, four]);
 }
-
-
-

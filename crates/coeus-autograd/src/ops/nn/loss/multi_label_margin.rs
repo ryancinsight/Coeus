@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, NumericElement};
+use coeus_core::{Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -62,7 +62,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 grad_out,
                 &Tensor::full_on(
                     [1],
-                    <T as NumericElement>::ONE / <T as coeus_core::FloatElement>::from_f64((self.n * self.c) as f64),
+                    <T as NumericElement>::ONE
+                        / <T as coeus_core::FloatElement>::from_f64((self.n * self.c) as f64),
                     &backend,
                 ),
                 &backend,
@@ -125,7 +126,11 @@ where
     let mut valid_flat: Vec<T> = Vec::with_capacity(n * c);
     let mut target_flat: Vec<T> = Vec::with_capacity(n * c);
     for &v in target {
-        valid_flat.push(if v >= 0 { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO });
+        valid_flat.push(if v >= 0 {
+            <T as NumericElement>::ONE
+        } else {
+            <T as NumericElement>::ZERO
+        });
         let safe = if v >= 0 { v as usize } else { 0 };
         target_flat.push(T::from_count(safe));
         safe_flat.push(T::from_count(safe));
@@ -325,6 +330,3 @@ mod tests {
         let _ = multi_label_margin_loss(&x, &target);
     }
 }
-
-
-

@@ -1,5 +1,5 @@
 use super::UnaryOpTag;
-use coeus_core::{FloatOps, Scalar, NumericElement};
+use coeus_core::{FloatOps, NumericElement, Scalar};
 
 #[derive(Clone, Copy)]
 /// ReLU operation tag.
@@ -123,7 +123,3 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Trunc {
         <T as Scalar>::from_f64(x.to_f64().trunc())
     }
 }
-
-
-
-

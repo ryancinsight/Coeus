@@ -1,6 +1,6 @@
 use super::UnaryOpTag;
 use crate::fuse::op_tags::{wgsl_gelu_expr, wgsl_gelu_grad_expr};
-use coeus_core::{FloatOps, Scalar, NumericElement};
+use coeus_core::{FloatOps, NumericElement, Scalar};
 
 #[derive(Clone, Copy)]
 /// Exact GELU operation tag.
@@ -178,6 +178,3 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for GeluTanhGrad {
         half * (one + t) + half * x * (one - t * t) * dt
     }
 }
-
-
-

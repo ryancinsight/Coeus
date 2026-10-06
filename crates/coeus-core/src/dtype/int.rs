@@ -114,7 +114,7 @@ macro_rules! impl_cpu_unary_dispatch_int {
         impl $crate::dtype::CpuUnaryDispatch for $t {
             #[inline(always)]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
-                use $crate::dtype::{CpuUnaryOp};
+                use $crate::dtype::CpuUnaryOp;
                 match op {
                     CpuUnaryOp::Relu => {
                         if x > <Self as NumericElement>::ZERO {
@@ -191,7 +191,3 @@ impl_cpu_unary_dispatch_int!(u8);
 impl_cpu_unary_dispatch_int!(u16);
 impl_cpu_unary_dispatch_int!(u32);
 impl_cpu_unary_dispatch_int!(u64);
-
-
-
-

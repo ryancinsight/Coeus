@@ -1,7 +1,7 @@
 // ── Sum reduction ──
 
 use crate::backend_ops::{BackendOps, ReductionOp, ReductionOps};
-use coeus_core::{BackendError, Scalar, NumericElement};
+use coeus_core::{BackendError, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Sum all elements.
@@ -200,6 +200,3 @@ pub fn amin<T: Scalar, B: BackendOps<T> + Default>(
     backend.copy_to_host(reduced.storage(), &mut host);
     Ok(host[0])
 }
-
-
-

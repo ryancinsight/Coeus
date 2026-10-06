@@ -240,6 +240,3 @@ pub fn evaluate_fused_reduce<T: WgpuScalar, E: ExprNode<T, WgpuBackend>>(
 
     Ok(Tensor::from_raw_parts(out_storage, out_layout))
 }
-
-
-

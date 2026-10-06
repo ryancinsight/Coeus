@@ -6,8 +6,9 @@
 //! reassociates under SIMD, so it is checked within an epsilon bound.
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, Scalar, SequentialBackend,
-    Shape, NumericElement};
+    ComputeBackend, CpuAddressableStorageMut, Layout, MoiraiBackend, NumericElement, Scalar,
+    SequentialBackend, Shape,
+};
 use coeus_ops::backend_ops::ReductionOps;
 use coeus_ops::{CpuBackend, ReductionOp};
 
@@ -102,7 +103,3 @@ fn sequential_reduction_matches_reference() {
 fn moirai_reduction_matches_reference() {
     check_f32(&MoiraiBackend);
 }
-
-
-
-

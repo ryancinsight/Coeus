@@ -1,7 +1,7 @@
 // -- one_hot / masked_select --
 
 use crate::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar, NumericElement};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// One-hot encoding: integer indices to float indicator matrix.
@@ -66,7 +66,13 @@ where
         .as_slice()
         .iter()
         .zip(m_cont.as_slice().iter())
-        .filter_map(|(&v, &m)| if m != <T as NumericElement>::ZERO { Some(v) } else { None })
+        .filter_map(|(&v, &m)| {
+            if m != <T as NumericElement>::ZERO {
+                Some(v)
+            } else {
+                None
+            }
+        })
         .collect();
     let len = selected.len();
     Tensor::from_slice_on(vec![len], &selected, backend)
@@ -100,7 +106,3 @@ mod tests {
         assert_eq!(out.as_slice(), &[2.0, 4.0]);
     }
 }
-
-
-
-

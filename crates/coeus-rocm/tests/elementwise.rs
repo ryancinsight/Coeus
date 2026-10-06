@@ -1,4 +1,4 @@
-use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar, NumericElement};
+use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, NumericElement, Scalar};
 use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::ElementwiseOps;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
@@ -429,6 +429,3 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         assert_close(&actual_values, &expected, "activation");
     }
 }
-
-
-

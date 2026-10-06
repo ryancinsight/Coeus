@@ -8,8 +8,9 @@
 
 use coeus_core::Layout;
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorageMut, MoiraiBackend, Scalar, SequentialBackend, Shape,
-    Strides, NumericElement};
+    ComputeBackend, CpuAddressableStorageMut, MoiraiBackend, NumericElement, Scalar,
+    SequentialBackend, Shape, Strides,
+};
 use coeus_ops::backend_ops::MatmulOps;
 use coeus_ops::CpuBackend;
 
@@ -181,8 +182,3 @@ fn test_parallel_matmul_loop() {
         assert_eq!(got.len(), m * n);
     }
 }
-
-
-
-
-

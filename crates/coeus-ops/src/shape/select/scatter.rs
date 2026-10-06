@@ -132,6 +132,3 @@ mod tests {
         assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());
     }
 }
-
-
-

@@ -16,8 +16,8 @@
 // back to the same host-fold otherwise.
 
 use crate::backend_ops::{BackendOps, CrossOps};
-use coeus_core::Scalar;
 use coeus_core::NumericElement;
+use coeus_core::Scalar;
 use coeus_tensor::Tensor;
 
 /// Flat inner product: `Σ_i aᵢ bᵢ` after flattening.
@@ -121,7 +121,6 @@ pub fn cross<T: Scalar, B: CrossOps<T> + Default>(
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
-use coeus_core::NumericElement;
     use coeus_tensor::Tensor as CoTensor;
 
     type B = SequentialBackend;
@@ -287,6 +286,3 @@ use coeus_core::NumericElement;
         let _ = cross::<f32, B>(&a, &b, 5);
     }
 }
-
-
-

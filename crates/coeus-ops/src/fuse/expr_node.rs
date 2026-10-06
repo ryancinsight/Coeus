@@ -336,6 +336,3 @@ impl<T: Scalar, B: ComputeBackend> TensorExprExt<T, B> for Tensor<T, B> {
 pub fn scalar<T: Scalar, B: ComputeBackend>(val: T) -> Expr<ScalarVal<T>> {
     Expr(ScalarVal(val))
 }
-
-
-

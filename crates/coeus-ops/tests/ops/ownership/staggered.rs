@@ -30,9 +30,10 @@ pub(crate) fn staggered_preserves_clones<T: Float, B: StaggeredPairOps<T>>(backe
         // Reflected order-two G=[[-1,1,0],[0,-1,1],[0,0,0]], D=-transpose(G).
         assert_values(backend, &original, &[four, three, two]);
         assert_values(backend, &gradient, &[one, two, <T as NumericElement>::ZERO]);
-        assert_values(backend, &divergence, &[one, one, <T as NumericElement>::ZERO - two]);
+        assert_values(
+            backend,
+            &divergence,
+            &[one, one, <T as NumericElement>::ZERO - two],
+        );
     }
 }
-
-
-

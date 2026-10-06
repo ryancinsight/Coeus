@@ -22,10 +22,7 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
     #[inline(always)]
     fn log_op(self) -> Self {
         let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
-        let theta = <T as crate::Scalar>::from_f64(
-            self.im.to_f64()
-                .atan2(self.re.to_f64()),
-        );
+        let theta = <T as crate::Scalar>::from_f64(self.im.to_f64().atan2(self.re.to_f64()));
         Self {
             re: <T as Float>::ln(r),
             im: theta,
@@ -61,7 +58,8 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
     fn cos_op(self) -> Self {
         Self {
             re: <T as Float>::cos(self.re) * <T as Float>::cosh(self.im),
-            im: <T as NumericElement>::ZERO - (<T as Float>::sin(self.re) * <T as Float>::sinh(self.im)),
+            im: <T as NumericElement>::ZERO
+                - (<T as Float>::sin(self.re) * <T as Float>::sinh(self.im)),
         }
     }
 
@@ -248,7 +246,3 @@ impl<T: Float + core::ops::Neg<Output = T>> crate::dtype::CpuUnaryDispatch for C
         }
     }
 }
-
-
-
-

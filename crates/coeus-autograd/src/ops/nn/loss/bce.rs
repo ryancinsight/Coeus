@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, NumericElement};
+use coeus_core::{Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -77,7 +77,8 @@ pub fn binary_cross_entropy<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 
     // Clamp pred to [eps, 1-eps] with two where_cond selects.
     let eps_tensor = Tensor::full_on(shape.clone(), eps, &backend);
-    let one_minus_eps_tensor = Tensor::full_on(shape.clone(), <T as NumericElement>::ONE - eps, &backend);
+    let one_minus_eps_tensor =
+        Tensor::full_on(shape.clone(), <T as NumericElement>::ONE - eps, &backend);
     let below = coeus_ops::lt(&pred.tensor, &eps_tensor, &backend);
     let clamped_low = coeus_ops::where_cond(&below, &eps_tensor, &pred.tensor, &backend)
         .expect("binary_cross_entropy: low clamp");
@@ -185,6 +186,3 @@ mod tests {
         let _ = binary_cross_entropy(&pred, &target, 1e-7);
     }
 }
-
-
-

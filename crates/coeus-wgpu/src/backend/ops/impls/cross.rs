@@ -47,6 +47,3 @@ where
         Ok(output)
     }
 }
-
-
-

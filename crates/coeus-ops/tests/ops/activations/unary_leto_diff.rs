@@ -8,7 +8,8 @@
 
 use coeus_core::{
     ComputeBackend, CpuAddressableStorageMut, CpuUnaryDispatch, CpuUnaryOp, Layout, MoiraiBackend,
-    Scalar, SequentialBackend, Shape, NumericElement};
+    NumericElement, Scalar, SequentialBackend, Shape,
+};
 use coeus_ops::backend_ops::ElementwiseOps;
 use coeus_ops::CpuBackend;
 
@@ -115,8 +116,3 @@ fn moirai_unary_matches_scalar_reference() {
     check_unary::<f32, _>(&backend);
     check_unary::<f64, _>(&backend);
 }
-
-
-
-
-

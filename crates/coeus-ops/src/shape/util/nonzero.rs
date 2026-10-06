@@ -1,7 +1,9 @@
 // ── nonzero — row-major coordinates of non-zero elements ──
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CountRangeError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{
+    CountRangeError, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,
+};
 use coeus_tensor::Tensor;
 
 /// Return the row-major coordinates of all non-zero elements.
@@ -98,6 +100,3 @@ mod tests {
         assert_eq!(out.as_slice(), &[0.0]);
     }
 }
-
-
-

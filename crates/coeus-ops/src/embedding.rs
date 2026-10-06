@@ -1,6 +1,6 @@
 // ── Embedding lookup operations ──
 
-use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut, NumericElement};
+use coeus_core::{ComputeBackend, NumericElement, Scalar, Storage, StorageMut};
 use coeus_tensor::Tensor;
 
 /// Apply embedding lookup: maps integer indices to dense vectors from a weight matrix.
@@ -240,6 +240,3 @@ mod tests {
         assert_eq!(grad.as_slice(), &[0.0, 0.0, 3.0, 4.0]);
     }
 }
-
-
-

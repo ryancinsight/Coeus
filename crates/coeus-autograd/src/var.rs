@@ -3,7 +3,7 @@
 use crate::autodiff_cache::ComputeGraphCache;
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
-use coeus_core::{ComputeBackend, MoiraiBackend, Scalar, Shape, NumericElement};
+use coeus_core::{ComputeBackend, MoiraiBackend, NumericElement, Scalar, Shape};
 use coeus_tensor::Tensor;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -348,6 +348,3 @@ mod tests {
         );
     }
 }
-
-
-

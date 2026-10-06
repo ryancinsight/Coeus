@@ -1,5 +1,5 @@
-use eunomia::{Bf16, F16};
 use eunomia::NumericElement;
+use eunomia::{Bf16, F16};
 
 macro_rules! impl_cpu_unary_dispatch_float {
     ($t:ty) => {
@@ -30,11 +30,15 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::GeluGrad => {
                         let half = <Self as eunomia::FloatElement>::from_f64(0.5);
                         let one = <Self as NumericElement>::ONE;
-                        let inv_sqrt_two = <Self as eunomia::FloatElement>::from_f64(core::f64::consts::FRAC_1_SQRT_2);
-                        let inv_sqrt_two_pi = <Self as eunomia::FloatElement>::from_f64(0.3989422804014327);
+                        let inv_sqrt_two = <Self as eunomia::FloatElement>::from_f64(
+                            core::f64::consts::FRAC_1_SQRT_2,
+                        );
+                        let inv_sqrt_two_pi =
+                            <Self as eunomia::FloatElement>::from_f64(0.3989422804014327);
                         let x2 = x * x;
                         half * (one + (x * inv_sqrt_two).erf_op())
-                            + x * ((<Self as NumericElement>::ZERO - half * x2).exp_op()) * inv_sqrt_two_pi
+                            + x * ((<Self as NumericElement>::ZERO - half * x2).exp_op())
+                                * inv_sqrt_two_pi
                     }
                     CpuUnaryOp::Sin => x.sin_op(),
                     CpuUnaryOp::Cos => x.cos_op(),
@@ -63,7 +67,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::Silu => x * x.sigmoid_op(),
                     CpuUnaryOp::SiluGrad => {
                         let s = x.sigmoid_op();
-                        s * (<Self as NumericElement>::ONE + x * (<Self as NumericElement>::ONE - s))
+                        s * (<Self as NumericElement>::ONE
+                            + x * (<Self as NumericElement>::ONE - s))
                     }
                     CpuUnaryOp::Mish => {
                         let sp = (<Self as NumericElement>::ONE + x.exp_op()).log_op();
@@ -111,7 +116,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         half * (one + t) + half * x * (one - t * t) * dt
                     }
                     CpuUnaryOp::LeakyRelu(slope_bits) => {
-                        let slope = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(slope_bits));
+                        let slope =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(slope_bits));
                         if x >= <Self as NumericElement>::ZERO {
                             x
                         } else {
@@ -124,7 +130,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     // forward's `x >= 0 ? x : slope*x` is unaffected (both predicates
                     // yield 0 at x = 0); only the gradient predicate is tightened.
                     CpuUnaryOp::LeakyReluGrad(slope_bits) => {
-                        let slope = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(slope_bits));
+                        let slope =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(slope_bits));
                         if x > <Self as NumericElement>::ZERO {
                             <Self as NumericElement>::ONE
                         } else {
@@ -132,8 +139,14 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Hardtanh(bits) => {
-                        let min_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
-                        let max_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
+                        let min_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(
+                            bits as u32,
+                        )
+                            as f64);
+                        let max_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(
+                            (bits >> 32) as u32,
+                        )
+                            as f64);
                         if x < min_v {
                             min_v
                         } else if x > max_v {
@@ -143,8 +156,14 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::HardtanhGrad(bits) => {
-                        let min_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
-                        let max_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
+                        let min_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(
+                            bits as u32,
+                        )
+                            as f64);
+                        let max_v = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(
+                            (bits >> 32) as u32,
+                        )
+                            as f64);
                         if x > min_v && x < max_v {
                             <Self as NumericElement>::ONE
                         } else {
@@ -206,7 +225,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Hardshrink(lam_bits) => {
-                        let lam = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
+                        let lam =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < <Self as NumericElement>::ZERO {
                             <Self as NumericElement>::ZERO - x
                         } else {
@@ -219,7 +239,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::HardshrinkGrad(lam_bits) => {
-                        let lam = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
+                        let lam =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < <Self as NumericElement>::ZERO {
                             <Self as NumericElement>::ZERO - x
                         } else {
@@ -232,7 +253,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Softshrink(lam_bits) => {
-                        let lam = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
+                        let lam =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < <Self as NumericElement>::ZERO {
                             <Self as NumericElement>::ZERO - x
                         } else {
@@ -250,7 +272,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::SoftshrinkGrad(lam_bits) => {
-                        let lam = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
+                        let lam =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < <Self as NumericElement>::ZERO {
                             <Self as NumericElement>::ZERO - x
                         } else {
@@ -282,8 +305,14 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         one / denom
                     }
                     CpuUnaryOp::Threshold(bits) => {
-                        let thr = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
-                        let val = <Self as eunomia::FloatElement>::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
+                        let thr = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(
+                            bits as u32,
+                        )
+                            as f64);
+                        let val = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(
+                            (bits >> 32) as u32,
+                        )
+                            as f64);
                         if x > thr {
                             x
                         } else {
@@ -291,7 +320,10 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::ThresholdGrad(bits) => {
-                        let thr = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
+                        let thr = <Self as eunomia::FloatElement>::from_f64(f32::from_bits(
+                            bits as u32,
+                        )
+                            as f64);
                         if x > thr {
                             <Self as NumericElement>::ONE
                         } else {
@@ -299,7 +331,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Celu(alpha_bits) => {
-                        let alpha = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(alpha_bits));
+                        let alpha =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(alpha_bits));
                         let one = <Self as NumericElement>::ONE;
                         if x >= <Self as NumericElement>::ZERO {
                             x
@@ -308,7 +341,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::CeluGrad(alpha_bits) => {
-                        let alpha = <Self as eunomia::FloatElement>::from_f64(f64::from_bits(alpha_bits));
+                        let alpha =
+                            <Self as eunomia::FloatElement>::from_f64(f64::from_bits(alpha_bits));
                         if x >= <Self as NumericElement>::ZERO {
                             <Self as NumericElement>::ONE
                         } else {
@@ -325,12 +359,20 @@ macro_rules! impl_cpu_unary_dispatch_float {
                             <Self as NumericElement>::ZERO
                         }
                     }
-                    CpuUnaryOp::Floor => <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).floor()),
-                    CpuUnaryOp::Ceil => <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).ceil()),
+                    CpuUnaryOp::Floor => {
+                        <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).floor())
+                    }
+                    CpuUnaryOp::Ceil => {
+                        <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).ceil())
+                    }
                     // Ties-to-even (banker's rounding) per IEEE-754 roundTiesToEven,
                     // matching torch.round, WGSL round(), and CUDA rintf.
-                    CpuUnaryOp::Round => <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).round_ties_even()),
-                    CpuUnaryOp::Trunc => <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).trunc()),
+                    CpuUnaryOp::Round => {
+                        <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).round_ties_even())
+                    }
+                    CpuUnaryOp::Trunc => {
+                        <Self as eunomia::FloatElement>::from_f64(Self::to_f64(x).trunc())
+                    }
                 }
             }
         }
@@ -341,8 +383,3 @@ impl_cpu_unary_dispatch_float!(f32);
 impl_cpu_unary_dispatch_float!(f64);
 impl_cpu_unary_dispatch_float!(F16);
 impl_cpu_unary_dispatch_float!(Bf16);
-
-
-
-
-

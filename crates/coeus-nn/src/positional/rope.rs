@@ -9,7 +9,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{Float, MoiraiBackend, Scalar, NumericElement};
+use coeus_core::{Float, MoiraiBackend, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Rotary Positional Embedding (RoPE) layer.
@@ -150,6 +150,3 @@ fn extract_pe_slice<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ) -> Tensor<T, B> {
     table.slice(&[(0, seq_len), (0, d_model)])
 }
-
-
-

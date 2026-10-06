@@ -111,7 +111,10 @@ where
                     let v = input.get(&[ni, ci, li]);
                     max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
                 }
-                out.set(&[ni, ci, oi], max_val.unwrap_or(<T as NumericElement>::ZERO));
+                out.set(
+                    &[ni, ci, oi],
+                    max_val.unwrap_or(<T as NumericElement>::ZERO),
+                );
             }
         }
     }
@@ -243,13 +246,15 @@ where
                         max_val = Some(max_val.map_or(v, |m| if v > m { v } else { m }));
                     }
                 }
-                unsafe { out_ptr.write(out_nc + oh * out_w + ow, max_val.unwrap_or(<T as NumericElement>::ZERO)) };
+                unsafe {
+                    out_ptr.write(
+                        out_nc + oh * out_w + ow,
+                        max_val.unwrap_or(<T as NumericElement>::ZERO),
+                    )
+                };
             }
         }
     });
 
     out
 }
-
-
-

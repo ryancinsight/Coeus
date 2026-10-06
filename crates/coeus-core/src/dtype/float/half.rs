@@ -1,5 +1,5 @@
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
-use eunomia::{Bf16, F16, NumericElement};
+use eunomia::{Bf16, NumericElement, F16};
 
 macro_rules! impl_scalar_float_half {
     ($t:ty, $max:expr, $min_pos:expr) => {
@@ -262,5 +262,3 @@ macro_rules! impl_scalar_float_half {
 impl_scalar_float_half!(F16, F16(0x7BFF), F16(0x0040));
 // Bf16: largest finite ≈ 3.3895e38, smallest positive normal = 2^-126
 impl_scalar_float_half!(Bf16, Bf16(0x7F7F), Bf16(0x0080));
-
-

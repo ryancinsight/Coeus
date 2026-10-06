@@ -1,5 +1,5 @@
 use crate::backend_ops::CpuBackend;
-use coeus_core::{Layout, Scalar, NumericElement};
+use coeus_core::{Layout, NumericElement, Scalar};
 
 /// Default: copy to host, run `coeus_leto::argmax_into`, copy back.
 pub fn argmax<T, B>(
@@ -84,6 +84,3 @@ pub fn topk<T, B>(
     backend.copy_to_device(&host_values, values);
     backend.copy_to_device(&host_indices, indices);
 }
-
-
-

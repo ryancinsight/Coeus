@@ -4,7 +4,9 @@
 //! `BackendOps::matmul`: it builds per-batch 2-D layouts and dispatches each
 //! slice to the CPU backend, which then routes through `coeus-leto`.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,
+};
 use coeus_tensor::Tensor;
 
 fn batched_reference<T: Scalar>(
@@ -122,7 +124,3 @@ fn moirai_batched_matmul_matches_reference() {
     check_backend::<f32, _>(&backend);
     check_backend::<f64, _>(&backend);
 }
-
-
-
-

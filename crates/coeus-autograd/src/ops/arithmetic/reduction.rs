@@ -1,6 +1,6 @@
 use super::traits::{reduction_op, ReductionAutogradOp};
 use crate::var::Var;
-use coeus_core::{Float, Scalar, NumericElement};
+use coeus_core::{NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// ZST tag for sum reduction autograd.
@@ -181,7 +181,10 @@ where
 {
     let backend = B::default();
     let slice = a.tensor.as_slice();
-    let count = slice.iter().filter(|&&v| !<T as coeus_core::NumericElement>::is_nan(v)).count();
+    let count = slice
+        .iter()
+        .filter(|&&v| !<T as coeus_core::NumericElement>::is_nan(v))
+        .count();
     let mask_data: Vec<T> = slice
         .iter()
         .map(|&v| {
@@ -270,7 +273,3 @@ mod nan_reduction_tests {
         );
     }
 }
-
-
-
-

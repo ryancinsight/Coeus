@@ -1,7 +1,7 @@
 // ── Mean reduction ──
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{BackendError, Scalar, NumericElement};
+use coeus_core::{BackendError, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Mean of all elements.
@@ -79,6 +79,3 @@ pub fn mean_axis<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Defaul
 
     Ok(out)
 }
-
-
-

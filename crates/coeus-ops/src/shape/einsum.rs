@@ -19,7 +19,8 @@
 
 use crate::backend_ops::BackendOps;
 use coeus_core::{
-    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,
+    BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement,
+    Scalar,
 };
 use coeus_tensor::Tensor;
 
@@ -447,6 +448,3 @@ mod tests {
         assert_eq!(out.as_slice(), &[413.0, 454.0, 937.0, 1030.0]);
     }
 }
-
-
-

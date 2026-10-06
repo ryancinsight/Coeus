@@ -1,7 +1,7 @@
 //! Damped Gauss-Newton (Levenberg-Marquardt) for small dense problems.
 
-use coeus_core::Scalar;
 use coeus_core::NumericElement;
+use coeus_core::Scalar;
 use leto::{Array1, Array2};
 use leto_ops::{cholesky_solve, RealScalar};
 
@@ -235,7 +235,10 @@ fn solve_damped<T: LeastSquaresScalar>(
     config: &LevenbergMarquardtConfig<T>,
 ) -> Option<Vec<T>> {
     let mut damped = vec![<T as NumericElement>::ZERO; parameter_count * parameter_count];
-    let negative_gradient: Vec<T> = gradient.iter().map(|value| <T as NumericElement>::ZERO - *value).collect();
+    let negative_gradient: Vec<T> = gradient
+        .iter()
+        .map(|value| <T as NumericElement>::ZERO - *value)
+        .collect();
 
     let rhs = Array1::from_shape_vec([parameter_count], negative_gradient).ok()?;
 
@@ -306,9 +309,11 @@ fn jacobian_transpose_times<T: Scalar>(
 }
 
 fn half_sum_of_squares<T: Scalar>(values: &[T]) -> T {
-    let sum = values.iter().fold(<T as NumericElement>::ZERO, |accumulator, value| {
-        accumulator + *value * *value
-    });
+    let sum = values
+        .iter()
+        .fold(<T as NumericElement>::ZERO, |accumulator, value| {
+            accumulator + *value * *value
+        });
     sum / <T as coeus_core::Scalar>::from_f64(2.0)
 }
 
@@ -322,14 +327,16 @@ fn euclidean_norm<T: Scalar>(values: &[T]) -> T {
 }
 
 fn infinity_norm<T: Scalar>(values: &[T]) -> T {
-    values.iter().fold(<T as NumericElement>::ZERO, |accumulator, value| {
-        let magnitude = value.abs();
-        if magnitude > accumulator {
-            magnitude
-        } else {
-            accumulator
-        }
-    })
+    values
+        .iter()
+        .fold(<T as NumericElement>::ZERO, |accumulator, value| {
+            let magnitude = value.abs();
+            if magnitude > accumulator {
+                magnitude
+            } else {
+                accumulator
+            }
+        })
 }
 
 /// Whether `value` is finite, using only the ordering `Scalar` guarantees.
@@ -338,7 +345,8 @@ fn infinity_norm<T: Scalar>(values: &[T]) -> T {
 /// largest finite magnitude the type round-trips.
 fn is_finite<T: Scalar>(value: T) -> bool {
     let magnitude = value.abs();
-    magnitude >= <T as NumericElement>::ZERO && magnitude <= <T as coeus_core::Scalar>::from_f64(f64::MAX)
+    magnitude >= <T as NumericElement>::ZERO
+        && magnitude <= <T as coeus_core::Scalar>::from_f64(f64::MAX)
 }
 
 fn check_finite<T: Scalar>(
@@ -371,6 +379,3 @@ fn report<T>(
         termination,
     }
 }
-
-
-

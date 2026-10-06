@@ -4,7 +4,9 @@
 //! dynamic-rank `coeus-leto` scan shim. The references below are independent
 //! row-major prefix/suffix scans over exactly representable values.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,
+};
 use coeus_tensor::Tensor;
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
@@ -76,6 +78,3 @@ fn moirai_scans_match_reference() {
     check_backend::<f32, _>(&backend);
     check_backend::<f64, _>(&backend);
 }
-
-
-

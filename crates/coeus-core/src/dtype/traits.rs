@@ -550,4 +550,3 @@ mod cpu_unary_op_tests {
         assert_eq!(CpuUnaryOp::Relu.parameter_pair(), None);
     }
 }
-

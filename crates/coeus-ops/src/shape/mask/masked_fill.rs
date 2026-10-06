@@ -1,7 +1,7 @@
 // ── masked_fill — replace values under a boolean mask ──
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Return a copy of `input` with elements replaced by `value` wherever
@@ -97,6 +97,3 @@ mod tests {
         assert_eq!(out.as_slice(), &[8.0, 8.0, 8.0, 8.0]);
     }
 }
-
-
-

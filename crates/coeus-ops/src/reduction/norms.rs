@@ -187,7 +187,6 @@ pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
-use coeus_core::NumericElement;
 
     fn v3() -> Tensor<f64, SequentialBackend> {
         Tensor::from_slice(vec![5], &[1.0f64, -2.0, 3.0, -4.0, 5.0])
@@ -514,7 +513,3 @@ use coeus_core::NumericElement;
         let _ = frobenius_norm_batched(&x, &b);
     }
 }
-
-
-
-

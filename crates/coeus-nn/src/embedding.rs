@@ -2,7 +2,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{MoiraiBackend, Scalar, NumericElement};
+use coeus_core::{MoiraiBackend, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Embedding layer mapping discrete token indices to dense vectors.
@@ -120,7 +120,3 @@ fn validate_indices<I: Scalar, B: coeus_core::ComputeBackend + Default>(
 
     Ok(())
 }
-
-
-
-

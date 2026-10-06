@@ -7,7 +7,7 @@
 // The sort is stable (preserves relative order of equal elements).
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Stably sorts `input` along `axis`, like PyTorch `torch.sort` or NumPy `sort`.
@@ -82,6 +82,3 @@ where
         Tensor::from_slice(shape, &out_idx),
     )
 }
-
-
-

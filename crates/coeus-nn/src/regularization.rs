@@ -77,7 +77,11 @@ fn alpha_dropout_with_mask<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             for _channel in 0..channels {
                 let kept = rng.next_f64() >= p;
                 keep.extend(std::iter::repeat_n(
-                    if kept { <T as NumericElement>::ONE } else { <T as NumericElement>::ZERO },
+                    if kept {
+                        <T as NumericElement>::ONE
+                    } else {
+                        <T as NumericElement>::ZERO
+                    },
                     spatial,
                 ));
             }
@@ -386,6 +390,3 @@ where
         Ok(coeus_autograd::reshape(&y3, shape))
     }
 }
-
-
-

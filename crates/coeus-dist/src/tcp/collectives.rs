@@ -6,7 +6,7 @@ use crate::host_access::{
     with_tensor_host_bytes,
 };
 use crate::ops::ReduceOpTag;
-use coeus_core::{ComputeBackend, Scalar, NumericElement};
+use coeus_core::{ComputeBackend, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// A socket-based communicator for distributed training.
@@ -411,6 +411,3 @@ impl Communicator for TcpCommunicator {
         })
     }
 }
-
-
-

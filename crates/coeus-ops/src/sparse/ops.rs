@@ -1,5 +1,7 @@
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,
+};
 use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
 
@@ -108,7 +110,8 @@ where
     backend.parallel_for(0, m, move |r| unsafe {
         let start = row_ptr.read(r) as usize;
         let end = row_ptr.read(r + 1) as usize;
-        let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(<T as NumericElement>::ZERO, n);
+        let mut row_accumulator =
+            smallvec::SmallVec::<[T; 256]>::from_elem(<T as NumericElement>::ZERO, n);
         for i in start..end {
             let col = col_ptr.read(i) as usize;
             let val = val_ptr.read(i);
@@ -241,7 +244,8 @@ where
         // is guaranteed to be within [0, n), which is safe to read/write. Since each worker thread processes
         // a unique column index `j`, there are no data race write conflicts on `grad_b`.
         unsafe {
-            let mut col_accumulator = smallvec::SmallVec::<[T; 1024]>::from_elem(<T as NumericElement>::ZERO, k);
+            let mut col_accumulator =
+                smallvec::SmallVec::<[T; 1024]>::from_elem(<T as NumericElement>::ZERO, k);
             for r in 0..m {
                 let start = row_ptr.read(r) as usize;
                 let end = row_ptr.read(r + 1) as usize;
@@ -265,6 +269,3 @@ where
 
     grad_b
 }
-
-
-

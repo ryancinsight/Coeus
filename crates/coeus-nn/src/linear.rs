@@ -149,4 +149,3 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Linear<T
         }
     }
 }
-

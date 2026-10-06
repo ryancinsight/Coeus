@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, NumericElement};
+use coeus_core::{Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -151,7 +151,11 @@ pub fn cosine_embedding_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     )
     .expect("cosine_embedding_loss: denom clamp");
     let den = coeus_ops::sqrt(&den_sq_safe, &backend);
-    let inv_den = coeus_ops::div(&Tensor::full_on([n, 1], <T as NumericElement>::ONE, &backend), &den, &backend);
+    let inv_den = coeus_ops::div(
+        &Tensor::full_on([n, 1], <T as NumericElement>::ONE, &backend),
+        &den,
+        &backend,
+    );
     let cos = coeus_ops::mul(&dot_col, &inv_den, &backend);
     let dot_over_n1sq = coeus_ops::div(&dot_col, &n1_col, &backend);
     let dot_over_n2sq = coeus_ops::div(&dot_col, &n2_col, &backend);
@@ -323,6 +327,3 @@ mod tests {
         let _ = cosine_embedding_loss(&x1, &x2, &y, 0.5);
     }
 }
-
-
-

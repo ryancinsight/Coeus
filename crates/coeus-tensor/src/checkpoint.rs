@@ -469,5 +469,3 @@ mod tests {
         assert_eq!(error.to_string(), "duplicate tensor name 'duplicate'");
     }
 }
-
-

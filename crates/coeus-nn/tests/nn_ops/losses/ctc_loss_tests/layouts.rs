@@ -1,6 +1,6 @@
 //! Direct operation-boundary checks, including untouched backing-storage lanes.
 
-use coeus_core::{BackendError, ComputeBackend, Float, Layout, Scalar, NumericElement};
+use coeus_core::{BackendError, ComputeBackend, Float, Layout, NumericElement, Scalar};
 use coeus_ops::{CtcBatch, CtcOps};
 
 fn layout(shape: &[usize], strides: &[usize], offset: usize) -> Layout {
@@ -78,7 +78,12 @@ where
     // posterior and dyadic seeded update are exact in every tested format.
     let input = upload(
         &backend,
-        &[<T as Float>::NAN, <T as NumericElement>::ZERO, <T as Float>::NAN, <T as NumericElement>::ZERO],
+        &[
+            <T as Float>::NAN,
+            <T as NumericElement>::ZERO,
+            <T as Float>::NAN,
+            <T as NumericElement>::ZERO,
+        ],
     );
     let mut loss = upload(&backend, &[sentinel; 3]);
     let scalar = layout(&[1], &[1], 1);
@@ -91,7 +96,11 @@ where
             &scalar,
         )
         .expect("invariant: offset input and scalar output have valid footprints");
-    exact_storage(&backend, &loss, &[sentinel, <T as NumericElement>::ZERO, sentinel]);
+    exact_storage(
+        &backend,
+        &loss,
+        &[sentinel, <T as NumericElement>::ZERO, sentinel],
+    );
     let seed = <T as Scalar>::from_f64(2.5);
     let upstream = upload(
         &backend,
@@ -350,6 +359,3 @@ where
         exact_storage(&backend, &gradient, &[sentinel; 2]);
     }
 }
-
-
-

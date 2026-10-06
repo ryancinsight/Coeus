@@ -220,4 +220,3 @@ pub fn weighted<T: GradcheckScalar>(
 ) -> Var<T, MoiraiBackend> {
     sum(&mul(output, w))
 }
-

@@ -1,4 +1,4 @@
-use coeus_core::{Backend, CpuAddressableStorageMut, Scalar, NumericElement};
+use coeus_core::{Backend, CpuAddressableStorageMut, NumericElement, Scalar};
 use coeus_sparse::{CooTensor, CsrTensor};
 use coeus_tensor::Tensor;
 
@@ -300,6 +300,3 @@ mod tests {
         assert_eq!(dense_recon_csr.as_slice(), dense.as_slice());
     }
 }
-
-
-

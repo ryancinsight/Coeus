@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{BackendError, Float, Scalar, NumericElement};
+use coeus_core::{BackendError, Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -122,7 +122,8 @@ pub fn huber_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             reason: "mean reduction requires at least one element".to_owned(),
         }));
     }
-    if !<T as coeus_core::NumericElement>::is_finite(delta) || delta <= <T as NumericElement>::ZERO {
+    if !<T as coeus_core::NumericElement>::is_finite(delta) || delta <= <T as NumericElement>::ZERO
+    {
         return Err(B::Error::from(BackendError::Storage {
             operation: "huber_loss",
             reason: "delta must be finite and greater than zero".to_owned(),
@@ -287,7 +288,3 @@ mod tests {
         assert!(huber_loss(&pred, &target, f64::NAN).is_err());
     }
 }
-
-
-
-

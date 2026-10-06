@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Float, Layout, Scalar, NumericElement};
+use coeus_core::{ComputeBackend, Float, Layout, NumericElement, Scalar};
 use coeus_ops::OptimizerOps;
 
 pub(crate) fn upload<T: Scalar, B: ComputeBackend>(
@@ -63,11 +63,23 @@ pub(crate) fn adam_preserves_all_state_clones<T: Float, B: OptimizerOps<T>>(back
         .expect_err("the second moment layout exceeds its two-element allocation");
     assert_values(backend, &parameter, &[four, five]);
     assert_values(backend, &parameter_write, &[four, five]);
-    assert_values(backend, &first, &[three, <T as NumericElement>::ZERO - three]);
-    assert_values(backend, &first_write, &[three, <T as NumericElement>::ZERO - three]);
+    assert_values(
+        backend,
+        &first,
+        &[three, <T as NumericElement>::ZERO - three],
+    );
+    assert_values(
+        backend,
+        &first_write,
+        &[three, <T as NumericElement>::ZERO - three],
+    );
     assert_values(backend, &second, &[five, five]);
     assert_values(backend, &second_write, &[five, five]);
-    assert_values(backend, &gradient, &[one, <T as NumericElement>::ZERO - one]);
+    assert_values(
+        backend,
+        &gradient,
+        &[one, <T as NumericElement>::ZERO - one],
+    );
 
     parameter_write = parameter.clone();
     first_write = first.clone();
@@ -94,11 +106,23 @@ pub(crate) fn adam_preserves_all_state_clones<T: Float, B: OptimizerOps<T>>(back
         )
         .expect("valid two-element Adam update");
     assert_values(backend, &parameter, &[four, five]);
-    assert_values(backend, &first, &[three, <T as NumericElement>::ZERO - three]);
+    assert_values(
+        backend,
+        &first,
+        &[three, <T as NumericElement>::ZERO - three],
+    );
     assert_values(backend, &second, &[five, five]);
-    assert_values(backend, &gradient, &[one, <T as NumericElement>::ZERO - one]);
+    assert_values(
+        backend,
+        &gradient,
+        &[one, <T as NumericElement>::ZERO - one],
+    );
     assert_values(backend, &parameter_write, &[four - quarter, five + quarter]);
-    assert_values(backend, &first_write, &[two, <T as NumericElement>::ZERO - two]);
+    assert_values(
+        backend,
+        &first_write,
+        &[two, <T as NumericElement>::ZERO - two],
+    );
     assert_values(backend, &second_write, &[four, four]);
 
     // All three writable snapshots may initially share one allocation.
@@ -130,6 +154,3 @@ pub(crate) fn adam_preserves_all_state_clones<T: Float, B: OptimizerOps<T>>(back
     assert_values(backend, &first_write, &[two, two]);
     assert_values(backend, &second_write, &[two, two]);
 }
-
-
-

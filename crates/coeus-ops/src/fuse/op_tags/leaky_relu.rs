@@ -1,7 +1,7 @@
 //! Non-ZST tag types for LeakyReLU (carry a runtime slope parameter).
 
-use coeus_core::Scalar;
 use coeus_core::NumericElement;
+use coeus_core::Scalar;
 
 /// LeakyRelu tag — NOT a ZST; carries slope encoded as `f64::to_bits()`.
 ///
@@ -83,6 +83,3 @@ impl LeakyReluGradTag {
         }
     }
 }
-
-
-

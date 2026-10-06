@@ -4,7 +4,9 @@ mod ctc;
 pub use ctc::ctc_loss;
 
 use coeus_autograd::Var;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement,
+};
 use coeus_tensor::Tensor;
 
 /// Mean Squared Error loss.
@@ -345,7 +347,13 @@ where
 
     let mask_data: Vec<T> = target
         .iter()
-        .map(|&y| if y > zero { <T as NumericElement>::ONE } else { zero })
+        .map(|&y| {
+            if y > zero {
+                <T as NumericElement>::ONE
+            } else {
+                zero
+            }
+        })
         .collect();
     let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend);
     let mask_var = Var::new(mask_tensor, false);
@@ -472,6 +480,3 @@ where
 {
     coeus_autograd::nanmean(x)
 }
-
-
-

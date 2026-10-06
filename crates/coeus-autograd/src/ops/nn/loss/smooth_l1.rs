@@ -20,7 +20,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar, NumericElement};
+use coeus_core::{Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -67,7 +67,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
         // At |z| == beta the mask is false → L1 piece with sign(z) (right
         // limit); at z == 0 sign(0) = 0 matches PyTorch's reduce-at-zero.
         let scale = coeus_ops::mul(grad_out, &self.mean_scale, &backend);
-        let inv_beta_tensor = Tensor::full_on([1], <T as NumericElement>::ONE / self.beta, &backend);
+        let inv_beta_tensor =
+            Tensor::full_on([1], <T as NumericElement>::ONE / self.beta, &backend);
         let quad = coeus_ops::mul(
             &coeus_ops::mul(&self.diffs, &scale, &backend),
             &inv_beta_tensor,
@@ -248,6 +249,3 @@ mod tests {
         }
     }
 }
-
-
-

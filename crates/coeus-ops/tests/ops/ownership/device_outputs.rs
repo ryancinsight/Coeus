@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Float, Layout, Scalar, NumericElement};
+use coeus_core::{ComputeBackend, Float, Layout, NumericElement, Scalar};
 use coeus_ops::{
     BinaryOp, ElementwiseOps, MatmulOps, ReductionOp, ReductionOps, ScalarPowerOps, UnaryOp,
 };
@@ -345,6 +345,3 @@ pub(crate) fn scans_preserve_output_clones<T: Scalar, B: ReductionOps<T>>(backen
         rejects_invalid_output_write(backend, scan, one);
     }
 }
-
-
-

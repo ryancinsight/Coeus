@@ -87,6 +87,3 @@ pub trait BackwardNode<T: Scalar, B: ComputeBackend + Default = MoiraiBackend>:
         input_grads: &[Option<Arc<GradBuffer<T, B>>>],
     ) -> Result<(), B::Error>;
 }
-
-
-

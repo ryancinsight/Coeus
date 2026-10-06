@@ -89,6 +89,3 @@ where
 
     total_norm
 }
-
-
-

@@ -1,5 +1,5 @@
 use crate::backend::CudaBackend;
-use coeus_core::{ComputeBackend, Layout, Scalar, NumericElement};
+use coeus_core::{ComputeBackend, Layout, NumericElement, Scalar};
 
 /// hephaestus has no `CrossProductOps` implementation for CUDA yet (only
 /// host/CPU and WGPU, ADR 0077) — this backend uses the same shared
@@ -25,6 +25,3 @@ impl<T: Scalar> coeus_ops::CrossOps<T> for CudaBackend {
         Ok(output)
     }
 }
-
-
-

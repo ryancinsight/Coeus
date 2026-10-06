@@ -82,7 +82,7 @@
 //! [`GradcheckError::TriviallyZero`]; give the loss a non-uniform weighting so
 //! the output Jacobian is actually probed.
 
-use coeus_core::{CpuAddressableStorage, Float, Scalar, NumericElement};
+use coeus_core::{CpuAddressableStorage, Float, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 use crate::var::Var;
@@ -591,7 +591,3 @@ mod tests {
         assert!((eps32.cbrt() - 4.921e-3).abs() < 1e-6, "f32 step {eps32:e}");
     }
 }
-
-
-
-

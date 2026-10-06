@@ -94,5 +94,3 @@ where
     )
     .map_err(|error| map_leto_error("elementwise scalar power", error))
 }
-
-

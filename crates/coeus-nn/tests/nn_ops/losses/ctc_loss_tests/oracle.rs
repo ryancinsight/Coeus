@@ -1,4 +1,4 @@
-use coeus_core::{Float, Scalar, NumericElement};
+use coeus_core::{Float, NumericElement, Scalar};
 use coeus_ops::CtcBatch;
 use eunomia::{Bf16, F16};
 
@@ -77,12 +77,12 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
             if collapsed != target {
                 continue;
             }
-            let weight = path
-                .iter()
-                .enumerate()
-                .fold(<T as NumericElement>::ONE, |product, (time, &symbol)| {
+            let weight = path.iter().enumerate().fold(
+                <T as NumericElement>::ONE,
+                |product, (time, &symbol)| {
                     product * Float::exp(log_probs[(time * batch + sample) * classes + symbol])
-                });
+                },
+            );
             probability += weight;
             for (time, &symbol) in path.iter().enumerate() {
                 occupancy[time * classes + symbol] += weight;
@@ -126,15 +126,16 @@ pub(super) fn close<T: BinaryPrecision>(actual: T, expected: T, operations: usiz
     // the count; it is a numerical test model, not a libm accuracy proof.
     let unit = T::EPSILON / count::<T>(2);
     let accumulated = count::<T>(operations) * unit;
-    assert!(accumulated < <T as NumericElement>::ONE, "roundoff model requires k*u < 1");
-    let scale = <T as NumericElement>::ONE + <T as coeus_core::NumericElement>::abs(actual) + <T as coeus_core::NumericElement>::abs(expected);
+    assert!(
+        accumulated < <T as NumericElement>::ONE,
+        "roundoff model requires k*u < 1"
+    );
+    let scale = <T as NumericElement>::ONE
+        + <T as coeus_core::NumericElement>::abs(actual)
+        + <T as coeus_core::NumericElement>::abs(expected);
     let bound = accumulated / (<T as NumericElement>::ONE - accumulated) * scale;
     assert!(
         <T as coeus_core::NumericElement>::abs(actual - expected) <= bound,
         "actual={actual:?}, expected={expected:?}, bound={bound:?}"
     );
 }
-
-
-
-

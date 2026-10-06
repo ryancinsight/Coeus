@@ -6,8 +6,9 @@
 
 use coeus_autograd::Var;
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, Scalar,
-    SequentialBackend, NumericElement};
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, NumericElement,
+    Scalar, SequentialBackend,
+};
 use coeus_tensor::Tensor;
 
 use coeus_nn::init::InitializationError;
@@ -81,8 +82,9 @@ where
 
     let fan = T::from_count(fan_in);
     let limit = <T as NumericElement>::sqrt(<T as Scalar>::from_f64(6.0) / fan);
-    let expected_uniform = coeus_leto::uniform_values(&shape, <T as NumericElement>::ZERO - limit, limit, seed)
-        .expect("valid direct Leto Kaiming uniform fixture");
+    let expected_uniform =
+        coeus_leto::uniform_values(&shape, <T as NumericElement>::ZERO - limit, limit, seed)
+            .expect("valid direct Leto Kaiming uniform fixture");
     assert_values(
         weight.tensor.as_slice(),
         &expected_uniform,
@@ -131,8 +133,9 @@ where
 
     let fan = T::from_count(fan_in + fan_out);
     let limit = <T as NumericElement>::sqrt(<T as Scalar>::from_f64(6.0) / fan);
-    let expected_uniform = coeus_leto::uniform_values(&shape, <T as NumericElement>::ZERO - limit, limit, seed)
-        .expect("valid direct Leto Xavier uniform fixture");
+    let expected_uniform =
+        coeus_leto::uniform_values(&shape, <T as NumericElement>::ZERO - limit, limit, seed)
+            .expect("valid direct Leto Xavier uniform fixture");
     assert_values(
         weight.tensor.as_slice(),
         &expected_uniform,
@@ -389,8 +392,3 @@ fn default_initializers_match_explicit_seed_42() {
         assert_eq!(default.tensor.as_slice(), seeded.tensor.as_slice());
     }
 }
-
-
-
-
-

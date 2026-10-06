@@ -141,6 +141,3 @@ where
 
     Tensor::from_slice(vec![n, c, new_h, new_w], &out)
 }
-
-
-

@@ -1,5 +1,5 @@
 use coeus_autograd::Var;
-use coeus_core::{Float, Layout, Scalar, NumericElement};
+use coeus_core::{Float, Layout, NumericElement, Scalar};
 use coeus_ops::RandomInitOps;
 use coeus_tensor::Tensor;
 
@@ -365,8 +365,3 @@ where
 {
     kaiming_normal_with_seed(weight, fan_in, 42)
 }
-
-
-
-
-

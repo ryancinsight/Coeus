@@ -1,5 +1,7 @@
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, NumericElement};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, Layout, NumericElement, Scalar,
+};
 
 #[inline]
 pub(crate) fn avg_pool2d<T: Scalar, B: Backend>(
@@ -373,6 +375,3 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
         }
     });
 }
-
-
-

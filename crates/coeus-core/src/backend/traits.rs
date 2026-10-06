@@ -160,6 +160,3 @@ mod tests {
         assert_backend_visits_each_index_once(MoiraiBackend::new(), 4_097);
     }
 }
-
-
-
