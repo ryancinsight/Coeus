@@ -158,7 +158,7 @@ fn validate_operands<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// operand counts, ranks, or shapes do not match, or the fallback backend
 /// rejects the operation.
 #[inline]
-pub fn einsum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn einsum<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,
     operands: &[&Var<T, B>],
 ) -> Result<Var<T, B>, EinsumError>
@@ -331,7 +331,7 @@ where
 ///
 /// Returns [`EinsumError::UnsupportedPattern`] for any other subscript.
 #[inline]
-pub fn einsum3<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn einsum3<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,
     a: &Var<T, B>,
     b: &Var<T, B>,

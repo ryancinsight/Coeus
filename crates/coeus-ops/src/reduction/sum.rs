@@ -19,7 +19,7 @@ use coeus_tensor::Tensor;
 /// assert!((result - 21.0).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
+pub fn sum<T: Scalar + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -54,7 +54,7 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
 /// assert_eq!(result.as_slice(), &[6.0, 15.0]);
 /// ```
 #[inline]
-pub fn sum_axis<T: Scalar, B: ReductionOps<T> + Default>(
+pub fn sum_axis<T: Scalar + leto_ops::RealScalar, B: ReductionOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     backend: &B,
@@ -87,7 +87,7 @@ pub fn sum_axis<T: Scalar, B: ReductionOps<T> + Default>(
 
 /// Maximum along a specific axis, reducing it to size 1.
 #[inline]
-pub fn max_axis<T: Scalar, B: BackendOps<T> + Default>(
+pub fn max_axis<T: Scalar + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     backend: &B,
@@ -120,7 +120,7 @@ pub fn max_axis<T: Scalar, B: BackendOps<T> + Default>(
 
 /// Minimum along a specific axis, reducing it to size 1.
 #[inline]
-pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(
+pub fn min_axis<T: Scalar + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     axis: usize,
     backend: &B,
@@ -155,7 +155,7 @@ pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(
 ///
 /// Equivalent to `torch.amax(input)` with no dim argument.
 #[inline]
-pub fn amax<T: Scalar, B: BackendOps<T> + Default>(
+pub fn amax<T: Scalar + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -180,7 +180,7 @@ pub fn amax<T: Scalar, B: BackendOps<T> + Default>(
 ///
 /// Equivalent to `torch.amin(input)` with no dim argument.
 #[inline]
-pub fn amin<T: Scalar, B: BackendOps<T> + Default>(
+pub fn amin<T: Scalar + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {

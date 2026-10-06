@@ -17,7 +17,9 @@ pub struct SoftmaxNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub dim_u: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for SoftmaxNode<T, B> {
+impl<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
+    for SoftmaxNode<T, B>
+{
     #[inline]
     fn op_name(&self) -> &'static str {
         "softmax"
@@ -62,7 +64,7 @@ pub(crate) fn accumulate_softmax_grad<T, B>(
     g_in: &Arc<GradBuffer<T, B>>,
 ) -> Result<(), B::Error>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 {
     let backend = B::default();
@@ -76,7 +78,7 @@ where
 }
 
 /// Tracked Softmax.
-pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn softmax<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
 ) -> Var<T, B> {
@@ -137,7 +139,7 @@ pub fn softmax<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 ///
 /// Differentiable via composition of the tracked `neg` and [`softmax`].
 #[must_use]
-pub fn softmin<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn softmin<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: isize,
 ) -> Var<T, B> {

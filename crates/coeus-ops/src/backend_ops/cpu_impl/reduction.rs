@@ -19,7 +19,7 @@ pub(super) fn reduce<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

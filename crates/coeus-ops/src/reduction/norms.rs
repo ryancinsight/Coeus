@@ -23,7 +23,7 @@ use coeus_tensor::Tensor;
 /// critical short-circuit when only L2 is needed; the general ord-p variant
 /// dispatches scalar powers through the selected provider.
 #[inline]
-pub fn norm<T: Float, B: BackendOps<T> + Default>(
+pub fn norm<T: Float + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -50,7 +50,7 @@ pub fn norm<T: Float, B: BackendOps<T> + Default>(
 /// Panics if `p <= 0`, `p` is not finite, or the input is empty.
 #[inline]
 pub fn norm_p_tensor<
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default,
 >(
     a: &Tensor<T, B>,
@@ -76,7 +76,10 @@ pub fn norm_p_tensor<
 /// output element. Tracked autograd uses this tensor form to retain the norm
 /// on the selected provider for backward.
 #[inline]
-pub fn norm_p<T: Float, B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default>(
+pub fn norm_p<
+    T: Float + leto_ops::RealScalar,
+    B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default,
+>(
     a: &Tensor<T, B>,
     p: T,
     backend: &B,
@@ -101,7 +104,7 @@ pub fn norm_p<T: Float, B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<
 /// or `p` is not finite.
 #[inline]
 pub fn norm_p_axis<
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ElementwiseOps<T> + ReductionOps<T> + ScalarPowerOps<T> + Default,
 >(
     a: &Tensor<T, B>,
@@ -131,7 +134,7 @@ pub fn norm_p_axis<
 /// For ≥3-D tensors see [`frobenius_norm_batched`], which reduces over the
 /// last two dimensions per batch.
 #[inline]
-pub fn frobenius_norm<T: Float, B: BackendOps<T> + Default>(
+pub fn frobenius_norm<T: Float + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -154,7 +157,7 @@ pub fn frobenius_norm<T: Float, B: BackendOps<T> + Default>(
 /// # Panics
 /// Panics if the input has rank < 2.
 #[inline]
-pub fn frobenius_norm_batched<T: Float, B: BackendOps<T> + Default>(
+pub fn frobenius_norm_batched<T: Float + leto_ops::RealScalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<Tensor<T, B>, B::Error> {

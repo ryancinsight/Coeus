@@ -38,7 +38,10 @@ use coeus_tensor::Tensor;
 /// crosses `B::copy_to_host`, not both full operands.
 #[inline]
 #[must_use]
-pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T, B>) -> T {
+pub fn dot<T: Scalar + leto_ops::RealScalar, B: BackendOps<T> + Default>(
+    a: &Tensor<T, B>,
+    b: &Tensor<T, B>,
+) -> T {
     let n = a.numel();
     assert_eq!(n, b.numel(), "dot: numel mismatch: a={n}, b={}", b.numel());
     if n == 0 {

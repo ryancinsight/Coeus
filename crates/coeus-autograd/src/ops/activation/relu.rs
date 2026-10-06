@@ -133,8 +133,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     #[inline(always)]
     fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
         let cond = coeus_ops::relu(x, backend);
-        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend);
-        let alpha_scale = Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend);
+        let scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::Scalar>::from_f64(SELU_SCALE),
+            backend,
+        );
+        let alpha_scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::Scalar>::from_f64(SELU_ALPHA * SELU_SCALE),
+            backend,
+        );
         let pos = coeus_ops::mul(x, &scale, backend);
         let neg_base = coeus_ops::expm1(x, backend);
         let neg = coeus_ops::mul(&neg_base, &alpha_scale, backend);
@@ -149,8 +157,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         backend: &B,
     ) -> Tensor<T, B> {
         let cond = coeus_ops::relu(x, backend);
-        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend);
-        let alpha_scale = Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend);
+        let scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::Scalar>::from_f64(SELU_SCALE),
+            backend,
+        );
+        let alpha_scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::Scalar>::from_f64(SELU_ALPHA * SELU_SCALE),
+            backend,
+        );
         let neg = coeus_ops::mul(&coeus_ops::exp(x, backend), &alpha_scale, backend);
         let deriv = coeus_ops::where_cond(&cond, &scale, &neg, backend).expect("where_cond");
         coeus_ops::mul(grad_out, &deriv, backend)
@@ -198,7 +214,7 @@ pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 /// Panics (via the underlying broadcast) if `weight`'s channel count is
 /// neither `1` nor `x`'s size along dim `1`.
 #[must_use]
-pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn prelu<T: Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     weight: &Var<T, B>,
 ) -> Var<T, B>

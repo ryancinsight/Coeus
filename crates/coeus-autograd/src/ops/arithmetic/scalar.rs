@@ -7,7 +7,7 @@ use coeus_tensor::Tensor;
 /// Tracked element-wise multiply by a scalar.
 #[must_use]
 #[inline]
-pub fn scalar_mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn scalar_mul<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     s: T,
 ) -> Var<T, B> {
@@ -20,7 +20,7 @@ pub fn scalar_mul<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked element-wise add by a scalar.
 #[must_use]
 #[inline]
-pub fn scalar_add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn scalar_add<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     s: T,
 ) -> Var<T, B> {
@@ -33,7 +33,7 @@ pub fn scalar_add<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked element-wise subtraction by a scalar (x - s).
 #[must_use]
 #[inline]
-pub fn scalar_sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn scalar_sub<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     s: T,
 ) -> Var<T, B> {
@@ -46,7 +46,7 @@ pub fn scalar_sub<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// Tracked element-wise division by a scalar (x / s).
 #[must_use]
 #[inline]
-pub fn scalar_div<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn scalar_div<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     s: T,
 ) -> Var<T, B> {

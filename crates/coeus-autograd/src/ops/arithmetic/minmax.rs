@@ -20,7 +20,7 @@ use coeus_core::Scalar;
 /// ties resolve to `a`.
 #[must_use]
 #[inline]
-pub fn maximum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn maximum<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {
@@ -33,7 +33,7 @@ pub fn maximum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// ties resolve to `a`.
 #[must_use]
 #[inline]
-pub fn minimum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn minimum<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
 ) -> Var<T, B> {

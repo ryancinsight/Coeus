@@ -14,7 +14,7 @@ use coeus_core::Scalar;
 #[must_use]
 pub fn diff<T, B>(x: &Var<T, B>, n: usize, dim: usize) -> Var<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 {
     let ndim = x.tensor.ndim();
