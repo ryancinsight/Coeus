@@ -19,9 +19,7 @@
 use coeus_autograd::BackwardNode;
 use coeus_autograd::GradBuffer;
 use coeus_autograd::Var;
-use coeus_core::{
-    Complex, ComputeBackend, Float, FloatElement, MoiraiBackend, NumericElement, Scalar,
-};
+use coeus_core::{Complex, ComputeBackend, Float, MoiraiBackend, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 use std::ops::Neg;
 use std::sync::Arc;

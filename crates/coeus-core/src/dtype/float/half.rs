@@ -144,10 +144,6 @@ macro_rules! impl_scalar_float_half {
                 <Self as eunomia::FloatElement>::from_f64(v.fract())
             }
             #[inline(always)]
-            fn powi(self, exp: i32) -> Self {
-                <Self as eunomia::FloatElement>::powi(self, exp)
-            }
-            #[inline(always)]
             fn is_integer(self) -> bool {
                 let f = <Self as NumericElement>::to_f64(self);
                 f.is_finite() && f == f.trunc()

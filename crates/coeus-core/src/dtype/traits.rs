@@ -446,14 +446,7 @@ pub trait Float: Scalar + FloatOps + leto_ops::RealScalar {
     /// Inherited from [`NumericElement::abs`] via the supertrait chain.
     /// Use `<T as NumericElement>::abs(x)` or `x.abs()` at call sites.
     // fn abs — provided by NumericElement supertrait, removed to avoid ambiguity
-    /// Integer power: `self^exp` where `exp` is a signed integer exponent.
-    ///
-    /// Raises `self` to the integer power `exp` using repeated multiplication
-    /// with sign preservation: `(-x)^exp = -(x^exp)` for odd `exp` and
-    /// `(x^|exp|)` for even `exp`, matching
-    /// `at::pow`/`Tensor.pow(scalar)` semantics when `scalar` is integer-valued.
-    /// `exp = 0` returns `1`. Negative `exp` returns `1 / powi(|exp|)`.
-    fn powi(self, exp: i32) -> Self;
+    // fn powi — provided by FloatElement, removed to avoid ambiguity
     /// True if `self` rounds to an exact integer in `T` (i.e. truncates to itself).
     ///
     /// Used by `pow(x, scalar)` to dispatch between sign-preserving integer

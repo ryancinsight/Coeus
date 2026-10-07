@@ -137,10 +137,6 @@ macro_rules! impl_scalar_float_native {
                 self.fract()
             }
             #[inline(always)]
-            fn powi(self, exp: i32) -> Self {
-                self.powi(exp)
-            }
-            #[inline(always)]
             fn is_integer(self) -> bool {
                 self == self.trunc() && self.is_finite()
             }
