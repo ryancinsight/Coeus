@@ -4,6 +4,12 @@ name: CI
 # documentation compile in separate jobs to retain their existing cache and
 # time budgets. Pull requests restore caches; only main updates them.
 #
+# The native suite runs as three nextest --partition shards over the shared
+# sccache backend (see the `tests` job): each shard compiles with mostly
+# hits on a warm cache and the partition only divides seconds of execution
+# plus per-shard setup. The `test` aggregator preserves the required "Tests"
+# check name. Same shape as CFDrs PR 526.
+#
 # `changed_scope` also selects `skip` for changes that cannot affect a Rust
 # build (Markdown/license paths only -- see `scripts/ci_scope.py`): nothing
 # under `crates/` or the build/toolchain manifests reads them, so a diff
@@ -96,12 +102,30 @@ jobs:
       - name: Lockfile tool contracts
         run: python3 -m unittest discover -s scripts/tests -v
 
-  test:
-    name: Tests
+  # Wall-time history: the single Tests job was compile-bound (Native tests
+  # step 18.4m = test-profile COMPILE 18m19s, execution seconds for 1225
+  # tests; run 37647606546). sccache (GHA backend, content-keyed) already
+  # supplies cross-run workspace-crate artifacts (64% hits on that run: 9
+  # hits / 5 misses, the misses being PR-touched crates no cache can fix),
+  # so the remaining lever is parallel shards over the shared sccache
+  # backend: each shard compiles with mostly hits on a warm cache and
+  # --partition only divides the seconds of execution plus per-shard setup.
+  # No serial archive stage: CFDrs PR 490 proved the archive+download round
+  # trip matches the single job exactly. Target: each shard under 5 minutes
+  # warm; a PR that retouches workspace crates still recompiles them in
+  # every shard (cold wall ~= single-job wall), which is why the shard
+  # timeout below admits a cold compile instead of timing out legitimate
+  # cache-seeding runs.
+  tests:
+    name: Tests (shard ${{ matrix.shard }} of 3)
     needs: changed_scope
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2, 3]
     env:
       # Content-keyed compiler cache (mozilla-actions/sccache-action, GHA
       # backend): sccache hashes source content plus compiler flags, so it
@@ -110,7 +134,8 @@ jobs:
       # graph was already a full Swatinem/rust-cache hit (0 third-party
       # recompiles, run 36487415471); sccache targets the remaining cost,
       # the 14 first-party workspace crates rust-cache does not and should
-      # not cache by mtime.
+      # not cache by mtime. Shared across all shards: content keys match
+      # whatever job compiled them.
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
     steps:
@@ -121,9 +146,10 @@ jobs:
         if: always()
         run: test -n "${{ needs.changed_scope.outputs.test_path }}"
       - name: Hook-contract tests
-        if: needs.changed_scope.outputs.test_path == 'hook-only'
+        if: needs.changed_scope.outputs.test_path == 'hook-only' && matrix.shard == 1
         # The job-level wrapper names sccache, which only the native path
         # installs below; the lock-regeneration test runs cargo without it.
+        # Runs on shard 1 only: one invocation covers the hook suite.
         env:
           RUSTC_WRAPPER: ""
         run: python3 -B -m unittest scripts.tests.test_hooks -v
@@ -155,17 +181,43 @@ jobs:
       # and not here. `python-release.yml` owns that crate's verification.
       - name: Native tests
         if: needs.changed_scope.outputs.test_path == 'native'
-        run: cargo nextest run --locked --workspace --exclude coeus-python --exclude coeus-wgpu
+        run: cargo nextest run --locked --workspace --exclude coeus-python --exclude coeus-wgpu --partition count:${{ matrix.shard }}/3
 
       # Shares the `test` profile compile above, so this costs only its own
-      # doctest binaries.
+      # doctest binaries. Runs on shard 1 only: one invocation covers them.
       - name: Documentation tests
-        if: needs.changed_scope.outputs.test_path == 'native'
+        if: needs.changed_scope.outputs.test_path == 'native' && matrix.shard == 1
         run: cargo test --locked --doc --workspace --exclude coeus-python --exclude coeus-wgpu
 
       - name: sccache stats
         if: always() && needs.changed_scope.outputs.test_path == 'native'
         run: sccache --show-stats
+
+  # Aggregate gate preserving the required-check name. Branch protection
+  # requires exactly "Tests"; the shards above report under their own
+  # names, so this job folds them back into the one required context
+  # (fails when any need is not success). Same established pattern as
+  # CFDrs PR 526. No build here, so the timeout is the 5-minute budget.
+  test:
+    name: Tests
+    needs: [changed_scope, tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate shard results
+        run: |
+          for need in changed_scope tests; do
+            case "$need" in
+              changed_scope) result="${{ needs.changed_scope.result }}" ;;
+              tests) result="${{ needs.tests.result }}" ;;
+            esac
+            if [ "$result" != "success" ]; then
+              echo "gate red: $need result is $result" >&2
+              exit 1
+            fi
+          done
+          echo "gate green: changed scope classified and all test shards succeeded"
 
   lint:
     name: Lint and documentation

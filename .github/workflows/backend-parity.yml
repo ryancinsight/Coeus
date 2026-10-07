@@ -48,10 +48,270 @@ env:
   RUST_TOOLCHAIN: 1.97.0
 
 jobs:
-  wgpu:
-    name: WGPU Coeus provider contracts
+  # Wall-time history: the single WGPU job was compile-bound (contracts step
+  # 17.4m ~= test-profile COMPILE 15.7m across the six packages, execution
+  # seconds; run 37644586168, job 112871924621). The six packages ran
+  # serially in one step, so the fix has two parts: split the serial chain
+  # into parallel package-group shards, and give each shard the shared
+  # sccache backend (GHA, content-keyed, same service the CI shards use) so
+  # warm compiles are hits. Target: each shard under 5 minutes warm; a PR
+  # that retouches the base crates still recompiles them in every shard,
+  # which is why each shard timeout admits a cold compile.
+  wgpu-leto-ops:
+    name: WGPU Coeus provider contracts (leto, ops)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: coeus
+          persist-credentials: false
+
+      - name: Check out Apollo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/apollo
+          path: apollo
+          persist-credentials: false
+
+      - name: Check out Aequitas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/aequitas
+          path: aequitas
+          persist-credentials: false
+
+      - name: Check out Hephaestus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hephaestus
+          path: hephaestus
+          persist-credentials: false
+
+      - name: Check out Hermes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hermes
+          path: hermes
+          persist-credentials: false
+
+      - name: Check out Leto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/leto
+          path: leto
+          persist-credentials: false
+
+      - name: Check out Melinoe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/melinoe
+          path: melinoe
+          persist-credentials: false
+
+      - name: Check out Mnemosyne
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Mnemosyne
+          path: mnemosyne
+          persist-credentials: false
+
+      - name: Check out Moirai
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Moirai
+          path: moirai
+          persist-credentials: false
+
+      - name: Check out Eunomia
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/eunomia
+          path: eunomia
+          persist-credentials: false
+
+      - name: Check out Themis
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/themis
+          path: themis
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain and nextest
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+
+      # Rebuilt the whole dependency graph (coeus-leto, coeus-ops, coeus-nn,
+      # coeus-autograd, coeus-wgpu, coeus-cuda) from zero every run -- no
+      # cache existed here. Measured 1936-1982s wall on this job alone
+      # (2 latest PR runs); this is the single largest CI-wall-time
+      # contributor in the account's shared runner pool.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: coeus
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # Prebuilt binary instead of `cargo install cargo-nextest --locked`,
+      # which compiled nextest from source on every run.
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: nextest@0.9.140
+
+      - name: Run Leto and Ops provider contracts
+        working-directory: coeus
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
+          cargo "+$RUST_TOOLCHAIN" fmt --all --check
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-leto --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-leto --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-leto
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-leto --doc
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-ops --doc
+
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats
+
+  wgpu-nn-autograd:
+    name: WGPU Coeus provider contracts (nn, autograd)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+    steps:
+      - name: Check out Coeus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: coeus
+          persist-credentials: false
+
+      - name: Check out Apollo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/apollo
+          path: apollo
+          persist-credentials: false
+
+      - name: Check out Aequitas
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/aequitas
+          path: aequitas
+          persist-credentials: false
+
+      - name: Check out Hephaestus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hephaestus
+          path: hephaestus
+          persist-credentials: false
+
+      - name: Check out Hermes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/hermes
+          path: hermes
+          persist-credentials: false
+
+      - name: Check out Leto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/leto
+          path: leto
+          persist-credentials: false
+
+      - name: Check out Melinoe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/melinoe
+          path: melinoe
+          persist-credentials: false
+
+      - name: Check out Mnemosyne
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Mnemosyne
+          path: mnemosyne
+          persist-credentials: false
+
+      - name: Check out Moirai
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/Moirai
+          path: moirai
+          persist-credentials: false
+
+      - name: Check out Eunomia
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/eunomia
+          path: eunomia
+          persist-credentials: false
+
+      - name: Check out Themis
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/themis
+          path: themis
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain and nextest
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: coeus
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # Prebuilt binary instead of `cargo install cargo-nextest --locked`,
+      # which compiled nextest from source on every run.
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: nextest@0.9.140
+
+      - name: Run NN and Autograd provider contracts
+        working-directory: coeus
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
+          cargo "+$RUST_TOOLCHAIN" fmt --all --check
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-nn \
+            -E "test(test_cross_entropy_loss_parity) or test(cross_entropy_rejects_invalid_contracts_before_autograd_registration)"
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-autograd \
+            -E "test(remainder) or test(rotate_half) or test(structural_gradients_preserve_untouched_parent_regions)"
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-autograd --doc
+
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats
+
+  wgpu-wgpu-cuda:
+    name: WGPU Coeus provider contracts (wgpu, cuda)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Check out Coeus
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,11 +402,8 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
 
-      # Rebuilt the whole dependency graph (coeus-leto, coeus-ops, coeus-nn,
-      # coeus-autograd, coeus-wgpu, coeus-cuda) from zero every run -- no
-      # cache existed here. Measured 1936-1982s wall on this job alone
-      # (2 latest PR runs); this is the single largest CI-wall-time
-      # contributor in the account's shared runner pool.
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           workspaces: coeus
@@ -167,19 +424,6 @@ jobs:
           set -euo pipefail
           cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
-          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-leto --all-targets
-          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-leto --all-targets --no-deps -- -D warnings
-          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-leto
-          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-leto --doc
-          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
-          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
-          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
-          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-ops --doc
-          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-nn \
-            -E "test(test_cross_entropy_loss_parity) or test(cross_entropy_rejects_invalid_contracts_before_autograd_registration)"
-          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-autograd \
-            -E "test(remainder) or test(rotate_half) or test(structural_gradients_preserve_untouched_parent_regions)"
-          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-autograd --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-wgpu --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-wgpu --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-wgpu \
@@ -192,10 +436,16 @@ jobs:
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --no-default-features
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --no-default-features --doc
 
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats
+
   cuda:
     name: CUDA Coeus provider contracts
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # Cold-aware: the container step compiles ~10m cold (7m44s + 2m08s test
+    # profile, run 37644586168); the 5-minute target is the warm wall below.
+    timeout-minutes: 20
     env:
       CUDA_IMAGE: nvidia/cuda:13.2.1-devel-ubuntu24.04
     steps:
@@ -281,12 +531,23 @@ jobs:
       - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
           tool: nextest@0.9.140
-      - name: Stage nextest for the container
+      # The container build compiled ~10m from zero every run: its filesystem
+      # is ephemeral, so mtime-based caching cannot help, but sccache is
+      # content-keyed and shares the same GHA backend the host jobs use. The
+      # host stages the sccache binary beside nextest; the container runs it
+      # with the Actions cache credentials passed through, so warm runs hit
+      # artifacts compiled by any job (host or container) at the same
+      # toolchain and sources.
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - name: Stage nextest and sccache for the container
         shell: bash
         run: |
           set -euo pipefail
+          : "${ACTIONS_CACHE_URL:?sccache GHA backend URL missing}"
+          : "${ACTIONS_RUNTIME_TOKEN:?sccache GHA token missing}"
           mkdir -p "$GITHUB_WORKSPACE/.ci-tools"
           cp "$(command -v cargo-nextest)" "$GITHUB_WORKSPACE/.ci-tools/cargo-nextest"
+          cp "$(command -v sccache)" "$GITHUB_WORKSPACE/.ci-tools/sccache"
 
       - name: Build and test in the NVIDIA CUDA development image
         shell: bash
@@ -296,6 +557,10 @@ jobs:
           docker run --rm --network host \
             --env "RUST_TOOLCHAIN=$RUST_TOOLCHAIN" \
             --env CUDA_TOOLKIT_PATH=/usr/local/cuda \
+            --env SCCACHE_GHA_ENABLED=true \
+            --env RUSTC_WRAPPER=sccache \
+            --env "ACTIONS_CACHE_URL=$ACTIONS_CACHE_URL" \
+            --env "ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN" \
             --volume "$GITHUB_WORKSPACE:/workspace" \
             --workdir /workspace/coeus \
             "$CUDA_IMAGE" \
@@ -309,6 +574,7 @@ jobs:
               rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
               rustup component add rustfmt clippy --toolchain "$RUST_TOOLCHAIN"
               install -m 0755 /workspace/.ci-tools/cargo-nextest "$HOME/.cargo/bin/cargo-nextest"
+              install -m 0755 /workspace/.ci-tools/sccache /usr/local/bin/sccache
               if [ -f /usr/local/cuda/lib64/stubs/libcuda.so ] && [ ! -e /usr/local/cuda/lib64/stubs/libcuda.so.1 ]; then
                 ln -s libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
               fi
@@ -324,6 +590,7 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
                 -E "test(matmul_rejects_each_layout_that_exceeds_storage) or test(matmul_rejects_writable_zero_stride_output) or test(cuda_storage_validation_checks_physical_bound_and_writable_aliasing) or test(signed_ptx_storage_validation_enforces_address_boundary) or test(signed_ptx_storage_validation_rejects_oversized_shape_and_stride) or test(pool_storage_validation_rejects_undersized_and_overflowed_layouts) or test(pool_signed_index_validation_covers_forward_and_backward_extrema) or test(test_cuda_backend_conv_and_reduce) or test(test_cuda_conv_backward) or test(test_cuda_conv3d) or test(test_cuda_parity_conv1d_forward) or test(test_cuda_parity_conv2d_forward) or test(test_cuda_parity_conv2d_backward) or test(test_cuda_parity_conv3d_forward) or test(test_cuda_parity_conv3d_backward) or test(test_cuda_parity_conv_transpose1d) or test(test_cuda_parity_conv_transpose2d) or test(test_cuda_parity_conv_transpose1d_backward) or test(test_cuda_parity_conv_transpose2d_backward) or test(test_cuda_parity_sum_axis0) or test(test_cuda_parity_sum_axis1) or test(test_cuda_parity_mean_axis) or test(test_cuda_parity_max_axis) or test(test_cuda_parity_min_axis) or test(test_cuda_parity_prod_axis) or test(test_cuda_parity_rank_one_sum) or test(test_cuda_parity_rank_one_scan) or test(test_cuda_reduction_rejects_unsupported_rank) or test(test_cuda_parity_cumulative_scans) or test(test_cuda_backend_ops) or test(test_cuda_norm_p_provider_dispatch) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_strided_elu_matches_cpu) or test(test_cuda_strided_elu_gradient_matches_cpu) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad) or test(test_cuda_attention_forward_nomask) or test(test_cuda_attention_forward_causal) or test(test_cuda_attention_forward_preserves_native_f64) or test(test_cuda_attention_forward_masked) or test(test_cuda_attention_forward_masked_causal) or test(test_cuda_attention_backward) or test(test_cuda_f64_comparisons_match_cpu) or test(test_cuda_strided_parameterized_activations_match_cpu) or test(cosine_similarity_dispatches_with_cuda_parity) or test(bce_with_logits_dispatches_with_cuda_value_and_gradient_parity) or test(random_initialization_dispatches_with_seeded_provider_parity) or test(rotate_half_dispatches_with_cuda_parity) or test(cross_entropy_dispatches_with_cuda_value_and_gradient_parity) or test(unary_assignment_detaches_shared_cuda_view) or test(partial_update_preserves_cuda_parent_and_shared_source) or test(preserves_cloned_storage) or test(device_outputs::) or test(state_updates::)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
+              sccache --show-stats
             '
 
   cuda-hardware:
