@@ -25,6 +25,9 @@
 // f32_powi_neg_base_extreme_divergence: eunomia preserves the C/libm sign,
 // std drops it). Deleting `Float::powi` flips those f32 edges to the
 // correct values — an accepted, recorded behavior change, not a blocker.
+// Staging: the `powi` tests ship `#[ignore]`d until eunomia's order-aware
+// `powi` lands on its main (member CI resolves providers from git mains);
+// see `power.rs`, which activates by deleting three attributes.
 
 #[macro_use]
 #[path = "float_ssot_diff/support.rs"]
