@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, NumericElement, Scalar};
+use coeus_core::{Float, FloatElement, NumericElement};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -147,7 +147,7 @@ where
         &backend,
     )
     .expect("multi_margin: active-hinge mask");
-    let inv_nc = <T as NumericElement>::ONE / <T as Scalar>::from_f64((n * c) as f64);
+    let inv_nc = <T as NumericElement>::ONE / T::from_count(n * c);
     let grad_unit = coeus_ops::mul(
         &coef,
         &Tensor::full_on(shape.to_vec(), inv_nc, &backend),

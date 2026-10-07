@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, NumericElement, Scalar};
+use coeus_core::{Float, FloatElement, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -62,8 +62,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 grad_out,
                 &Tensor::full_on(
                     [1],
-                    <T as NumericElement>::ONE
-                        / <T as coeus_core::Scalar>::from_f64((self.n * self.c) as f64),
+                    <T as NumericElement>::ONE / T::from_count(self.n * self.c),
                     &backend,
                 ),
                 &backend,
@@ -188,7 +187,7 @@ where
         &loss_sum,
         &Tensor::full_on(
             [1],
-            <T as NumericElement>::ONE / <T as Scalar>::from_f64((n * c) as f64),
+            <T as NumericElement>::ONE / T::from_count(n * c),
             &backend,
         ),
         &backend,

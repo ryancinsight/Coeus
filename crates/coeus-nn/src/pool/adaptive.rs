@@ -12,7 +12,8 @@
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{
-    CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, NumericElement, Scalar,
+    CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, MoiraiBackend,
+    NumericElement, Scalar,
 };
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
@@ -35,7 +36,7 @@ where
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
-        let inv = <T as coeus_core::Scalar>::from_f64(1.0 / (end - start) as f64);
+        let inv = T::from_count_reciprocal(end - start);
         // Column `o`, rows `start..end`: flat index `l * out_len + o`.
         for slot in pt
             .iter_mut()

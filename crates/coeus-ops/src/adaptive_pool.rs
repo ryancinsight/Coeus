@@ -16,7 +16,9 @@
 // The non-contiguous slow-path falls back to `get/set`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement};
+use coeus_core::{
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, NumericElement,
+};
 use coeus_tensor::Tensor;
 
 // ── Region helpers ────────────────────────────────────────────────────────────
@@ -63,7 +65,7 @@ where
             for oi in 0..output_size {
                 let start = region_start(oi, l, output_size);
                 let end = region_end(oi, l, output_size);
-                let count = <T as coeus_core::Scalar>::from_f64((end - start) as f64);
+                let count = T::from_count(end - start);
                 let mut acc = <T as NumericElement>::ZERO;
                 for li in start..end {
                     acc += input.get(&[ni, ci, li]);
@@ -173,7 +175,7 @@ where
             for ow in 0..out_w {
                 let ws = region_start(ow, w, out_w);
                 let we = region_end(ow, w, out_w);
-                let count = <T as coeus_core::Scalar>::from_f64(((he - hs) * (we - ws)) as f64);
+                let count = T::from_count((he - hs) * (we - ws));
                 let mut acc = <T as NumericElement>::ZERO;
                 for hi in hs..he {
                     for wi in ws..we {
