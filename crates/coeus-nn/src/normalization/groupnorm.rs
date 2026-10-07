@@ -89,11 +89,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const G: usize> GroupNorm<
             let ln_bias = Var::new(Tensor::zeros_on([group_size], &backend), false);
             let eps_t =
                 Tensor::full_on([1], coeus_core::FloatElement::from_f64(self.eps), &backend);
-            let d_const = Tensor::full_on(
-                [1],
-                coeus_core::FloatElement::from_f64(group_size as f64),
-                &backend,
-            );
+            let d_const = Tensor::full_on([1], T::from_count(group_size), &backend);
             *cache = Some(GroupNormCache {
                 group_size,
                 ln_weight,

@@ -58,7 +58,7 @@ pub(super) fn layer_norm_three_dimensional<T: Float, B: coeus_ops::BackendOps<T>
         inverse_standard_deviation,
         Tensor::full_on(
             [1],
-            <T as coeus_core::FloatElement>::from_f64(width as f64),
+            T::from_count(width),
             &backend,
         ),
     );

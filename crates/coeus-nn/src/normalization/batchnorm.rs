@@ -209,13 +209,13 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BatchNor
                 return Ok((cached_m_const.clone(), cached_corr_t.clone()));
             }
         }
-        let m_const = Tensor::full_on([1], coeus_core::FloatElement::from_f64(m as f64), backend);
+        let m_const = Tensor::full_on([1], T::from_count(m), backend);
         let correction = if m > 1 {
-            m as f64 / (m - 1) as f64
+            T::from_count(m) / T::from_count(m - 1)
         } else {
-            1.0
+            <T as coeus_core::NumericElement>::ONE
         };
-        let corr_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(correction), backend);
+        let corr_t = Tensor::full_on([1], correction, backend);
         *cache = Some((m, m_const.clone(), corr_t.clone()));
         Ok((m_const, corr_t))
     }

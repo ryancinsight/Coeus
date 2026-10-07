@@ -43,26 +43,26 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 
 /// ZST tag for mean reduction autograd.
 pub struct MeanOp;
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for MeanOp {
+impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
+    ReductionAutogradOp<T, B> for MeanOp
+{
     const OP_NAME: &'static str = "mean";
 
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Tensor<T, B> {
         let total = coeus_ops::sum(a, backend).expect("invariant: mean input is valid");
-        let n = a.numel() as f64;
         Tensor::from_slice_on(
             [1],
-            &[total / <T as coeus_core::Scalar>::from_f64(n)],
+            &[total / T::from_count(a.numel())],
             backend,
         )
     }
 
     #[inline(always)]
     fn scaler(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Option<Tensor<T, B>> {
-        let n = a.numel() as f64;
         Some(Tensor::full_on(
             [1],
-            <T as coeus_core::Scalar>::from_f64(1.0 / n),
+            <T as NumericElement>::ONE / T::from_count(a.numel()),
             backend,
         ))
     }
@@ -88,10 +88,10 @@ impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default
     #[inline(always)]
     fn scaler(a: &Tensor<T, B>, param: Option<usize>, backend: &B) -> Option<Tensor<T, B>> {
         let axis = param.expect("invariant: MeanAxisOp::scaler always receives Some(axis)");
-        let axis_len = a.shape()[axis] as f64;
+        let axis_len = a.shape()[axis];
         Some(Tensor::full_on(
             [1],
-            <T as coeus_core::FloatElement>::from_f64(1.0 / axis_len),
+            <T as NumericElement>::ONE / T::from_count(axis_len),
             backend,
         ))
     }
@@ -107,7 +107,9 @@ pub fn sum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 /// Tracked mean reduction of all elements.
 #[must_use]
 #[inline]
-pub fn mean<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn mean<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Var<T, B> {
     reduction_op::<T, B, MeanOp>(a, None)
 }
 
@@ -201,7 +203,7 @@ where
     );
     let cleaned = crate::ops::shape::masked_fill(a, &mask, <T as NumericElement>::ZERO);
     let s = sum(&cleaned);
-    crate::scalar_div(&s, <T as coeus_core::Scalar>::from_f64(count as f64))
+    crate::scalar_div(&s, T::from_count(count))
 }
 
 #[cfg(test)]

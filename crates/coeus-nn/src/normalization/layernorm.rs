@@ -141,11 +141,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
             true,
         );
         let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
-        let d_const = Tensor::full_on(
-            [1],
-            coeus_core::FloatElement::from_f64(weight.tensor.numel() as f64),
-            &backend,
-        );
+        let d_const = Tensor::full_on([1], T::from_count(weight.tensor.numel()), &backend);
         Self {
             weight,
             bias,
@@ -160,11 +156,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> LayerNorm<T, B> {
     pub fn from_parts(weight: Var<T, B>, bias: Var<T, B>, eps: f64) -> Self {
         let backend = B::default();
         let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend);
-        let d_const = Tensor::full_on(
-            [1],
-            coeus_core::FloatElement::from_f64(weight.tensor.numel() as f64),
-            &backend,
-        );
+        let d_const = Tensor::full_on([1], T::from_count(weight.tensor.numel()), &backend);
         Self {
             weight,
             bias,

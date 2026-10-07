@@ -380,7 +380,7 @@ where
         // denom = (k + (alpha / size) * windowed)^beta;  y = x / denom.
         let scaled = coeus_autograd::scalar_mul(
             &windowed,
-            <T as coeus_core::Scalar>::from_f64(self.alpha / self.size as f64),
+            <T as coeus_core::Scalar>::from_f64(self.alpha) / T::from_count(self.size),
         );
         let denom = coeus_autograd::pow(
             &coeus_autograd::scalar_add(&scaled, <T as coeus_core::Scalar>::from_f64(self.k)),

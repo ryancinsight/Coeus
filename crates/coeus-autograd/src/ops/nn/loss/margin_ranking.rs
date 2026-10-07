@@ -121,7 +121,7 @@ pub fn margin_ranking_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             n,
             mean_scale: Tensor::full_on(
                 [1],
-                <T as NumericElement>::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                <T as NumericElement>::ONE / T::from_count(n),
                 &backend,
             ),
         };

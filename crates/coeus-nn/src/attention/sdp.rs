@@ -62,8 +62,7 @@ impl<
             1,
         )?;
         let scale = scale.unwrap_or_else(|| {
-            <T as NumericElement>::ONE
-                / <T as coeus_core::Scalar>::from_f64((dimensions.d_k as f64).sqrt())
+            <T as NumericElement>::ONE / <T as coeus_core::Float>::sqrt(T::from_count(dimensions.d_k))
         });
         let (out, _attn_weights) =
             coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale)

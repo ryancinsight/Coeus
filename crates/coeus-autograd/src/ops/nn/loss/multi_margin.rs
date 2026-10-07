@@ -125,7 +125,7 @@ where
     let row_net = coeus_ops::sub(&row_sum, &margin_p, &backend);
     // loss = sum_i row_net_i / (N * C). `mean_axis` divides by N, so scale
     // the mean by 1/C.
-    let inv_c = <T as NumericElement>::ONE / <T as Scalar>::from_f64(c as f64);
+    let inv_c = <T as NumericElement>::ONE / T::from_count(c);
     let mean_loss = coeus_ops::mean_axis(&row_net.reshape([n]), 0, &backend)
         .expect("invariant: validated non-empty multi-margin reduction has axis zero");
     let loss = coeus_ops::mul(&mean_loss, &Tensor::full_on([1], inv_c, &backend), &backend);
