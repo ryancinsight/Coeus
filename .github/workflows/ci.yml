@@ -117,7 +117,9 @@ jobs:
   # timeout below admits a cold compile instead of timing out legitimate
   # cache-seeding runs.
   tests:
-    name: Tests (shard ${{ matrix.shard }} of 3)
+    # Static name: the matrix context is unavailable in `name`, and GitHub
+    # appends the shard value itself ("Tests (1)" ...).
+    name: Tests
     needs: changed_scope
     if: always()
     runs-on: ubuntu-latest
