@@ -137,108 +137,11 @@ macro_rules! impl_scalar_float_half {
         impl Float for $t {
             const MAX: Self = $max;
             const MIN_POSITIVE: Self = $min_pos;
-            const NAN: Self = Self::NAN;
             const NEG_INFINITY: Self = Self::NEG_INFINITY;
-            const INFINITY: Self = Self::INFINITY;
-            #[inline(always)]
-            fn floor(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.floor())
-            }
-            #[inline(always)]
-            fn ceil(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.ceil())
-            }
-            #[inline(always)]
-            fn round(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.round())
-            }
-            #[inline(always)]
-            fn trunc(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.trunc())
-            }
             #[inline(always)]
             fn fract(self) -> Self {
                 let v = <Self as NumericElement>::to_f64(self);
                 <Self as eunomia::FloatElement>::from_f64(v.fract())
-            }
-            #[inline(always)]
-            fn signum(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.signum())
-            }
-            #[inline(always)]
-            fn sqrt(self) -> Self {
-                <Self as NumericElement>::sqrt(self)
-            }
-            #[inline(always)]
-            fn exp(self) -> Self {
-                <Self as eunomia::FloatElement>::exp(self)
-            }
-            #[inline(always)]
-            fn exp2(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.exp2())
-            }
-            #[inline(always)]
-            fn ln(self) -> Self {
-                <Self as eunomia::FloatElement>::ln(self)
-            }
-            #[inline(always)]
-            fn log2(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.log2())
-            }
-            #[inline(always)]
-            fn log10(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.log10())
-            }
-            #[inline(always)]
-            fn sin(self) -> Self {
-                <Self as eunomia::FloatElement>::sin(self)
-            }
-            #[inline(always)]
-            fn cos(self) -> Self {
-                <Self as eunomia::FloatElement>::cos(self)
-            }
-            #[inline(always)]
-            fn tan(self) -> Self {
-                <Self as eunomia::FloatElement>::tan(self)
-            }
-            #[inline(always)]
-            fn asin(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.asin())
-            }
-            #[inline(always)]
-            fn acos(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.acos())
-            }
-            #[inline(always)]
-            fn atan(self) -> Self {
-                let v = <Self as NumericElement>::to_f64(self);
-                <Self as eunomia::FloatElement>::from_f64(v.atan())
-            }
-            #[inline(always)]
-            fn sinh(self) -> Self {
-                <Self as eunomia::FloatElement>::sinh(self)
-            }
-            #[inline(always)]
-            fn cosh(self) -> Self {
-                <Self as eunomia::FloatElement>::cosh(self)
-            }
-            #[inline(always)]
-            fn tanh(self) -> Self {
-                <Self as eunomia::FloatElement>::tanh(self)
-            }
-            #[inline(always)]
-            fn powf(self, n: Self) -> Self {
-                <Self as eunomia::FloatElement>::powf(self, n)
             }
             #[inline(always)]
             fn powi(self, exp: i32) -> Self {

@@ -409,7 +409,11 @@ pub trait Scalar:
 
 /// Floating-point extension trait.
 ///
-/// Provides transcendental functions, rounding, and float-specific checks.
+/// Transcendentals, rounding, `sqrt`, and `NAN`/`INFINITY` resolve through
+/// the `RealScalar` supertrait (eunomia SSOT, formerly redeclared here).
+/// `Float` itself declares only `fract`, `powi` (staged for the eunomia
+/// merge), `is_integer`, `is_infinite`, and the
+/// `MAX`/`MIN_POSITIVE`/`NEG_INFINITY` constants.
 /// Implemented for f16, bf16, f32, f64. Extends `Scalar + FloatOps`, so
 /// any bound `T: Float` automatically implies `T: Scalar` and `T: FloatOps`.
 ///
@@ -431,22 +435,9 @@ pub trait Float: Scalar + FloatOps + leto_ops::RealScalar {
     const MAX: Self;
     /// Smallest positive normal value.
     const MIN_POSITIVE: Self;
-    /// Not-a-Number.
-    const NAN: Self;
     /// Negative infinity.
     const NEG_INFINITY: Self;
-    /// Positive infinity.
-    const INFINITY: Self;
 
-    /// Floor: largest integer ≤ self.
-    /// Floor: largest integer ≤ self.
-    fn floor(self) -> Self;
-    /// Ceiling: smallest integer ≥ self.
-    fn ceil(self) -> Self;
-    /// Round to nearest integer.
-    fn round(self) -> Self;
-    /// Truncate toward zero.
-    fn trunc(self) -> Self;
     /// Fractional part.
     fn fract(self) -> Self;
     /// Absolute value.
@@ -454,40 +445,6 @@ pub trait Float: Scalar + FloatOps + leto_ops::RealScalar {
     /// Inherited from [`NumericElement::abs`] via the supertrait chain.
     /// Use `<T as NumericElement>::abs(x)` or `x.abs()` at call sites.
     // fn abs — provided by NumericElement supertrait, removed to avoid ambiguity
-    /// Sign function: -1, 0, or 1.
-    fn signum(self) -> Self;
-    /// Square root.
-    fn sqrt(self) -> Self;
-    /// Exponential: e^self.
-    fn exp(self) -> Self;
-    /// Base-2 exponential: 2^self.
-    fn exp2(self) -> Self;
-    /// Natural logarithm: ln(self).
-    fn ln(self) -> Self;
-    /// Base-2 logarithm.
-    fn log2(self) -> Self;
-    /// Base-10 logarithm.
-    fn log10(self) -> Self;
-    /// Sine.
-    fn sin(self) -> Self;
-    /// Cosine.
-    fn cos(self) -> Self;
-    /// Tangent.
-    fn tan(self) -> Self;
-    /// Arcsine.
-    fn asin(self) -> Self;
-    /// Arccosine.
-    fn acos(self) -> Self;
-    /// Arctangent.
-    fn atan(self) -> Self;
-    /// Hyperbolic sine.
-    fn sinh(self) -> Self;
-    /// Hyperbolic cosine.
-    fn cosh(self) -> Self;
-    /// Hyperbolic tangent.
-    fn tanh(self) -> Self;
-    /// Power: self^n.
-    fn powf(self, n: Self) -> Self;
     /// Integer power: `self^exp` where `exp` is a signed integer exponent.
     ///
     /// Raises `self` to the integer power `exp` using repeated multiplication

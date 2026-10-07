@@ -15,7 +15,7 @@
 
 use crate::backend_ops::BackendOps;
 use crate::binary;
-use coeus_core::Float;
+use coeus_core::{Float, NumericElement};
 use coeus_tensor::Tensor;
 
 /// Number of elements along `axis` — the denominator for `var_axis` variants.
@@ -97,7 +97,7 @@ pub fn std_mean<T: Float, B: BackendOps<T> + Default>(
     backend: &B,
 ) -> Result<(T, T), B::Error> {
     let (v, mu) = var_mean(a, unbiased, backend)?;
-    Ok((<T as Float>::sqrt(v), mu))
+    Ok((<T as NumericElement>::sqrt(v), mu))
 }
 
 /// Standard deviation along a specific axis, reducing it to size 1.

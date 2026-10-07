@@ -1,73 +1,14 @@
-//! Binary power baselines, plus the `powi` differential suite.
+//! Staged `powi` differential: the `powf` baselines retired with the deleted
+//! `Float::powf` (measured 1 ulp; envelope in ADR 0069).
 //!
 //! The `powi` tests are `#[ignore]`d: they pin agreement with eunomia's
 //! order-aware `powi`, which is still on eunomia's feature branch —
 //! member CI resolves providers from git mains, where the old
 //! invert-first `powi` (up to 8 ulp off, flushes subnormals, panics on
 //! `i32::MIN`) still stands. They compile (no rot), skip by default, and
-//! activate by deleting three attributes once the provider lands. Until
-//! then the `powf` baselines below carry this module's gate.
+//! activate by deleting three attributes once the provider lands.
 
-use super::support::{
-    check_f32, check_f64, log_spread_f32, log_spread_f64, sweep_f32, sweep_f64, CoeusFloat,
-    EunomiaFloat,
-};
-
-// ── Binary power and integer power ──
-
-#[test]
-fn f32_powf() {
-    let bases = log_spread_f32(53);
-    let exps = sweep_f32(-3.0, 3.0, 40, 54);
-    let mut extra = vec![
-        (2.0f32, 3.0f32),
-        (-2.0, 3.0),
-        (-2.0, 2.0),
-        (0.0, 0.0),
-        (0.0, -1.0),
-        (f32::INFINITY, 2.0),
-        (f32::NAN, 1.0),
-    ];
-    for &x in &bases {
-        for &y in &exps {
-            let a = <f32 as CoeusFloat>::powf(x, y);
-            let b = <f32 as EunomiaFloat>::powf(x, y);
-            check_f32("powf", x, a, b, 1);
-        }
-    }
-    for (x, y) in extra.drain(..) {
-        let a = <f32 as CoeusFloat>::powf(x, y);
-        let b = <f32 as EunomiaFloat>::powf(x, y);
-        check_f32("powf", x, a, b, 1);
-    }
-}
-
-#[test]
-fn f64_powf() {
-    let bases = log_spread_f64(55);
-    let exps = sweep_f64(-3.0, 3.0, 40, 56);
-    let mut extra = vec![
-        (2.0f64, 3.0f64),
-        (-2.0, 3.0),
-        (-2.0, 2.0),
-        (0.0, 0.0),
-        (0.0, -1.0),
-        (f64::INFINITY, 2.0),
-        (f64::NAN, 1.0),
-    ];
-    for &x in &bases {
-        for &y in &exps {
-            let a = <f64 as CoeusFloat>::powf(x, y);
-            let b = <f64 as EunomiaFloat>::powf(x, y);
-            check_f64("powf", x, a, b, 1);
-        }
-    }
-    for (x, y) in extra.drain(..) {
-        let a = <f64 as CoeusFloat>::powf(x, y);
-        let b = <f64 as EunomiaFloat>::powf(x, y);
-        check_f64("powf", x, a, b, 1);
-    }
-}
+use super::support::{check_f32, check_f64, CoeusFloat, EunomiaFloat};
 
 #[test]
 #[ignore = "pending eunomia order-aware powi on main; see module docs"]

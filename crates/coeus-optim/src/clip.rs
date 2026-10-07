@@ -69,7 +69,7 @@ where
             total_sq += v * v;
         }
     }
-    // sqrt in native T precision (eunomia SSOT, qualified past `Float::sqrt`).
+    // sqrt in native T precision (eunomia SSOT, qualified past `NumericElement::sqrt`).
     let total_norm = <T as NumericElement>::sqrt(total_sq);
 
     // Pass 2: scale if over the limit.

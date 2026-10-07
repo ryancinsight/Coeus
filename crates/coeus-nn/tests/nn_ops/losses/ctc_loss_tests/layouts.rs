@@ -79,9 +79,9 @@ where
     let input = upload(
         &backend,
         &[
-            <T as Float>::NAN,
+            <T as NumericElement>::NAN,
             <T as NumericElement>::ZERO,
-            <T as Float>::NAN,
+            <T as NumericElement>::NAN,
             <T as NumericElement>::ZERO,
         ],
     );
@@ -105,10 +105,10 @@ where
     let upstream = upload(
         &backend,
         &[
-            <T as Float>::NAN,
-            <T as Float>::NAN,
+            <T as NumericElement>::NAN,
+            <T as NumericElement>::NAN,
             seed,
-            <T as Float>::NAN,
+            <T as NumericElement>::NAN,
         ],
     );
     let initial = <T as Scalar>::from_f64(0.75);

@@ -5,26 +5,26 @@
 
 use crate::dtype::traits::{private, Float, FloatOps, Scalar};
 use eunomia::Complex;
-use eunomia::NumericElement;
+use eunomia::{FloatElement, NumericElement};
 
 impl<T: Float + core::ops::Neg<Output = T>> private::Sealed for Complex<T> {}
 
 impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
     #[inline(always)]
     fn exp_op(self) -> Self {
-        let r = <T as Float>::exp(self.re);
+        let r = <T as FloatElement>::exp(self.re);
         Self {
-            re: r * <T as Float>::cos(self.im),
-            im: r * <T as Float>::sin(self.im),
+            re: r * <T as FloatElement>::cos(self.im),
+            im: r * <T as FloatElement>::sin(self.im),
         }
     }
 
     #[inline(always)]
     fn log_op(self) -> Self {
-        let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
+        let r = <T as NumericElement>::sqrt(self.re * self.re + self.im * self.im);
         let theta = <T as crate::Scalar>::from_f64(self.im.to_f64().atan2(self.re.to_f64()));
         Self {
-            re: <T as Float>::ln(r),
+            re: <T as FloatElement>::ln(r),
             im: theta,
         }
     }
@@ -39,27 +39,27 @@ impl<T: Float + core::ops::Neg<Output = T>> FloatOps for Complex<T> {
         let two = <T as crate::Scalar>::from_f64(2.0);
         let x2 = self.re * two;
         let y2 = self.im * two;
-        let denom = <T as Float>::cosh(x2) + <T as Float>::cos(y2);
+        let denom = <T as FloatElement>::cosh(x2) + <T as FloatElement>::cos(y2);
         Self {
-            re: <T as Float>::sinh(x2) / denom,
-            im: <T as Float>::sin(y2) / denom,
+            re: <T as FloatElement>::sinh(x2) / denom,
+            im: <T as FloatElement>::sin(y2) / denom,
         }
     }
 
     #[inline(always)]
     fn sin_op(self) -> Self {
         Self {
-            re: <T as Float>::sin(self.re) * <T as Float>::cosh(self.im),
-            im: <T as Float>::cos(self.re) * <T as Float>::sinh(self.im),
+            re: <T as FloatElement>::sin(self.re) * <T as FloatElement>::cosh(self.im),
+            im: <T as FloatElement>::cos(self.re) * <T as FloatElement>::sinh(self.im),
         }
     }
 
     #[inline(always)]
     fn cos_op(self) -> Self {
         Self {
-            re: <T as Float>::cos(self.re) * <T as Float>::cosh(self.im),
+            re: <T as FloatElement>::cos(self.re) * <T as FloatElement>::cosh(self.im),
             im: <T as NumericElement>::ZERO
-                - (<T as Float>::sin(self.re) * <T as Float>::sinh(self.im)),
+                - (<T as FloatElement>::sin(self.re) * <T as FloatElement>::sinh(self.im)),
         }
     }
 
@@ -232,7 +232,7 @@ impl<T: Float + core::ops::Neg<Output = T>> crate::dtype::CpuUnaryDispatch for C
                 }
             }
             CpuUnaryOp::Sign => {
-                let mag = <T as Float>::sqrt(x.re * x.re + x.im * x.im);
+                let mag = <T as NumericElement>::sqrt(x.re * x.re + x.im * x.im);
                 if mag == <T as NumericElement>::ZERO {
                     <Self as NumericElement>::ZERO
                 } else {

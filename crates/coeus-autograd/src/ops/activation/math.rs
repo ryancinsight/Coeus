@@ -387,7 +387,7 @@ where
                 if x == <T as NumericElement>::ZERO {
                     // 1/0 → +inf per PyTorch IEEE; emit +inf to mirror that
                     // (avoids NaN from sign*0 division).
-                    out_host[i] = <T as Float>::INFINITY;
+                    out_host[i] = <T as NumericElement>::INFINITY;
                     continue;
                 }
                 let abs_x = <T as coeus_core::NumericElement>::abs(x);

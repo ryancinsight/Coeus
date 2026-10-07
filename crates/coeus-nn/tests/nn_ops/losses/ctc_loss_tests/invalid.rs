@@ -78,8 +78,8 @@ where
         error => panic!("concatenated target mismatch must retain lengths: {error:?}"),
     }
     for bad in [
-        <T as Float>::NAN,
-        <T as Float>::INFINITY,
+        <T as NumericElement>::NAN,
+        <T as NumericElement>::INFINITY,
         <T as NumericElement>::ONE,
     ] {
         let mut invalid = logs.clone();
@@ -105,7 +105,7 @@ where
     input.set_grad(Tensor::from_slice([2, 2, 2], &[initial; 8]));
     let loss = ctc_loss(&input, &[1, 1, 1], &[2, 2], &[1, 2], 0)
         .expect("invariant: impossible alignments have a defined infinite forward loss");
-    assert_eq!(loss.tensor.as_slice(), &[<T as Float>::INFINITY]);
+    assert_eq!(loss.tensor.as_slice(), &[<T as NumericElement>::INFINITY]);
     match loss.backward_with_seed(Tensor::from_slice([1], &[count::<T>(2)])) {
         Err(BackendError::UndefinedGradient { sample, .. }) => assert_eq!(sample, 1),
         result => panic!("impossible path must reject its derivative: {result:?}"),
@@ -126,7 +126,7 @@ where
     input.set_grad(Tensor::from_slice([1, 1, 2], &[initial; 2]));
     let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
         .expect("invariant: zero-probability paths retain infinite forward loss");
-    assert_eq!(loss.tensor.as_slice(), &[<T as Float>::INFINITY]);
+    assert_eq!(loss.tensor.as_slice(), &[<T as NumericElement>::INFINITY]);
     match loss.backward() {
         Err(BackendError::UndefinedGradient { sample, .. }) => assert_eq!(sample, 0),
         result => panic!("zero-probability path must reject its derivative: {result:?}"),

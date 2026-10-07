@@ -3,7 +3,8 @@
 
 use crate::tensor::Tensor;
 use coeus_core::{
-    ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, NumericElement, Scalar, Shape,
+    ComputeBackend, CountRangeError, CpuAddressableStorageMut, Float, FloatElement, NumericElement,
+    Scalar, Shape,
 };
 
 impl<T: Scalar, B: ComputeBackend + Default> Tensor<T, B>
@@ -144,7 +145,7 @@ where
             } else {
                 start
             };
-            Float::powf(base, exp)
+            FloatElement::powf(base, exp)
         })
         .expect("coeus-leto logspace generation failed");
         Self::from_slice_on([n], &values, backend)
@@ -163,21 +164,21 @@ where
             "geomspace requires non-zero start/end"
         );
         assert!(
-            Float::signum(start) == Float::signum(end),
+            FloatElement::signum(start) == FloatElement::signum(end),
             "geomspace requires start/end to have the same sign"
         );
-        let sign = Float::signum(start);
+        let sign = FloatElement::signum(start);
         let start_abs = <T as NumericElement>::abs(start);
         let end_abs = <T as NumericElement>::abs(end);
         let one = <T as NumericElement>::ONE;
         let ratio = if n > 1 {
-            Float::powf(end_abs / start_abs, one / T::from_count(n - 1))
+            FloatElement::powf(end_abs / start_abs, one / T::from_count(n - 1))
         } else {
             one
         };
         let values = coeus_leto::from_shape_fn_values(&[n], |index| {
             if n > 1 {
-                sign * start_abs * Float::powf(ratio, T::from_count(index[0]))
+                sign * start_abs * FloatElement::powf(ratio, T::from_count(index[0]))
             } else {
                 start
             }

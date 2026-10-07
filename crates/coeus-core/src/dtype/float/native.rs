@@ -131,96 +131,10 @@ macro_rules! impl_scalar_float_native {
         impl Float for $t {
             const MAX: Self = <$t>::MAX;
             const MIN_POSITIVE: Self = <$t>::MIN_POSITIVE;
-            const NAN: Self = <$t>::NAN;
             const NEG_INFINITY: Self = <$t>::NEG_INFINITY;
-            const INFINITY: Self = <$t>::INFINITY;
-            #[inline(always)]
-            fn floor(self) -> Self {
-                self.floor()
-            }
-            #[inline(always)]
-            fn ceil(self) -> Self {
-                self.ceil()
-            }
-            #[inline(always)]
-            fn round(self) -> Self {
-                self.round()
-            }
-            #[inline(always)]
-            fn trunc(self) -> Self {
-                self.trunc()
-            }
             #[inline(always)]
             fn fract(self) -> Self {
                 self.fract()
-            }
-            #[inline(always)]
-            fn signum(self) -> Self {
-                self.signum()
-            }
-            #[inline(always)]
-            fn sqrt(self) -> Self {
-                self.sqrt()
-            }
-            #[inline(always)]
-            fn exp(self) -> Self {
-                self.exp()
-            }
-            #[inline(always)]
-            fn exp2(self) -> Self {
-                self.exp2()
-            }
-            #[inline(always)]
-            fn ln(self) -> Self {
-                self.ln()
-            }
-            #[inline(always)]
-            fn log2(self) -> Self {
-                self.log2()
-            }
-            #[inline(always)]
-            fn log10(self) -> Self {
-                self.log10()
-            }
-            #[inline(always)]
-            fn sin(self) -> Self {
-                self.sin()
-            }
-            #[inline(always)]
-            fn cos(self) -> Self {
-                self.cos()
-            }
-            #[inline(always)]
-            fn tan(self) -> Self {
-                self.tan()
-            }
-            #[inline(always)]
-            fn asin(self) -> Self {
-                self.asin()
-            }
-            #[inline(always)]
-            fn acos(self) -> Self {
-                self.acos()
-            }
-            #[inline(always)]
-            fn atan(self) -> Self {
-                self.atan()
-            }
-            #[inline(always)]
-            fn sinh(self) -> Self {
-                self.sinh()
-            }
-            #[inline(always)]
-            fn cosh(self) -> Self {
-                self.cosh()
-            }
-            #[inline(always)]
-            fn tanh(self) -> Self {
-                self.tanh()
-            }
-            #[inline(always)]
-            fn powf(self, n: Self) -> Self {
-                self.powf(n)
             }
             #[inline(always)]
             fn powi(self, exp: i32) -> Self {

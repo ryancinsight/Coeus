@@ -2,7 +2,9 @@
 
 use super::super::kernel::elementwise_unary;
 use crate::backend_ops::{BackendOps, UnaryOp};
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement};
+use coeus_core::{
+    CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, NumericElement,
+};
 use coeus_tensor::Tensor;
 
 /// Numerically-stable log-softmax along `axis`.
@@ -98,7 +100,7 @@ where
             for lane in 0..axis {
                 let idx = base + lane * post_count;
                 if mask_values[idx] != <T as NumericElement>::ZERO {
-                    let value = <T as Float>::exp(input_values[idx] - row_max);
+                    let value = <T as FloatElement>::exp(input_values[idx] - row_max);
                     output[idx] = value;
                     row_sum += value;
                 }

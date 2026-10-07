@@ -8,7 +8,9 @@ mod layouts;
 mod oracle;
 
 use coeus_autograd::{ctc_loss, log_softmax, Var};
-use coeus_core::{BackendError, Float, MoiraiBackend, NumericElement, Scalar, SequentialBackend};
+use coeus_core::{
+    BackendError, Float, FloatElement, MoiraiBackend, NumericElement, Scalar, SequentialBackend,
+};
 use coeus_nn::ctc_loss as nn_ctc_loss;
 use coeus_ops::{BackendOps, CtcBatch, CtcOps};
 use coeus_tensor::Tensor;
@@ -23,7 +25,7 @@ fn variable<T: Float, B: BackendOps<T> + Default>(values: &[T], shape: [usize; 3
 fn probability_logs<T: Float>(values: &[f64]) -> Vec<T> {
     values
         .iter()
-        .map(|&value| Float::ln(<T as Scalar>::from_f64(value)))
+        .map(|&value| FloatElement::ln(<T as Scalar>::from_f64(value)))
         .collect()
 }
 
@@ -98,7 +100,7 @@ where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
     let half = <T as Scalar>::from_f64(0.5);
-    let log_half = Float::ln(half);
+    let log_half = FloatElement::ln(half);
     let input = variable::<T, B>(&[log_half, log_half], [1, 1, 2]);
     let loss = ctc_loss(&input, &[], &[1], &[0], 0)
         .expect("invariant: an empty target has the all-blank alignment");
@@ -148,7 +150,11 @@ where
     let mut logs = Vec::new();
     let mut probabilities = Vec::new();
     for row in logits.chunks_exact(3) {
-        let weights = row.iter().copied().map(Float::exp).collect::<Vec<_>>();
+        let weights = row
+            .iter()
+            .copied()
+            .map(FloatElement::exp)
+            .collect::<Vec<_>>();
         let total = weights
             .iter()
             .copied()
@@ -156,7 +162,7 @@ where
         for weight in weights {
             let probability = weight / total;
             probabilities.push(probability);
-            logs.push(Float::ln(probability));
+            logs.push(FloatElement::ln(probability));
         }
     }
     let seed = <T as Scalar>::from_f64(-1.5);

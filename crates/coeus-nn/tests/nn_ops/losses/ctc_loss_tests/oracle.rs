@@ -1,4 +1,4 @@
-use coeus_core::{Float, NumericElement, Scalar};
+use coeus_core::{Float, FloatElement, NumericElement, Scalar};
 use coeus_ops::CtcBatch;
 use eunomia::{Bf16, F16};
 
@@ -80,7 +80,8 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
             let weight = path.iter().enumerate().fold(
                 <T as NumericElement>::ONE,
                 |product, (time, &symbol)| {
-                    product * Float::exp(log_probs[(time * batch + sample) * classes + symbol])
+                    product
+                        * FloatElement::exp(log_probs[(time * batch + sample) * classes + symbol])
                 },
             );
             probability += weight;
@@ -93,7 +94,7 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
             "fixture has a positive-probability alignment"
         );
         let divisor = count::<T>(batch * target_length.max(1));
-        loss -= Float::ln(probability) / divisor;
+        loss -= FloatElement::ln(probability) / divisor;
         for time in 0..length {
             for class in 0..classes {
                 gradient[(time * batch + sample) * classes + class] =

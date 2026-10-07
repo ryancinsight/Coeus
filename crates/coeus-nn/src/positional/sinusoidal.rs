@@ -8,7 +8,7 @@
 
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
-use coeus_core::{ComputeBackend, Float, MoiraiBackend};
+use coeus_core::{ComputeBackend, Float, FloatElement, MoiraiBackend};
 use coeus_tensor::Tensor;
 
 /// Sinusoidal (non-learnable) positional encoding layer.
@@ -48,9 +48,9 @@ impl<T: Float, B: ComputeBackend + Default> SinusoidalEncoding<T, B> {
                     i.checked_mul(2)
                         .expect("SinusoidalEncoding: frequency index overflows usize"),
                 ) / dimension;
-                let angle = position / Float::powf(base, exponent);
-                values.push(Float::sin(angle));
-                values.push(Float::cos(angle));
+                let angle = position / FloatElement::powf(base, exponent);
+                values.push(FloatElement::sin(angle));
+                values.push(FloatElement::cos(angle));
             }
         }
         let table = Tensor::from_slice_on([max_len, d_model], &values, &backend);
