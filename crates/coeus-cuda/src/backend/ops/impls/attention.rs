@@ -1,6 +1,6 @@
 use crate::backend::{get_cuda_device, try_get_cuda_device, CudaBackend, CudaScalar};
 use crate::CudaBackendError;
-use coeus_core::{Float, Layout};
+use coeus_core::Layout;
 use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use hephaestus_core::{AttentionOps, AttentionScalar, ComputeDevice, HephaestusError};
 use hephaestus_cuda::{CudaAttentionOps, CudaDevice};
@@ -23,7 +23,7 @@ unsafe impl HephaestusProvider for CudaBackend {
 
 impl<T> AttentionProvider<T> for CudaBackend
 where
-    T: CudaScalar + coeus_ops::AttentionScalar + coeus_ops::AttentionScalar,
+    T: CudaScalar + AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
 {
     type Operations = CudaAttentionOps;
@@ -31,7 +31,7 @@ where
 
 impl<T> AttentionBackend<T> for CudaBackend
 where
-    T: CudaScalar + coeus_ops::AttentionScalar + coeus_ops::AttentionScalar,
+    T: CudaScalar + AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
 {
     type Provider = Self;
@@ -49,7 +49,7 @@ where
 
 impl<T> coeus_ops::AttentionOps<T> for CudaBackend
 where
-    T: CudaScalar + coeus_ops::AttentionScalar + coeus_ops::AttentionScalar,
+    T: CudaScalar + AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
 {
     fn sdp_attention(

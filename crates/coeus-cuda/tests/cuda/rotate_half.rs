@@ -31,6 +31,34 @@ fn rotate_half_dispatches_with_cuda_parity() {
 }
 
 #[test]
+fn rotate_half_dispatches_with_cuda_parity_f64() {
+    if !crate::availability::device_available() {
+        return;
+    }
+    let cpu = SequentialBackend::new();
+    let cuda = CudaBackend::new();
+    let input = Tensor::from_slice_on([2, 4], &[1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &cpu)
+        .to_backend_on(&cpu, &cuda);
+    let input = Var::new(input, true);
+    let output = rotate_half(&input).expect("CUDA rotate-half dispatch (f64)");
+    sum(&output)
+        .backward()
+        .expect("CUDA rotate-half backward (f64)");
+    assert_eq!(
+        output.tensor.to_backend_on(&cuda, &cpu).as_slice(),
+        &[-3.0, -4.0, 1.0, 2.0, -7.0, -8.0, 5.0, 6.0]
+    );
+    assert_eq!(
+        input
+            .grad()
+            .expect("tracked CUDA input gradient (f64)")
+            .to_backend_on(&cuda, &cpu)
+            .as_slice(),
+        &[1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0]
+    );
+}
+
+#[test]
 fn unary_assignment_detaches_shared_cuda_view() {
     if !crate::availability::device_available() {
         return;

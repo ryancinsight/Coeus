@@ -17,3 +17,11 @@ pub(crate) fn device_available(label: &str) -> bool {
         Err(error) => panic!("WGPU test device acquisition failed for {label}: {error:?}"),
     }
 }
+
+/// True when a device is present and the operation device serves f64 shaders.
+///
+/// f64 dispatch needs `SHADER_F64`, requested optionally at device creation;
+/// tests that need it gate on this probe and skip where the adapter lacks it.
+pub(crate) fn device_supports_f64(label: &str) -> bool {
+    device_available(label) && coeus_wgpu::WgpuBackend::supports_f64()
+}

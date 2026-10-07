@@ -1,5 +1,5 @@
 use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
-use hephaestus_core::{CommandStream, ComputeDevice, KernelDevice};
+use hephaestus_core::{CommandStream, ComputeDevice, DeviceFeature, KernelDevice};
 use std::sync::OnceLock;
 
 mod error;
@@ -96,7 +96,9 @@ pub fn try_get_wgpu_context() -> hephaestus_core::Result<&'static WgpuContext> {
             hephaestus_wgpu::WgpuDevice::try_with_device_preference_and_optional_device_features_and_limits(
             "coeus-wgpu-device",
             hephaestus_core::DevicePreference::HighPerformance,
-            &[],
+            // Optional: f64 shaders need SHADER_F64 at creation time, but
+            // adapters without it must still serve the f32 paths.
+            &[DeviceFeature::ShaderF64],
             hephaestus_wgpu::WgpuDevice::default_device_limits(),
         )?,
     };
@@ -144,6 +146,22 @@ impl WgpuBackend {
     /// ```
     pub const fn new() -> Self {
         Self
+    }
+
+    /// True when the process-global WGPU device serves f64 shaders.
+    ///
+    /// f64 dispatch needs `SHADER_F64`, which is requested optionally at
+    /// device creation: adapters without it still serve every f32 path.
+    /// Consumers gate f64 work on this probe instead of failing dispatch.
+    #[must_use]
+    pub fn supports_f64() -> bool {
+        try_get_wgpu_context()
+            .map(|context| {
+                context
+                    .hephaestus_device
+                    .supports_device_feature(DeviceFeature::ShaderF64)
+            })
+            .unwrap_or(false)
     }
 }
 
