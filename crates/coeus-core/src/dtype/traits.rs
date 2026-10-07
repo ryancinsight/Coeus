@@ -4,7 +4,8 @@
 // Design notes:
 // - `Scalar` is the base: Copy + bytemuck::Pod + eunomia::Pod + Send + Sync +
 //   'static
-// - `Float` extends Scalar with transcendental and rounding ops
+// - `Float` adds float-only items (fract/powi/is_integer/is_infinite/consts);
+//   transcendentals and rounding resolve via the RealScalar supertrait
 // - `Int` extends Scalar with bitwise and modular ops
 // - All traits are sealed (private Sealed supertrait) for monomorphization
 // - bytemuck::Pod and eunomia::Pod guarantee safe host/device byte layouts
