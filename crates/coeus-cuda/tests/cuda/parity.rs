@@ -14,6 +14,8 @@ mod convolution;
 mod convolution_transpose;
 #[path = "parity/cross_entropy.rs"]
 mod cross_entropy;
+#[path = "parity/elementwise.rs"]
+mod elementwise;
 #[path = "parity/matmul.rs"]
 mod matmul;
 #[path = "parity/optimizer.rs"]

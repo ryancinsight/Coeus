@@ -1,5 +1,5 @@
-use coeus_core::{ComputeBackend, Layout};
-use coeus_ops::{BinaryOp, ElementwiseOps};
+use coeus_core::{ComputeBackend, Layout, SequentialBackend};
+use coeus_ops::{BinaryOp, ElementwiseOps, ScalarPowerOps};
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
@@ -535,3 +535,62 @@ fn test_wgpu_parameterized_activations_match_cpu() {
         );
     }
 }
+
+/// pow spans orders of magnitude, so the claim is a relative epsilon bound
+/// rather than the absolute tolerance of the arithmetic tests.
+macro_rules! test_pow_parity {
+    ($ty:ty, $eps:expr, $s:expr, $w:expr) => {{
+        let bases: Vec<$ty> = vec![0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 10.0, 100.0];
+        let layout = Layout::new(vec![bases.len()].into());
+        for exponent in [0.5 as $ty, 2.5 as $ty] {
+            let cpu_in = Tensor::<$ty, SequentialBackend>::from_slice(vec![bases.len()], &bases);
+            let gpu_in = cpu_in.to_backend_on(&$s, &$w);
+            let mut cpu_out = $s.allocate_zeroed::<$ty>(bases.len());
+            ScalarPowerOps::elementwise_pow_scalar(
+                &$s,
+                cpu_in.storage(),
+                cpu_in.layout(),
+                exponent,
+                &mut cpu_out,
+                &layout,
+            )
+            .expect("CPU pow dispatch");
+            let mut gpu_buf = $w.allocate_zeroed::<$ty>(bases.len());
+            ScalarPowerOps::elementwise_pow_scalar(
+                &$w,
+                gpu_in.storage(),
+                gpu_in.layout(),
+                exponent,
+                &mut gpu_buf,
+                &layout,
+            )
+            .expect("WGPU pow dispatch");
+            let expected =
+                Tensor::<$ty, SequentialBackend>::from_raw_parts(cpu_out, layout.clone())
+                    .as_slice()
+                    .to_vec();
+            let actual = Tensor::<$ty, WgpuBackend>::from_raw_parts(gpu_buf, layout.clone())
+                .to_backend_on(&$w, &$s)
+                .as_slice()
+                .to_vec();
+            for (i, (&c, &g)) in expected.iter().zip(actual.iter()).enumerate() {
+                let bound = 64.0 * $eps * c.abs().max(1.0);
+                assert!(
+                    (c - g).abs() <= bound,
+                    "pow({exponent})[{i}]: cpu={c} gpu={g} bound={bound:e}"
+                );
+            }
+        }
+    }};
+}
+
+#[test]
+fn test_wgpu_parity_pow_f32() {
+    let s = seq();
+    let w = wgpu();
+    test_pow_parity!(f32, f32::EPSILON, s, w);
+}
+
+// No f64 test: there is deliberately no `ScalarPowerProvider<f64>` (see the
+// provider impl) — the f64 `pow` shader crashes native backends, so f64 is
+// rejected at compile time until hephaestus fixes the codegen.

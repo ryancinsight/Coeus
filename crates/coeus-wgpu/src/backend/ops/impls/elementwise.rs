@@ -1,7 +1,7 @@
 //! Coeus elementwise contracts implemented by the Hephaestus WGPU provider.
 
 use crate::backend::{WgpuBackend, WgpuScalar};
-use coeus_core::Layout;
+use coeus_core::{Float, Layout};
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, ElementwiseProvider, HephaestusBackend,
     ParameterizedElementwiseProvider, ScalarPowerProvider,
@@ -28,6 +28,18 @@ impl ElementwiseProvider<u32> for WgpuBackend {
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
+// Per-type providers (mirroring CUDA): the `ScalarPowerDispatch` blanket
+// impl's dialect projections only normalize for concrete `T`, so a generic
+// provider impl cannot satisfy the associated-type bound.
+//
+// f64 is deliberately absent: the f64 `pow(lhs, rhs)` shader passes naga
+// validation yet crashes native backends (access violation at dispatch —
+// f64 buffers, upload, and f64 arithmetic shaders are all proven working
+// by the rotate-half f64 test, isolating the `pow` builtin codegen). Until
+// hephaestus fixes f64 `pow` codegen, admitting f64 here would arm a
+// process-crashing trap; the missing impl rejects it at compile time
+// instead. `WgpuScalar` is deliberately not required since scalar power
+// runs on the plain elementwise seam.
 impl ScalarPowerProvider<f32> for WgpuBackend {
     type Operations = WgpuElementwiseOps;
 }
@@ -76,17 +88,18 @@ where
     }
 }
 
-impl coeus_ops::ScalarPowerOps<f32> for WgpuBackend
+impl<T> coeus_ops::ScalarPowerOps<T> for WgpuBackend
 where
-    WgpuBackend: ScalarPowerProvider<f32>,
+    T: Float + DialectScalar<Wgsl> + bytemuck::Pod,
+    WgpuBackend: ScalarPowerProvider<T>,
 {
     #[inline]
     fn elementwise_pow_scalar(
         &self,
-        input: &Self::DeviceBuffer<f32>,
+        input: &Self::DeviceBuffer<T>,
         input_layout: &Layout,
-        exponent: f32,
-        output: &mut Self::DeviceBuffer<f32>,
+        exponent: T,
+        output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
         HephaestusBackend::<WgpuBackend>::new()
