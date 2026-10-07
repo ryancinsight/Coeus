@@ -6,7 +6,7 @@ use hephaestus_wgpu::{DialectScalar, WgpuDenseProductOps, WgpuDevice, Wgsl};
 
 impl<T> MatmulBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
+    T: WgpuScalar + DialectScalar<Wgsl>,
     WgpuDenseProductOps: DenseProductOps<WgpuDevice, T>,
 {
     type Device = WgpuDevice;
@@ -29,7 +29,7 @@ where
 
 impl<T> coeus_ops::MatmulOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
+    T: WgpuScalar + DialectScalar<Wgsl>,
     WgpuDenseProductOps: DenseProductOps<WgpuDevice, T>,
 {
     #[inline]
@@ -45,3 +45,4 @@ where
         matmul::<Self, T>(a, a_layout, b, b_layout, c, c_layout)
     }
 }
+

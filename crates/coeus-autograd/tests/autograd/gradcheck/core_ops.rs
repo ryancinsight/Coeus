@@ -191,3 +191,5 @@ fn gather_backward_leaves_unselected_columns_at_zero() {
     gather_unselected_columns_case::<f64>();
     gather_unselected_columns_case::<f32>();
 }
+
+

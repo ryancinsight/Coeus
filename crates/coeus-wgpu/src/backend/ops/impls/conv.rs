@@ -10,7 +10,7 @@ use hephaestus_wgpu::{DialectScalar, WgpuConvolutionOps, WgpuDevice, Wgsl};
 
 impl<T> ConvolutionBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
+    T: WgpuScalar + DialectScalar<Wgsl>,
     WgpuConvolutionOps: ConvolutionOps<WgpuDevice, T>,
 {
     type Device = WgpuDevice;
@@ -37,7 +37,7 @@ where
 
 impl<T> coeus_ops::ConvOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
+    T: WgpuScalar + DialectScalar<Wgsl>,
     WgpuConvolutionOps: ConvolutionOps<WgpuDevice, T>,
 {
     fn convolution_forward<const R: usize, const D: usize>(
@@ -100,3 +100,4 @@ where
         )
     }
 }
+

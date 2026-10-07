@@ -31,7 +31,7 @@ where
 
 impl<T> coeus_ops::ReductionOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
+    T: WgpuScalar + DialectScalar<Wgsl> + bytemuck::Pod,
     WgpuBackend: ReductionProvider<T>,
 {
     #[inline]
@@ -145,3 +145,4 @@ where
             .map_err(Into::into)
     }
 }
+

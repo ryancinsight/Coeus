@@ -63,7 +63,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
                 &Tensor::full_on(
                     [1],
                     <T as NumericElement>::ONE
-                        / <T as coeus_core::FloatElement>::from_f64((self.n * self.c) as f64),
+                        / <T as coeus_core::Scalar>::from_f64((self.n * self.c) as f64),
                     &backend,
                 ),
                 &backend,
@@ -330,3 +330,5 @@ mod tests {
         let _ = multi_label_margin_loss(&x, &target);
     }
 }
+
+

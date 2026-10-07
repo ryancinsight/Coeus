@@ -7,14 +7,14 @@ use leto::WindowParameters;
 
 impl<T> PoolingProvider<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
 {
     type Operations = WgpuPoolingOps;
 }
 
 impl<T> PoolingBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
 {
     type Device = WgpuDevice;
     type Operations = WgpuPoolingOps;
@@ -40,7 +40,7 @@ where
 
 impl<T> coeus_ops::PoolOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
 {
     fn max_pool2d(
         &self,
@@ -369,7 +369,7 @@ fn forward<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
     WgpuBackend: PoolingBackend<T>,
 {
     let parameters = WindowParameters::new(
@@ -407,7 +407,7 @@ fn backward<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
     WgpuBackend: PoolingBackend<T>,
 {
     let parameters = WindowParameters::new(
@@ -431,3 +431,4 @@ where
         grad_input,
     )
 }
+

@@ -34,7 +34,7 @@ impl ScalarPowerProvider<f32> for WgpuBackend {
 
 impl<T> coeus_ops::ElementwiseOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
+    T: WgpuScalar + DialectScalar<Wgsl> + bytemuck::Pod,
     WgpuBackend: ElementwiseProvider<T>,
 {
     #[inline]
@@ -94,3 +94,4 @@ where
             .map_err(Into::into)
     }
 }
+

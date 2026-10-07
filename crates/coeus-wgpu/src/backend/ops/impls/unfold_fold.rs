@@ -7,14 +7,14 @@ use leto::WindowParameters;
 
 impl<T> UnfoldFoldProvider<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
 {
     type Operations = WgpuSlidingWindowOps;
 }
 
 impl<T> UnfoldFoldBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
 {
     type Device = WgpuDevice;
     type Operations = WgpuSlidingWindowOps;
@@ -40,7 +40,7 @@ where
 
 impl<T> coeus_ops::UnfoldFoldOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
 {
     fn unfold1d(
         &self,
@@ -165,7 +165,7 @@ fn unfold<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
     WgpuBackend: UnfoldFoldBackend<T>,
 {
     let parameters = WindowParameters::new(
@@ -199,7 +199,7 @@ fn fold<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
+    T: WgpuScalar + WgpuWindowScalar,
     WgpuBackend: UnfoldFoldBackend<T>,
 {
     let parameters = WindowParameters::new(
@@ -222,3 +222,4 @@ where
         output,
     )
 }
+

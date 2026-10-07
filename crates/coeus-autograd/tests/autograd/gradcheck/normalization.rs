@@ -171,3 +171,5 @@ fn batchnorm1d_backward_matches_finite_differences() {
     batchnorm1d_case::<f64>();
     batchnorm1d_case::<f32>();
 }
+
+
