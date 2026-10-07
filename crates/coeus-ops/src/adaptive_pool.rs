@@ -16,9 +16,7 @@
 // The non-contiguous slow-path falls back to `get/set`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{
-    Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, NumericElement,
-};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, NumericElement};
 use coeus_tensor::Tensor;
 
 // ── Region helpers ────────────────────────────────────────────────────────────

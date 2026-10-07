@@ -12,8 +12,7 @@
 use crate::module::{Module, ModuleError};
 use coeus_autograd::Var;
 use coeus_core::{
-    CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, MoiraiBackend,
-    NumericElement, Scalar,
+    CpuAddressableStorage, CpuAddressableStorageMut, Float, MoiraiBackend, NumericElement, Scalar,
 };
 use coeus_tensor::Tensor;
 use std::marker::PhantomData;
