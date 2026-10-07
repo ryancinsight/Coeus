@@ -1,4 +1,7 @@
 use super::*;
+use coeus_core::{ComputeBackend, Layout};
+use coeus_ops::{ReductionOp, ReductionOps};
+use eunomia::{Bf16, F16};
 
 #[test]
 fn test_cuda_parity_sum_axis0() {
@@ -200,3 +203,187 @@ fn test_cuda_parity_cumulative_scans() {
 }
 
 // Matmul.
+
+// ── half-precision identity proof ──────────────────────────────────────
+//
+// All six reduction identities (sum/prod/max/min/cumsum/cumprod) execute on
+// device for both half formats. Inputs are small integers, so every result
+// is exact in F16 and Bf16 and the claim is bitwise equality — a wrong
+// identity literal would surface as garbage, not rounding.
+macro_rules! test_halves_reduction_identities {
+    ($ty:ty, $s:expr, $c:expr) => {{
+        let flat: Vec<f32> = vec![1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0];
+        let data: Vec<$ty> = flat.iter().map(|&v| <$ty>::from_f32(v)).collect();
+        let in_layout = Layout::new(vec![3, 4].into());
+        // `reduce` keeps the reduced axis as a size-1 dim rather than squeezing.
+        let axis_layout = Layout::new(vec![3, 1].into());
+        let cpu_in = Tensor::<$ty, SequentialBackend>::from_slice(vec![3, 4], &data);
+        let gpu_in = cpu_in.to_backend_on(&$s, &$c);
+
+        let run_reduce = |op: ReductionOp, expected: &[f32]| {
+            let mut cpu_out = $s.allocate_zeroed::<$ty>(3);
+            ReductionOps::reduce(
+                &$s,
+                op,
+                cpu_in.storage(),
+                cpu_in.layout(),
+                1,
+                &mut cpu_out,
+                &axis_layout,
+            )
+            .expect("CPU halves reduce dispatch");
+            let mut gpu_buf = $c.allocate_zeroed::<$ty>(3);
+            ReductionOps::reduce(
+                &$c,
+                op,
+                gpu_in.storage(),
+                gpu_in.layout(),
+                1,
+                &mut gpu_buf,
+                &axis_layout,
+            )
+            .expect("CUDA halves reduce dispatch");
+            let expected: Vec<$ty> = expected.iter().map(|&v| <$ty>::from_f32(v)).collect();
+            assert_eq!(
+                Tensor::<$ty, SequentialBackend>::from_raw_parts(cpu_out, axis_layout.clone())
+                    .as_slice(),
+                expected.as_slice(),
+                "{op:?} CPU halves reference",
+            );
+            assert_eq!(
+                Tensor::<$ty, CudaBackend>::from_raw_parts(gpu_buf, axis_layout.clone())
+                    .to_backend_on(&$c, &$s)
+                    .as_slice(),
+                expected.as_slice(),
+                "{op:?} CUDA halves parity",
+            );
+        };
+        run_reduce(ReductionOp::Sum, &[4.0, 5.0, 6.0]);
+        run_reduce(ReductionOp::Max, &[1.0, 2.0, 2.0]);
+        run_reduce(ReductionOp::Min, &[1.0, 1.0, 1.0]);
+
+        // Product splits out of `reduce` (it needs `FloatElement`, which the
+        // shared entry point deliberately does not require).
+        {
+            let mut cpu_out = $s.allocate_zeroed::<$ty>(3);
+            ReductionOps::reduce_prod(
+                &$s,
+                cpu_in.storage(),
+                cpu_in.layout(),
+                1,
+                &mut cpu_out,
+                &axis_layout,
+            )
+            .expect("CPU halves prod dispatch");
+            let mut gpu_buf = $c.allocate_zeroed::<$ty>(3);
+            ReductionOps::reduce_prod(
+                &$c,
+                gpu_in.storage(),
+                gpu_in.layout(),
+                1,
+                &mut gpu_buf,
+                &axis_layout,
+            )
+            .expect("CUDA halves prod dispatch");
+            let expected: Vec<$ty> = [1.0, 2.0, 4.0]
+                .iter()
+                .map(|&v| <$ty>::from_f32(v))
+                .collect();
+            assert_eq!(
+                Tensor::<$ty, SequentialBackend>::from_raw_parts(cpu_out, axis_layout.clone())
+                    .as_slice(),
+                expected.as_slice(),
+                "Prod CPU halves reference",
+            );
+            assert_eq!(
+                Tensor::<$ty, CudaBackend>::from_raw_parts(gpu_buf, axis_layout.clone())
+                    .to_backend_on(&$c, &$s)
+                    .as_slice(),
+                expected.as_slice(),
+                "Prod CUDA halves parity",
+            );
+        }
+
+        let run_scan = |cumsum: bool, expected: &[f32]| {
+            let mut cpu_out = $s.allocate_zeroed::<$ty>(12);
+            let mut gpu_buf = $c.allocate_zeroed::<$ty>(12);
+            if cumsum {
+                ReductionOps::cumsum(
+                    &$s,
+                    cpu_in.storage(),
+                    cpu_in.layout(),
+                    1,
+                    &mut cpu_out,
+                    &in_layout,
+                )
+                .expect("CPU halves cumsum dispatch");
+                ReductionOps::cumsum(
+                    &$c,
+                    gpu_in.storage(),
+                    gpu_in.layout(),
+                    1,
+                    &mut gpu_buf,
+                    &in_layout,
+                )
+                .expect("CUDA halves cumsum dispatch");
+            } else {
+                ReductionOps::cumprod(
+                    &$s,
+                    cpu_in.storage(),
+                    cpu_in.layout(),
+                    1,
+                    &mut cpu_out,
+                    &in_layout,
+                )
+                .expect("CPU halves cumprod dispatch");
+                ReductionOps::cumprod(
+                    &$c,
+                    gpu_in.storage(),
+                    gpu_in.layout(),
+                    1,
+                    &mut gpu_buf,
+                    &in_layout,
+                )
+                .expect("CUDA halves cumprod dispatch");
+            }
+            let expected: Vec<$ty> = expected.iter().map(|&v| <$ty>::from_f32(v)).collect();
+            assert_eq!(
+                Tensor::<$ty, SequentialBackend>::from_raw_parts(cpu_out, in_layout.clone())
+                    .as_slice(),
+                expected.as_slice(),
+                "scan CPU halves reference",
+            );
+            assert_eq!(
+                Tensor::<$ty, CudaBackend>::from_raw_parts(gpu_buf, in_layout.clone())
+                    .to_backend_on(&$c, &$s)
+                    .as_slice(),
+                expected.as_slice(),
+                "scan CUDA halves parity",
+            );
+        };
+        run_scan(
+            true,
+            &[1.0, 2.0, 3.0, 4.0, 1.0, 3.0, 4.0, 5.0, 2.0, 4.0, 5.0, 6.0],
+        );
+        run_scan(
+            false,
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0],
+        );
+    }};
+}
+
+#[test]
+fn test_cuda_parity_halves_reduction_identities_f16() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    test_halves_reduction_identities!(F16, s, c);
+}
+
+#[test]
+fn test_cuda_parity_halves_reduction_identities_bf16() {
+    let Some((s, c)) = backends() else {
+        return;
+    };
+    test_halves_reduction_identities!(Bf16, s, c);
+}
