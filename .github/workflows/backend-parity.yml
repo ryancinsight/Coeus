@@ -537,13 +537,15 @@ jobs:
       # host stages the sccache binary beside nextest; the container runs it
       # with the Actions cache credentials passed through, so warm runs hit
       # artifacts compiled by any job (host or container) at the same
-      # toolchain and sources.
+      # toolchain and sources. The cache service is v2: it answers on
+      # ACTIONS_RESULTS_URL (the legacy ACTIONS_CACHE_URL is retired and no
+      # longer exported by runners), plus ACTIONS_RUNTIME_TOKEN.
       - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - name: Stage nextest and sccache for the container
         shell: bash
         run: |
           set -euo pipefail
-          : "${ACTIONS_CACHE_URL:?sccache GHA backend URL missing}"
+          : "${ACTIONS_RESULTS_URL:?sccache GHA backend URL missing}"
           : "${ACTIONS_RUNTIME_TOKEN:?sccache GHA token missing}"
           mkdir -p "$GITHUB_WORKSPACE/.ci-tools"
           cp "$(command -v cargo-nextest)" "$GITHUB_WORKSPACE/.ci-tools/cargo-nextest"
@@ -559,7 +561,7 @@ jobs:
             --env CUDA_TOOLKIT_PATH=/usr/local/cuda \
             --env SCCACHE_GHA_ENABLED=true \
             --env RUSTC_WRAPPER=sccache \
-            --env "ACTIONS_CACHE_URL=$ACTIONS_CACHE_URL" \
+            --env "ACTIONS_RESULTS_URL=$ACTIONS_RESULTS_URL" \
             --env "ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN" \
             --volume "$GITHUB_WORKSPACE:/workspace" \
             --workdir /workspace/coeus \
