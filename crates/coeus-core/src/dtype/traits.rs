@@ -423,7 +423,10 @@ pub trait Scalar:
 /// assert!(!x.is_nan());
 /// assert!(x.is_finite());
 /// ```
-pub trait Float: Scalar + FloatOps + eunomia::FloatElement + leto_ops::RealScalar {
+// `eunomia::FloatElement` intentionally absent: `RealScalar` already implies
+// it (`RealScalar: Scalar + FloatElement + …`), so naming it here would be a
+// redundant bound. Every `T: Float` still resolves all `FloatElement` items.
+pub trait Float: Scalar + FloatOps + leto_ops::RealScalar {
     /// Largest finite value.
     const MAX: Self;
     /// Smallest positive normal value.
