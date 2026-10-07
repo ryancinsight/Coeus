@@ -29,5 +29,8 @@ mod random_init;
 #[cfg(feature = "cuda")]
 #[path = "cuda/rotate_half.rs"]
 mod rotate_half;
+#[cfg(feature = "cuda")]
+#[path = "cuda/staggered.rs"]
+mod staggered;
 #[path = "cuda_ops/unavailable.rs"]
 mod unavailable;
