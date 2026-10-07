@@ -4,7 +4,7 @@ use coeus_core::Float;
 use coeus_tensor::Tensor;
 
 pub(super) fn layer_norm_three_dimensional<
-    T: coeus_core::FloatElement + Float,
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     module: &'static str,

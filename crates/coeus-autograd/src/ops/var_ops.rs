@@ -28,7 +28,9 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 
 // ── &Var op &Var ──────────────────────────────────────────────────────────
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>> for &Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>>
+    for &Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -37,7 +39,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>> for &Var<
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>> for &Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>>
+    for &Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -46,7 +50,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>> for &Var<
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>> for &Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>>
+    for &Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -55,7 +61,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>> for &Var<
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>> for &Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>>
+    for &Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -86,7 +94,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for &Var<T
 // For generic-backend scalar arithmetic, use the extension trait:
 // `VarScalarExt::scalar_mul/add/sub/div` (callable on any backend).
 
-impl<T: Scalar + leto_ops::Scalar> Mul<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::RealScalar> Mul<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -95,7 +103,7 @@ impl<T: Scalar + leto_ops::Scalar> Mul<T> for &Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar> Add<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::RealScalar> Add<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -104,7 +112,7 @@ impl<T: Scalar + leto_ops::Scalar> Add<T> for &Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar> Sub<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar + leto_ops::RealScalar> Sub<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -113,7 +121,7 @@ impl<T: Scalar + leto_ops::Scalar> Sub<T> for &Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar> Div<T> for &Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar + leto_ops::RealScalar> Div<T> for &Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -128,7 +136,9 @@ impl<T: Scalar + leto_ops::Scalar> Div<T> for &Var<T, MoiraiBackend> {
 // owned value to call the reference form.  The clone inside `add`/`mul` etc.
 // is a shallow `Arc` clone of the tensor's storage block — O(1) overhead.
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -137,7 +147,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<&Var<T, B>> for Var<T
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -146,7 +158,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<&Var<T, B>> for Var<T
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -155,7 +169,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<&Var<T, B>> for Var<T
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Div<&Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -175,7 +191,9 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> Neg for Var<T,
 
 // ── Owned Var op Owned Var ────────────────────────────────────────────────
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Add<Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -184,7 +202,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Add<Var<T, B>> for Var<T,
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Sub<Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -193,7 +213,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Sub<Var<T, B>> for Var<T,
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Mul<Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -202,7 +224,9 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Mul<Var<T, B>> for Var<T,
     }
 }
 
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<Var<T, B>> for Var<T, B> {
+impl<T: Scalar + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default> Div<Var<T, B>>
+    for Var<T, B>
+{
     type Output = Var<T, B>;
 
     #[inline]
@@ -214,7 +238,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> Div<Var<T, B>> for Var<T,
 // ── Scalar rhs for owned Var (MoiraiBackend) ─────────────────────────────
 // See comment above for the generic alternative (`VarScalarExt`).
 
-impl<T: Scalar + leto_ops::Scalar> Mul<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar + leto_ops::RealScalar> Mul<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -223,7 +247,7 @@ impl<T: Scalar + leto_ops::Scalar> Mul<T> for Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar> Add<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar + leto_ops::RealScalar> Add<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -232,7 +256,7 @@ impl<T: Scalar + leto_ops::Scalar> Add<T> for Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar> Sub<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar + leto_ops::RealScalar> Sub<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]
@@ -241,7 +265,7 @@ impl<T: Scalar + leto_ops::Scalar> Sub<T> for Var<T, MoiraiBackend> {
     }
 }
 
-impl<T: Scalar + leto_ops::Scalar> Div<T> for Var<T, MoiraiBackend> {
+impl<T: Scalar + leto_ops::Scalar + leto_ops::RealScalar> Div<T> for Var<T, MoiraiBackend> {
     type Output = Var<T, MoiraiBackend>;
 
     #[inline]

@@ -56,7 +56,7 @@ where
 /// filled with `-inf` and `max_axis` routes the gradient to each region's
 /// argmax. The transient `[rows, out_len, in_len]` mask is `out_len`× the slice
 /// — modest for typical pools; an argmax-scatter kernel would avoid it.
-fn masked_adaptive_max<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+fn masked_adaptive_max<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x2: &Var<T, B>,
     rows: usize,
     in_len: usize,
@@ -82,7 +82,11 @@ where
         vec![rows, out_len, in_len],
     );
     let ob = coeus_autograd::broadcast_to(&outside_var, vec![rows, out_len, in_len]);
-    let masked = coeus_autograd::masked_fill(&xb, &ob, T::from_f64(f64::NEG_INFINITY));
+    let masked = coeus_autograd::masked_fill(
+        &xb,
+        &ob,
+        <T as coeus_core::Scalar>::from_f64(f64::NEG_INFINITY),
+    );
     coeus_autograd::max_axis(&masked, 2)
 }
 
@@ -126,8 +130,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveAvgPool1d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveAvgPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -211,8 +217,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveAvgPool2d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveAvgPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -291,8 +299,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveMaxPool1d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveMaxPool1d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -359,8 +369,10 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AdaptiveMaxPool2d<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AdaptiveMaxPool2d<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

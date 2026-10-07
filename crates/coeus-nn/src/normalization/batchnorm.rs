@@ -134,7 +134,7 @@ pub struct BatchNorm<
 }
 
 impl<
-        T: coeus_core::FloatElement + Float,
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
         const DIM: usize,
     > BatchNorm<T, B, DIM>
@@ -227,7 +227,7 @@ impl<
 }
 
 impl<
-        T: coeus_core::FloatElement + Float,
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
         const DIM: usize,
     > Module<T, B> for BatchNorm<T, B, DIM>
@@ -298,7 +298,7 @@ impl<
 }
 
 impl<
-        T: coeus_core::FloatElement + Float,
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
         const DIM: usize,
     > BatchNorm<T, B, DIM>

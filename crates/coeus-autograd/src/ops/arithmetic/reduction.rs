@@ -130,7 +130,7 @@ pub fn mean_axis<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<
 /// mask removes those entries from the cleaned tensor.
 #[must_use]
 #[inline]
-pub fn nansum<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nansum<T: coeus_core::Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
 ) -> Var<T, B>
 where
@@ -164,7 +164,7 @@ where
 /// Differentiable: gradient at NaN positions is zero.
 #[must_use]
 #[inline]
-pub fn nanmean<T: coeus_core::Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nanmean<T: coeus_core::Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
 ) -> Var<T, B>
 where
@@ -190,7 +190,7 @@ where
     );
     let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
     let s = sum(&cleaned);
-    crate::scalar_div(&s, T::from_f64(count as f64))
+    crate::scalar_div(&s, <T as coeus_core::Scalar>::from_f64(count as f64))
 }
 
 #[cfg(test)]

@@ -62,8 +62,10 @@ impl<T: Float + FloatElement, B: ComputeBackend + Default> SinusoidalEncoding<T,
     }
 }
 
-impl<T: Float, B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default> Module<T, B>
-    for SinusoidalEncoding<T, B>
+impl<
+        T: Float + coeus_leto::RealScalar,
+        B: coeus_ops::ElementwiseOps<T> + coeus_ops::ReductionOps<T> + Default,
+    > Module<T, B> for SinusoidalEncoding<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![] // non-learnable

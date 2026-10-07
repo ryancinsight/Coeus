@@ -47,7 +47,10 @@ pub struct EmbeddingBag<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Moira
     pub mode: EmbeddingBagMode,
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> EmbeddingBag<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > EmbeddingBag<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -156,8 +159,10 @@ where
     }
 }
 
-impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for EmbeddingBag<T, B>
+impl<
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for EmbeddingBag<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

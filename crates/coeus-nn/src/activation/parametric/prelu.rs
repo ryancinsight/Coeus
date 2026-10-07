@@ -6,7 +6,7 @@ use coeus_core::Float;
 /// shared-scalar) weight — see [`coeus_autograd::prelu`] for the composition
 /// and gradient derivation.
 #[inline]
-pub fn prelu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn prelu<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     weight: &Var<T, B>,
 ) -> Var<T, B>
@@ -47,7 +47,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Default for PReLU<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for PReLU<T, B>
+impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for PReLU<T, B>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,

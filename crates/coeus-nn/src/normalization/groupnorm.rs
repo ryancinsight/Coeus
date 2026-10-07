@@ -50,7 +50,7 @@ pub struct GroupNorm<
 }
 
 impl<
-        T: coeus_core::FloatElement + Float,
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
         const G: usize,
     > GroupNorm<T, B, G>
@@ -114,7 +114,7 @@ impl<
 
 /// Implements the [`crate::module::Module`] interface for [`GroupNorm`].
 impl<
-        T: coeus_core::FloatElement + Float,
+        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
         const G: usize,
     > Module<T, B> for GroupNorm<T, B, G>
@@ -267,7 +267,10 @@ impl<
 /// - `C % num_groups != 0`.
 /// - `weight` or `bias` is present and not shaped `[C]`.
 /// - `eps` is not finite or is negative.
-pub fn group_norm<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn group_norm<
+    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Tensor<T, B>,
     num_groups: usize,
     weight: Option<&Tensor<T, B>>,
