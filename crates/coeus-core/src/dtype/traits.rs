@@ -388,24 +388,11 @@ pub trait Scalar:
     /// the wrap/IEEE split and the rationale.
     fn total_mul(self, rhs: Self) -> Self;
 
-    // Slice kernels (`add/sub/mul/div/sum/dot/axpy/min/max_slice`) are NOT
-    // redeclared here. They live once on the `leto_ops::Scalar` supertrait —
-    // the stack's single slice-kernel surface with its hermes-SIMD dispatch —
-    // and every `T: Scalar` resolves them through that bound (DIP: depend on
-    // the provider abstraction, never redeclare it). `scale_slice` below stays
-    // because no provider owns it yet; it is this trait's only kernel surface.
-
-    /// In-place multiplication of every contiguous slice element by `scalar`.
-    ///
-    /// Coeus-only until a provider adopts it: the operation is
-    /// lane-independent, so native-float SIMD overrides remain bitwise-identical
-    /// to the scalar default for ordinary IEEE operands.
-    #[inline]
-    fn scale_slice(data: &mut [Self], scalar: Self) {
-        for value in data {
-            *value *= scalar;
-        }
-    }
+    // Slice kernels (`add/sub/mul/div/sum/dot/axpy/min/max/scale_slice`)
+    // are NOT redeclared here. They live once on the `leto_ops::Scalar`
+    // supertrait — the stack's single slice-kernel surface with its
+    // hermes-SIMD dispatch — and every `T: Scalar` resolves them through that
+    // bound (DIP: depend on the provider abstraction, never redeclare it).
 }
 
 /// Floating-point extension trait.

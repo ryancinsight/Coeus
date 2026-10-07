@@ -16,7 +16,6 @@ path = "src/lib.rs"
 [dependencies]
 mnemosyne = { workspace = true }
 moirai    = { workspace = true }
-hermes-simd = { workspace = true }
 eunomia = { workspace = true }
 themis = { workspace = true }
 leto-ops = { workspace = true }

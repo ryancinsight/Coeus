@@ -1,4 +1,3 @@
-use coeus_core::Scalar;
 use leto_ops::Scalar as LetoScalar;
 
 fn sequential_dot(data_a: &[f32], data_b: &[f32]) -> f32 {
@@ -35,13 +34,13 @@ fn native_float_dot_slice_matches_scalar_reference_with_derived_bound() {
 }
 
 #[test]
-fn native_float_scale_slice_matches_scalar_reference_exactly() {
+fn provider_scale_slice_matches_scalar_reference_exactly() {
     for &n in &[0usize, 1, 7, 8, 31, 257, 1024] {
         let mut got: Vec<f32> = (0..n).map(|i| i as f32 * 0.25 - 3.0).collect();
         let mut expected = got.clone();
         let scale = -0.5_f32;
 
-        f32::scale_slice(&mut got, scale);
+        <f32 as LetoScalar>::scale_slice(&mut got, scale);
         for value in &mut expected {
             *value *= scale;
         }

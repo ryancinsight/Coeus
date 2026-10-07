@@ -20,12 +20,7 @@ macro_rules! impl_scalar_float_native {
                 self * rhs
             }
             // Slice kernels resolve through the `leto_ops::Scalar` supertrait
-            // (single SSOT with hermes-SIMD dispatch); only the coeus-only
-            // `scale_slice` is overridden here.
-            #[inline]
-            fn scale_slice(data: &mut [Self], scalar: Self) {
-                hermes_simd::scale::<$t>(data, scalar);
-            }
+            // (single SSOT with hermes-SIMD dispatch); nothing is overridden here.
         }
         impl FloatOps for $t {
             #[inline(always)]
