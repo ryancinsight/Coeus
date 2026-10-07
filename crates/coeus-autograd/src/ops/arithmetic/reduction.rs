@@ -51,11 +51,7 @@ impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Tensor<T, B> {
         let total = coeus_ops::sum(a, backend).expect("invariant: mean input is valid");
-        Tensor::from_slice_on(
-            [1],
-            &[total / T::from_count(a.numel())],
-            backend,
-        )
+        Tensor::from_slice_on([1], &[total / T::from_count(a.numel())], backend)
     }
 
     #[inline(always)]

@@ -56,11 +56,7 @@ pub(super) fn layer_norm_three_dimensional<T: Float, B: coeus_ops::BackendOps<T>
         output,
         normalized,
         inverse_standard_deviation,
-        Tensor::full_on(
-            [1],
-            T::from_count(width),
-            &backend,
-        ),
+        Tensor::full_on([1], T::from_count(width), &backend),
     );
     Ok(coeus_autograd::reshape(
         &normalized,

@@ -42,10 +42,7 @@ pub fn var_mean<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let dev = crate::ops::arithmetic::sub(&flat, &mu);
     let sq = crate::ops::arithmetic::mul(&dev, &dev);
     let ssum = crate::ops::arithmetic::sum(&sq);
-    let v = crate::ops::arithmetic::scalar_div(
-        &ssum,
-        T::from_count(denom),
-    );
+    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_count(denom));
     (v, mu)
 }
 
@@ -111,10 +108,7 @@ pub fn var_mean_axis<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     let dev = crate::ops::arithmetic::sub(a, &mu);
     let sq = crate::ops::arithmetic::mul(&dev, &dev);
     let ssum = crate::ops::arithmetic::sum_axis(&sq, axis);
-    let v = crate::ops::arithmetic::scalar_div(
-        &ssum,
-        T::from_count(denom),
-    );
+    let v = crate::ops::arithmetic::scalar_div(&ssum, T::from_count(denom));
     (v, mu)
 }
 
