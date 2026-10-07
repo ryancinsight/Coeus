@@ -375,5 +375,3 @@ pub(crate) fn avg_pool3d_backward<T: Scalar, B: Backend>(
         }
     });
 }
-
-

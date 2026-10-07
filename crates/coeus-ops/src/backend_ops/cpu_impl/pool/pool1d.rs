@@ -299,5 +299,3 @@ pub(crate) fn avg_pool1d_backward<T: Scalar, B: Backend>(
     }
     let _ = backend;
 }
-
-

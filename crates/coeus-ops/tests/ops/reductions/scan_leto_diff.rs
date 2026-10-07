@@ -78,5 +78,3 @@ fn moirai_scans_match_reference() {
     check_backend::<f32, _>(&backend);
     check_backend::<f64, _>(&backend);
 }
-
-

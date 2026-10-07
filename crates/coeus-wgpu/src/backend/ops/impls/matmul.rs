@@ -45,4 +45,3 @@ where
         matmul::<Self, T>(a, a_layout, b, b_layout, c, c_layout)
     }
 }
-

@@ -82,5 +82,3 @@ where
         Tensor::from_slice(shape, &out_idx),
     )
 }
-
-
