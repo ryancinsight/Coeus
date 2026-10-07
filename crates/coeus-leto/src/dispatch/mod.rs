@@ -49,8 +49,6 @@ pub mod linalg;
 pub mod reductions;
 /// Rotary half-vector dispatch.
 pub mod rotary;
-/// Sparse matrix dispatch (CSR mat-vec and mat-mat).
-pub mod sparse;
 /// Scalar-preserving stateful parameter-update dispatch.
 pub mod stateful_update;
 /// Structural tensor ops dispatch (pad, concat, split, stack).
@@ -83,7 +81,6 @@ pub use reductions::{
     reduce_prod_into, suffix_prod_into, suffix_sum_into,
 };
 pub use rotary::{prepare_rotate_half_input, rotate_half_into, RotateHalfPlan};
-pub use sparse::{spmm_into, spmv_into, CsrDispatch};
 pub use stateful_update::{
     stateful_update, validate_stateful_update, StatefulUpdateDispatchRule, StatefulUpdateOperands,
     StatefulUpdateState, StatefulUpdateValidation, StatefulUpdateValidationState,

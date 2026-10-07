@@ -2,13 +2,35 @@ use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
+use core::mem::size_of;
+
+/// Reinterpret CSR index slices as `usize` without copying.
+///
+/// # Safety
+/// Bitwise same-width integer reinterpretation — always sound as a cast.
+/// Sound USE requires validating the result as CSR before indexing, which
+/// both callers do immediately via `CsrView::from_slices`: any negative
+/// index becomes huge and is rejected by the column-range check. The static
+/// assertion keeps 32-bit targets a compile error, not silent truncation.
+fn csr_indices_as_usize<'a>(cols: &'a [i64], rows: &'a [i64]) -> (&'a [usize], &'a [usize]) {
+    const _: () = assert!(size_of::<i64>() == size_of::<usize>());
+    unsafe {
+        (
+            core::slice::from_raw_parts(cols.as_ptr() as *const usize, cols.len()),
+            core::slice::from_raw_parts(rows.as_ptr() as *const usize, rows.len()),
+        )
+    }
+}
 
 /// Sparse Matrix-Vector multiplication (SpMV): y = A x
 ///
 /// Computes multiplication of a sparse CSR matrix `A` and a dense vector `x`.
-/// Returns a dense vector `y`.
+/// Returns a dense vector `y`. CPU dispatch over the leto SSOT (ADR 0035):
+/// indices translate i64→usize by validated transmute, then
+/// `leto_ops::spmv_view_into` runs the kernel. Malformed CSR panics loudly
+/// via `CsrView` validation instead of the previous unchecked indexing.
 #[inline]
-pub fn spmv<T: Scalar, B: Backend>(
+pub fn spmv<T: Scalar + leto_ops::Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     x: &Tensor<T, B>,
     backend: &B,
@@ -26,45 +48,29 @@ where
         "dimension mismatch: x shape must match CSR column count"
     );
 
-    // alloc_on: every row r writes y[r] = sum via y_ptr.write — no zero-init needed.
+    // alloc_on: leto fills every y[r] — no zero-init needed.
     let mut y = Tensor::<T, B>::alloc_on([rows], backend);
 
-    let val_slice = a.values().as_slice();
-    let col_slice = a.col_indices().as_slice();
-    let row_slice = a.row_offsets().as_slice();
-
-    let val_ptr = Ptr(val_slice.as_ptr());
-    let col_ptr = Ptr(col_slice.as_ptr());
-    let row_ptr = Ptr(row_slice.as_ptr());
-    let y_ptr = MutPtr(y.as_mut_slice().as_mut_ptr());
-
-    let x_slice = x.storage().as_slice();
-    let x_ptr = Ptr(x_slice.as_ptr());
-    let x_stride = x.layout().strides()[0];
-    let x_offset = x.layout().offset();
-
-    backend.parallel_for(0, rows, move |r| unsafe {
-        let start = row_ptr.read(r) as usize;
-        let end = row_ptr.read(r + 1) as usize;
-        let mut sum = T::zero();
-        for i in start..end {
-            let col = col_ptr.read(i) as usize;
-            let val = val_ptr.read(i);
-            let xv = x_ptr.read(x_offset + col * x_stride);
-            sum += val * xv;
-        }
-        y_ptr.write(r, sum);
-    });
-
+    let (col_usize, row_usize) =
+        csr_indices_as_usize(a.col_indices().as_slice(), a.row_offsets().as_slice());
+    let view =
+        leto_ops::CsrView::from_slices(a.values().as_slice(), col_usize, row_usize, rows, cols)
+            .expect("spmv: invalid CSR parts");
+    let x_view = coeus_leto::to_leto_view(x.layout(), x.storage().as_slice())
+        .expect("spmv: invalid x layout");
+    leto_ops::spmv_view_into(&view, &x_view, y.as_mut_slice()).expect("spmv: shape mismatch");
     y
 }
 
 /// Sparse-Dense Matrix multiplication (SpMM): C = A B
 ///
 /// Multiplies a sparse CSR matrix `A` [M, K] by a dense matrix `B` [K, N].
-/// Returns a dense matrix `C` [M, N].
+/// Returns a dense matrix `C` [M, N]. CPU dispatch over the leto SSOT
+/// (ADR 0035): indices translate i64→usize by validated transmute, then
+/// `leto_ops::spmm_view_into` runs the kernel. Malformed CSR panics loudly
+/// via `CsrView` validation instead of the previous unchecked indexing.
 #[inline]
-pub fn spmm<T: Scalar, B: Backend>(
+pub fn spmm<T: Scalar + leto_ops::Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
@@ -83,49 +89,16 @@ where
         "dimension mismatch: CSR column count must match dense row count"
     );
 
-    // alloc_on: parallel_for over rows writes every c[r,j] for j in 0..n — no zero-init needed.
+    // alloc_on: leto fills every c[r,j] — no zero-init needed.
     let mut c = Tensor::<T, B>::alloc_on([m, n], backend);
 
-    let val_slice = a.values().as_slice();
-    let col_slice = a.col_indices().as_slice();
-    let row_slice = a.row_offsets().as_slice();
-
-    let val_ptr = Ptr(val_slice.as_ptr());
-    let col_ptr = Ptr(col_slice.as_ptr());
-    let row_ptr = Ptr(row_slice.as_ptr());
-    let c_ptr = MutPtr(c.as_mut_slice().as_mut_ptr());
-
-    let b_slice = b.storage().as_slice();
-    let b_ptr = Ptr(b_slice.as_ptr());
-    let b_stride_row = b.layout().strides()[0];
-    let b_stride_col = b.layout().strides()[1];
-    let b_offset = b.layout().offset();
-
-    let c_stride_row = c.layout().strides()[0];
-    let c_stride_col = c.layout().strides()[1];
-    let c_offset = c.layout().offset();
-
-    backend.parallel_for(0, m, move |r| unsafe {
-        let start = row_ptr.read(r) as usize;
-        let end = row_ptr.read(r + 1) as usize;
-        let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(T::zero(), n);
-        for i in start..end {
-            let col = col_ptr.read(i) as usize;
-            let val = val_ptr.read(i);
-            let b_col_offset = b_offset + col * b_stride_row;
-            for j in 0..n {
-                let bv = b_ptr.read(b_col_offset + j * b_stride_col);
-                row_accumulator[j] += val * bv;
-            }
-        }
-        for j in 0..n {
-            c_ptr.write(
-                c_offset + r * c_stride_row + j * c_stride_col,
-                row_accumulator[j],
-            );
-        }
-    });
-
+    let (col_usize, row_usize) =
+        csr_indices_as_usize(a.col_indices().as_slice(), a.row_offsets().as_slice());
+    let view = leto_ops::CsrView::from_slices(a.values().as_slice(), col_usize, row_usize, m, k)
+        .expect("spmm: invalid CSR parts");
+    let b_view = coeus_leto::to_leto_view(b.layout(), b.storage().as_slice())
+        .expect("spmm: invalid b layout");
+    leto_ops::spmm_view_into(&view, &b_view, c.as_mut_slice()).expect("spmm: shape mismatch");
     c
 }
 

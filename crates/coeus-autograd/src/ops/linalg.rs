@@ -438,7 +438,10 @@ where
 /// The sparse matrix is represented by tracked nonzero values plus CSR column
 /// indices, row offsets, and shape. Backward propagation accumulates gradients
 /// for the sparse values and dense right-hand matrix.
-pub fn sparse_matmul<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default>(
+pub fn sparse_matmul<
+    T: Scalar + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default,
+>(
     a_values: &Var<T, B>,
     a_col_indices: &Tensor<i64, B>,
     a_row_offsets: &Tensor<i64, B>,
@@ -477,7 +480,10 @@ where
 ///
 /// The COO coordinates are converted to CSR once for the forward pass while a
 /// permutation map preserves gradients for the original COO value ordering.
-pub fn sparse_matmul_coo<T: Scalar, B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default>(
+pub fn sparse_matmul_coo<
+    T: Scalar + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + coeus_core::Backend + Default,
+>(
     a_values: &Var<T, B>,
     a_indices: &Tensor<i64, B>,
     a_shape: Shape,

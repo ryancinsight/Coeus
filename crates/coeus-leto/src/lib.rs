@@ -32,12 +32,12 @@ pub use dispatch::{
     matmul_accumulate_into, matmul_into, normal_values, normal_values_into, pad_values,
     permute_layout, prepare_rotate_half_input, reduce_into, reduce_mean_into, reduce_prod_into,
     reshape_layout, rotate_half_into, scaled_dot_product_attention_backward_accumulate,
-    scaled_dot_product_attention_into, split_values, spmm_into, spmv_into, stack_values,
-    stateful_update, suffix_prod_into, suffix_sum_into, uniform_values, uniform_values_into,
+    scaled_dot_product_attention_into, split_values, stack_values, stateful_update,
+    suffix_prod_into, suffix_sum_into, uniform_values, uniform_values_into,
     validate_stateful_update, AttentionBackward, AttentionForward, AttentionGradientTargets,
-    AttentionScalar, ConvolutionBackward, ConvolutionForward, ConvolutionGradients, CsrDispatch,
-    ReadOperand, RotateHalfPlan, StatefulUpdateDispatchRule, StatefulUpdateOperands,
-    StatefulUpdateState, StatefulUpdateValidation, StatefulUpdateValidationState, WriteOperand,
-    MAX_DISPATCH_RANK, MAX_STATEFUL_UPDATE_RANK,
+    AttentionScalar, ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand,
+    RotateHalfPlan, StatefulUpdateDispatchRule, StatefulUpdateOperands, StatefulUpdateState,
+    StatefulUpdateValidation, StatefulUpdateValidationState, WriteOperand, MAX_DISPATCH_RANK,
+    MAX_STATEFUL_UPDATE_RANK,
 };
 pub use leto_ops::RealScalar;
