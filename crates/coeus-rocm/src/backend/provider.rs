@@ -1,20 +1,22 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
-    ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
-    ElementwiseProvider, HephaestusProvider, MatmulProvider, ParameterizedElementwiseProvider,
-    PoolingProvider, RandomInitProvider, ReductionProvider, RotateHalfProvider,
-    ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider, CtcProvider,
+    ElementwiseProvider, FixedFdProvider, HephaestusProvider, MatmulProvider,
+    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
+    RotateHalfProvider, ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider,
+    UnfoldFoldProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
-use hephaestus_core::{PoolingOps, SlidingWindowOps};
+use hephaestus_core::{CtcOps, FixedFd3DOps, PoolingOps, SlidingWindowOps};
 use hephaestus_rocm::RocmDevice;
+use hephaestus_rocm::{
+    CtcKernel, FixedFd3DKernel, RocmAxisReductionOps, RocmCtcOps, RocmDenseProductOps,
+    RocmElementwiseOps, RocmFixedFd3DOps, RocmPoolingOps, RocmScanOps, RocmSlidingWindowOps,
+    RocmStaggered3DOps,
+};
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
-use hephaestus_rocm::{
-    RocmAxisReductionOps, RocmDenseProductOps, RocmElementwiseOps, RocmPoolingOps, RocmScanOps,
-    RocmSlidingWindowOps, RocmStaggered3DOps,
-};
 use std::sync::OnceLock;
 
 static ROCM_DEVICE: OnceLock<RocmDevice> = OnceLock::new();
@@ -119,6 +121,50 @@ impl StatefulUpdateProvider for RocmProvider {
 
 impl StaggeredProvider for RocmProvider {
     type Operations = RocmStaggered3DOps;
+}
+
+/// One compiled fixed-scheme sweep kernel for the process-wide ROCm device.
+static FIXED_FD_KERNEL: OnceLock<FixedFd3DKernel> = OnceLock::new();
+
+impl FixedFdProvider for RocmProvider {
+    type Operations = RocmFixedFd3DOps;
+
+    fn fixed_fd_kernel(
+    ) -> hephaestus_core::Result<&'static <Self::Operations as FixedFd3DOps<Self::Device>>::FixedFd3D>
+    {
+        if let Some(kernel) = FIXED_FD_KERNEL.get() {
+            return Ok(kernel);
+        }
+        let candidate = RocmFixedFd3DOps.prepare_fixed_fd_3d(Self::device())?;
+        let _ = FIXED_FD_KERNEL.set(candidate);
+        FIXED_FD_KERNEL
+            .get()
+            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
+                message: "fixed-fd kernel initialization did not publish the compiled kernel"
+                    .to_owned(),
+            })
+    }
+}
+
+/// One compiled CTC kernel set for the process-wide ROCm device.
+static CTC_KERNEL: OnceLock<CtcKernel> = OnceLock::new();
+
+impl CtcProvider for RocmProvider {
+    type Operations = RocmCtcOps;
+
+    fn ctc_kernel(
+    ) -> hephaestus_core::Result<&'static <Self::Operations as CtcOps<Self::Device>>::Ctc> {
+        if let Some(kernel) = CTC_KERNEL.get() {
+            return Ok(kernel);
+        }
+        let candidate = RocmCtcOps.prepare_ctc(Self::device())?;
+        let _ = CTC_KERNEL.set(candidate);
+        CTC_KERNEL
+            .get()
+            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
+                message: "ctc kernel initialization did not publish the compiled kernel".to_owned(),
+            })
+    }
 }
 
 impl<T> PoolingProvider<T> for RocmProvider
