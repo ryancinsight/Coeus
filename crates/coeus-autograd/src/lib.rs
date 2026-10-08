@@ -105,6 +105,7 @@ pub use ops::{
     exp,
     exp2,
     expm1,
+    finite_difference,
     flatten,
     flip,
     floor,

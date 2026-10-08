@@ -119,6 +119,54 @@ fn through_both(
     (actual, expected)
 }
 
+/// Every scheme dispatches with CUDA value and gradient parity through the
+/// tracked autograd op: backward runs the scheme's transpose sweep on the
+/// device, so this is the claim differentiation tracking exists to support.
+#[test]
+fn cuda_fixed_fd_tracking_matches_sequential_value_and_gradient() {
+    if !crate::availability::device_available() {
+        return;
+    }
+    use coeus_autograd::{finite_difference, sum, Var};
+    let sequential = SequentialBackend;
+    let cuda = CudaBackend::new();
+    let host = field(SHAPE);
+    for scheme in SCHEMES {
+        for axis in AXES {
+            let input = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &host);
+            let cpu_input = Var::new(input.clone(), true);
+            let cuda_input = Var::new(input.to_backend_on(&sequential, &cuda), true);
+            let cpu_swept = finite_difference(&cpu_input, scheme, axis, SPACING)
+                .expect("CPU fixed-fd forward must succeed");
+            let cuda_swept = finite_difference(&cuda_input, scheme, axis, SPACING)
+                .expect("CUDA fixed-fd forward must succeed");
+            let cuda_value = cuda_swept.tensor.to_backend_on(&cuda, &sequential);
+            assert_close(
+                cuda_value.as_slice(),
+                cpu_swept.tensor.as_slice(),
+                &format!("tracked {scheme:?} {axis:?} value"),
+            );
+
+            let cpu_loss = sum(&cpu_swept);
+            let cuda_loss = sum(&cuda_swept);
+            cpu_loss
+                .backward()
+                .expect("CPU fixed-fd backward must succeed");
+            cuda_loss
+                .backward()
+                .expect("CUDA fixed-fd backward must succeed");
+            let cpu_grad = cpu_input.grad().expect("CPU input tracks a gradient");
+            let cuda_grad = cuda_input.grad().expect("CUDA input tracks a gradient");
+            let cuda_grad_cpu = cuda_grad.to_backend_on(&cuda, &sequential);
+            assert_close(
+                cuda_grad_cpu.as_slice(),
+                cpu_grad.as_slice(),
+                &format!("tracked {scheme:?} {axis:?} gradient"),
+            );
+        }
+    }
+}
+
 #[test]
 fn cuda_fixed_fd_matches_sequential_on_every_scheme_and_axis() {
     if !crate::availability::device_available() {

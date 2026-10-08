@@ -9,5 +9,5 @@ mod dispatch;
 mod implementation;
 mod provider;
 
-pub use dispatch::sweep as fixed_fd_sweep;
+pub use dispatch::{adjoint as fixed_fd_adjoint, sweep as fixed_fd_sweep};
 pub use provider::{FixedFdBackend, FixedFdProvider};

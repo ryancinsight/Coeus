@@ -119,6 +119,51 @@ fn through_both(
     (actual, expected)
 }
 
+/// Every scheme dispatches with WGPU value and gradient parity through the
+/// tracked autograd op: backward runs the scheme's transpose sweep on the
+/// device, so this is the claim differentiation tracking exists to support.
+#[test]
+fn wgpu_fixed_fd_tracking_matches_sequential_value_and_gradient() {
+    use coeus_autograd::{finite_difference, sum, Var};
+    let sequential = SequentialBackend;
+    let wgpu = WgpuBackend::new();
+    let host = field(SHAPE);
+    for scheme in SCHEMES {
+        for axis in AXES {
+            let input = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &host);
+            let cpu_input = Var::new(input.clone(), true);
+            let wgpu_input = Var::new(input.to_backend_on(&sequential, &wgpu), true);
+            let cpu_swept = finite_difference(&cpu_input, scheme, axis, SPACING)
+                .expect("CPU fixed-fd forward must succeed");
+            let wgpu_swept = finite_difference(&wgpu_input, scheme, axis, SPACING)
+                .expect("WGPU fixed-fd forward must succeed");
+            let wgpu_value = wgpu_swept.tensor.to_backend_on(&wgpu, &sequential);
+            assert_close(
+                wgpu_value.as_slice(),
+                cpu_swept.tensor.as_slice(),
+                &format!("tracked {scheme:?} {axis:?} value"),
+            );
+
+            let cpu_loss = sum(&cpu_swept);
+            let wgpu_loss = sum(&wgpu_swept);
+            cpu_loss
+                .backward()
+                .expect("CPU fixed-fd backward must succeed");
+            wgpu_loss
+                .backward()
+                .expect("WGPU fixed-fd backward must succeed");
+            let cpu_grad = cpu_input.grad().expect("CPU input tracks a gradient");
+            let wgpu_grad = wgpu_input.grad().expect("WGPU input tracks a gradient");
+            let wgpu_grad_cpu = wgpu_grad.to_backend_on(&wgpu, &sequential);
+            assert_close(
+                wgpu_grad_cpu.as_slice(),
+                cpu_grad.as_slice(),
+                &format!("tracked {scheme:?} {axis:?} gradient"),
+            );
+        }
+    }
+}
+
 #[test]
 fn wgpu_fixed_fd_matches_sequential_on_every_scheme_and_axis() {
     for scheme in SCHEMES {

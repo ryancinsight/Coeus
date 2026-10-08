@@ -11,11 +11,11 @@
 
 use super::{tensor, weighted, weighting, GradcheckScalar, Sampler};
 use coeus_autograd::{
-    ctc_loss, dropout, gradcheck, index_put, linear_interpolation, rotate_half, sparse_matmul,
-    sparse_matmul_coo, staggered_divergence, staggered_gradient, transpose_2d, Var,
+    ctc_loss, dropout, finite_difference, gradcheck, index_put, linear_interpolation, rotate_half,
+    sparse_matmul, sparse_matmul_coo, staggered_divergence, staggered_gradient, transpose_2d, Var,
 };
 use coeus_core::MoiraiBackend;
-use coeus_ops::{Axis, Replicate};
+use coeus_ops::{Axis, FiniteDifference3DScheme, Replicate};
 use coeus_tensor::Tensor;
 
 fn transpose_2d_case<T: GradcheckScalar>() {
@@ -242,6 +242,52 @@ fn staggered_backward_matches_finite_differences() {
         for divergence in [false, true] {
             staggered_case::<f64>(axis, divergence);
             staggered_case::<f32>(axis, divergence);
+        }
+    }
+}
+
+fn fixed_fd_case<T: GradcheckScalar>(scheme: FiniteDifference3DScheme, axis: Axis)
+where
+    MoiraiBackend: coeus_ops::FiniteDifference3DOps<T>,
+{
+    // Every extent clears the sixth-order minimum, so one shape serves all
+    // five schemes; the forward sweep shrinks the weighting's shape.
+    let mut out_shape = vec![8_usize, 7, 8];
+    if matches!(scheme, FiniteDifference3DScheme::StaggeredForward) {
+        let lane = match axis {
+            Axis::X => 0,
+            Axis::Y => 1,
+            Axis::Z => 2,
+        };
+        out_shape[lane] -= 1;
+    }
+    let x = tensor::<T>(&[8, 7, 8], 0.31);
+    let w = weighting::<T>(&out_shape);
+    let spacing = [
+        <T as coeus_core::Scalar>::from_f64(0.5),
+        <T as coeus_core::Scalar>::from_f64(1.0),
+        <T as coeus_core::Scalar>::from_f64(2.0),
+    ];
+    gradcheck(&[x], |v| {
+        let swept = finite_difference(&v[0], scheme, axis, spacing)
+            .expect("invariant: valid fixed-fd fixture completes forward");
+        weighted(&swept, &w)
+    })
+    .expect("fixed-fd backward must match central differences");
+}
+
+#[test]
+fn fixed_fd_backward_matches_finite_differences() {
+    for scheme in [
+        FiniteDifference3DScheme::CentralSecondOrder,
+        FiniteDifference3DScheme::CentralFourthOrder,
+        FiniteDifference3DScheme::CentralSixthOrder,
+        FiniteDifference3DScheme::StaggeredForward,
+        FiniteDifference3DScheme::StaggeredBackward,
+    ] {
+        for axis in [Axis::X, Axis::Y, Axis::Z] {
+            fixed_fd_case::<f64>(scheme, axis);
+            fixed_fd_case::<f32>(scheme, axis);
         }
     }
 }

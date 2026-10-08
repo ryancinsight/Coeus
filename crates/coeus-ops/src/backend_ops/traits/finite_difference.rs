@@ -124,4 +124,28 @@ pub trait FiniteDifference3DOps<T: Scalar>: ComputeBackend {
         output: &mut Self::DeviceBuffer<T>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error>;
+
+    /// Transpose of the fixed-scheme first derivative along `axis`.
+    ///
+    /// For a forward sweep `y = A f`, this maps the upstream shaped like `y`
+    /// into the gradient shaped like `f`: the pullback an autograd backward
+    /// pass accumulates. A forward sweep shrinks the grid, so its adjoint
+    /// fans back out — the upstream has the forward output shape, the
+    /// gradient the full input grid.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend-associated error for a non-positive spacing, a
+    /// non-contiguous or non-rank-3 layout, an axis too short for the scheme,
+    /// or an upstream/gradient shape the transpose does not take.
+    fn finite_difference_adjoint(
+        &self,
+        scheme: FiniteDifference3DScheme,
+        axis: Axis,
+        spacing: [T; 3],
+        upstream: &Self::DeviceBuffer<T>,
+        upstream_layout: &Layout,
+        grad: &mut Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+    ) -> Result<(), Self::Error>;
 }

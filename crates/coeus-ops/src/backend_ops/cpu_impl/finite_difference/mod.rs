@@ -149,5 +149,26 @@ pub(super) fn finite_difference<T: FdScalar>(
     .map_err(|error| map_leto_error(OP, error))
 }
 
+pub(super) fn finite_difference_adjoint<T: FdScalar>(
+    scheme: FiniteDifference3DScheme,
+    axis: Axis,
+    spacing: [T; 3],
+    upstream: &[T],
+    upstream_layout: &Layout,
+    grad: &mut [T],
+    grad_layout: &Layout,
+) -> Result<(), BackendError> {
+    const OP: &str = "finite_difference_adjoint";
+    let operator = FiniteDifference3D::new(scheme, spacing[0], spacing[1], spacing[2])
+        .map_err(|error| map_leto_error(OP, error))?;
+    let (field, mut dst) = views(OP, upstream, upstream_layout, grad, grad_layout)?;
+    match axis {
+        Axis::X => operator.adjoint_x_into(field, &mut dst),
+        Axis::Y => operator.adjoint_y_into(field, &mut dst),
+        Axis::Z => operator.adjoint_z_into(field, &mut dst),
+    }
+    .map_err(|error| map_leto_error(OP, error))
+}
+
 #[cfg(test)]
 mod tests;

@@ -8,7 +8,10 @@ use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{Float, Scalar};
-use coeus_ops::{Axis, BackendOps, ElementwiseOps, StaggeredPairOps};
+use coeus_ops::{
+    Axis, BackendOps, ElementwiseOps, FiniteDifference3DOps, FiniteDifference3DScheme,
+    StaggeredPairOps,
+};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -235,4 +238,122 @@ where
     B: BackendOps<T> + StaggeredPairOps<T> + ElementwiseOps<T> + Default,
 {
     tracked_pair(input, order, spacing, axis, true)
+}
+
+/// Autograd graph connections and the retained sweep description.
+///
+/// The schemes are parameter-free stencils, so unlike the staggered pair no
+/// preparation is retained: scheme, axis, and spacing fully determine both
+/// directions.
+pub struct FiniteDiffNode<T, B>
+where
+    T: Scalar,
+    B: BackendOps<T> + FiniteDifference3DOps<T> + ElementwiseOps<T> + Default,
+{
+    output_grad: Arc<GradBuffer<T, B>>,
+    inputs: [Var<T, B>; 1],
+    scheme: FiniteDifference3DScheme,
+    axis: Axis,
+    spacing: [T; 3],
+}
+
+impl<T, B> BackwardNode<T, B> for FiniteDiffNode<T, B>
+where
+    T: Float,
+    B: BackendOps<T> + FiniteDifference3DOps<T> + ElementwiseOps<T> + Default,
+{
+    fn op_name(&self) -> &'static str {
+        "finite_difference"
+    }
+    fn output_grad(&self) -> &Arc<GradBuffer<T, B>> {
+        &self.output_grad
+    }
+    fn inputs(&self) -> &[Var<T, B>] {
+        &self.inputs
+    }
+
+    fn backward(
+        &self,
+        grad_out: &Tensor<T, B>,
+        input_grads: &[Option<Arc<GradBuffer<T, B>>>],
+    ) -> Result<(), B::Error> {
+        if let Some(Some(gradient)) = input_grads.first() {
+            let backend = B::default();
+            let mut adjoint = Tensor::zeros_on(self.inputs[0].tensor.shape().to_vec(), &backend);
+            let (storage, layout) = adjoint.storage_mut_and_layout();
+            backend.finite_difference_adjoint(
+                self.scheme,
+                self.axis,
+                self.spacing,
+                grad_out.storage(),
+                grad_out.layout(),
+                storage,
+                layout,
+            )?;
+            coeus_ops::add_assign(gradient.write(), &adjoint, &backend)?;
+        }
+        Ok(())
+    }
+}
+
+/// Tracked fixed-scheme first derivative along `axis`.
+///
+/// The input is a rank-3 field; the output keeps its shape except a forward
+/// sweep drops one plane on the axis. Backward applies the scheme's
+/// transpose sweep to the upstream gradient and accumulates. Runs on any
+/// backend implementing the seam — CPU over Leto or a GPU over Hephaestus.
+///
+/// # Errors
+///
+/// Returns the backend's typed error for an invalid spacing, field layout,
+/// or shape, or the provider's dispatch failure.
+pub fn finite_difference<T, B>(
+    input: &Var<T, B>,
+    scheme: FiniteDifference3DScheme,
+    axis: Axis,
+    spacing: [T; 3],
+) -> Result<Var<T, B>, B::Error>
+where
+    T: Float,
+    B: BackendOps<T> + FiniteDifference3DOps<T> + ElementwiseOps<T> + Default,
+{
+    let backend = B::default();
+    let mut out_shape = input.tensor.shape().to_vec();
+    if matches!(scheme, FiniteDifference3DScheme::StaggeredForward) {
+        let lane = match axis {
+            Axis::X => 0,
+            Axis::Y => 1,
+            Axis::Z => 2,
+        };
+        out_shape[lane] -= 1;
+    }
+    let mut output = Tensor::zeros_on(out_shape.clone(), &backend);
+    let (storage, layout) = output.storage_mut_and_layout();
+    backend.finite_difference(
+        scheme,
+        axis,
+        spacing,
+        input.tensor.storage(),
+        input.tensor.layout(),
+        storage,
+        layout,
+    )?;
+    let requires_grad = crate::grad_mode::should_track_var(input);
+    let grad =
+        requires_grad.then(|| Arc::new(GradBuffer::new(Tensor::zeros_on(out_shape, &backend))));
+    let creator = grad.as_ref().map(|output_grad| {
+        // The existing graph erases heterogeneous operation nodes at its graph boundary.
+        Arc::new(FiniteDiffNode {
+            output_grad: Arc::clone(output_grad),
+            inputs: [input.clone()],
+            scheme,
+            axis,
+            spacing,
+        }) as Arc<dyn BackwardNode<T, B>>
+    });
+    Ok(Var {
+        tensor: output,
+        grad,
+        creator,
+    })
 }

@@ -93,4 +93,27 @@ where
             output_layout,
         )
     }
+
+    #[inline]
+    fn finite_difference_adjoint(
+        &self,
+        scheme: FiniteDifference3DScheme,
+        axis: Axis,
+        spacing: [T; 3],
+        upstream: &Self::DeviceBuffer<T>,
+        upstream_layout: &Layout,
+        grad: &mut Self::DeviceBuffer<T>,
+        grad_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        let upstream = upstream.as_slice();
+        finite_difference::finite_difference_adjoint(
+            scheme,
+            axis,
+            spacing,
+            upstream,
+            upstream_layout,
+            grad.as_mut_slice(),
+            grad_layout,
+        )
+    }
 }

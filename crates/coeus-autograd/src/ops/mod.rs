@@ -61,4 +61,4 @@ pub use shape::{
     rotate_half, scatter_add, slice, split, squeeze, stack, swapaxes, tile, transpose, tril, triu,
     unsqueeze, where_cond, EinsumError,
 };
-pub use stencil::{staggered_divergence, staggered_gradient};
+pub use stencil::{finite_difference, staggered_divergence, staggered_gradient};
