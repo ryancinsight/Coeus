@@ -24,6 +24,15 @@ fn adam_preserves_parameter_and_moment_clones() {
 }
 
 #[test]
+fn adam_f64_preserves_parameter_and_moment_clones() {
+    if !crate::availability::device_supports_f64("state update f64 ownership") {
+        return;
+    }
+    adam_preserves_all_state_clones(&WgpuBackend::new(), 1.0_f64);
+    adam_preserves_all_state_clones(&HephaestusBackend::<WgpuBackend>::new(), 1.0_f64);
+}
+
+#[test]
 fn convolution_preserves_forward_and_accumulated_clones() {
     if !crate::availability::device_available("convolution ownership") {
         return;

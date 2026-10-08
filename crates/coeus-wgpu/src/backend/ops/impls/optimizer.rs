@@ -11,9 +11,9 @@ impl StatefulUpdateProvider for WgpuBackend {
 impl StatefulUpdateBackend for WgpuBackend {
     type Provider = Self;
 
-    fn stateful_update_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
+    fn stateful_update_buffer<T: coeus_core::Scalar>(
+        storage: &Self::DeviceBuffer<T>,
+    ) -> &<WgpuDevice as ComputeDevice>::Buffer<T> {
         storage.buffer()
     }
 
@@ -112,5 +112,98 @@ impl coeus_ops::OptimizerOps<f32> for WgpuBackend {
         eps: f32,
     ) -> Result<(), Self::Error> {
         self.dispatch_adagrad_step(p, pl, g, gl, s, sl, lr, eps)
+    }
+}
+
+impl coeus_ops::OptimizerOps<f64> for WgpuBackend {
+    fn validate_optimizer_step(
+        &self,
+        validation: coeus_ops::OptimizerStepValidation<'_, f64, Self>,
+    ) -> Result<(), Self::Error> {
+        StatefulUpdateBackend::validate_optimizer_step_f64(self, validation)
+    }
+
+    fn sgd_step(
+        &self,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        pl: &Layout,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        gl: &Layout,
+        s: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        sl: &Layout,
+        lr: f64,
+        momentum: f64,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_sgd_step_f64(p, pl, g, gl, s, sl, lr, momentum)
+    }
+
+    fn adam_step(
+        &self,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        pl: &Layout,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        gl: &Layout,
+        first: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        fl: &Layout,
+        second: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        sl: &Layout,
+        lr: f64,
+        b1: f64,
+        b2: f64,
+        eps: f64,
+        step: usize,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adam_step_f64(p, pl, g, gl, first, fl, second, sl, lr, b1, b2, eps, step)
+    }
+
+    fn rmsprop_step(
+        &self,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        pl: &Layout,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        gl: &Layout,
+        s: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        sl: &Layout,
+        lr: f64,
+        alpha: f64,
+        eps: f64,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_rmsprop_step_f64(p, pl, g, gl, s, sl, lr, alpha, eps)
+    }
+
+    fn adamw_step(
+        &self,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        pl: &Layout,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        gl: &Layout,
+        first: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        fl: &Layout,
+        second: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        sl: &Layout,
+        lr: f64,
+        b1: f64,
+        b2: f64,
+        eps: f64,
+        decay: f64,
+        step: usize,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adamw_step_f64(
+            p, pl, g, gl, first, fl, second, sl, lr, b1, b2, eps, decay, step,
+        )
+    }
+
+    fn adagrad_step(
+        &self,
+        p: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        pl: &Layout,
+        g: &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        gl: &Layout,
+        s: &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, f64>,
+        sl: &Layout,
+        lr: f64,
+        eps: f64,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adagrad_step_f64(p, pl, g, gl, s, sl, lr, eps)
     }
 }

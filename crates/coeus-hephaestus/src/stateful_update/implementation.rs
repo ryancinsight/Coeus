@@ -113,15 +113,126 @@ where
     }
 }
 
+impl<P> coeus_ops::OptimizerOps<f64> for HephaestusBackend<P>
+where
+    P: StatefulUpdateProvider,
+{
+    fn validate_optimizer_step(
+        &self,
+        validation: coeus_ops::OptimizerStepValidation<'_, f64, Self>,
+    ) -> Result<(), Self::Error> {
+        StatefulUpdateBackend::validate_optimizer_step_f64(self, validation)
+    }
+
+    fn sgd_step(
+        &self,
+        p: &mut Self::DeviceBuffer<f64>,
+        pl: &Layout,
+        g: &Self::DeviceBuffer<f64>,
+        gl: &Layout,
+        s: &mut Self::DeviceBuffer<f64>,
+        sl: &Layout,
+        lr: f64,
+        momentum: f64,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_sgd_step_f64(p, pl, g, gl, s, sl, lr, momentum)
+    }
+
+    fn adam_step(
+        &self,
+        p: &mut Self::DeviceBuffer<f64>,
+        pl: &Layout,
+        g: &Self::DeviceBuffer<f64>,
+        gl: &Layout,
+        first: &mut Self::DeviceBuffer<f64>,
+        fl: &Layout,
+        second: &mut Self::DeviceBuffer<f64>,
+        sl: &Layout,
+        lr: f64,
+        beta_one: f64,
+        beta_two: f64,
+        epsilon: f64,
+        step: usize,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adam_step_f64(
+            p, pl, g, gl, first, fl, second, sl, lr, beta_one, beta_two, epsilon, step,
+        )
+    }
+
+    fn rmsprop_step(
+        &self,
+        p: &mut Self::DeviceBuffer<f64>,
+        pl: &Layout,
+        g: &Self::DeviceBuffer<f64>,
+        gl: &Layout,
+        state: &mut Self::DeviceBuffer<f64>,
+        sl: &Layout,
+        lr: f64,
+        alpha: f64,
+        epsilon: f64,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_rmsprop_step_f64(p, pl, g, gl, state, sl, lr, alpha, epsilon)
+    }
+
+    fn adamw_step(
+        &self,
+        p: &mut Self::DeviceBuffer<f64>,
+        pl: &Layout,
+        g: &Self::DeviceBuffer<f64>,
+        gl: &Layout,
+        first: &mut Self::DeviceBuffer<f64>,
+        fl: &Layout,
+        second: &mut Self::DeviceBuffer<f64>,
+        sl: &Layout,
+        lr: f64,
+        beta_one: f64,
+        beta_two: f64,
+        epsilon: f64,
+        weight_decay: f64,
+        step: usize,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adamw_step_f64(
+            p,
+            pl,
+            g,
+            gl,
+            first,
+            fl,
+            second,
+            sl,
+            lr,
+            beta_one,
+            beta_two,
+            epsilon,
+            weight_decay,
+            step,
+        )
+    }
+
+    fn adagrad_step(
+        &self,
+        p: &mut Self::DeviceBuffer<f64>,
+        pl: &Layout,
+        g: &Self::DeviceBuffer<f64>,
+        gl: &Layout,
+        state: &mut Self::DeviceBuffer<f64>,
+        sl: &Layout,
+        lr: f64,
+        epsilon: f64,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_adagrad_step_f64(p, pl, g, gl, state, sl, lr, epsilon)
+    }
+}
+
 impl<P> StatefulUpdateBackend for HephaestusBackend<P>
 where
     P: StatefulUpdateProvider,
 {
     type Provider = P;
 
-    fn stateful_update_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<P::Device as hephaestus_core::ComputeDevice>::Buffer<f32> {
+    fn stateful_update_buffer<T: coeus_core::Scalar>(
+        storage: &Self::DeviceBuffer<T>,
+    ) -> &<P::Device as hephaestus_core::ComputeDevice>::Buffer<T> {
         storage.buffer()
     }
 
