@@ -2,6 +2,7 @@ mod attention;
 mod conv;
 mod cross;
 mod cross_entropy;
+mod ctc;
 mod elementwise;
 mod fixed_fd;
 mod matmul;

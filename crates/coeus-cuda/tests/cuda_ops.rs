@@ -21,6 +21,9 @@ mod availability;
 #[cfg(feature = "cuda")]
 #[path = "cuda/cosine_similarity.rs"]
 mod cosine_similarity;
+#[cfg(feature = "cuda")]
+#[path = "cuda/ctc.rs"]
+mod ctc;
 #[path = "cuda_ops/device.rs"]
 mod device;
 #[cfg(feature = "cuda")]

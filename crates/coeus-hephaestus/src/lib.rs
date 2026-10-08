@@ -10,6 +10,7 @@ mod attention;
 mod convolution;
 mod cross_entropy;
 mod cross_product;
+mod ctc;
 mod elementwise;
 mod error;
 mod fixed_fd;
@@ -37,6 +38,7 @@ pub use cross_entropy::{
     CrossEntropyBackendF64, CrossEntropyProvider,
 };
 pub use cross_product::{cross_product, CrossProductProvider};
+pub use ctc::{ctc_backward, ctc_forward, CtcBackend, CtcProvider};
 pub use elementwise::{
     parameterized_unary, ActivationUnaryOperations, ArithmeticUnaryOperations,
     BinaryElementwiseDispatch, ElementwiseProvider, ParameterizedElementwiseProvider,

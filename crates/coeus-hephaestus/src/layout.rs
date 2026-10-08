@@ -78,6 +78,30 @@ pub(crate) fn ranked_axis<const N: usize>(
     Ok(axis + (N - rank))
 }
 
+/// Require an exact-rank, contiguous, zero-offset layout.
+///
+/// Seams whose provider parameter blocks carry dimensions only share this
+/// contract: a strided or offset operand would silently sweep the wrong
+/// lanes. The error mapper stays per-seam so each backend keeps its typed
+/// errors and each seam keeps its operand vocabulary.
+pub(crate) fn check_contiguous_exact<const N: usize, E>(
+    operation: &'static str,
+    seam: &'static str,
+    operand: &'static str,
+    layout: &Layout,
+    map_error: impl Fn(String) -> E,
+) -> Result<(), E> {
+    ranked_exact::<N>(operation, layout).map_err(|error| map_error(error.to_string()))?;
+    if !layout.is_contiguous() || layout.offset() != 0 {
+        return Err(map_error(format!(
+            "{seam} {operand} layout must be contiguous with zero offset, got strides {:?} and offset {}",
+            layout.strides(),
+            layout.offset(),
+        )));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::ranked_axis;

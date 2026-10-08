@@ -1,5 +1,5 @@
 use super::provider::FixedFdBackend;
-use crate::layout::ranked_exact;
+use crate::layout::check_contiguous_exact;
 use coeus_core::{Layout, StorageMut};
 use coeus_ops::{Axis, FiniteDifference3DScheme};
 use core::borrow::Borrow;
@@ -35,21 +35,9 @@ fn check_layout<B>(
 where
     B: FixedFdBackend,
 {
-    ranked_exact::<3>(operation, layout)
-        .map_err(|error| B::fixed_fd_configuration_error(operation, error.to_string()))?;
-    // The provider parameter block carries dimensions only, so it cannot
-    // represent an operand's strides or base offset.
-    if !layout.is_contiguous() || layout.offset() != 0 {
-        return Err(B::fixed_fd_configuration_error(
-            operation,
-            format!(
-                "fixed-fd {operand} layout must be contiguous with zero offset, got strides {:?} and offset {}",
-                layout.strides(),
-                layout.offset(),
-            ),
-        ));
-    }
-    Ok(())
+    check_contiguous_exact::<3, _>(operation, "fixed-fd", operand, layout, |reason| {
+        B::fixed_fd_configuration_error(operation, reason)
+    })
 }
 
 fn axis_lane(axis: Axis) -> usize {

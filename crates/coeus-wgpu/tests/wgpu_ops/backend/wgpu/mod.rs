@@ -3,6 +3,7 @@ mod attention;
 mod conv;
 mod conv3d;
 mod conv_transpose;
+mod ctc;
 mod fixed_fd;
 mod optimizer;
 mod parity;

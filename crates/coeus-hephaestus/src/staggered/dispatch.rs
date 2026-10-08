@@ -1,5 +1,5 @@
 use super::provider::StaggeredBackend;
-use crate::layout::ranked_exact;
+use crate::layout::check_contiguous_exact;
 use coeus_core::{Layout, StorageMut};
 use coeus_ops::Axis;
 use hephaestus_core::{Staggered3DOps, Staggered3DParams, StaggeredAxis};
@@ -88,20 +88,9 @@ where
     B: StaggeredBackend,
 {
     for (operand, layout) in [("input", layouts.0), ("output", layouts.1)] {
-        ranked_exact::<3>(operation, layout)
-            .map_err(|error| B::staggered_configuration_error(operation, error.to_string()))?;
-        // The provider parameter block carries dimensions only, so it cannot
-        // represent an operand's strides or base offset.
-        if !layout.is_contiguous() || layout.offset() != 0 {
-            return Err(B::staggered_configuration_error(
-                operation,
-                format!(
-                    "staggered {operand} layout must be contiguous with zero offset, got strides {:?} and offset {}",
-                    layout.strides(),
-                    layout.offset(),
-                ),
-            ));
-        }
+        check_contiguous_exact::<3, _>(operation, "staggered", operand, layout, |reason| {
+            B::staggered_configuration_error(operation, reason)
+        })?;
     }
     if layouts.0.shape() != layouts.1.shape() {
         return Err(B::staggered_configuration_error(
