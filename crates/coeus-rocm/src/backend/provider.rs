@@ -3,7 +3,7 @@ use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
     ElementwiseProvider, HephaestusProvider, MatmulProvider, ParameterizedElementwiseProvider,
     PoolingProvider, RandomInitProvider, ReductionProvider, RotateHalfProvider,
-    ScalarPowerProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
@@ -13,7 +13,7 @@ use hephaestus_rocm::RocmDevice;
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
 use hephaestus_rocm::{
     RocmAxisReductionOps, RocmDenseProductOps, RocmElementwiseOps, RocmPoolingOps, RocmScanOps,
-    RocmSlidingWindowOps,
+    RocmSlidingWindowOps, RocmStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -115,6 +115,10 @@ impl ParameterizedElementwiseProvider for RocmProvider {
 
 impl StatefulUpdateProvider for RocmProvider {
     type Operations = hephaestus_rocm::RocmStatefulUpdateOps;
+}
+
+impl StaggeredProvider for RocmProvider {
+    type Operations = RocmStaggered3DOps;
 }
 
 impl<T> PoolingProvider<T> for RocmProvider

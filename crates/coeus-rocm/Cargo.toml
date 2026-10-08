@@ -24,6 +24,7 @@ hephaestus-rocm = { workspace = true }
 leto-ops = { workspace = true }
 
 [dev-dependencies]
+coeus-autograd = { path = "../coeus-autograd", default-features = false }
 coeus-leto = { version = "0.10.0", path = "../coeus-leto" }
 coeus-tensor = { workspace = true }
 coeus-nn = { version = "0.10.0", path = "../coeus-nn", default-features = false }
