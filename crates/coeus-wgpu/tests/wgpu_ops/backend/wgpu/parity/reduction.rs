@@ -1,4 +1,8 @@
+use coeus_core::{ComputeBackend, Layout, SequentialBackend};
+use coeus_ops::{ReductionOp, ReductionOps};
 use coeus_tensor::Tensor;
+use coeus_wgpu::WgpuBackend;
+use eunomia::F16;
 
 use super::{assert_parity, seq, to_cpu, to_gpu, wgpu};
 
@@ -107,4 +111,180 @@ fn test_wgpu_reduction_rejects_unsupported_rank() {
             max_rank: 2,
         })
     ));
+}
+
+// ── half-precision identity proof ──────────────────────────────────────
+//
+// All six reduction identities (sum/prod/max/min/cumsum/cumprod) execute on
+// device for F16. Inputs are small integers, so every result is exact and
+// the claim is bitwise equality — a wrong identity literal would surface as
+// garbage, not rounding. Bf16 is absent by WGSL design: the shading language
+// has no bf16 type, so no `DialectScalar<Wgsl>` can exist for it.
+macro_rules! test_f16_reduction_identities {
+    ($s:expr, $c:expr) => {{
+        let flat: Vec<f32> = vec![1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0];
+        let data: Vec<F16> = flat.iter().map(|&v| F16::from_f32(v)).collect();
+        let in_layout = Layout::new(vec![3, 4].into());
+        // `reduce` keeps the reduced axis as a size-1 dim rather than squeezing.
+        let axis_layout = Layout::new(vec![3, 1].into());
+        let cpu_in = Tensor::<F16, SequentialBackend>::from_slice(vec![3, 4], &data);
+        let gpu_in = cpu_in.to_backend_on(&$s, &$c);
+
+        let run_reduce = |op: ReductionOp, expected: &[f32]| {
+            let mut cpu_out = $s.allocate_zeroed::<F16>(3);
+            ReductionOps::reduce(
+                &$s,
+                op,
+                cpu_in.storage(),
+                cpu_in.layout(),
+                1,
+                &mut cpu_out,
+                &axis_layout,
+            )
+            .expect("CPU F16 reduce dispatch");
+            let mut gpu_buf = $c.allocate_zeroed::<F16>(3);
+            ReductionOps::reduce(
+                &$c,
+                op,
+                gpu_in.storage(),
+                gpu_in.layout(),
+                1,
+                &mut gpu_buf,
+                &axis_layout,
+            )
+            .expect("WGPU F16 reduce dispatch");
+            let expected: Vec<F16> = expected.iter().map(|&v| F16::from_f32(v)).collect();
+            assert_eq!(
+                Tensor::<F16, SequentialBackend>::from_raw_parts(cpu_out, axis_layout.clone())
+                    .as_slice(),
+                expected.as_slice(),
+                "{op:?} CPU F16 reference",
+            );
+            assert_eq!(
+                Tensor::<F16, WgpuBackend>::from_raw_parts(gpu_buf, axis_layout.clone())
+                    .to_backend_on(&$c, &$s)
+                    .as_slice(),
+                expected.as_slice(),
+                "{op:?} WGPU F16 parity",
+            );
+        };
+        run_reduce(ReductionOp::Sum, &[4.0, 5.0, 6.0]);
+        run_reduce(ReductionOp::Max, &[1.0, 2.0, 2.0]);
+        run_reduce(ReductionOp::Min, &[1.0, 1.0, 1.0]);
+
+        // Product splits out of `reduce` (it needs `FloatElement`, which the
+        // shared entry point deliberately does not require).
+        {
+            let mut cpu_out = $s.allocate_zeroed::<F16>(3);
+            ReductionOps::reduce_prod(
+                &$s,
+                cpu_in.storage(),
+                cpu_in.layout(),
+                1,
+                &mut cpu_out,
+                &axis_layout,
+            )
+            .expect("CPU F16 prod dispatch");
+            let mut gpu_buf = $c.allocate_zeroed::<F16>(3);
+            ReductionOps::reduce_prod(
+                &$c,
+                gpu_in.storage(),
+                gpu_in.layout(),
+                1,
+                &mut gpu_buf,
+                &axis_layout,
+            )
+            .expect("WGPU F16 prod dispatch");
+            let expected: Vec<F16> = [1.0, 2.0, 4.0].iter().map(|&v| F16::from_f32(v)).collect();
+            assert_eq!(
+                Tensor::<F16, SequentialBackend>::from_raw_parts(cpu_out, axis_layout.clone())
+                    .as_slice(),
+                expected.as_slice(),
+                "Prod CPU F16 reference",
+            );
+            assert_eq!(
+                Tensor::<F16, WgpuBackend>::from_raw_parts(gpu_buf, axis_layout.clone())
+                    .to_backend_on(&$c, &$s)
+                    .as_slice(),
+                expected.as_slice(),
+                "Prod WGPU F16 parity",
+            );
+        }
+
+        let run_scan = |cumsum: bool, expected: &[f32]| {
+            let mut cpu_out = $s.allocate_zeroed::<F16>(12);
+            let mut gpu_buf = $c.allocate_zeroed::<F16>(12);
+            if cumsum {
+                ReductionOps::cumsum(
+                    &$s,
+                    cpu_in.storage(),
+                    cpu_in.layout(),
+                    1,
+                    &mut cpu_out,
+                    &in_layout,
+                )
+                .expect("CPU F16 cumsum dispatch");
+                ReductionOps::cumsum(
+                    &$c,
+                    gpu_in.storage(),
+                    gpu_in.layout(),
+                    1,
+                    &mut gpu_buf,
+                    &in_layout,
+                )
+                .expect("WGPU F16 cumsum dispatch");
+            } else {
+                ReductionOps::cumprod(
+                    &$s,
+                    cpu_in.storage(),
+                    cpu_in.layout(),
+                    1,
+                    &mut cpu_out,
+                    &in_layout,
+                )
+                .expect("CPU F16 cumprod dispatch");
+                ReductionOps::cumprod(
+                    &$c,
+                    gpu_in.storage(),
+                    gpu_in.layout(),
+                    1,
+                    &mut gpu_buf,
+                    &in_layout,
+                )
+                .expect("WGPU F16 cumprod dispatch");
+            }
+            let expected: Vec<F16> = expected.iter().map(|&v| F16::from_f32(v)).collect();
+            assert_eq!(
+                Tensor::<F16, SequentialBackend>::from_raw_parts(cpu_out, in_layout.clone())
+                    .as_slice(),
+                expected.as_slice(),
+                "scan CPU F16 reference",
+            );
+            assert_eq!(
+                Tensor::<F16, WgpuBackend>::from_raw_parts(gpu_buf, in_layout.clone())
+                    .to_backend_on(&$c, &$s)
+                    .as_slice(),
+                expected.as_slice(),
+                "scan WGPU F16 parity",
+            );
+        };
+        run_scan(
+            true,
+            &[1.0, 2.0, 3.0, 4.0, 1.0, 3.0, 4.0, 5.0, 2.0, 4.0, 5.0, 6.0],
+        );
+        run_scan(
+            false,
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0],
+        );
+    }};
+}
+
+#[test]
+fn test_wgpu_parity_f16_reduction_identities() {
+    if !crate::availability::device_supports_f16("coeus-wgpu-f16-reduction-test") {
+        return;
+    }
+    let s = seq();
+    let c = wgpu();
+    test_f16_reduction_identities!(s, c);
 }

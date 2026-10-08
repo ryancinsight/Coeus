@@ -23,10 +23,10 @@ thiserror    = { workspace = true }
 leto-ops     = { workspace = true }
 leto         = { workspace = true }
 themis       = { workspace = true }
+eunomia      = { workspace = true }
 
 [dev-dependencies]
 tracing = { workspace = true }
-eunomia = { workspace = true }
 coeus-autograd = { path = "../coeus-autograd", default-features = false }
 coeus-nn       = { path = "../coeus-nn", default-features = false }
 criterion      = "0.5"

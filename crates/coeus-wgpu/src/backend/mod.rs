@@ -62,6 +62,14 @@ impl WgpuScalar for u32 {
     const WGSL_HIGHEST: &'static str = "4294967295u";
 }
 
+impl WgpuScalar for eunomia::F16 {
+    const WGSL_TYPE: &'static str = "f16";
+    const WGSL_ZERO: &'static str = "0.0";
+    const WGSL_ONE: &'static str = "1.0";
+    const WGSL_LOWEST: &'static str = "-65504.0";
+    const WGSL_HIGHEST: &'static str = "65504.0";
+}
+
 /// Context holding the active wgpu connection.
 pub struct WgpuContext {
     pub hephaestus_device: hephaestus_wgpu::WgpuDevice,
@@ -96,9 +104,10 @@ pub fn try_get_wgpu_context() -> hephaestus_core::Result<&'static WgpuContext> {
             hephaestus_wgpu::WgpuDevice::try_with_device_preference_and_optional_device_features_and_limits(
             "coeus-wgpu-device",
             hephaestus_core::DevicePreference::HighPerformance,
-            // Optional: f64 shaders need SHADER_F64 at creation time, but
-            // adapters without it must still serve the f32 paths.
-            &[DeviceFeature::ShaderF64],
+            // Optional: f64/f16 shaders need SHADER_F64/SHADER_F16 at
+            // creation time, but adapters without them must still serve
+            // the f32 paths.
+            &[DeviceFeature::ShaderF64, DeviceFeature::ShaderF16],
             hephaestus_wgpu::WgpuDevice::default_device_limits(),
         )?,
     };
@@ -160,6 +169,22 @@ impl WgpuBackend {
                 context
                     .hephaestus_device
                     .supports_device_feature(DeviceFeature::ShaderF64)
+            })
+            .unwrap_or(false)
+    }
+
+    /// True when the process-global WGPU device serves f16 shaders.
+    ///
+    /// f16 dispatch needs `SHADER_F16`, requested optionally alongside
+    /// `SHADER_F64` at device creation. Consumers gate f16 work on this
+    /// probe instead of failing dispatch.
+    #[must_use]
+    pub fn supports_f16() -> bool {
+        try_get_wgpu_context()
+            .map(|context| {
+                context
+                    .hephaestus_device
+                    .supports_device_feature(DeviceFeature::ShaderF16)
             })
             .unwrap_or(false)
     }
