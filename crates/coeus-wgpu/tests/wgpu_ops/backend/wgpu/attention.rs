@@ -229,3 +229,250 @@ fn wgpu_attention_backward_matches_cpu() {
     assert_close("grad_k", actual_k.as_slice(), expected_k.as_slice());
     assert_close("grad_v", actual_v.as_slice(), expected_v.as_slice());
 }
+
+// ── f64 device parity ──────────────────────────────────────────────────
+//
+// Forward-only at the op level would leave the generalized backward kernels
+// unverified, so both directions run here. Autograd-tracked f64 attention
+// still waits on the six core `BackendOps` impls admitting f64 (all still
+// `WgpuScalar`-gated); these tests dispatch `AttentionOps<f64>` directly.
+//
+// Tolerance note: the kernels are exact (uniform-weight control matches to
+// 2.8e-17), but this adapter's native f64 `exp` delivers only ~5e-8 relative
+// accuracy — f32-grade, likely lowered through float by the driver. The 1e-6
+// bound proves the f64 path (types, scale packing, metadata, preflight) up
+// to driver transcendental quality. Same family as the f64 `pow` native
+// access violation: this stack's f64 transcendentals are driver-broken.
+
+fn assert_close_device_f64(label: &str, actual: &[f64], expected: &[f64], tol: f64) {
+    assert_eq!(actual.len(), expected.len(), "{label}: length mismatch");
+    for (index, (&got, &want)) in actual.iter().zip(expected).enumerate() {
+        let bound = tol * (1.0 + want.abs());
+        assert!(
+            (got - want).abs() <= bound,
+            "{label}[{index}]: got {got}, expected {want}, tol {bound}",
+        );
+    }
+}
+
+fn attention_inputs_f64() -> (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>) {
+    let query = (0..BATCH * SEQ_Q * D_K)
+        .map(|i| ((i as f64 + 1.0) * 0.125).sin())
+        .collect();
+    let key = (0..BATCH * SEQ_K * D_K)
+        .map(|i| ((i as f64 + 3.0) * 0.09375).cos())
+        .collect();
+    let value = (0..BATCH * SEQ_K * D_V)
+        .map(|i| (i as f64 % 7.0 - 3.0) * 0.25)
+        .collect();
+    let grad_out = (0..BATCH * SEQ_Q * D_V)
+        .map(|i| (i as f64 % 5.0 - 2.0) * 0.375)
+        .collect();
+
+    (query, key, value, grad_out)
+}
+
+fn run_device_forward_f64(is_causal: bool, label: &str) {
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let (query_data, key_data, value_data, _) = attention_inputs_f64();
+    let scale = 0.5f64;
+
+    let query_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data);
+    let key_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data);
+    let value_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data);
+
+    let query_gpu = query_cpu.to_backend_on(&seq, &wgpu);
+    let key_gpu = key_cpu.to_backend_on(&seq, &wgpu);
+    let value_gpu = value_cpu.to_backend_on(&seq, &wgpu);
+
+    let (expected_out, expected_weights) = scaled_dot_product_attention(
+        &query_cpu, &key_cpu, &value_cpu, None, is_causal, scale, &seq,
+    )
+    .expect("CPU f64 attention forward must succeed");
+    let (actual_out, actual_weights) = scaled_dot_product_attention(
+        &query_gpu, &key_gpu, &value_gpu, None, is_causal, scale, &wgpu,
+    )
+    .expect("WGPU f64 attention forward must succeed");
+
+    let actual_out = actual_out.to_backend_on(&wgpu, &seq);
+    let actual_weights = actual_weights.to_backend_on(&wgpu, &seq);
+
+    assert_eq!(actual_out.shape(), expected_out.shape());
+    assert_eq!(actual_weights.shape(), expected_weights.shape());
+    assert_close_device_f64(
+        &format!("{label}_out"),
+        actual_out.as_slice(),
+        expected_out.as_slice(),
+        1e-6,
+    );
+    assert_close_device_f64(
+        &format!("{label}_weights"),
+        actual_weights.as_slice(),
+        expected_weights.as_slice(),
+        1e-6,
+    );
+}
+
+#[test]
+fn wgpu_attention_forward_f64_unmasked_matches_cpu_on_device() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-attention-f64-unmasked") {
+        return;
+    }
+    run_device_forward_f64(false, "attn_fwd_f64_unmasked");
+}
+
+#[test]
+fn wgpu_attention_forward_f64_causal_matches_cpu_on_device() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-attention-f64-causal") {
+        return;
+    }
+    run_device_forward_f64(true, "attn_fwd_f64_causal");
+}
+
+#[test]
+fn wgpu_attention_forward_f64_matches_cpu_with_mask_and_causal() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-attention-f64-masked") {
+        return;
+    }
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let (query_data, key_data, value_data, _) = attention_inputs_f64();
+    let mask_data = vec![1.0f64, 1.0, 0.0, 1.0];
+    let scale = 0.5f64;
+
+    let query_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data);
+    let key_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data);
+    let value_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data);
+    let mask_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_K], &mask_data);
+
+    let query_gpu = query_cpu.to_backend_on(&seq, &wgpu);
+    let key_gpu = key_cpu.to_backend_on(&seq, &wgpu);
+    let value_gpu = value_cpu.to_backend_on(&seq, &wgpu);
+    let mask_gpu = mask_cpu.to_backend_on(&seq, &wgpu);
+
+    let (expected_out, expected_weights) = scaled_dot_product_attention(
+        &query_cpu,
+        &key_cpu,
+        &value_cpu,
+        Some(&mask_cpu),
+        true,
+        scale,
+        &seq,
+    )
+    .expect("CPU f64 masked attention forward must succeed");
+    let (actual_out, actual_weights) = scaled_dot_product_attention(
+        &query_gpu,
+        &key_gpu,
+        &value_gpu,
+        Some(&mask_gpu),
+        true,
+        scale,
+        &wgpu,
+    )
+    .expect("WGPU f64 masked attention forward must succeed");
+
+    let actual_out = actual_out.to_backend_on(&wgpu, &seq);
+    let actual_weights = actual_weights.to_backend_on(&wgpu, &seq);
+
+    assert_eq!(actual_out.shape(), expected_out.shape());
+    assert_eq!(actual_weights.shape(), expected_weights.shape());
+    assert_close_device_f64(
+        "attention f64 output",
+        actual_out.as_slice(),
+        expected_out.as_slice(),
+        1e-6,
+    );
+    assert_close_device_f64(
+        "attention f64 weights",
+        actual_weights.as_slice(),
+        expected_weights.as_slice(),
+        1e-6,
+    );
+}
+
+#[test]
+fn wgpu_attention_backward_f64_matches_cpu() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-attention-f64-backward") {
+        return;
+    }
+    let seq = SequentialBackend::new();
+    let wgpu = WgpuBackend::new();
+    let (query_data, key_data, value_data, grad_out_data) = attention_inputs_f64();
+    let scale = 0.25f64;
+
+    let query_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data);
+    let key_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data);
+    let value_cpu = Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data);
+    let grad_out_cpu =
+        Tensor::<f64, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_V], &grad_out_data);
+
+    let query_gpu = query_cpu.to_backend_on(&seq, &wgpu);
+    let key_gpu = key_cpu.to_backend_on(&seq, &wgpu);
+    let value_gpu = value_cpu.to_backend_on(&seq, &wgpu);
+    let grad_out_gpu = grad_out_cpu.to_backend_on(&seq, &wgpu);
+
+    let (_, weights_cpu) =
+        scaled_dot_product_attention(&query_cpu, &key_cpu, &value_cpu, None, false, scale, &seq)
+            .expect("CPU f64 attention forward must succeed");
+    let (_, weights_gpu) =
+        scaled_dot_product_attention(&query_gpu, &key_gpu, &value_gpu, None, false, scale, &wgpu)
+            .expect("WGPU f64 attention forward must succeed");
+
+    let mut expected_q = Tensor::<f64, SequentialBackend>::zeros_on([BATCH, SEQ_Q, D_K], &seq);
+    let mut expected_k = Tensor::<f64, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_K], &seq);
+    let mut expected_v = Tensor::<f64, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_V], &seq);
+    scaled_dot_product_attention_backward(
+        &grad_out_cpu,
+        &query_cpu,
+        &key_cpu,
+        &value_cpu,
+        &weights_cpu,
+        scale,
+        Some(&mut expected_q),
+        Some(&mut expected_k),
+        Some(&mut expected_v),
+        &seq,
+    )
+    .expect("CPU f64 attention backward must succeed");
+
+    let mut actual_q = Tensor::<f64, WgpuBackend>::zeros_on([BATCH, SEQ_Q, D_K], &wgpu);
+    let mut actual_k = Tensor::<f64, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_K], &wgpu);
+    let mut actual_v = Tensor::<f64, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_V], &wgpu);
+    scaled_dot_product_attention_backward(
+        &grad_out_gpu,
+        &query_gpu,
+        &key_gpu,
+        &value_gpu,
+        &weights_gpu,
+        scale,
+        Some(&mut actual_q),
+        Some(&mut actual_k),
+        Some(&mut actual_v),
+        &wgpu,
+    )
+    .expect("WGPU f64 attention backward must succeed");
+
+    let actual_q = actual_q.to_backend_on(&wgpu, &seq);
+    let actual_k = actual_k.to_backend_on(&wgpu, &seq);
+    let actual_v = actual_v.to_backend_on(&wgpu, &seq);
+
+    assert_close_device_f64(
+        "grad_q_f64",
+        actual_q.as_slice(),
+        expected_q.as_slice(),
+        1e-6,
+    );
+    assert_close_device_f64(
+        "grad_k_f64",
+        actual_k.as_slice(),
+        expected_k.as_slice(),
+        1e-6,
+    );
+    assert_close_device_f64(
+        "grad_v_f64",
+        actual_v.as_slice(),
+        expected_v.as_slice(),
+        1e-6,
+    );
+}

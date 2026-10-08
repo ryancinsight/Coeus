@@ -24,12 +24,30 @@ impl AttentionProvider<f32> for WgpuBackend {
     type Operations = WgpuAttentionOps;
 }
 
+impl AttentionProvider<f64> for WgpuBackend {
+    type Operations = WgpuAttentionOps;
+}
+
 impl AttentionBackend<f32> for WgpuBackend {
     type Provider = Self;
 
     fn attention_buffer(
         storage: &Self::DeviceBuffer<f32>,
     ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
+        storage.buffer()
+    }
+
+    fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
+        WgpuBackendError::dispatch(operation, source)
+    }
+}
+
+impl AttentionBackend<f64> for WgpuBackend {
+    type Provider = Self;
+
+    fn attention_buffer(
+        storage: &Self::DeviceBuffer<f64>,
+    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f64> {
         storage.buffer()
     }
 
@@ -90,6 +108,78 @@ impl coeus_ops::AttentionOps<f32> for WgpuBackend {
         grad_q: Option<(&mut Self::DeviceBuffer<f32>, &Layout)>,
         grad_k: Option<(&mut Self::DeviceBuffer<f32>, &Layout)>,
         grad_v: Option<(&mut Self::DeviceBuffer<f32>, &Layout)>,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_attention_backward(
+            grad_out,
+            grad_out_layout,
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            attn_weights,
+            attn_weights_layout,
+            scale,
+            grad_q,
+            grad_k,
+            grad_v,
+        )
+    }
+}
+
+impl coeus_ops::AttentionOps<f64> for WgpuBackend {
+    fn sdp_attention(
+        &self,
+        query: &Self::DeviceBuffer<f64>,
+        query_layout: &Layout,
+        key: &Self::DeviceBuffer<f64>,
+        key_layout: &Layout,
+        value: &Self::DeviceBuffer<f64>,
+        value_layout: &Layout,
+        key_padding_mask: Option<&Self::DeviceBuffer<f64>>,
+        key_padding_mask_layout: Option<&Layout>,
+        is_causal: bool,
+        scale: f64,
+        output: &mut Self::DeviceBuffer<f64>,
+        output_layout: &Layout,
+        attn_weights: &mut Self::DeviceBuffer<f64>,
+        attn_weights_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_attention_forward(
+            query,
+            query_layout,
+            key,
+            key_layout,
+            value,
+            value_layout,
+            key_padding_mask,
+            key_padding_mask_layout,
+            is_causal,
+            scale,
+            output,
+            output_layout,
+            attn_weights,
+            attn_weights_layout,
+        )
+    }
+
+    fn sdp_attention_backward(
+        &self,
+        grad_out: &Self::DeviceBuffer<f64>,
+        grad_out_layout: &Layout,
+        query: &Self::DeviceBuffer<f64>,
+        query_layout: &Layout,
+        key: &Self::DeviceBuffer<f64>,
+        key_layout: &Layout,
+        value: &Self::DeviceBuffer<f64>,
+        value_layout: &Layout,
+        attn_weights: &Self::DeviceBuffer<f64>,
+        attn_weights_layout: &Layout,
+        scale: f64,
+        grad_q: Option<(&mut Self::DeviceBuffer<f64>, &Layout)>,
+        grad_k: Option<(&mut Self::DeviceBuffer<f64>, &Layout)>,
+        grad_v: Option<(&mut Self::DeviceBuffer<f64>, &Layout)>,
     ) -> Result<(), Self::Error> {
         self.dispatch_attention_backward(
             grad_out,
