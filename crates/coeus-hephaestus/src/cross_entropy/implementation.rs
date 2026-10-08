@@ -1,4 +1,4 @@
-use super::{CrossEntropyBackend, CrossEntropyProvider};
+use super::{CrossEntropyBackend, CrossEntropyBackendF64, CrossEntropyProvider};
 use crate::HephaestusBackend;
 use coeus_core::{BackendError, ComputeBackend, Layout};
 
@@ -71,6 +71,63 @@ where
         logit_gradient_layout: &Layout,
     ) -> Result<(), Self::Error> {
         self.dispatch_cross_entropy_backward(
+            output_gradient,
+            output_gradient_layout,
+            probabilities,
+            probabilities_layout,
+            targets,
+            logit_gradient,
+            logit_gradient_layout,
+        )
+    }
+}
+
+impl<P> coeus_ops::CrossEntropyOps<f64> for HephaestusBackend<P>
+where
+    P: CrossEntropyProvider,
+    P::Operations: hephaestus_core::CrossEntropyOps<P::Device, f64>,
+{
+    type Targets = Self::DeviceBuffer<u32>;
+
+    fn prepare_cross_entropy_targets(
+        &self,
+        targets: &[usize],
+    ) -> Result<Self::Targets, Self::Error> {
+        prepare_targets(self, targets)
+    }
+
+    fn cross_entropy_forward(
+        &self,
+        logits: &Self::DeviceBuffer<f64>,
+        logits_layout: &Layout,
+        targets: &Self::Targets,
+        loss: &mut Self::DeviceBuffer<f64>,
+        loss_layout: &Layout,
+        probabilities: &mut Self::DeviceBuffer<f64>,
+        probabilities_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_cross_entropy_forward_f64(
+            logits,
+            logits_layout,
+            targets,
+            loss,
+            loss_layout,
+            probabilities,
+            probabilities_layout,
+        )
+    }
+
+    fn cross_entropy_backward_accumulate(
+        &self,
+        output_gradient: &Self::DeviceBuffer<f64>,
+        output_gradient_layout: &Layout,
+        probabilities: &Self::DeviceBuffer<f64>,
+        probabilities_layout: &Layout,
+        targets: &Self::Targets,
+        logit_gradient: &mut Self::DeviceBuffer<f64>,
+        logit_gradient_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_cross_entropy_backward_f64(
             output_gradient,
             output_gradient_layout,
             probabilities,

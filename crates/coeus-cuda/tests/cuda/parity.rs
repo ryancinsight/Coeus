@@ -40,20 +40,45 @@ pub(super) fn backends() -> Option<(SequentialBackend, CudaBackend)> {
     Some((SequentialBackend::new(), cuda_b))
 }
 
-pub(super) fn to_gpu(
-    t: &Tensor<f32, SequentialBackend>,
+pub(super) fn to_gpu<T: coeus_core::Scalar>(
+    t: &Tensor<T, SequentialBackend>,
     s: &SequentialBackend,
     c: &CudaBackend,
-) -> Tensor<f32, CudaBackend> {
+) -> Tensor<T, CudaBackend> {
     t.to_backend_on(s, c)
 }
 
-pub(super) fn to_cpu(
-    t: &Tensor<f32, CudaBackend>,
+pub(super) fn to_cpu<T: coeus_core::Scalar>(
+    t: &Tensor<T, CudaBackend>,
     c: &CudaBackend,
     s: &SequentialBackend,
-) -> Tensor<f32, SequentialBackend> {
+) -> Tensor<T, SequentialBackend> {
     t.to_backend_on(c, s)
+}
+
+/// Element-wise tolerance for f64 parity (absolute; values are O(1)).
+pub(super) const CUDA_TOL_F64: f64 = 1e-12;
+
+pub(super) fn assert_parity_tol_f64(label: &str, cpu: &[f64], gpu: &[f64], tol: f64) {
+    assert_eq!(cpu.len(), gpu.len(), "{label}: length mismatch");
+    for (i, (&c, &g)) in cpu.iter().zip(gpu.iter()).enumerate() {
+        if c.is_nan() {
+            assert!(g.is_nan(), "{label}[{i}]: expected NaN, got {g}");
+            continue;
+        }
+        if c.is_infinite() {
+            assert!(
+                g.is_infinite() && g.is_sign_positive() == c.is_sign_positive(),
+                "{label}[{i}]: cpu={c} gpu={g}"
+            );
+            continue;
+        }
+        let diff = (c - g).abs();
+        assert!(
+            diff < tol,
+            "{label}[{i}]: cpu={c:.12} gpu={g:.12} diff={diff:.2e} tol={tol:.0e}"
+        );
+    }
 }
 
 pub(super) fn assert_parity_tol(label: &str, cpu: &[f32], gpu: &[f32], tol: f32) {

@@ -33,7 +33,7 @@ pub use convolution::{
 };
 pub use cross_entropy::{
     prepare_candidate, prepare_targets as prepare_cross_entropy_targets, CrossEntropyBackend,
-    CrossEntropyProvider,
+    CrossEntropyBackendF64, CrossEntropyProvider,
 };
 pub use cross_product::{cross_product, CrossProductProvider};
 pub use elementwise::{

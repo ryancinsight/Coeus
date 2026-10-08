@@ -1,6 +1,9 @@
 use crate::backend::{WgpuBackend, WgpuBackendError};
-use coeus_core::Layout;
-use coeus_hephaestus::{prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider};
+use coeus_core::{Layout, Scalar};
+use coeus_hephaestus::{
+    prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyBackendF64,
+    CrossEntropyProvider,
+};
 use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use hephaestus_wgpu::{WgpuCrossEntropyOps, WgpuDevice};
 use themis::PlacementHint;
@@ -12,17 +15,17 @@ impl CrossEntropyProvider for WgpuBackend {
 impl CrossEntropyBackend for WgpuBackend {
     type Provider = Self;
 
-    fn cross_entropy_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
+    fn cross_entropy_buffer<T: Scalar>(
+        storage: &Self::DeviceBuffer<T>,
+    ) -> &<WgpuDevice as ComputeDevice>::Buffer<T> {
         storage.buffer()
     }
 
-    fn cross_entropy_candidate(
-        storage: &Self::DeviceBuffer<f32>,
+    fn cross_entropy_candidate<T: Scalar>(
+        storage: &Self::DeviceBuffer<T>,
         preserve_contents: bool,
         operation: &'static str,
-    ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
+    ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         let device = &crate::backend::get_wgpu_context().hephaestus_device;
         let candidate = device
             .alloc_uninitialized_with_hint(
@@ -38,9 +41,9 @@ impl CrossEntropyBackend for WgpuBackend {
         Ok(coeus_hephaestus::HephaestusStorage::from_buffer(candidate))
     }
 
-    fn install_cross_entropy_candidate(
-        storage: &mut Self::DeviceBuffer<f32>,
-        candidate: Self::DeviceBuffer<f32>,
+    fn install_cross_entropy_candidate<T: Scalar>(
+        storage: &mut Self::DeviceBuffer<T>,
+        candidate: Self::DeviceBuffer<T>,
     ) {
         *storage = candidate;
     }
@@ -58,6 +61,8 @@ impl CrossEntropyBackend for WgpuBackend {
         WgpuBackendError::dispatch(operation, source)
     }
 }
+
+impl CrossEntropyBackendF64 for WgpuBackend {}
 
 impl coeus_ops::CrossEntropyOps<f32> for WgpuBackend {
     type Targets = Self::DeviceBuffer<u32>;
@@ -101,6 +106,59 @@ impl coeus_ops::CrossEntropyOps<f32> for WgpuBackend {
         logit_gradient_layout: &Layout,
     ) -> Result<(), Self::Error> {
         self.dispatch_cross_entropy_backward(
+            output_gradient,
+            output_gradient_layout,
+            probabilities,
+            probabilities_layout,
+            targets,
+            logit_gradient,
+            logit_gradient_layout,
+        )
+    }
+}
+
+impl coeus_ops::CrossEntropyOps<f64> for WgpuBackend {
+    type Targets = Self::DeviceBuffer<u32>;
+
+    fn prepare_cross_entropy_targets(
+        &self,
+        targets: &[usize],
+    ) -> Result<Self::Targets, Self::Error> {
+        prepare_cross_entropy_targets(self, targets)
+    }
+
+    fn cross_entropy_forward(
+        &self,
+        logits: &Self::DeviceBuffer<f64>,
+        logits_layout: &Layout,
+        targets: &Self::Targets,
+        loss: &mut Self::DeviceBuffer<f64>,
+        loss_layout: &Layout,
+        probabilities: &mut Self::DeviceBuffer<f64>,
+        probabilities_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_cross_entropy_forward_f64(
+            logits,
+            logits_layout,
+            targets,
+            loss,
+            loss_layout,
+            probabilities,
+            probabilities_layout,
+        )
+    }
+
+    fn cross_entropy_backward_accumulate(
+        &self,
+        output_gradient: &Self::DeviceBuffer<f64>,
+        output_gradient_layout: &Layout,
+        probabilities: &Self::DeviceBuffer<f64>,
+        probabilities_layout: &Layout,
+        targets: &Self::Targets,
+        logit_gradient: &mut Self::DeviceBuffer<f64>,
+        logit_gradient_layout: &Layout,
+    ) -> Result<(), Self::Error> {
+        self.dispatch_cross_entropy_backward_f64(
             output_gradient,
             output_gradient_layout,
             probabilities,

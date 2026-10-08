@@ -1,4 +1,4 @@
-use super::{assert_parity, seq, to_cpu, to_gpu};
+use super::{assert_parity, assert_parity_tol, seq, to_cpu, to_gpu};
 use coeus_autograd::Var;
 use coeus_core::{BackendError, ComputeBackend, Layout};
 use coeus_ops::CrossEntropyOps;
@@ -65,8 +65,7 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
     let scalar_layout = Layout::new([1].into());
     let mut loss = backend.allocate::<f32>(1);
     let mut probabilities = backend.allocate::<f32>(12);
-    let targets = backend
-        .prepare_cross_entropy_targets(&targets)
+    let targets = <_ as CrossEntropyOps<f32>>::prepare_cross_entropy_targets(&backend, &targets)
         .expect("WGPU target preparation must succeed");
 
     let malformed_layout = Layout::new([12].into());
@@ -86,9 +85,9 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         WgpuBackendError::Validation(BackendError::LayoutRankMismatch { lhs: 1, rhs: 2, .. })
     ));
 
-    let short_targets = backend
-        .prepare_cross_entropy_targets(&[0, 1])
-        .expect("WGPU short target preparation must succeed");
+    let short_targets =
+        <_ as CrossEntropyOps<f32>>::prepare_cross_entropy_targets(&backend, &[0, 1])
+            .expect("WGPU short target preparation must succeed");
     let error = backend
         .cross_entropy_forward(
             wgpu_logits.tensor.storage(),
@@ -155,5 +154,53 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         "cross-entropy additive candidate gradient",
         &expected_accumulated,
         &accumulated_gradient,
+    );
+}
+
+#[test]
+fn cross_entropy_dispatches_with_wgpu_f64_backward_parity() {
+    // Backward-only: the f64 forward shaders need `log`, which aborts shader
+    // compilation on some Vulkan drivers. The backward path is pure
+    // IEEE-double arithmetic and executes everywhere ShaderF64 does.
+    if !crate::availability::device_supports_f64("coeus-wgpu-cross-entropy-f64-test") {
+        return;
+    }
+
+    let backend = super::wgpu();
+    let matrix_layout = Layout::new([1, 2].into());
+    let scalar_layout = Layout::new([1].into());
+    let targets = <_ as CrossEntropyOps<f64>>::prepare_cross_entropy_targets(&backend, &[0])
+        .expect("WGPU f64 target preparation must succeed");
+
+    let mut upstream = backend.allocate::<f64>(1);
+    backend.copy_to_device(&[2.0_f64], &mut upstream);
+    let mut probabilities = backend.allocate::<f64>(2);
+    backend.copy_to_device(&[0.5_f64, 0.5], &mut probabilities);
+    let mut logit_gradient = backend.allocate::<f64>(2);
+    backend.copy_to_device(&[0.0_f64, 0.0], &mut logit_gradient);
+    let gradient_parent = logit_gradient.clone();
+    backend
+        .cross_entropy_backward_accumulate(
+            &upstream,
+            &scalar_layout,
+            &probabilities,
+            &matrix_layout,
+            &targets,
+            &mut logit_gradient,
+            &matrix_layout,
+        )
+        .expect("direct WGPU f64 backward must succeed");
+
+    let mut parent_gradient = [f64::NAN; 2];
+    let mut accumulated_gradient = [f64::NAN; 2];
+    backend.copy_to_host(&gradient_parent, &mut parent_gradient);
+    backend.copy_to_host(&logit_gradient, &mut accumulated_gradient);
+    assert_eq!(parent_gradient, [0.0; 2]);
+    // upstream * (probability - indicator) / batch = 2 * ([0.5, 0.5] - [1, 0]).
+    assert_parity_tol(
+        "f64 cross-entropy backward gradient",
+        &[-1.0_f64, 1.0],
+        &accumulated_gradient,
+        1e-12,
     );
 }

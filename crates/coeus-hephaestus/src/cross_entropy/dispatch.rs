@@ -1,9 +1,14 @@
 use super::{CrossEntropyBackend, CrossEntropyProvider};
 use crate::layout::ranked;
-use coeus_core::Layout;
+use coeus_core::{Layout, Scalar};
 use hephaestus_core::{
-    CrossEntropyBackwardOperands, CrossEntropyForwardOperands, CrossEntropyOps, StridedView,
+    CrossEntropyBackwardOperands, CrossEntropyForwardOperands, CrossEntropyOps, CrossEntropyScalar,
+    StridedView,
 };
+
+type Provider<B> = <B as CrossEntropyBackend>::Provider;
+type Device<B> = <Provider<B> as crate::HephaestusProvider>::Device;
+type Operations<B> = <Provider<B> as CrossEntropyProvider>::Operations;
 
 fn exactly_ranked<const N: usize>(
     operation: &'static str,
@@ -24,16 +29,19 @@ fn exactly_ranked<const N: usize>(
     clippy::too_many_arguments,
     reason = "the function assembles the complete provider forward request"
 )]
-pub(super) fn forward<B: CrossEntropyBackend>(
+pub(super) fn forward<B: CrossEntropyBackend, T: Scalar + CrossEntropyScalar>(
     _backend: &B,
-    logits: &B::DeviceBuffer<f32>,
+    logits: &B::DeviceBuffer<T>,
     logits_layout: &Layout,
     targets: &B::DeviceBuffer<u32>,
-    loss: &mut B::DeviceBuffer<f32>,
+    loss: &mut B::DeviceBuffer<T>,
     loss_layout: &Layout,
-    probabilities: &mut B::DeviceBuffer<f32>,
+    probabilities: &mut B::DeviceBuffer<T>,
     probabilities_layout: &Layout,
-) -> Result<(), B::Error> {
+) -> Result<(), B::Error>
+where
+    Operations<B>: CrossEntropyOps<Device<B>, T>,
+{
     let logits_layout = exactly_ranked::<2>("cross_entropy_forward_logits", logits_layout)?;
     let batch = logits_layout.shape()[0];
     let target_count = coeus_core::Storage::len(targets);
@@ -77,16 +85,19 @@ pub(super) fn forward<B: CrossEntropyBackend>(
     clippy::too_many_arguments,
     reason = "the function assembles the complete provider backward request"
 )]
-pub(super) fn backward<B: CrossEntropyBackend>(
+pub(super) fn backward<B: CrossEntropyBackend, T: Scalar + CrossEntropyScalar>(
     _backend: &B,
-    output_gradient: &B::DeviceBuffer<f32>,
+    output_gradient: &B::DeviceBuffer<T>,
     output_gradient_layout: &Layout,
-    probabilities: &B::DeviceBuffer<f32>,
+    probabilities: &B::DeviceBuffer<T>,
     probabilities_layout: &Layout,
     targets: &B::DeviceBuffer<u32>,
-    logit_gradient: &mut B::DeviceBuffer<f32>,
+    logit_gradient: &mut B::DeviceBuffer<T>,
     logit_gradient_layout: &Layout,
-) -> Result<(), B::Error> {
+) -> Result<(), B::Error>
+where
+    Operations<B>: CrossEntropyOps<Device<B>, T>,
+{
     let output_gradient_layout = exactly_ranked::<1>(
         "cross_entropy_backward_output_gradient",
         output_gradient_layout,
