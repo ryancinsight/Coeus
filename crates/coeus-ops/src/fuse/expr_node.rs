@@ -123,10 +123,18 @@ impl<T: Scalar, B: ComputeBackend> ExprNode<T, B> for ScalarVal<T> {
     fn to_shader_expr(&self, _input_map: &HashMap<*const Tensor<T, B>, usize>) -> String {
         let val = self.0.to_f64();
         if val.is_infinite() {
-            if val.is_sign_positive() {
-                "3.40282347e+38".to_string()
+            // WGSL has no infinity literal, so infinite scalars saturate to
+            // the finite maximum of the fused scalar width. Integers never
+            // reach this branch (`to_f64` of an int is finite).
+            let max = if core::any::TypeId::of::<T>() == core::any::TypeId::of::<f64>() {
+                "1.7976931348623157e+308"
             } else {
-                "-3.40282347e+38".to_string()
+                "3.40282347e+38"
+            };
+            if val.is_sign_positive() {
+                max.to_string()
+            } else {
+                format!("-{max}")
             }
         } else if val.is_nan() {
             "0.0".to_string()
@@ -335,4 +343,46 @@ impl<T: Scalar, B: ComputeBackend> TensorExprExt<T, B> for Tensor<T, B> {
 #[inline(always)]
 pub fn scalar<T: Scalar, B: ComputeBackend>(val: T) -> Expr<ScalarVal<T>> {
     Expr(ScalarVal(val))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_map<T: Scalar, B: ComputeBackend>() -> HashMap<*const Tensor<T, B>, usize> {
+        HashMap::new()
+    }
+
+    #[test]
+    fn scalar_infinity_saturates_to_the_scalar_width() {
+        let map_f32 = empty_map::<f32, coeus_core::SequentialBackend>();
+        assert_eq!(
+            ScalarVal(f32::INFINITY).to_shader_expr(&map_f32),
+            "3.40282347e+38"
+        );
+        assert_eq!(
+            ScalarVal(f32::NEG_INFINITY).to_shader_expr(&map_f32),
+            "-3.40282347e+38"
+        );
+        let map_f64 = empty_map::<f64, coeus_core::SequentialBackend>();
+        assert_eq!(
+            ScalarVal(f64::INFINITY).to_shader_expr(&map_f64),
+            "1.7976931348623157e+308"
+        );
+        assert_eq!(
+            ScalarVal(f64::NEG_INFINITY).to_shader_expr(&map_f64),
+            "-1.7976931348623157e+308"
+        );
+    }
+
+    #[test]
+    fn scalar_finite_values_emit_full_precision() {
+        let map = empty_map::<f64, coeus_core::SequentialBackend>();
+        assert_eq!(ScalarVal(0.5f64).to_shader_expr(&map), "0.5");
+        assert_eq!(ScalarVal(2.0f64).to_shader_expr(&map), "2.0");
+        assert_eq!(
+            ScalarVal(0.1f64).to_shader_expr(&map),
+            format!("{:?}", 0.1f64)
+        );
+    }
 }

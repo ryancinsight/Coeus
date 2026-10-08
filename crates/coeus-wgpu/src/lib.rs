@@ -13,8 +13,10 @@
 //! Backend operations delegate to provider-owned Hephaestus kernels. Coeus
 //! supplies tensor layouts and operation contracts; Hephaestus owns WGSL
 //! source generation, metadata, pipeline caching, and command submission.
-//! The element type is resolved through [`WgpuScalar`] (`f32`/`i32`/`u32`);
-//! float-only operations such as attention remain constrained to `f32`.
+//! The element type is resolved through [`WgpuScalar`]
+//! (`f32`/`f64`/`i32`/`u32`/`F16`); `f64`/`F16` dispatch additionally needs the
+//! device to serve `SHADER_F64`/`SHADER_F16` (see
+//! [`WgpuBackend::supports_f64`]).
 //!
 //! Attention masks remain provider buffers with explicit borrowed layouts.
 //! Mutable outputs retain their owners through shared copy-on-write dispatch.

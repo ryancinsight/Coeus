@@ -355,6 +355,158 @@ fn test_wgpu_fusion_gelu() {
 }
 
 #[test]
+fn test_wgpu_fusion_parity_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-fusion-f64") {
+        return;
+    }
+    let seq = SequentialBackend::new();
+    let wgpu_b = WgpuBackend::new();
+
+    let shape = vec![2, 3];
+    let a_data = vec![1.0f64, -2.0, 3.0, -4.0, 5.0, -6.0];
+    let b_data = vec![10.0f64, 20.0, 30.0, 40.0, 50.0, 60.0];
+    let c_data = vec![-5.0f64, 5.0, -10.0, 10.0, -15.0, 15.0];
+
+    let a_cpu = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &a_data);
+    let b_cpu = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &b_data);
+    let c_cpu = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &c_data);
+
+    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+    let b_gpu = b_cpu.to_backend_on(&seq, &wgpu_b);
+    let c_gpu = c_cpu.to_backend_on(&seq, &wgpu_b);
+
+    // Arithmetic plus relu only: exact on both sides, no transcendental
+    // tolerance and no driver-limited builtins (tanh/log crash this driver).
+    let expr = (a_gpu.expr() * b_gpu.expr() + c_gpu.expr()).relu();
+    let out_gpu = evaluate_fused(&expr).expect("WGPU fused f64 expression should dispatch");
+    let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
+
+    let expr_cpu = (a_cpu.expr() * b_cpu.expr() + c_cpu.expr()).relu();
+    let expected_cpu =
+        evaluate_fused_cpu(&expr_cpu, &seq).expect("CPU fused expression should evaluate");
+
+    assert_eq!(out_cpu.as_slice(), expected_cpu.as_slice());
+}
+
+#[test]
+fn test_wgpu_fusion_exp_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-fusion-f64") {
+        return;
+    }
+    let seq = SequentialBackend::new();
+    let wgpu_b = WgpuBackend::new();
+
+    let shape = vec![6];
+    let data = vec![-1.0f64, -0.5, 0.0, 0.5, 1.0, 1.5];
+
+    let a_cpu = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &data);
+    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+
+    let expr_gpu = a_gpu.expr().exp();
+    let out_gpu = evaluate_fused(&expr_gpu).expect("WGPU fused f64 exp should dispatch");
+    let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
+
+    let expr_cpu = a_cpu.expr().exp();
+    let expected =
+        evaluate_fused_cpu(&expr_cpu, &seq).expect("CPU fused expression should evaluate");
+
+    // Tolerance mirrors the unfused exp_f64 parity test: this driver's f64
+    // exp is f32-grade (bare-wgpu probe returns exactly f32(e) for e^1),
+    // so the fused kernel inherits the same ~5e-8 ceiling.
+    for (i, (&actual, &expected)) in out_cpu
+        .as_slice()
+        .iter()
+        .zip(expected.as_slice())
+        .enumerate()
+    {
+        let diff = (actual - expected).abs();
+        assert!(
+            diff < 1e-6 * (1.0 + expected.abs()),
+            "Mismatch at index {i}: {actual} vs {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_wgpu_evaluate_fused_reduce_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-fusion-f64") {
+        return;
+    }
+    let seq = SequentialBackend::new();
+    let wgpu_b = WgpuBackend::new();
+
+    let shape = vec![2, 3];
+    let a_data = vec![1.0f64, -2.0, 3.0, -4.0, 5.0, -6.0];
+
+    let a_cpu = Tensor::<f64, SequentialBackend>::from_slice(shape.clone(), &a_data);
+    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+
+    // Fused expression: (a * 2.0).relu()
+    let expr_gpu = (a_gpu.expr() * 2.0).relu();
+    let expr_cpu = (a_cpu.expr() * 2.0).relu();
+    let evaluated_cpu =
+        evaluate_fused_cpu(&expr_cpu, &seq).expect("CPU fused expression should evaluate");
+
+    let out_sum_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Sum, 1)
+        .expect("fused WGPU f64 sum reduction should dispatch");
+    let out_sum_cpu = out_sum_gpu.to_backend_on(&wgpu_b, &seq);
+    let expected_sum =
+        coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Sum, 1, &seq)
+            .expect("CPU fused sum should evaluate");
+    assert_eq!(out_sum_cpu.as_slice(), expected_sum.as_slice());
+
+    let out_mean_gpu =
+        coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Mean, 1)
+            .expect("fused WGPU f64 mean reduction should dispatch");
+    let out_mean_cpu = out_mean_gpu.to_backend_on(&wgpu_b, &seq);
+    let expected_mean = coeus_ops::fuse::evaluate_fused_reduce_cpu(
+        &expr_cpu,
+        coeus_ops::ReductionOp::Mean,
+        1,
+        &seq,
+    )
+    .expect("CPU fused mean should evaluate");
+
+    let axis_len = shape[1] as f64;
+    let eps = f64::EPSILON;
+    let gamma = (axis_len * eps) / (1.0 - axis_len * eps);
+    for (index, (&actual, &expected)) in out_mean_cpu
+        .as_slice()
+        .iter()
+        .zip(expected_mean.as_slice())
+        .enumerate()
+    {
+        let row_start = index * shape[1];
+        let row_magnitude: f64 = evaluated_cpu.as_slice()[row_start..row_start + shape[1]]
+            .iter()
+            .map(|value| value.abs())
+            .sum();
+        let tolerance = (gamma * row_magnitude / axis_len) + eps * expected.abs().max(1.0);
+        let diff = (actual - expected).abs();
+        assert!(
+            diff <= tolerance,
+            "mean mismatch at index {index}: got {actual}, expected {expected}, diff {diff}, tolerance {tolerance}",
+        );
+    }
+
+    let out_max_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Max, 1)
+        .expect("fused WGPU f64 max reduction should dispatch");
+    let out_max_cpu = out_max_gpu.to_backend_on(&wgpu_b, &seq);
+    let expected_max =
+        coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Max, 1, &seq)
+            .expect("CPU fused maximum should evaluate");
+    assert_eq!(out_max_cpu.as_slice(), expected_max.as_slice());
+
+    let out_min_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Min, 1)
+        .expect("fused WGPU f64 min reduction should dispatch");
+    let out_min_cpu = out_min_gpu.to_backend_on(&wgpu_b, &seq);
+    let expected_min =
+        coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Min, 1, &seq)
+            .expect("CPU fused minimum should evaluate");
+    assert_eq!(out_min_cpu.as_slice(), expected_min.as_slice());
+}
+
+#[test]
 fn test_wgpu_fusion_gelu_grad() {
     let seq = SequentialBackend::new();
     let wgpu_b = WgpuBackend::new();

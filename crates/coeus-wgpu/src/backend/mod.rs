@@ -70,6 +70,14 @@ impl WgpuScalar for eunomia::F16 {
     const WGSL_HIGHEST: &'static str = "65504.0";
 }
 
+impl WgpuScalar for f64 {
+    const WGSL_TYPE: &'static str = "f64";
+    const WGSL_ZERO: &'static str = "0.0";
+    const WGSL_ONE: &'static str = "1.0";
+    const WGSL_LOWEST: &'static str = "-1.7976931348623157e+308";
+    const WGSL_HIGHEST: &'static str = "1.7976931348623157e+308";
+}
+
 /// Context holding the active wgpu connection.
 pub struct WgpuContext {
     pub hephaestus_device: hephaestus_wgpu::WgpuDevice,
