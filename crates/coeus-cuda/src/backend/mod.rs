@@ -1,4 +1,5 @@
 use coeus_core::{Backend, ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_hephaestus::get_or_try_init;
 use hephaestus_core::CommandStream;
 use hephaestus_cuda::{ComputeDevice, CudaDevice, KernelDevice};
 use std::sync::OnceLock;
@@ -27,16 +28,11 @@ pub fn get_cuda_device() -> &'static CudaDevice {
 ///
 /// Returns the typed Hephaestus acquisition failure when CUDA is unavailable.
 pub fn try_get_cuda_device() -> hephaestus_core::Result<&'static CudaDevice> {
-    if let Some(device) = CUDA_DEVICE.get() {
-        return Ok(device);
-    }
-    let candidate = CudaDevice::try_default()?;
-    let _ = CUDA_DEVICE.set(candidate);
-    CUDA_DEVICE
-        .get()
-        .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-            message: "CUDA device initialization did not publish the acquired device".to_owned(),
-        })
+    get_or_try_init(
+        &CUDA_DEVICE,
+        "CUDA device initialization did not publish the acquired device",
+        CudaDevice::try_default,
+    )
 }
 
 /// NVIDIA CUDA acceleration backend.

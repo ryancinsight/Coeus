@@ -7,6 +7,7 @@
 #![deny(missing_docs)]
 
 mod attention;
+mod cache;
 mod convolution;
 mod cross_entropy;
 mod cross_product;
@@ -27,6 +28,7 @@ mod unfold_fold;
 mod window;
 
 pub use attention::{AttentionBackend, AttentionProvider};
+pub use cache::get_or_try_init;
 pub use convolution::{
     regular_backward as convolution_backward, regular_forward as convolution_forward,
     transposed_backward as convolution_transposed_backward,

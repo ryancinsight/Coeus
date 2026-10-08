@@ -1,9 +1,10 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
-    ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
-    CrossEntropyProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
-    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
-    RotateHalfProvider, ScalarPowerProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    get_or_try_init, ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider,
+    ConvolutionProvider, CrossEntropyProvider, ElementwiseProvider, HephaestusProvider,
+    MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider,
+    ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StatefulUpdateProvider,
+    UnfoldFoldProvider,
 };
 use hephaestus_core::{PoolingOps, SlidingWindowOps};
 use hephaestus_metal::{
@@ -31,17 +32,11 @@ unsafe impl HephaestusProvider for MetalProvider {
     }
 
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
-        if let Some(device) = METAL_DEVICE.get() {
-            return Ok(device);
-        }
-        let candidate = MetalDevice::try_default()?;
-        let _ = METAL_DEVICE.set(candidate);
-        METAL_DEVICE
-            .get()
-            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-                message: "Metal device initialization did not publish the acquired device"
-                    .to_owned(),
-            })
+        get_or_try_init(
+            &METAL_DEVICE,
+            "Metal device initialization did not publish the acquired device",
+            MetalDevice::try_default,
+        )
     }
 }
 

@@ -1,7 +1,7 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
-    ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider, CtcProvider,
-    ElementwiseProvider, FixedFdProvider, HephaestusProvider, MatmulProvider,
+    get_or_try_init, ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
+    CtcProvider, ElementwiseProvider, FixedFdProvider, HephaestusProvider, MatmulProvider,
     ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
     RotateHalfProvider, ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider,
     UnfoldFoldProvider,
@@ -37,17 +37,11 @@ unsafe impl HephaestusProvider for RocmProvider {
     }
 
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
-        if let Some(device) = ROCM_DEVICE.get() {
-            return Ok(device);
-        }
-        let candidate = RocmDevice::try_default()?;
-        let _ = ROCM_DEVICE.set(candidate);
-        ROCM_DEVICE
-            .get()
-            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-                message: "ROCm device initialization did not publish the acquired device"
-                    .to_owned(),
-            })
+        get_or_try_init(
+            &ROCM_DEVICE,
+            "ROCm device initialization did not publish the acquired device",
+            RocmDevice::try_default,
+        )
     }
 }
 
@@ -132,17 +126,11 @@ impl FixedFdProvider for RocmProvider {
     fn fixed_fd_kernel(
     ) -> hephaestus_core::Result<&'static <Self::Operations as FixedFd3DOps<Self::Device>>::FixedFd3D>
     {
-        if let Some(kernel) = FIXED_FD_KERNEL.get() {
-            return Ok(kernel);
-        }
-        let candidate = RocmFixedFd3DOps.prepare_fixed_fd_3d(Self::device())?;
-        let _ = FIXED_FD_KERNEL.set(candidate);
-        FIXED_FD_KERNEL
-            .get()
-            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-                message: "fixed-fd kernel initialization did not publish the compiled kernel"
-                    .to_owned(),
-            })
+        get_or_try_init(
+            &FIXED_FD_KERNEL,
+            "fixed-fd kernel initialization did not publish the compiled kernel",
+            || RocmFixedFd3DOps.prepare_fixed_fd_3d(Self::device()),
+        )
     }
 }
 
@@ -154,16 +142,11 @@ impl CtcProvider for RocmProvider {
 
     fn ctc_kernel(
     ) -> hephaestus_core::Result<&'static <Self::Operations as CtcOps<Self::Device>>::Ctc> {
-        if let Some(kernel) = CTC_KERNEL.get() {
-            return Ok(kernel);
-        }
-        let candidate = RocmCtcOps.prepare_ctc(Self::device())?;
-        let _ = CTC_KERNEL.set(candidate);
-        CTC_KERNEL
-            .get()
-            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-                message: "ctc kernel initialization did not publish the compiled kernel".to_owned(),
-            })
+        get_or_try_init(
+            &CTC_KERNEL,
+            "ctc kernel initialization did not publish the compiled kernel",
+            || RocmCtcOps.prepare_ctc(Self::device()),
+        )
     }
 }
 

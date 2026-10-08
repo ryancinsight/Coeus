@@ -1,4 +1,5 @@
 use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
+use coeus_hephaestus::get_or_try_init;
 use hephaestus_core::{CommandStream, ComputeDevice, DeviceFeature, KernelDevice};
 use std::sync::OnceLock;
 
@@ -96,35 +97,32 @@ pub fn get_wgpu_context() -> &'static WgpuContext {
 ///
 /// Returns the typed Hephaestus acquisition failure when WGPU is unavailable.
 pub fn try_get_wgpu_context() -> hephaestus_core::Result<&'static WgpuContext> {
-    if let Some(context) = WGPU_CONTEXT.get() {
-        return Ok(context);
-    }
     // No backend is forced here. Hephaestus selects the compiled backend set
     // unless the process explicitly sets `WGPU_BACKEND`; a request for an
     // unavailable backend therefore fails through the provider's typed
     // acquisition error. Backend selection belongs to the provider and to
     // whoever runs the process, not to this library.
-    let candidate = WgpuContext {
-        // Fused expressions bind the tensor inputs, output, and layout table.
-        // The provider's downlevel baseline exposes only four storage slots,
-        // while Coeus' public fusion contract permits three tensor inputs.
-        hephaestus_device:
-            hephaestus_wgpu::WgpuDevice::try_with_device_preference_and_optional_device_features_and_limits(
-            "coeus-wgpu-device",
-            hephaestus_core::DevicePreference::HighPerformance,
-            // Optional: f64/f16 shaders need SHADER_F64/SHADER_F16 at
-            // creation time, but adapters without them must still serve
-            // the f32 paths.
-            &[DeviceFeature::ShaderF64, DeviceFeature::ShaderF16],
-            hephaestus_wgpu::WgpuDevice::default_device_limits(),
-        )?,
-    };
-    let _ = WGPU_CONTEXT.set(candidate);
-    WGPU_CONTEXT
-        .get()
-        .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-            message: "WGPU context initialization did not publish the acquired device".to_owned(),
+    get_or_try_init(
+        &WGPU_CONTEXT,
+        "WGPU context initialization did not publish the acquired device",
+        || {
+            Ok(WgpuContext {
+            // Fused expressions bind the tensor inputs, output, and layout table.
+            // The provider's downlevel baseline exposes only four storage slots,
+            // while Coeus' public fusion contract permits three tensor inputs.
+            hephaestus_device:
+                hephaestus_wgpu::WgpuDevice::try_with_device_preference_and_optional_device_features_and_limits(
+                "coeus-wgpu-device",
+                hephaestus_core::DevicePreference::HighPerformance,
+                // Optional: f64/f16 shaders need SHADER_F64/SHADER_F16 at
+                // creation time, but adapters without them must still serve
+                // the f32 paths.
+                &[DeviceFeature::ShaderF64, DeviceFeature::ShaderF16],
+                hephaestus_wgpu::WgpuDevice::default_device_limits(),
+            )?,
         })
+        },
+    )
 }
 
 /// WebGPU acceleration backend.

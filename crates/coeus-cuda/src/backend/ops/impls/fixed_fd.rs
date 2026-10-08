@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use crate::backend::{get_cuda_device, CudaBackend};
 use crate::CudaBackendError;
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{FixedFdBackend, FixedFdProvider};
+use coeus_hephaestus::{get_or_try_init, FixedFdBackend, FixedFdProvider};
 use coeus_ops::{Axis, FiniteDifference3DOps, FiniteDifference3DScheme};
 use hephaestus_core::{ComputeDevice, FixedFd3DOps, HephaestusError};
 use hephaestus_cuda::{CudaDevice, CudaFixedFd3DOps, FixedFd3DKernel};
@@ -17,17 +17,11 @@ impl FixedFdProvider for CudaBackend {
     fn fixed_fd_kernel(
     ) -> hephaestus_core::Result<&'static <Self::Operations as FixedFd3DOps<CudaDevice>>::FixedFd3D>
     {
-        if let Some(kernel) = KERNEL.get() {
-            return Ok(kernel);
-        }
-        let candidate = CudaFixedFd3DOps.prepare_fixed_fd_3d(get_cuda_device())?;
-        let _ = KERNEL.set(candidate);
-        KERNEL
-            .get()
-            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-                message: "fixed-fd kernel initialization did not publish the compiled kernel"
-                    .to_owned(),
-            })
+        get_or_try_init(
+            &KERNEL,
+            "fixed-fd kernel initialization did not publish the compiled kernel",
+            || CudaFixedFd3DOps.prepare_fixed_fd_3d(get_cuda_device()),
+        )
     }
 }
 

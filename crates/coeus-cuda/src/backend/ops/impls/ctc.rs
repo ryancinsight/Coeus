@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use crate::backend::{get_cuda_device, CudaBackend};
 use crate::CudaBackendError;
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{ctc_backward, ctc_forward, CtcBackend, CtcProvider};
+use coeus_hephaestus::{ctc_backward, ctc_forward, get_or_try_init, CtcBackend, CtcProvider};
 use coeus_ops::{CtcBatch, CtcOps};
 use hephaestus_core::{ComputeDevice, CtcOps as ProviderCtcOps, CtcStateBuffers, HephaestusError};
 use hephaestus_cuda::{CtcKernel, CudaCtcOps, CudaDevice};
@@ -17,16 +17,11 @@ impl CtcProvider for CudaBackend {
     fn ctc_kernel() -> hephaestus_core::Result<
         &'static <Self::Operations as hephaestus_core::CtcOps<CudaDevice>>::Ctc,
     > {
-        if let Some(kernel) = KERNEL.get() {
-            return Ok(kernel);
-        }
-        let candidate = CudaCtcOps.prepare_ctc(get_cuda_device())?;
-        let _ = KERNEL.set(candidate);
-        KERNEL
-            .get()
-            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-                message: "ctc kernel initialization did not publish the compiled kernel".to_owned(),
-            })
+        get_or_try_init(
+            &KERNEL,
+            "ctc kernel initialization did not publish the compiled kernel",
+            || CudaCtcOps.prepare_ctc(get_cuda_device()),
+        )
     }
 }
 

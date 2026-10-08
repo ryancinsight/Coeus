@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{ctc_backward, ctc_forward, CtcBackend, CtcProvider};
+use coeus_hephaestus::{ctc_backward, ctc_forward, get_or_try_init, CtcBackend, CtcProvider};
 use coeus_ops::{CtcBatch, CtcOps};
 use hephaestus_core::{ComputeDevice, CtcOps as ProviderCtcOps, CtcStateBuffers, HephaestusError};
 use hephaestus_wgpu::{CtcKernel, WgpuCtcOps, WgpuDevice};
@@ -16,16 +16,11 @@ impl CtcProvider for WgpuBackend {
     fn ctc_kernel() -> hephaestus_core::Result<
         &'static <Self::Operations as hephaestus_core::CtcOps<WgpuDevice>>::Ctc,
     > {
-        if let Some(kernel) = KERNEL.get() {
-            return Ok(kernel);
-        }
-        let candidate = WgpuCtcOps.prepare_ctc(&get_wgpu_context().hephaestus_device)?;
-        let _ = KERNEL.set(candidate);
-        KERNEL
-            .get()
-            .ok_or_else(|| hephaestus_core::HephaestusError::DeviceUnavailable {
-                message: "ctc kernel initialization did not publish the compiled kernel".to_owned(),
-            })
+        get_or_try_init(
+            &KERNEL,
+            "ctc kernel initialization did not publish the compiled kernel",
+            || WgpuCtcOps.prepare_ctc(&get_wgpu_context().hephaestus_device),
+        )
     }
 }
 
