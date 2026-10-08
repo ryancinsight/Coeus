@@ -40,7 +40,11 @@ pub use leto_ops::{Axis, FiniteDifference3DScheme};
 /// preparation derives coefficients and acquires provider resources.
 pub trait StaggeredPairOps<T: Scalar>: ComputeBackend {
     /// Backend-side form of a prepared staggered gradient/divergence pair.
-    type StaggeredPair;
+    ///
+    /// Retained by autograd nodes across the forward/backward boundary, so it
+    /// carries the same transfer bounds as [`CtcOps`](super::ctc::CtcOps)'s
+    /// saved state.
+    type StaggeredPair: Send + Sync + 'static;
 
     /// Derive an order-`order` staggered pair for a grid of the given
     /// per-axis spacings.

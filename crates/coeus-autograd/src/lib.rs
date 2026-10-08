@@ -211,6 +211,8 @@ pub use ops::{
     sqrt,
     squeeze,
     stack,
+    staggered_divergence,
+    staggered_gradient,
     std_dev,
     std_dev_axis,
     std_mean,

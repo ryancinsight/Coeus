@@ -3,6 +3,7 @@ mod conv;
 mod cross;
 mod cross_entropy;
 mod elementwise;
+mod fixed_fd;
 mod matmul;
 mod optim;
 mod pool;

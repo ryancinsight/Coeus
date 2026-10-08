@@ -150,6 +150,64 @@ fn wgpu_staggered_divergence_matches_sequential() {
     }
 }
 
+/// Both halves of the pair dispatch with WGPU value and gradient parity
+/// through the tracked autograd ops: the adjoint-via-pair backward runs the
+/// other half on the device, so this is the claim differentiation tracking
+/// exists to support.
+#[test]
+fn wgpu_staggered_tracking_matches_sequential_value_and_gradient() {
+    use coeus_autograd::{staggered_divergence, staggered_gradient, sum, Var};
+    let sequential = SequentialBackend;
+    let wgpu = WgpuBackend::new();
+    let host = field();
+    for axis in AXES {
+        for divergence in [false, true] {
+            let input = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &host);
+            let cpu_input = Var::new(input.clone(), true);
+            let wgpu_input = Var::new(input.to_backend_on(&sequential, &wgpu), true);
+            let (cpu_swept, wgpu_swept) = if divergence {
+                (
+                    staggered_divergence(&cpu_input, 4, SPACING, axis)
+                        .expect("CPU staggered divergence must succeed"),
+                    staggered_divergence(&wgpu_input, 4, SPACING, axis)
+                        .expect("WGPU staggered divergence must succeed"),
+                )
+            } else {
+                (
+                    staggered_gradient(&cpu_input, 4, SPACING, axis)
+                        .expect("CPU staggered gradient must succeed"),
+                    staggered_gradient(&wgpu_input, 4, SPACING, axis)
+                        .expect("WGPU staggered gradient must succeed"),
+                )
+            };
+            let half = if divergence { "divergence" } else { "gradient" };
+            let wgpu_value = wgpu_swept.tensor.to_backend_on(&wgpu, &sequential);
+            assert_close(
+                wgpu_value.as_slice(),
+                cpu_swept.tensor.as_slice(),
+                &format!("tracked {half} {axis:?} value"),
+            );
+
+            let cpu_loss = sum(&cpu_swept);
+            let wgpu_loss = sum(&wgpu_swept);
+            cpu_loss
+                .backward()
+                .expect("CPU staggered backward must succeed");
+            wgpu_loss
+                .backward()
+                .expect("WGPU staggered backward must succeed");
+            let cpu_grad = cpu_input.grad().expect("CPU input tracks a gradient");
+            let wgpu_grad = wgpu_input.grad().expect("WGPU input tracks a gradient");
+            let wgpu_grad_cpu = wgpu_grad.to_backend_on(&wgpu, &sequential);
+            assert_close(
+                wgpu_grad_cpu.as_slice(),
+                cpu_grad.as_slice(),
+                &format!("tracked {half} {axis:?} gradient"),
+            );
+        }
+    }
+}
+
 /// `D = -Gᵀ` measured through the seam on the device's own outputs. Agreeing
 /// with the CPU and being an adjoint are different claims, and the conservative
 /// leapfrog this pair exists for rests on the second.

@@ -24,6 +24,9 @@ mod cosine_similarity;
 #[path = "cuda_ops/device.rs"]
 mod device;
 #[cfg(feature = "cuda")]
+#[path = "cuda/fixed_fd.rs"]
+mod fixed_fd;
+#[cfg(feature = "cuda")]
 #[path = "cuda/random_init.rs"]
 mod random_init;
 #[cfg(feature = "cuda")]

@@ -324,6 +324,67 @@ fn cuda_staggered_rejects_unrepresentable_operand_layouts() {
     }
 }
 
+/// Both halves of the pair dispatch with CUDA value and gradient parity
+/// through the tracked autograd ops: the adjoint-via-pair backward runs the
+/// other half on the device, so this is the claim differentiation tracking
+/// exists to support.
+#[test]
+fn cuda_staggered_tracking_matches_sequential_value_and_gradient() {
+    if !crate::availability::device_available() {
+        return;
+    }
+    use coeus_autograd::{staggered_divergence, staggered_gradient, sum, Var};
+    let sequential = SequentialBackend;
+    let cuda = CudaBackend::new();
+    let host = field();
+    for axis in AXES {
+        for divergence in [false, true] {
+            let input = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &host);
+            let cpu_input = Var::new(input.clone(), true);
+            let cuda_input = Var::new(input.to_backend_on(&sequential, &cuda), true);
+            let (cpu_swept, cuda_swept) = if divergence {
+                (
+                    staggered_divergence(&cpu_input, 4, SPACING, axis)
+                        .expect("CPU staggered divergence must succeed"),
+                    staggered_divergence(&cuda_input, 4, SPACING, axis)
+                        .expect("CUDA staggered divergence must succeed"),
+                )
+            } else {
+                (
+                    staggered_gradient(&cpu_input, 4, SPACING, axis)
+                        .expect("CPU staggered gradient must succeed"),
+                    staggered_gradient(&cuda_input, 4, SPACING, axis)
+                        .expect("CUDA staggered gradient must succeed"),
+                )
+            };
+            let half = if divergence { "divergence" } else { "gradient" };
+            let cuda_value = cuda_swept.tensor.to_backend_on(&cuda, &sequential);
+            assert_close(
+                cuda_value.as_slice(),
+                cpu_swept.tensor.as_slice(),
+                &format!("tracked {half} {axis:?} value"),
+            );
+
+            let cpu_loss = sum(&cpu_swept);
+            let cuda_loss = sum(&cuda_swept);
+            cpu_loss
+                .backward()
+                .expect("CPU staggered backward must succeed");
+            cuda_loss
+                .backward()
+                .expect("CUDA staggered backward must succeed");
+            let cpu_grad = cpu_input.grad().expect("CPU input tracks a gradient");
+            let cuda_grad = cuda_input.grad().expect("CUDA input tracks a gradient");
+            let cuda_grad_cpu = cuda_grad.to_backend_on(&cuda, &sequential);
+            assert_close(
+                cuda_grad_cpu.as_slice(),
+                cpu_grad.as_slice(),
+                &format!("tracked {half} {axis:?} gradient"),
+            );
+        }
+    }
+}
+
 #[test]
 fn staggered_preparation_rejects_invalid_spacing_without_a_device() {
     // Backend construction is a ZST operation; invalid preparation must not

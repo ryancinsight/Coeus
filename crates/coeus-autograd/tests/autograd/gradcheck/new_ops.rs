@@ -12,10 +12,10 @@
 use super::{tensor, weighted, weighting, GradcheckScalar, Sampler};
 use coeus_autograd::{
     ctc_loss, dropout, gradcheck, index_put, linear_interpolation, rotate_half, sparse_matmul,
-    sparse_matmul_coo, transpose_2d, Var,
+    sparse_matmul_coo, staggered_divergence, staggered_gradient, transpose_2d, Var,
 };
 use coeus_core::MoiraiBackend;
-use coeus_ops::Replicate;
+use coeus_ops::{Axis, Replicate};
 use coeus_tensor::Tensor;
 
 fn transpose_2d_case<T: GradcheckScalar>() {
@@ -208,6 +208,42 @@ where
 fn ctc_backward_matches_finite_differences() {
     ctc_case::<f64>();
     ctc_case::<f32>();
+}
+
+fn staggered_case<T: GradcheckScalar>(axis: Axis, divergence: bool)
+where
+    MoiraiBackend: coeus_ops::StaggeredPairOps<T>,
+{
+    // Order 4 (half-order 2) exercises multi-tap reflection; every axis
+    // extent clears the stencil depth without relying on thin-grid folding.
+    let x = tensor::<T>(&[5, 4, 6], 0.23);
+    let w = weighting::<T>(&[5, 4, 6]);
+    let spacing = [
+        <T as coeus_core::Scalar>::from_f64(0.5),
+        <T as coeus_core::Scalar>::from_f64(1.0),
+        <T as coeus_core::Scalar>::from_f64(2.0),
+    ];
+    gradcheck(&[x], |v| {
+        let swept = if divergence {
+            staggered_divergence(&v[0], 4, spacing, axis)
+                .expect("invariant: valid staggered fixture completes forward")
+        } else {
+            staggered_gradient(&v[0], 4, spacing, axis)
+                .expect("invariant: valid staggered fixture completes forward")
+        };
+        weighted(&swept, &w)
+    })
+    .expect("staggered backward must match central differences");
+}
+
+#[test]
+fn staggered_backward_matches_finite_differences() {
+    for axis in [Axis::X, Axis::Y, Axis::Z] {
+        for divergence in [false, true] {
+            staggered_case::<f64>(axis, divergence);
+            staggered_case::<f32>(axis, divergence);
+        }
+    }
 }
 
 fn linear_interpolation_case() {

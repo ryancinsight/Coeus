@@ -3,6 +3,7 @@ use super::provider::StaggeredProvider;
 use crate::HephaestusBackend;
 use coeus_core::Layout;
 use coeus_ops::{Axis, StaggeredPairOps};
+use hephaestus_core::Staggered3DOps as ProviderOps;
 
 /// The provider states the pair in `f32`, so the accelerator backend binds the
 /// Coeus seam at that scalar rather than generically — the device contract
@@ -10,6 +11,7 @@ use coeus_ops::{Axis, StaggeredPairOps};
 impl<P> StaggeredPairOps<f32> for HephaestusBackend<P>
 where
     P: StaggeredProvider,
+    <P::Operations as ProviderOps<P::Device>>::Staggered3D: Send + Sync,
 {
     type StaggeredPair = PreparedStaggeredPair<Self>;
 
