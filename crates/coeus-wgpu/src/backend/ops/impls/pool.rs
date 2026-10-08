@@ -1,5 +1,5 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
-use coeus_core::{BackendError, Layout};
+use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
+use coeus_core::{BackendError, Layout, Scalar};
 use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, HephaestusError, PoolingMode};
 use hephaestus_wgpu::{WgpuDevice, WgpuPoolingOps, WgpuWindowScalar};
@@ -7,14 +7,14 @@ use leto::WindowParameters;
 
 impl<T> PoolingProvider<T> for WgpuBackend
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
 {
     type Operations = WgpuPoolingOps;
 }
 
 impl<T> PoolingBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
 {
     type Device = WgpuDevice;
     type Operations = WgpuPoolingOps;
@@ -40,7 +40,7 @@ where
 
 impl<T> coeus_ops::PoolOps<T> for WgpuBackend
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
 {
     fn max_pool2d(
         &self,
@@ -369,7 +369,7 @@ fn forward<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
     WgpuBackend: PoolingBackend<T>,
 {
     let parameters = WindowParameters::new(
@@ -407,7 +407,7 @@ fn backward<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
     WgpuBackend: PoolingBackend<T>,
 {
     let parameters = WindowParameters::new(

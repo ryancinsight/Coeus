@@ -1,12 +1,12 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
-use coeus_core::Layout;
+use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
+use coeus_core::{Layout, Scalar};
 use coeus_hephaestus::{matmul, MatmulBackend};
 use hephaestus_core::{ComputeDevice, DenseProductOps, HephaestusError};
 use hephaestus_wgpu::{DialectScalar, WgpuDenseProductOps, WgpuDevice, Wgsl};
 
 impl<T> MatmulBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl>,
+    T: Scalar + DialectScalar<Wgsl>,
     WgpuDenseProductOps: DenseProductOps<WgpuDevice, T>,
 {
     type Device = WgpuDevice;
@@ -29,7 +29,7 @@ where
 
 impl<T> coeus_ops::MatmulOps<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl>,
+    T: Scalar + DialectScalar<Wgsl>,
     WgpuDenseProductOps: DenseProductOps<WgpuDevice, T>,
 {
     #[inline]

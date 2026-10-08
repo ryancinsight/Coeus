@@ -10,7 +10,7 @@ mod reduction;
 mod rotate_half;
 mod strided;
 
-use coeus_core::SequentialBackend;
+use coeus_core::{Scalar, SequentialBackend};
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
@@ -25,12 +25,12 @@ fn wgpu() -> WgpuBackend {
 }
 
 /// Transfer a CPU tensor to the WgpuBackend.
-fn to_gpu(t: &Tensor<f32, SequentialBackend>) -> Tensor<f32, WgpuBackend> {
+fn to_gpu<T: Scalar>(t: &Tensor<T, SequentialBackend>) -> Tensor<T, WgpuBackend> {
     t.to_backend_on(&seq(), &wgpu())
 }
 
 /// Transfer a WgpuBackend tensor back to CPU.
-fn to_cpu(t: &Tensor<f32, WgpuBackend>) -> Tensor<f32, SequentialBackend> {
+fn to_cpu<T: Scalar>(t: &Tensor<T, WgpuBackend>) -> Tensor<T, SequentialBackend> {
     t.to_backend_on(&wgpu(), &seq())
 }
 
@@ -40,6 +40,18 @@ fn assert_parity(label: &str, cpu: &[f32], gpu: &[f32]) {
         let diff = (c - g).abs();
         assert!(
             diff < WGPU_TOL,
+            "{label}[{i}]: cpu={c:.6} gpu={g:.6} diff={diff:.2e}"
+        );
+    }
+}
+
+fn assert_parity_tol<T: Into<f64> + Copy>(label: &str, cpu: &[T], gpu: &[T], tol: f64) {
+    assert_eq!(cpu.len(), gpu.len(), "{label}: length mismatch");
+    for (i, (&c, &g)) in cpu.iter().zip(gpu.iter()).enumerate() {
+        let (c, g) = (c.into(), g.into());
+        let diff = (c - g).abs();
+        assert!(
+            diff < tol * (1.0 + c.abs()),
             "{label}[{i}]: cpu={c:.6} gpu={g:.6} diff={diff:.2e}"
         );
     }

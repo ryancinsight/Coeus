@@ -1,12 +1,12 @@
-use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
-use coeus_core::{ComputeBackend, Layout, NumericElement};
+use crate::backend::{WgpuBackend, WgpuBackendError};
+use coeus_core::{ComputeBackend, Layout, NumericElement, Scalar};
 use coeus_hephaestus::{cross_product, CrossProductProvider, HephaestusStorage};
 use hephaestus_core::CrossProductOps;
 use hephaestus_wgpu::{DialectScalar, WgpuCrossProductOps, WgpuDevice, Wgsl};
 
 impl<T> CrossProductProvider<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl>,
+    T: Scalar + DialectScalar<Wgsl>,
     WgpuCrossProductOps: CrossProductOps<WgpuDevice, T>,
 {
     type Operations = WgpuCrossProductOps;
@@ -20,7 +20,7 @@ where
 /// a silent runtime probe.
 impl<T> coeus_ops::CrossOps<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl>,
+    T: Scalar + DialectScalar<Wgsl>,
     WgpuCrossProductOps: CrossProductOps<WgpuDevice, T>,
 {
     fn cross_storage(

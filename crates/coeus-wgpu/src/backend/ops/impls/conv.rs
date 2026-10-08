@@ -1,5 +1,5 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
-use coeus_core::{BackendError, Float};
+use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
+use coeus_core::{BackendError, Float, Scalar};
 use coeus_hephaestus::{
     convolution_backward, convolution_forward, convolution_transposed_backward,
     convolution_transposed_forward, ConvolutionBackend,
@@ -10,7 +10,7 @@ use hephaestus_wgpu::{DialectScalar, WgpuConvolutionOps, WgpuDevice, Wgsl};
 
 impl<T> ConvolutionBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl>,
+    T: Scalar + DialectScalar<Wgsl>,
     WgpuConvolutionOps: ConvolutionOps<WgpuDevice, T>,
 {
     type Device = WgpuDevice;
@@ -37,7 +37,7 @@ where
 
 impl<T> coeus_ops::ConvOps<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl>,
+    T: Scalar + DialectScalar<Wgsl>,
     WgpuConvolutionOps: ConvolutionOps<WgpuDevice, T>,
 {
     fn convolution_forward<const R: usize, const D: usize>(

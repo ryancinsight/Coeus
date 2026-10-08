@@ -3,7 +3,7 @@ use coeus_ops::{BinaryOp, ElementwiseOps, ScalarPowerOps};
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
-use super::{assert_parity, seq, to_cpu, to_gpu, wgpu};
+use super::{assert_parity, assert_parity_tol, seq, to_cpu, to_gpu, wgpu};
 
 #[test]
 fn parameterized_activations_match_sequential() {
@@ -422,6 +422,11 @@ test_unary_parity!(
     vec![0.1, 0.5, 1.0, 2.0, 4.0, 8.0, 0.25, 16.0]
 );
 test_unary_parity!(
+    test_wgpu_parity_log10,
+    coeus_ops::log10,
+    vec![0.1, 0.5, 1.0, 2.0, 4.0, 8.0, 0.25, 16.0]
+);
+test_unary_parity!(
     test_wgpu_parity_sqrt,
     coeus_ops::sqrt,
     vec![0.25, 1.0, 2.0, 4.0, 9.0, 16.0, 0.5, 25.0]
@@ -594,3 +599,241 @@ fn test_wgpu_parity_pow_f32() {
 // No f64 test: there is deliberately no `ScalarPowerProvider<f64>` (see the
 // provider impl) — the f64 `pow` shader crashes native backends, so f64 is
 // rejected at compile time until hephaestus fixes the codegen.
+
+// ── f64 elementwise ────────────────────────────────────────────────────
+//
+// The `relu`/`tanh`/`exp` op-level fns require `BackendOps<f64>`, so these
+// tests compiling already proves all six subtraits admit f64; running them
+// proves the shaders. `exp`/`tanh` inherit the adapter's f32-grade f64 `exp`
+// (see the attention f64 tolerance note), hence the loose bound. The
+// parameterized set stays f32-only (core `ParameterizedUnaryOps` takes
+// `Buffer<f32>`), and f64 reports it instead of miscompiling.
+
+#[test]
+fn test_wgpu_parity_add_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(vec![4, 4], &(0..16).map(|x| x as f64).collect::<Vec<_>>());
+    let b = Tensor::from_slice(
+        vec![4, 4],
+        &(0..16).map(|x| x as f64 * 0.5 - 4.0).collect::<Vec<_>>(),
+    );
+    let cpu = coeus_ops::add(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::add(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_parity_tol("add_f64", cpu.as_slice(), gpu.as_slice(), 1e-12);
+}
+
+#[test]
+fn test_wgpu_parity_mul_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(
+        vec![4, 4],
+        &(0..16).map(|x| x as f64 * 0.1 + 0.5).collect::<Vec<_>>(),
+    );
+    let b = Tensor::from_slice(
+        vec![4, 4],
+        &(0..16).map(|x| x as f64 * 0.2 - 1.0).collect::<Vec<_>>(),
+    );
+    let cpu = coeus_ops::mul(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::mul(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_parity_tol("mul_f64", cpu.as_slice(), gpu.as_slice(), 1e-12);
+}
+
+#[test]
+fn test_wgpu_parity_eq_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(vec![8], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let b = Tensor::from_slice(vec![8], &[1.0f64, 0.0, 3.0, 0.0, 5.0, 0.0, 7.0, 0.0]);
+    let cpu = coeus_ops::eq(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::eq(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_eq!(gpu.as_slice(), cpu.as_slice());
+    assert_eq!(gpu.as_slice(), &[1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0]);
+}
+
+#[test]
+fn test_wgpu_parity_ne_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(vec![8], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let b = Tensor::from_slice(vec![8], &[1.0f64, 1.0, 4.0, 3.0, 5.0, 5.0, 8.0, 7.0]);
+    let cpu = coeus_ops::ne(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::ne(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_eq!(gpu.as_slice(), cpu.as_slice());
+    assert_eq!(gpu.as_slice(), &[0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0]);
+}
+
+#[test]
+fn test_wgpu_parity_lt_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(vec![8], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let b = Tensor::from_slice(vec![8], &[1.0f64, 1.0, 4.0, 3.0, 5.0, 5.0, 8.0, 7.0]);
+    let cpu = coeus_ops::lt(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::lt(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_eq!(gpu.as_slice(), cpu.as_slice());
+    assert_eq!(gpu.as_slice(), &[0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
+}
+
+#[test]
+fn test_wgpu_parity_gt_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(vec![8], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let b = Tensor::from_slice(vec![8], &[1.0f64, 1.0, 4.0, 3.0, 5.0, 5.0, 8.0, 7.0]);
+    let cpu = coeus_ops::gt(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::gt(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_eq!(gpu.as_slice(), cpu.as_slice());
+    assert_eq!(gpu.as_slice(), &[0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
+}
+
+#[test]
+fn test_wgpu_parity_le_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(vec![8], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let b = Tensor::from_slice(vec![8], &[1.0f64, 1.0, 4.0, 3.0, 5.0, 5.0, 8.0, 7.0]);
+    let cpu = coeus_ops::le(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::le(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_eq!(gpu.as_slice(), cpu.as_slice());
+    assert_eq!(gpu.as_slice(), &[1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0]);
+}
+
+#[test]
+fn test_wgpu_parity_ge_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let a = Tensor::from_slice(vec![8], &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+    let b = Tensor::from_slice(vec![8], &[1.0f64, 1.0, 4.0, 3.0, 5.0, 5.0, 8.0, 7.0]);
+    let cpu = coeus_ops::ge(&a, &b, &s);
+    let gpu = to_cpu(&coeus_ops::ge(&to_gpu(&a), &to_gpu(&b), &wgpu()));
+    assert_eq!(gpu.as_slice(), cpu.as_slice());
+    assert_eq!(gpu.as_slice(), &[1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0]);
+}
+
+#[test]
+fn test_wgpu_parity_relu_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let data = vec![-2.0f64, -1.0, 0.0, 0.5, 1.0, 2.0, -0.5, 3.0];
+    let x = Tensor::from_slice(vec![data.len()], &data);
+    let cpu = coeus_ops::relu(&x, &s);
+    let gpu = to_cpu(&coeus_ops::relu(&to_gpu(&x), &wgpu()));
+    assert_eq!(gpu.as_slice(), cpu.as_slice());
+}
+
+#[test]
+#[ignore = "NVIDIA Vulkan driver aborts (0x80000003) compiling f64 tanh; naga accepts, bare-wgpu repro crashes identically"]
+fn test_wgpu_parity_tanh_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let data = vec![-2.0f64, -0.5, 0.0, 0.5, 1.0, 2.0, -1.5, 1.5];
+    let x = Tensor::from_slice(vec![data.len()], &data);
+    let cpu = coeus_ops::tanh(&x, &s);
+    let gpu = to_cpu(&coeus_ops::tanh(&to_gpu(&x), &wgpu()));
+    assert_parity_tol("tanh_f64", cpu.as_slice(), gpu.as_slice(), 1e-6);
+}
+
+#[test]
+fn test_wgpu_parity_exp_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let data = vec![-1.0f64, -0.5, 0.0, 0.5, 1.0, 1.5, -2.0, 2.0];
+    let x = Tensor::from_slice(vec![data.len()], &data);
+    let cpu = coeus_ops::exp(&x, &s);
+    let gpu = to_cpu(&coeus_ops::exp(&to_gpu(&x), &wgpu()));
+    assert_parity_tol("exp_f64", cpu.as_slice(), gpu.as_slice(), 1e-6);
+}
+
+#[test]
+#[ignore = "NVIDIA Vulkan driver aborts (0xc0000005) compiling f64 log; naga accepts, bare-wgpu repro crashes identically"]
+fn test_wgpu_parity_log10_f64() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let s = seq();
+    let data = vec![0.5f64, 1.0, 2.0, 10.0, 0.1, 100.0, 3.0, 7.0];
+    let x = Tensor::from_slice(vec![data.len()], &data);
+    let cpu = coeus_ops::log10(&x, &s);
+    let gpu = to_cpu(&coeus_ops::log10(&to_gpu(&x), &wgpu()));
+    assert_parity_tol("log10_f64", cpu.as_slice(), gpu.as_slice(), 1e-6);
+}
+
+#[test]
+fn test_wgpu_parameterized_f64_reports_unsupported() {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let x = Tensor::from_slice(vec![4], &[1.0f64, 2.0, 3.0, 4.0]);
+    let result = coeus_ops::elementwise_unary(
+        &to_gpu(&x),
+        &wgpu(),
+        coeus_ops::UnaryOp::Hardtanh(0.5f64.to_bits()),
+    );
+    match result {
+        Ok(_) => panic!("f64 parameterized activations must report unsupported"),
+        Err(err) => {
+            let message = format!("{err:?}");
+            assert!(
+                message.contains("not implemented by provider"),
+                "unexpected error: {message}"
+            );
+        }
+    }
+}
+
+fn assert_wgpu_f64_unary_reports_unsupported(operation: coeus_ops::UnaryOp) {
+    if !crate::availability::device_supports_f64("coeus-wgpu-elementwise-f64") {
+        return;
+    }
+    let x = Tensor::from_slice(vec![4], &[1.0f64, 2.0, -3.0, 4.0]);
+    let label = format!("{operation:?}");
+    match coeus_ops::elementwise_unary(&to_gpu(&x), &wgpu(), operation) {
+        Ok(_) => panic!("{label} on f64 must report unsupported"),
+        Err(err) => {
+            let message = format!("{err:?}");
+            assert!(
+                message.contains("does not support f64 in WGSL"),
+                "unexpected error: {message}"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_wgpu_sign_f64_reports_unsupported() {
+    assert_wgpu_f64_unary_reports_unsupported(coeus_ops::UnaryOp::Sign);
+}
+
+#[test]
+fn test_wgpu_relu_grad_f64_reports_unsupported() {
+    assert_wgpu_f64_unary_reports_unsupported(coeus_ops::UnaryOp::ReluGrad);
+}
+
+#[test]
+fn test_wgpu_hardsigmoid_grad_f64_reports_unsupported() {
+    assert_wgpu_f64_unary_reports_unsupported(coeus_ops::UnaryOp::HardsigmoidGrad);
+}

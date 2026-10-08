@@ -1,5 +1,5 @@
-use crate::backend::{WgpuBackend, WgpuScalar};
-use coeus_core::{FloatElement, Layout};
+use crate::backend::WgpuBackend;
+use coeus_core::{FloatElement, Layout, Scalar};
 use coeus_hephaestus::{HephaestusBackend, ReductionProvider};
 use hephaestus_core::{
     CumProdOp, CumSumOp, DialectScalar, IdentityToken, MaxOp, MinOp, OpIdentity, ProdOp, SumOp,
@@ -8,7 +8,7 @@ use hephaestus_wgpu::{WgpuAxisReductionOps, WgpuScanOps, Wgsl};
 
 impl<T> ReductionProvider<T> for WgpuBackend
 where
-    T: WgpuScalar
+    T: Scalar
         + leto_ops::Scalar
         + DialectScalar<Wgsl>
         + bytemuck::Pod
@@ -31,7 +31,7 @@ where
 
 impl<T> coeus_ops::ReductionOps<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl> + bytemuck::Pod,
+    T: Scalar + leto_ops::Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
     WgpuBackend: ReductionProvider<T>,
 {
     #[inline]

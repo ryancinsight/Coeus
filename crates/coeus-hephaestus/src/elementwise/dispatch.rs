@@ -252,11 +252,12 @@ where
     }
 }
 
-impl<P, E> UnaryElementwiseDispatch<P, f32, E> for ActivationUnaryOperations
+impl<P, T, E> UnaryElementwiseDispatch<P, T, E> for ActivationUnaryOperations
 where
-    P: HephaestusProvider + ParameterizedElementwiseProvider,
-    E: HephaestusElementwiseOps<P::Device, f32> + Default,
-    f32: DialectScalar<E::Dialect>,
+    P: HephaestusProvider,
+    E: HephaestusElementwiseOps<P::Device, T> + Default,
+    T: eunomia::Pod + DialectScalar<E::Dialect>,
+    ActivationParameter<T>: ActivationParameterDispatch<P, T>,
     hephaestus_core::SinOp: UnaryExpr<E::Dialect>,
     hephaestus_core::CosOp: UnaryExpr<E::Dialect>,
     hephaestus_core::ExpOp: UnaryExpr<E::Dialect>,
@@ -311,40 +312,17 @@ where
     HardswishGradOp: UnaryExpr<E::Dialect>,
     SoftsignOp: UnaryExpr<E::Dialect>,
     SoftsignGradOp: UnaryExpr<E::Dialect>,
-    HardtanhOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    HardtanhGradOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    LeakyReluOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    LeakyReluGradOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    HardshrinkOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    HardshrinkGradOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    SoftshrinkOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    SoftshrinkGradOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    CeluOp: ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    CeluGradOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    ThresholdOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
-    ThresholdGradOp:
-        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
 {
     fn unary<const N: usize>(
         device: &P::Device,
         operation: UnaryOp,
-        input: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<f32>, N>,
-        output: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<f32>, N>,
+        input: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<T>, N>,
+        output: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<T>, N>,
     ) -> hephaestus_core::Result<()> {
         let input_view = StridedView::new(input.buffer, input.layout);
         let output_view = StridedView::new(output.buffer, output.layout);
         let operations = E::default();
-        if let Some(result) = dispatch_core_unary_operations::<P::Device, E, f32, N>(
+        if let Some(result) = dispatch_core_unary_operations::<P::Device, E, T, N>(
             &operations,
             device,
             operation,
@@ -422,7 +400,10 @@ where
             | UnaryOp::Threshold(_)
             | UnaryOp::ThresholdGrad(_)
             | UnaryOp::Celu(_)
-            | UnaryOp::CeluGrad(_) => parameterized_unary::<P, N>(operation, input, output),
+            | UnaryOp::CeluGrad(_) => <ActivationParameter<T> as ActivationParameterDispatch<
+                P,
+                T,
+            >>::dispatch(operation, input, output),
             UnaryOp::Sin
             | UnaryOp::Cos
             | UnaryOp::Exp
@@ -433,5 +414,72 @@ where
             | UnaryOp::Recip => unreachable!("handled by core unary dispatch"),
             _ => Err(unsupported_unary_operation(operation)),
         }
+    }
+}
+
+/// Routes parameterized activations (hardtanh, leaky_relu, ...) for the
+/// activation unary set.
+///
+/// The provider parameterized kernel surface is f32-only
+/// (`ParameterizedUnaryOps::parameterized_unary_into` takes `Buffer<f32>`
+/// with `[f32; 2]` parameters), so only `f32` dispatches on-device; every
+/// other scalar reports the operation unsupported until the core trait
+/// generalizes over the buffer element type.
+trait ActivationParameterDispatch<P: HephaestusProvider, T: eunomia::Pod> {
+    fn dispatch<const N: usize>(
+        operation: UnaryOp,
+        input: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<T>, N>,
+        output: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<T>, N>,
+    ) -> hephaestus_core::Result<()>;
+}
+
+struct ActivationParameter<T>(core::marker::PhantomData<T>);
+
+impl<P> ActivationParameterDispatch<P, f32> for ActivationParameter<f32>
+where
+    P: ParameterizedElementwiseProvider,
+    HardtanhOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    HardtanhGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    LeakyReluOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    LeakyReluGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    HardshrinkOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    HardshrinkGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    SoftshrinkOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    SoftshrinkGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    CeluOp: ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    CeluGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    ThresholdOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+    ThresholdGradOp:
+        ParameterizedUnaryExpr<<P::Operations as ParameterizedUnaryOps<P::Device>>::Dialect>,
+{
+    fn dispatch<const N: usize>(
+        operation: UnaryOp,
+        input: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<f32>, N>,
+        output: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<f32>, N>,
+    ) -> hephaestus_core::Result<()> {
+        parameterized_unary::<P, N>(operation, input, output)
+    }
+}
+
+impl<P> ActivationParameterDispatch<P, f64> for ActivationParameter<f64>
+where
+    P: HephaestusProvider,
+{
+    fn dispatch<const N: usize>(
+        operation: UnaryOp,
+        _input: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<f64>, N>,
+        _output: RankedOperand<'_, <P::Device as ComputeDevice>::Buffer<f64>, N>,
+    ) -> hephaestus_core::Result<()> {
+        Err(unsupported_unary_operation(operation))
     }
 }

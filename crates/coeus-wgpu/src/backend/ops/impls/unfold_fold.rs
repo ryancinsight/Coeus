@@ -1,5 +1,5 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
-use coeus_core::{BackendError, Layout};
+use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
+use coeus_core::{BackendError, Layout, Scalar};
 use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
 use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_wgpu::{WgpuDevice, WgpuSlidingWindowOps, WgpuWindowScalar};
@@ -7,14 +7,14 @@ use leto::WindowParameters;
 
 impl<T> UnfoldFoldProvider<T> for WgpuBackend
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
 {
     type Operations = WgpuSlidingWindowOps;
 }
 
 impl<T> UnfoldFoldBackend<T> for WgpuBackend
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
 {
     type Device = WgpuDevice;
     type Operations = WgpuSlidingWindowOps;
@@ -40,7 +40,7 @@ where
 
 impl<T> coeus_ops::UnfoldFoldOps<T> for WgpuBackend
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
 {
     fn unfold1d(
         &self,
@@ -165,7 +165,7 @@ fn unfold<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
     WgpuBackend: UnfoldFoldBackend<T>,
 {
     let parameters = WindowParameters::new(
@@ -199,7 +199,7 @@ fn fold<T, const R: usize, const S: usize>(
     ),
 ) -> Result<(), WgpuBackendError>
 where
-    T: WgpuScalar + WgpuWindowScalar,
+    T: Scalar + WgpuWindowScalar,
     WgpuBackend: UnfoldFoldBackend<T>,
 {
     let parameters = WindowParameters::new(

@@ -1,7 +1,7 @@
 //! Coeus elementwise contracts implemented by the Hephaestus WGPU provider.
 
-use crate::backend::{WgpuBackend, WgpuScalar};
-use coeus_core::{Float, Layout};
+use crate::backend::WgpuBackend;
+use coeus_core::{Float, Layout, Scalar};
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, ElementwiseProvider, HephaestusBackend,
     ParameterizedElementwiseProvider, ScalarPowerProvider,
@@ -14,6 +14,11 @@ impl ParameterizedElementwiseProvider for WgpuBackend {
 }
 
 impl ElementwiseProvider<f32> for WgpuBackend {
+    type Operations = WgpuElementwiseOps;
+    type UnaryOperations = ActivationUnaryOperations;
+}
+
+impl ElementwiseProvider<f64> for WgpuBackend {
     type Operations = WgpuElementwiseOps;
     type UnaryOperations = ActivationUnaryOperations;
 }
@@ -46,7 +51,7 @@ impl ScalarPowerProvider<f32> for WgpuBackend {
 
 impl<T> coeus_ops::ElementwiseOps<T> for WgpuBackend
 where
-    T: WgpuScalar + DialectScalar<Wgsl> + bytemuck::Pod,
+    T: Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
     WgpuBackend: ElementwiseProvider<T>,
 {
     #[inline]
