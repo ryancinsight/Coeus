@@ -17,16 +17,16 @@ rocm = ["hephaestus-rocm/rocm"]
 
 [dependencies]
 coeus-core = { workspace = true }
-coeus-hephaestus = { version = "0.11.0", path = "../coeus-hephaestus" }
+coeus-hephaestus = { version = "0.12.0", path = "../coeus-hephaestus" }
 coeus-ops = { workspace = true, default-features = false }
 hephaestus-core = { workspace = true }
 hephaestus-rocm = { workspace = true }
 leto-ops = { workspace = true }
 
 [dev-dependencies]
-coeus-leto = { version = "0.11.0", path = "../coeus-leto" }
+coeus-leto = { version = "0.12.0", path = "../coeus-leto" }
 coeus-tensor = { workspace = true }
-coeus-nn = { version = "0.11.0", path = "../coeus-nn", default-features = false }
+coeus-nn = { version = "0.12.0", path = "../coeus-nn", default-features = false }
 
 [lints]
 workspace = true
