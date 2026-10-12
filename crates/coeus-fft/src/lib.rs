@@ -4,7 +4,7 @@
 //! **autograd for Apollo's FFT** — it wraps `apollo-fft`'s core `fft_1d_slice`
 //! into tensor-level `fft_1d`/`ifft_1d` and the reverse-mode nodes [`Fft1DNode`],
 //! [`Ifft1DNode`], and [`fft_energy`], building on the [`coeus_autograd`] engine
-//! ([`Var`], [`BackwardNode`], [`GradBuffer`]). No dependency on `rustfft`.
+//! ([`coeus_autograd::Var`], [`coeus_autograd::BackwardNode`], [`coeus_autograd::GradBuffer`]). No dependency on `rustfft`.
 //!
 //! # Numerical contract
 //! [`fft_1d`] computes the unnormalized forward DFT; [`ifft_1d`] the `1/N`-normalized

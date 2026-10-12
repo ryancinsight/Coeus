@@ -1,6 +1,6 @@
 //! Typed gradcheck failures.
 
-/// Why a [`fn@gradcheck`] run did not establish agreement.
+/// Why a [`fn@super::gradcheck`] run did not establish agreement.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum GradcheckError {
