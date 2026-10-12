@@ -10,7 +10,7 @@ type Operations<B> = <<B as StatefulUpdateBackend>::Provider as StatefulUpdatePr
 type Provider<B> = <B as StatefulUpdateBackend>::Provider;
 type Dialect<B> =
     <Operations<B> as StatefulUpdateOps<<Provider<B> as HephaestusProvider>::Device>>::Dialect;
-type Parameters<B, Rule> = <Rule as StatefulUpdateRule<Dialect<B>>>::Parameters;
+type Parameters<B, Rule> = <Rule as StatefulUpdateRule<Dialect<B>>>::Parameters<f32>;
 
 struct Request<'a, B: StatefulUpdateBackend> {
     operation: &'static str,
@@ -299,7 +299,7 @@ where
             let layout = ranked::<N>(request.operation, layout)?;
             let states = [StridedView::new(B::stateful_update_buffer(state), &layout)];
             Operations::<B>::default()
-                .stateful_update::<Rule, N>(
+                .stateful_update::<Rule, f32, N>(
                     <Provider<B> as HephaestusProvider>::device(),
                     StatefulUpdateOperands {
                         parameter,
@@ -318,7 +318,7 @@ where
                 StridedView::new(B::stateful_update_buffer(second), &second_layout),
             ];
             Operations::<B>::default()
-                .stateful_update::<Rule, N>(
+                .stateful_update::<Rule, f32, N>(
                     <Provider<B> as HephaestusProvider>::device(),
                     StatefulUpdateOperands {
                         parameter,
