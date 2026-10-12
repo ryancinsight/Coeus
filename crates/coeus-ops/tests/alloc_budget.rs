@@ -13,10 +13,11 @@
 //!
 //! ## Why this is its own test target
 //!
-//! It installs a `#[global_allocator]`, which is process-wide. Nextest executes
-//! each test in a separate process, so the counter cannot be perturbed by a
-//! concurrently running test, but keeping the allocator out of the shared
-//! `ops` harness binary avoids imposing it on unrelated tests.
+//! It installs a `#[global_allocator]` that only counts allocations made on
+//! the thread running a measurement window, so neither libtest's worker
+//! threads nor a concurrently running test can perturb the counter. Keeping
+//! the allocator out of the shared `ops` harness binary avoids imposing it
+//! on unrelated tests.
 //!
 //! A regression here is a real defect: it means per-element or per-slice
 //! allocation has returned to a kernel that had it removed.
@@ -41,9 +42,29 @@ use coeus_tensor::Tensor;
 
 static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
 static STORAGE_REQUESTS: AtomicUsize = AtomicUsize::new(0);
+// The allocation counter only advances on the measuring thread (see
+// `COUNTING_DEPTH`), but `STORAGE_REQUESTS` is process-global and every test
+// body reads deltas of it, so the oracle still serializes whole test bodies
+// on this lock.
+static ORACLE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Hold for a whole oracle test body (warmup plus measurement) so its
+/// `STORAGE_REQUESTS` deltas never observe another test's storage requests.
+fn oracle_guard() -> std::sync::MutexGuard<'static, ()> {
+    ORACLE_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+}
 
 thread_local! {
     static STORAGE_ALLOCATION_DEPTH: Cell<usize> = const { Cell::new(0) };
+    // Only the thread running a measurement window counts its allocations.
+    // The harness runs tests on worker threads whose first-touch allocator
+    // and channel activity otherwise lands inside another test's window and
+    // makes the oracle flaky (#513). Kernels under test here are
+    // single-threaded, so gating on the measuring thread excludes only
+    // harness noise, never kernel allocations.
+    static COUNTING_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
 struct StorageAllocationScope;
@@ -65,6 +86,25 @@ impl Drop for StorageAllocationScope {
     }
 }
 
+struct CountingScope;
+
+impl CountingScope {
+    fn enter() -> Self {
+        COUNTING_DEPTH.with(|depth| depth.set(depth.get() + 1));
+        Self
+    }
+
+    fn active() -> bool {
+        COUNTING_DEPTH.with(|depth| depth.get() != 0)
+    }
+}
+
+impl Drop for CountingScope {
+    fn drop(&mut self) {
+        COUNTING_DEPTH.with(|depth| depth.set(depth.get() - 1));
+    }
+}
+
 /// Forwards to the system allocator, counting allocation calls.
 ///
 /// `realloc` and `alloc_zeroed` are intentionally left to the `GlobalAlloc`
@@ -75,11 +115,12 @@ impl Drop for StorageAllocationScope {
 struct CountingAllocator;
 
 // SAFETY: every method forwards its arguments unchanged to `System`, which is a
-// correct `GlobalAlloc`. The counter is a relaxed atomic add with no bearing on
+// correct `GlobalAlloc`. The counter is a relaxed atomic add gated on two
+// thread-local depths (plain `Cell` reads, no allocation) with no bearing on
 // the returned pointers, so the allocator's contract is exactly `System`'s.
 unsafe impl GlobalAlloc for CountingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if !StorageAllocationScope::active() {
+        if CountingScope::active() && !StorageAllocationScope::active() {
             ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
         }
         System.alloc(layout)
@@ -170,6 +211,7 @@ impl ComputeBackend for CountingBackend {
 
 /// Allocation count observed while running `body`.
 fn allocations_during<R>(body: impl FnOnce() -> R) -> usize {
+    let _scope = CountingScope::enter();
     let before = ALLOCATIONS.load(Ordering::Relaxed);
     let result = body();
     let after = ALLOCATIONS.load(Ordering::Relaxed);
@@ -194,6 +236,10 @@ fn indices(n: usize, extent: usize) -> Vec<f64> {
 ///
 /// Each closure is run once before measuring so that any one-time lazy
 /// initialisation inside the op is not attributed to the smaller workload.
+/// The large shape then repeats until its count stabilizes (at most three
+/// rounds): first-large-call caches otherwise leak one-time allocations
+/// into the measured window on some hosts (#513: 9 on the first large
+/// call, 5 on every later call across 20 probe rounds).
 ///
 /// # Why storage requests are a separate oracle
 ///
@@ -215,8 +261,19 @@ fn assert_size_independent(
     large: impl Fn() -> Box<dyn std::any::Any>,
     expected_storage_requests: usize,
 ) {
+    let _oracle_guard = oracle_guard();
     drop(small());
     drop(large());
+    // Stabilization rounds: repeat the large shape until its count stops
+    // changing, so first-call caches settle before the measured window.
+    let mut previous = allocations_during(&large);
+    for _ in 0..2 {
+        let current = allocations_during(&large);
+        if current == previous {
+            break;
+        }
+        previous = current;
+    }
 
     STORAGE_REQUESTS.store(0, Ordering::Relaxed);
     let small_allocs = allocations_during(&small);
@@ -296,6 +353,7 @@ fn repeat_interleave_allocation_count_is_independent_of_output_size() {
 
 #[test]
 fn scatter_add_allocation_count_is_independent_of_index_size() {
+    let _oracle_guard = oracle_guard();
     let backend = CountingBackend;
     let build = |s: [usize; 3]| {
         let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend);
@@ -343,6 +401,7 @@ fn topk_allocation_count_is_independent_of_slice_count() {
     // `CpuBackend` for the double, which is more machinery than the property
     // needs -- so the count here is kernel-owned allocations only, and the
     // storage confound this file guards against does not apply until it does.
+    let _oracle_guard = oracle_guard();
     let small = tensor(&[4, 8, 4], &ramp(4 * 8 * 4));
     let large = tensor(&[16, 8, 16], &ramp(16 * 8 * 16));
 
@@ -351,7 +410,6 @@ fn topk_allocation_count_is_independent_of_slice_count() {
     };
     let small_allocs = count(&small);
     let large_allocs = count(&large);
-
     assert_eq!(
         small_allocs, large_allocs,
         "topk: allocation count must not scale with workload size \
