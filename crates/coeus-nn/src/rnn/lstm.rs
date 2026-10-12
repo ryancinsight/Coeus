@@ -203,10 +203,7 @@ where
     /// Returns `(output, (h_n, c_n))`:
     /// - `output`: `[batch, seq_len, hidden_size]` — all hidden states stacked.
     /// - `h_n`, `c_n`: `[batch, hidden_size]` — final hidden and cell state.
-    pub fn forward_seq(
-        &self,
-        x: &Var<T, B>,
-    ) -> ModuleResult<SequenceOutput<T, B>, B> {
+    pub fn forward_seq(&self, x: &Var<T, B>) -> ModuleResult<SequenceOutput<T, B>, B> {
         let (batch, seq_len) =
             validation::sequence_input(x.tensor.shape(), self.input_size, "Lstm")?;
         let backend = B::default();

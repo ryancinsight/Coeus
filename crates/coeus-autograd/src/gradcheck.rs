@@ -148,7 +148,6 @@ const DEFAULT_TOLERANCE_SCALE: f64 = 64.0;
 /// meaningfully compared is never rejected as trivially zero.
 const ZERO_FLOOR_SCALE: f64 = 8.0;
 
-
 /// Tuning for a [`fn@gradcheck`] run.
 ///
 /// [`Default`] derives every value from the scalar type's machine epsilon; see

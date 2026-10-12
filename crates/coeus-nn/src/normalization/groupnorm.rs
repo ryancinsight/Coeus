@@ -79,10 +79,7 @@ impl<
         }
     }
 
-    fn get_cache(
-        &self,
-        group_size: usize,
-    ) -> ModuleResult<GroupNormCacheRef<'_, T, B>, B> {
+    fn get_cache(&self, group_size: usize) -> ModuleResult<GroupNormCacheRef<'_, T, B>, B> {
         let mut cache = self
             .cache
             .try_borrow_mut()

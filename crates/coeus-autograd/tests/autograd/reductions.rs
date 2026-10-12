@@ -249,5 +249,4 @@ fn test_log_sum_exp_autograd() {
     );
 }
 
-
 mod cumulative;

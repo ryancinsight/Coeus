@@ -208,11 +208,7 @@ impl<
     }
 
     /// Retrieve (or build and cache) the per-batch `m` constants `(m_const, corr_t)`.
-    fn m_constants(
-        &self,
-        m: usize,
-        backend: &B,
-    ) -> ModuleResult<TensorPair<T, B>, B> {
+    fn m_constants(&self, m: usize, backend: &B) -> ModuleResult<TensorPair<T, B>, B> {
         let module: &str = module_name::<DIM>();
         let mut cache = self
             .m_cache

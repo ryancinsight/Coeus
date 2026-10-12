@@ -244,8 +244,8 @@ fn frobenius_norm_batched_3d_returns_per_batch_scalars() {
     let stacked = Tensor::<f64, SequentialBackend>::from_slice(
         vec![2, 3, 3],
         &[
-            0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
-            7.0, 8.0,
+            0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
+            8.0,
         ],
     );
     let got =
@@ -268,13 +268,12 @@ fn frobenius_norm_batched_4d_collapses_last_two_dims() {
     let batch = Tensor::<f64, SequentialBackend>::from_slice(
         vec![2, 2, 3, 3],
         &[
-            1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-            0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-            0.0, 0.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+            1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+            0.0, 1.0,
         ],
     );
-    let got =
-        frobenius_norm_batched(&batch, &b).expect("valid batched Frobenius norm test input");
+    let got = frobenius_norm_batched(&batch, &b).expect("valid batched Frobenius norm test input");
     assert_eq!(got.shape(), &[2, 2]);
     let want = 3.0_f64.sqrt();
     for g in got.as_slice() {
