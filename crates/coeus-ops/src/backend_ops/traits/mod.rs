@@ -30,6 +30,11 @@
 //!
 //! [`BackendOps`]: super::BackendOps
 
+#![expect(
+    clippy::too_many_arguments,
+    reason = "kernel trait methods carry per-axis geometry; grouping into a parameter struct is a cross-crate API change"
+)]
+
 pub mod attention;
 pub mod conv;
 /// Per-channel 3-vector cross product capability.

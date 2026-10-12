@@ -4,7 +4,6 @@
 //!
 //! Generic N-dimensional tensor type with COW semantics, zero-copy views,
 //! and backend-abstracted storage.
-#![allow(clippy::needless_range_loop)]
 #![deny(missing_docs)]
 
 /// Broadcasting shape compatibility.

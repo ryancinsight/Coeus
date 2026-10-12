@@ -71,9 +71,9 @@ where
         }
         let idx_numel: usize = idx_shape.iter().product();
         let mut is_identity = true;
-        for flat in 0..idx_numel {
+        for (flat, &raw) in idx_s.iter().enumerate().take(idx_numel) {
             let coord_dim = (flat / idx_strides[dim]) % idx_shape[dim];
-            if (<T as Scalar>::to_f64(idx_s[flat]) as usize) != coord_dim {
+            if (<T as Scalar>::to_f64(raw) as usize) != coord_dim {
                 is_identity = false;
                 break;
             }

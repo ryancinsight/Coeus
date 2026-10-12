@@ -18,12 +18,6 @@
 // ── Coeus NN ──
 // Neural network building blocks.
 #![deny(missing_docs)]
-#![allow(
-    clippy::needless_range_loop,
-    clippy::get_first,
-    clippy::manual_range_contains,
-    clippy::type_complexity
-)]
 
 /// Activation functions (ReLU, GeLU, SiLU, etc.).
 pub mod activation;
@@ -99,7 +93,7 @@ pub use loss::{
     multi_margin, nanmean, nansum, nll_loss, pairwise_distance, poisson_nll, smooth_l1_loss,
     soft_margin, triplet_margin_loss, triplet_margin_with_distance_loss,
 };
-pub use module::{Module, ModuleError, ParameterLoadError};
+pub use module::{Module, ModuleError, ModuleResult, ParameterLoadError};
 pub use normalization::{
     group_norm, layer_norm, rms_norm, BatchNorm1d, BatchNorm2d, BatchNorm3d, GroupNorm,
     InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, NormalizedShape, RMSNorm,

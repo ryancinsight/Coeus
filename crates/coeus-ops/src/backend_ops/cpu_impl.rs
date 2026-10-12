@@ -1,3 +1,9 @@
+//! CPU realizations of the backend kernel traits.
+#![expect(
+    clippy::too_many_arguments,
+    reason = "CPU kernels mirror the per-axis geometry of the trait contracts they implement"
+)]
+
 use coeus_core::{Backend, BackendError};
 
 mod convolution;
@@ -34,7 +40,7 @@ mod unfold_fold;
 /// ```
 ///
 /// The parent [`ComputeBackend`](coeus_core::ComputeBackend) trait is sealed,
-/// so this marker remains restricted to first-party backends without a second
+/// so this trait remains restricted to first-party backends without a second
 /// private sealing layer. CPU-addressable emulation backends can therefore use
 /// the same canonical operation implementations instead of cloning them.
 pub trait CpuBackend: Backend<Error = BackendError> {

@@ -97,10 +97,10 @@ where
 
         let mut off = layout.offset();
         let diff = out_ndim.saturating_sub(ndim);
-        for d in diff..out_ndim {
+        for (d, &coord) in coords.iter().enumerate().skip(diff) {
             let ad = d - diff;
             if shape[ad] > 1 {
-                off += coords[d] * strides[ad];
+                off += coord * strides[ad];
             }
         }
         tensor.storage().as_slice()[off]

@@ -22,6 +22,7 @@ fn reduce_last_axis<T: Scalar + leto_ops::Scalar, B: CpuBackend>(
 ) -> Vec<T>
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
     let a_layout = Layout::new(Shape::from(vec![rows, cols]));
     let c_layout = Layout::new(Shape::from(vec![rows, 1]));
@@ -42,6 +43,7 @@ where
 fn check_f32<B: CpuBackend>(backend: &B)
 where
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
     // cols spans the SIMD lane/tail boundary; rows exercises multiple output runs.
     for &(rows, cols) in &[
