@@ -4,7 +4,7 @@ use crate::fft::{accumulate_grad, fft_1d, ifft_1d, tensor_to_vec, FftScalar};
 use coeus_autograd::BackwardNode;
 use coeus_autograd::GradBuffer;
 use coeus_autograd::Var;
-use coeus_core::{Complex, ComputeBackend, FloatElement, MoiraiBackend};
+use coeus_core::{Complex, ComputeBackend, MoiraiBackend, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -212,7 +212,7 @@ where
     ) -> Result<(), B::Error> {
         if let Some(Some(ref grad)) = input_grads.first() {
             let go = tensor_to_vec(grad_out)[0];
-            let factor = go * T::from_f64(2.0);
+            let factor = go * <T as Scalar>::from_f64(2.0);
             let spec_host = tensor_to_vec(&self.spectrum);
             let grad_spec: Vec<Complex<T>> = spec_host
                 .iter()
