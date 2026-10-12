@@ -399,7 +399,6 @@ dependencies = [
 name = "coeus-core"
 version = "0.10.0"
 dependencies = [
- "bytemuck",
  "eunomia",
  "hermes-simd",
  "mnemosyne-memory",
@@ -424,10 +423,8 @@ dependencies = [
  "eunomia",
  "hephaestus-core",
  "hephaestus-cuda",
- "leto",
  "leto-ops",
  "themis-topology",
- "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -464,6 +461,7 @@ dependencies = [
  "bytemuck",
  "coeus-core",
  "coeus-ops",
+ "coeus-tensor",
  "eunomia",
  "hephaestus-core",
  "leto",
@@ -494,6 +492,7 @@ dependencies = [
  "hephaestus-core",
  "hephaestus-metal",
  "leto-ops",
+ "tracing",
 ]
 
 [[package]]
@@ -516,6 +515,7 @@ dependencies = [
 name = "coeus-ops"
 version = "0.10.0"
 dependencies = [
+ "backtrace",
  "bytemuck",
  "coeus-core",
  "coeus-leto",
@@ -576,6 +576,7 @@ dependencies = [
  "hephaestus-core",
  "hephaestus-rocm",
  "leto-ops",
+ "tracing",
 ]
 
 [[package]]
@@ -614,7 +615,6 @@ dependencies = [
 name = "coeus-wgpu"
 version = "0.10.0"
 dependencies = [
- "bytemuck",
  "coeus-autograd",
  "coeus-core",
  "coeus-hephaestus",
@@ -625,10 +625,8 @@ dependencies = [
  "eunomia",
  "hephaestus-core",
  "hephaestus-wgpu",
- "leto",
  "leto-ops",
  "themis-topology",
- "thiserror 2.0.21",
  "tracing",
 ]
 
