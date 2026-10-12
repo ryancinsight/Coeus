@@ -1,7 +1,7 @@
 use crate::fuse::expr_node::CpuExprNode;
 use crate::ptr::MutPtr;
 use crate::CpuBackend;
-use coeus_core::{BackendError, CpuAddressableStorageMut, Layout, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorageMut, FloatElement, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 #[repr(transparent)]
@@ -153,7 +153,7 @@ unsafe fn eval_reduction_at<E, T, B>(
 ) -> T
 where
     E: CpuExprNode<T, B> + Copy,
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: CpuBackend,
 {
     coords[axis] = 0;
@@ -166,7 +166,7 @@ where
     }
 
     if matches!(op, crate::ReductionOp::Mean) {
-        acc / T::from_f64(axis_len as f64)
+        acc / T::from_count(axis_len)
     } else {
         acc
     }
@@ -180,7 +180,7 @@ fn write_fused_reductions<E, T, B>(
     backend: &B,
 ) where
     E: CpuExprNode<T, B> + Copy + Send,
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: CpuBackend,
 {
     let ndim = plan.out_layout.ndim();
@@ -287,7 +287,7 @@ pub fn evaluate_fused_reduce_cpu<E, T, B>(
 ) -> Result<Tensor<T, B>, BackendError>
 where
     E: CpuExprNode<T, B> + Copy + Send,
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -314,8 +314,8 @@ where
 
     if axis_len == 0 {
         let identity = match op {
-            crate::ReductionOp::Sum => T::zero(),
-            crate::ReductionOp::Prod => T::one(),
+            crate::ReductionOp::Sum => T::ZERO,
+            crate::ReductionOp::Prod => T::ONE,
             crate::ReductionOp::Mean | crate::ReductionOp::Max | crate::ReductionOp::Min => {
                 unreachable!("invariant: undefined empty reductions were rejected")
             }

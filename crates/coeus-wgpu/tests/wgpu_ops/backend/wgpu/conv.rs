@@ -1,11 +1,11 @@
 use coeus_core::{ComputeBackend, SequentialBackend};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 #[test]
 fn test_wgpu_conv() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     // 1D Convolution
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
@@ -34,7 +34,7 @@ fn test_wgpu_conv() {
     )
     .expect("WGPU conv1d dispatch");
 
-    let out_tensor_wgpu: Tensor<f32, WgpuBackend> =
+    let out_tensor_wgpu: Tensor<f32, HephaestusBackend<WgpuProvider>> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
     let out_seq = out_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
 
@@ -102,7 +102,7 @@ fn test_wgpu_conv() {
     )
     .expect("WGPU conv2d dispatch");
 
-    let out_2d_tensor_wgpu: Tensor<f32, WgpuBackend> =
+    let out_2d_tensor_wgpu: Tensor<f32, HephaestusBackend<WgpuProvider>> =
         Tensor::from_raw_parts(out_2d_wgpu_storage, out_2d_layout.clone());
     let out_2d_seq = out_2d_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
 
@@ -144,7 +144,7 @@ fn test_wgpu_conv() {
 fn test_wgpu_conv_backward() {
     use coeus_core::CpuAddressableStorage;
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
@@ -213,7 +213,8 @@ fn test_wgpu_conv_backward() {
     )
     .expect("CPU conv1d backward dispatch");
 
-    let gi_wgpu_tensor: Tensor<f32, WgpuBackend> = Tensor::from_raw_parts(gi_wgpu, gi_layout);
+    let gi_wgpu_tensor: Tensor<f32, HephaestusBackend<WgpuProvider>> =
+        Tensor::from_raw_parts(gi_wgpu, gi_layout);
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
     for (i, (&res, &exp)) in gi_wgpu_cpu
         .as_slice()
@@ -230,7 +231,8 @@ fn test_wgpu_conv_backward() {
         );
     }
 
-    let gw_wgpu_tensor: Tensor<f32, WgpuBackend> = Tensor::from_raw_parts(gw_wgpu, gw_layout);
+    let gw_wgpu_tensor: Tensor<f32, HephaestusBackend<WgpuProvider>> =
+        Tensor::from_raw_parts(gw_wgpu, gw_layout);
     let gw_wgpu_cpu = gw_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
     for (i, (&res, &exp)) in gw_wgpu_cpu
         .as_slice()
@@ -247,7 +249,7 @@ fn test_wgpu_conv_backward() {
         );
     }
 
-    let gb_wgpu_tensor: Tensor<f32, WgpuBackend> =
+    let gb_wgpu_tensor: Tensor<f32, HephaestusBackend<WgpuProvider>> =
         Tensor::from_raw_parts(gb_wgpu, coeus_core::Layout::new(vec![2].into()));
     let gb_wgpu_cpu = gb_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
     for (i, (&res, &exp)) in gb_wgpu_cpu

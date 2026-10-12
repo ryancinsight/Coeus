@@ -136,7 +136,7 @@ where
                 // Embed gi_diag into zeros of input_shape.
                 let gi_cont = gi_diag.to_contiguous();
                 let gi_s = gi_cont.as_slice();
-                let mut data = vec![T::zero(); rows * cols];
+                let mut data = vec![T::ZERO; rows * cols];
                 for r in 0..gi_rows.min(rows) {
                     for c in 0..gi_cols.min(cols) {
                         data[r * cols + c] = gi_s[r * gi_cols + c];

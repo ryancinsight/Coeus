@@ -1,19 +1,22 @@
 use coeus_core::{ComputeBackend, CpuAddressableStorage, Layout, SequentialBackend};
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_ops::RandomInitOps;
 
-fn backends() -> Option<(SequentialBackend, CudaBackend)> {
+fn backends() -> Option<(SequentialBackend, HephaestusBackend<CudaProvider>)> {
     if !crate::availability::device_available() {
         return None;
     }
-    Some((SequentialBackend::new(), CudaBackend::new()))
+    Some((
+        SequentialBackend::new(),
+        HephaestusBackend::<CudaProvider>::new(),
+    ))
 }
 
 fn assert_seeded_parity(
     operation: &str,
     cpu: &[f32],
-    gpu: &<CudaBackend as ComputeBackend>::DeviceBuffer<f32>,
-    backend: &CudaBackend,
+    gpu: &<HephaestusBackend<CudaProvider> as ComputeBackend>::DeviceBuffer<f32>,
+    backend: &HephaestusBackend<CudaProvider>,
 ) {
     let mut actual = vec![0.0; cpu.len()];
     backend.copy_to_host(gpu, &mut actual);
@@ -22,7 +25,7 @@ fn assert_seeded_parity(
 
 #[test]
 fn random_initialization_dispatches_with_seeded_provider_parity() {
-    let Err(invalid) = CudaBackend::new().uniform_random(
+    let Err(invalid) = HephaestusBackend::<CudaProvider>::new().uniform_random(
         &Layout::new(Vec::<usize>::new().into()),
         -0.75,
         1.25,
@@ -32,7 +35,7 @@ fn random_initialization_dispatches_with_seeded_provider_parity() {
     };
     assert!(matches!(
         invalid,
-        coeus_cuda::CudaBackendError::Dispatch {
+        coeus_hephaestus::HephaestusBackendError::Device {
             operation: "uniform initialization",
             source: hephaestus_core::HephaestusError::InvalidConfiguration { .. },
         }

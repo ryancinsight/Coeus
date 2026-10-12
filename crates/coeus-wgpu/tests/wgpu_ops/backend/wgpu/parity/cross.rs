@@ -24,7 +24,7 @@ fn test_wgpu_parity_cross_non_last_axis_fallback() {
         &[0.0_f32, 0.0, 5.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0],
     );
     // dim=0 on a [3, 3] tensor is not the last axis: the on-device seam
-    // cannot express this layout, so `WgpuBackend` falls back to the same
+    // cannot express this layout, so `HephaestusBackend<WgpuProvider>` falls back to the same
     // shared host-fold every seam-less backend uses (ADR 0077).
     let cpu = coeus_ops::cross(&a, &b, 0);
     let gpu = to_cpu(&coeus_ops::cross(&to_gpu(&a), &to_gpu(&b), 0));

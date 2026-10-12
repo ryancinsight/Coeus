@@ -71,6 +71,11 @@ tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 # ── Benchmarking ──
 criterion = "0.5"
 
+# ── Diagnostics ──
+# Test-only allocation-site capture (alloc_budget.rs); resolution-free
+# `backtrace::trace`, never symbol resolution at print time.
+backtrace = "0.3"
+
 # ── Python ──
 pyo3 = { version = "0.23", features = ["extension-module"] }
 

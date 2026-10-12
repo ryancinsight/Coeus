@@ -1,6 +1,6 @@
 use coeus_core::{ComputeBackend, CpuAddressableStorage, SequentialBackend};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 const TOL: f32 = 1e-4;
 
@@ -71,7 +71,7 @@ fn assert_close(label: &str, actual: &[f32], expected: &[f32]) {
 
 fn assert_forward_matches_cpu(case: Conv3dCase) {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_shape = case.input_shape();
     let weight_shape = case.weight_shape();
@@ -108,8 +108,10 @@ fn assert_forward_matches_cpu(case: Conv3dCase) {
     )
     .expect("WGPU conv3d dispatch");
 
-    let out_tensor_wgpu =
-        Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
+    let out_tensor_wgpu = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        out_wgpu_storage,
+        out_layout.clone(),
+    );
     let out_wgpu_cpu = out_tensor_wgpu.to_backend_on(&wgpu_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(out_len);
@@ -139,7 +141,7 @@ fn assert_forward_matches_cpu(case: Conv3dCase) {
 
 fn assert_backward_matches_cpu(case: Conv3dCase) {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_shape = case.input_shape();
     let weight_shape = case.weight_shape();
@@ -217,7 +219,8 @@ fn assert_backward_matches_cpu(case: Conv3dCase) {
     )
     .expect("CPU conv3d backward dispatch");
 
-    let gi_wgpu_tensor = Tensor::<f32, WgpuBackend>::from_raw_parts(gi_wgpu, gi_layout);
+    let gi_wgpu_tensor =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(gi_wgpu, gi_layout);
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
     assert_close(
         "conv3d_grad_input",
@@ -225,7 +228,8 @@ fn assert_backward_matches_cpu(case: Conv3dCase) {
         gi_expected.as_slice(),
     );
 
-    let gw_wgpu_tensor = Tensor::<f32, WgpuBackend>::from_raw_parts(gw_wgpu, gw_layout);
+    let gw_wgpu_tensor =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(gw_wgpu, gw_layout);
     let gw_wgpu_cpu = gw_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
     assert_close(
         "conv3d_grad_weight",
@@ -233,7 +237,8 @@ fn assert_backward_matches_cpu(case: Conv3dCase) {
         gw_expected.as_slice(),
     );
 
-    let gb_wgpu_tensor = Tensor::<f32, WgpuBackend>::from_raw_parts(gb_wgpu, gb_layout);
+    let gb_wgpu_tensor =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(gb_wgpu, gb_layout);
     let gb_wgpu_cpu = gb_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
     assert_close(
         "conv3d_grad_bias",

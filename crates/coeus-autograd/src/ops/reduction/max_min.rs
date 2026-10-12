@@ -63,7 +63,7 @@ impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + 
 
         let eps = Tensor::full_on(
             self.input_tensor.shape(),
-            <T as coeus_core::Scalar>::from_f64(1e-30),
+            <T as coeus_core::FloatElement>::from_f64(1e-30),
             &backend,
         );
         let diff = coeus_ops::sub(&self.input_tensor, &max_broad, &backend);
@@ -165,7 +165,7 @@ impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + 
         let min_broad = self.min_tensor.broadcast(self.input_tensor.shape_cloned());
         let eps = Tensor::full_on(
             self.input_tensor.shape(),
-            <T as coeus_core::Scalar>::from_f64(1e-30),
+            <T as coeus_core::FloatElement>::from_f64(1e-30),
             &backend,
         );
         let diff = coeus_ops::sub(&self.input_tensor, &min_broad, &backend);

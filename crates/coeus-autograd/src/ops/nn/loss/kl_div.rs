@@ -91,7 +91,7 @@ pub fn kl_divergence<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendO
     // taken as 0 by convention. All on-provider. `log(target)` is evaluated
     // on a safe copy (0 → 1) so no -inf lane exists; the original target
     // (0 at those positions) zeroes the term, avoiding `0 * -inf = NaN`.
-    let ones = Tensor::full_on(target.tensor.shape_cloned(), T::one(), &backend);
+    let ones = Tensor::full_on(target.tensor.shape_cloned(), T::ONE, &backend);
     let zeros = Tensor::zeros_on(target.tensor.shape_cloned(), &backend);
     let zero_mask = coeus_ops::eq(&target.tensor, &zeros, &backend);
     let safe_target = coeus_ops::where_cond(&zero_mask, &ones, &target.tensor, &backend)
@@ -117,7 +117,7 @@ pub fn kl_divergence<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendO
             n,
             mean_scale: Tensor::full_on(
                 [1],
-                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                T::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
                 &backend,
             ),
         };

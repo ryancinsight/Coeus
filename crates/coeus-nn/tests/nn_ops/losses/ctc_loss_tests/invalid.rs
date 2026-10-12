@@ -1,6 +1,6 @@
 use super::{
     count, ctc_loss, probability_logs, variable, BackendError, BackendOps, BinaryPrecision, CtcOps,
-    Float, Scalar, Tensor,
+    Float, Tensor,
 };
 
 fn rejected<T, B>(
@@ -16,7 +16,7 @@ where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
     let input = variable::<T, B>(logs, [2, 1, 2]);
-    let initial = <T as Scalar>::from_f64(0.75);
+    let initial = <T as coeus_core::FloatElement>::from_f64(0.75);
     input.set_grad(Tensor::from_slice([2, 1, 2], &[initial; 4]));
     let error = match ctc_loss(&input, targets, input_lengths, target_lengths, blank) {
         Err(error) => error,
@@ -77,7 +77,7 @@ where
         BackendError::ShapeMismatch { lhs, rhs, .. } => assert_eq!((lhs, rhs), (vec![1], vec![2])),
         error => panic!("concatenated target mismatch must retain lengths: {error:?}"),
     }
-    for bad in [<T as Float>::NAN, <T as Float>::INFINITY, T::one()] {
+    for bad in [<T as Float>::NAN, <T as Float>::INFINITY, T::ONE] {
         let mut invalid = logs.clone();
         invalid[1] = bad;
         match rejected::<T, B>(&invalid, &[1], &[2], &[1], 0) {
@@ -97,7 +97,7 @@ where
     // Sample zero is feasible. Sample one needs a blank between repeated labels
     // and cannot fit in two frames. Rejection must precede *all* accumulation.
     let input = variable::<T, B>(&probability_logs::<T>(&[0.5; 8]), [2, 2, 2]);
-    let initial = <T as Scalar>::from_f64(0.75);
+    let initial = <T as coeus_core::FloatElement>::from_f64(0.75);
     input.set_grad(Tensor::from_slice([2, 2, 2], &[initial; 8]));
     let loss = ctc_loss(&input, &[1, 1, 1], &[2, 2], &[1, 2], 0)
         .expect("invariant: impossible alignments have a defined infinite forward loss");
@@ -115,7 +115,7 @@ where
     );
 
     // A structurally feasible target with zero probability is also undefined.
-    let input = variable::<T, B>(&[T::zero(), <T as Float>::NEG_INFINITY], [1, 1, 2]);
+    let input = variable::<T, B>(&[T::ZERO, <T as Float>::NEG_INFINITY], [1, 1, 2]);
     input.set_grad(Tensor::from_slice([1, 1, 2], &[initial; 2]));
     let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
         .expect("invariant: zero-probability paths retain infinite forward loss");

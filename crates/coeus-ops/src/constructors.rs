@@ -122,4 +122,38 @@ mod tests {
         let t = linspace(3.5f32, 99.0, 1, &b);
         assert!((t.as_slice()[0] - 3.5_f32).abs() < 1e-5);
     }
+
+    #[test]
+    fn linspace_endpoints_inclusive_f64() {
+        let b = SequentialBackend::new();
+        let t = linspace(0.0f64, 1.0, 5, &b);
+        let s = t.as_slice();
+        assert!((s[0] - 0.0).abs() < 1e-12);
+        assert!((s[4] - 1.0).abs() < 1e-12);
+        assert!((s[2] - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn logspace_base10_f64() {
+        let b = SequentialBackend::new();
+        let t = logspace(0.0f64, 2.0, 3, 10.0, &b);
+        let s = t.as_slice();
+        assert!((s[0] - 1.0).abs() < 1e-12);
+        assert!((s[1] - 10.0).abs() < 1e-12);
+        assert!((s[2] - 100.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn geomspace_doubling_f64() {
+        let b = SequentialBackend::new();
+        let t = geomspace(1.0f64, 16.0, 5, &b);
+        let s = t.as_slice();
+        for (i, &v) in s.iter().enumerate() {
+            let expected = 2.0f64.powi(i as i32);
+            assert!(
+                (v - expected).abs() < 1e-12,
+                "geomspace[{i}]={v} vs {expected}"
+            );
+        }
+    }
 }

@@ -12,6 +12,7 @@ mod cross_entropy;
 mod cross_product;
 mod elementwise;
 mod error;
+mod fusion;
 mod layout;
 mod matmul;
 mod pooling;
@@ -35,13 +36,16 @@ pub use cross_entropy::{
     prepare_candidate, prepare_targets as prepare_cross_entropy_targets, CrossEntropyBackend,
     CrossEntropyProvider,
 };
-pub use cross_product::{cross_product, CrossProductProvider};
+pub use cross_product::{
+    cross_host_fallback, cross_product, CrossProductProvider, HostCrossProductOps,
+};
 pub use elementwise::{
     parameterized_unary, ActivationUnaryOperations, ArithmeticUnaryOperations,
     BinaryElementwiseDispatch, ElementwiseProvider, ParameterizedElementwiseProvider,
     ScalarPowerDispatch, ScalarPowerProvider, UnaryElementwiseDispatch,
 };
 pub use error::HephaestusBackendError;
+pub use fusion::{evaluate_fused, evaluate_fused_reduce, FusionProvider};
 pub use matmul::{matmul, MatmulBackend, MatmulProvider};
 pub use pooling::{pooling_backward, pooling_forward, PoolingBackend, PoolingProvider};
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};

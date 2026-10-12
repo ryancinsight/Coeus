@@ -40,7 +40,7 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
 
     let device_input = to_gpu(&input, &sequential, &cuda);
     let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
-    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([1, 1, 5], &cuda);
     let actual_layout = actual.layout().clone();
     cuda.max_pool1d(
         device_input.storage(),
@@ -53,7 +53,8 @@ fn test_cuda_parity_max_pool1d_forward_and_backward() {
         &actual_layout,
     )
     .expect("CUDA max_pool1d dispatch");
-    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual_gradient =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([1, 1, 5], &cuda);
     let actual_gradient_layout = actual_gradient.layout().clone();
     cuda.max_pool1d_backward(
         device_grad_out.storage(),
@@ -122,7 +123,7 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
 
     let device_input = to_gpu(&input, &sequential, &cuda);
     let device_grad_out = to_gpu(&grad_out, &sequential, &cuda);
-    let mut actual = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([1, 1, 5], &cuda);
     let actual_layout = actual.layout().clone();
     cuda.avg_pool1d(
         device_input.storage(),
@@ -135,7 +136,8 @@ fn test_cuda_parity_avg_pool1d_forward_and_backward() {
         &actual_layout,
     )
     .expect("CUDA avg_pool1d dispatch");
-    let mut actual_gradient = Tensor::<f32, CudaBackend>::zeros_on([1, 1, 5], &cuda);
+    let mut actual_gradient =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([1, 1, 5], &cuda);
     let actual_gradient_layout = actual_gradient.layout().clone();
     cuda.avg_pool1d_backward(
         device_grad_out.storage(),
@@ -186,7 +188,8 @@ fn test_cuda_parity_max_pool2d() {
     .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![2, 2, 2, 2], &c);
     let gpu_out_layout = gpu_out.layout().clone();
     c.max_pool2d(
         xg.storage(),
@@ -231,7 +234,8 @@ fn test_cuda_parity_avg_pool2d() {
     .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 2, 2], &c);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![2, 2, 2, 2], &c);
     let gpu_out_layout = gpu_out.layout().clone();
     c.avg_pool2d(
         xg.storage(),
@@ -284,7 +288,7 @@ fn test_cuda_parity_max_pool2d_backward() {
 
     let xg = to_gpu(&x, &s, &c);
     let gog = to_gpu(&go, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 4, 4], &c);
+    let mut gi_g = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![2, 2, 4, 4], &c);
     c.max_pool2d_backward(
         gog.storage(),
         gog.layout(),
@@ -332,7 +336,7 @@ fn test_cuda_parity_avg_pool2d_backward() {
     .expect("invariant: validated CPU avg_pool2d backward dispatch must succeed");
 
     let gog = to_gpu(&go, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![2, 2, 4, 4], &c);
+    let mut gi_g = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![2, 2, 4, 4], &c);
     c.avg_pool2d_backward(
         gog.storage(),
         gog.layout(),

@@ -97,7 +97,7 @@ impl StateArchive<'_> {
     /// configured resource and shape bounds.
     pub fn materialize<T, B>(&self) -> Result<StateDict<T, B>>
     where
-        T: Scalar,
+        T: Scalar + bytemuck::Pod,
         B: ComputeBackend + Default,
     {
         if self.root.scalar.as_str() != type_name::<T>() {
@@ -201,7 +201,7 @@ impl<T: Scalar, B: ComputeBackend + Default> Default for StateDict<T, B> {
     }
 }
 
-impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
+impl<T: Scalar + bytemuck::Pod, B: ComputeBackend + Default> StateDict<T, B> {
     /// Create an empty state dictionary.
     #[must_use]
     pub fn new() -> Self {
@@ -261,7 +261,7 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
                 let offset = contiguous.layout().offset();
                 bytemuck::cast_slice(&slice[offset..offset + contiguous.numel()]).to_vec()
             } else {
-                let mut host = vec![T::zero(); contiguous.numel()];
+                let mut host = vec![T::ZERO; contiguous.numel()];
                 backend.copy_to_host(contiguous.storage(), &mut host);
                 bytemuck::cast_slice(&host).to_vec()
             };

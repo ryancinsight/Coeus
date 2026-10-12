@@ -9,7 +9,7 @@ use coeus_tensor::Tensor;
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -18,7 +18,7 @@ where
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -50,12 +50,15 @@ where
     );
 }
 
-fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N]) {
+fn assert_same_bits<T: Scalar + coeus_core::FloatElement, const N: usize>(
+    got: &[T],
+    expected: [T; N],
+) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            coeus_core::NumericElement::to_f64(actual).to_bits(),
+            coeus_core::NumericElement::to_f64(reference).to_bits(),
             "scan mismatch at index {index}",
         );
     }

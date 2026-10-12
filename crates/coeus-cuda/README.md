@@ -2,13 +2,25 @@
 
 CUDA backend for [Coeus](../../README.md) tensor operations.
 
-Implements the [`coeus-hephaestus`](../coeus-hephaestus/README.md) provider
-traits against NVIDIA CUDA.
+Exposes the generic `HephaestusBackend<CudaProvider>` from
+[`coeus-hephaestus`](../coeus-hephaestus/README.md): one monomorphized backend
+over the CUDA provider's operation bundles, instead of a per-vendor shim
+struct. Every Coeus operator resolves through the shared bridge
+implementations; this crate only names the device and selects the bundles.
+
+```rust,ignore
+use coeus_cuda::{CudaProvider, HephaestusBackend};
+
+let backend = HephaestusBackend::<CudaProvider>::new();
+```
 
 ## Feature gate
 
-Compute is behind the `cuda` feature. A default build exposes only the storage
-and capability types and implements no mathematical traits:
+The library binds unconditionally over `hephaestus_cuda::CudaDevice`: without
+the `cuda` feature that type is hephaestus-cuda's stub, so the crate compiles
+but acquisition fails honestly with an unavailable-device error. The `cuda`
+feature enables the real NVRTC + driver backend and gates the on-device
+tests and benches:
 
 ```sh
 cargo nextest run --locked -p coeus-cuda --features cuda

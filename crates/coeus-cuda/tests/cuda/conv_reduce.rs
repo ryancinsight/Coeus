@@ -1,5 +1,5 @@
 use coeus_core::{ComputeBackend, SequentialBackend};
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -7,7 +7,7 @@ fn test_cuda_backend_conv_and_reduce() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -45,7 +45,7 @@ fn test_cuda_backend_conv_and_reduce() {
     )
     .expect("CUDA conv1d dispatch");
 
-    let out_tensor_cuda: Tensor<f32, CudaBackend> =
+    let out_tensor_cuda: Tensor<f32, HephaestusBackend<CudaProvider>> =
         Tensor::from_raw_parts(out_cuda_storage, out_layout.clone());
     let out_seq = out_tensor_cuda.to_backend_on(&cuda_b, &seq);
 
@@ -91,7 +91,7 @@ fn test_cuda_conv_backward() {
     }
     use coeus_core::CpuAddressableStorage;
     let seq = SequentialBackend::new();
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
 
     let grad_out_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
@@ -160,7 +160,8 @@ fn test_cuda_conv_backward() {
     )
     .expect("CPU conv1d backward dispatch");
 
-    let gi_cuda_tensor: Tensor<f32, CudaBackend> = Tensor::from_raw_parts(gi_cuda, gi_layout);
+    let gi_cuda_tensor: Tensor<f32, HephaestusBackend<CudaProvider>> =
+        Tensor::from_raw_parts(gi_cuda, gi_layout);
     let gi_cuda_cpu = gi_cuda_tensor.to_backend_on(&cuda_b, &seq);
     let gi_expected_slice = gi_expected.as_slice();
     for (i, (&res, &exp)) in gi_cuda_cpu
@@ -178,7 +179,8 @@ fn test_cuda_conv_backward() {
         );
     }
 
-    let gw_cuda_tensor: Tensor<f32, CudaBackend> = Tensor::from_raw_parts(gw_cuda, gw_layout);
+    let gw_cuda_tensor: Tensor<f32, HephaestusBackend<CudaProvider>> =
+        Tensor::from_raw_parts(gw_cuda, gw_layout);
     let gw_cuda_cpu = gw_cuda_tensor.to_backend_on(&cuda_b, &seq);
     let gw_expected_slice = gw_expected.as_slice();
     for (i, (&res, &exp)) in gw_cuda_cpu
@@ -196,7 +198,7 @@ fn test_cuda_conv_backward() {
         );
     }
 
-    let gb_cuda_tensor: Tensor<f32, CudaBackend> =
+    let gb_cuda_tensor: Tensor<f32, HephaestusBackend<CudaProvider>> =
         Tensor::from_raw_parts(gb_cuda, coeus_core::Layout::new(vec![2].into()));
     let gb_cuda_cpu = gb_cuda_tensor.to_backend_on(&cuda_b, &seq);
     let gb_expected_slice = gb_expected.as_slice();

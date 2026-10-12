@@ -26,7 +26,7 @@ pub enum InterpolateMode {
 /// Resize a 1-D spatial tensor `[N, C, L]` to `[N, C, new_L]`.
 ///
 /// Supported modes: [`InterpolateMode::Nearest`].
-pub fn interpolate_1d<T: Float, B: coeus_core::Backend>(
+pub fn interpolate_1d<T: Float + coeus_core::FloatElement, B: coeus_core::Backend>(
     input: &Tensor<T, B>,
     new_l: usize,
     mode: InterpolateMode,
@@ -42,7 +42,7 @@ where
     let in_s = in_cont.as_slice();
 
     let out_numel = n * c * new_l;
-    let mut out = vec![T::zero(); out_numel];
+    let mut out = vec![T::ZERO; out_numel];
 
     for bi in 0..n {
         for ci in 0..c {
@@ -59,7 +59,7 @@ where
                         let x0 = (frac.floor() as isize).max(0) as usize;
                         let x1 = (x0 + 1).min(l - 1);
                         let w1 = T::from_f64(frac - frac.floor());
-                        let w0 = T::from_f64(1.0) - w1;
+                        let w0 = T::ONE - w1;
                         let v0 = in_s[bi * c * l + ci * l + x0];
                         let v1 = in_s[bi * c * l + ci * l + x1];
                         v0 * w0 + v1 * w1
@@ -76,7 +76,7 @@ where
 /// Resize a 2-D spatial tensor `[N, C, H, W]` to `[N, C, new_H, new_W]`.
 ///
 /// Supported modes: [`InterpolateMode::Nearest`] and [`InterpolateMode::Bilinear`].
-pub fn interpolate_2d<T: Float, B: coeus_core::Backend>(
+pub fn interpolate_2d<T: Float + coeus_core::FloatElement, B: coeus_core::Backend>(
     input: &Tensor<T, B>,
     new_h: usize,
     new_w: usize,
@@ -92,7 +92,7 @@ where
     let in_cont = input.to_contiguous();
     let in_s = in_cont.as_slice();
 
-    let mut out = vec![T::zero(); n * c * new_h * new_w];
+    let mut out = vec![T::ZERO; n * c * new_h * new_w];
 
     for bi in 0..n {
         for ci in 0..c {
@@ -124,8 +124,8 @@ where
                             let x1 = (x0 + 1).min(w - 1);
                             let wy = T::from_f64(fy - fy.floor());
                             let wx = T::from_f64(fx - fx.floor());
-                            let wy0 = T::from_f64(1.0) - wy;
-                            let wx0 = T::from_f64(1.0) - wx;
+                            let wy0 = T::ONE - wy;
+                            let wx0 = T::ONE - wx;
                             let base = bi * c * h * w + ci * h * w;
                             in_s[base + y0 * w + x0] * wy0 * wx0
                                 + in_s[base + y0 * w + x1] * wy0 * wx

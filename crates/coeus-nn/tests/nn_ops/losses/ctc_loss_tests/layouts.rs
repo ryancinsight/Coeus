@@ -27,7 +27,7 @@ fn exact_storage<T: Scalar, B: ComputeBackend>(
     buffer: &B::DeviceBuffer<T>,
     expected: &[T],
 ) {
-    let mut actual = vec![T::zero(); expected.len()];
+    let mut actual = vec![T::ZERO; expected.len()];
     backend.copy_to_host(buffer, &mut actual);
     assert_eq!(actual, expected);
 }
@@ -59,7 +59,7 @@ fn stride_count_error(
 
 pub(super) fn cases<T, B>()
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: CtcOps<T> + ComputeBackend<Error = BackendError> + Default,
 {
     offset_storage::<T, B>();
@@ -69,16 +69,16 @@ where
 
 fn offset_storage<T, B>()
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: CtcOps<T> + ComputeBackend<Error = BackendError> + Default,
 {
     let backend = B::default();
-    let sentinel = <T as Scalar>::from_f64(7.0);
+    let sentinel = <T as coeus_core::FloatElement>::from_f64(7.0);
     // Both active log probabilities are zero. Only class one can emit, so the
     // posterior and dyadic seeded update are exact in every tested format.
     let input = upload(
         &backend,
-        &[<T as Float>::NAN, T::zero(), <T as Float>::NAN, T::zero()],
+        &[<T as Float>::NAN, T::ZERO, <T as Float>::NAN, T::ZERO],
     );
     let mut loss = upload(&backend, &[sentinel; 3]);
     let scalar = layout(&[1], &[1], 1);
@@ -91,8 +91,8 @@ where
             &scalar,
         )
         .expect("invariant: offset input and scalar output have valid footprints");
-    exact_storage(&backend, &loss, &[sentinel, T::zero(), sentinel]);
-    let seed = <T as Scalar>::from_f64(2.5);
+    exact_storage(&backend, &loss, &[sentinel, T::ZERO, sentinel]);
+    let seed = <T as coeus_core::FloatElement>::from_f64(2.5);
     let upstream = upload(
         &backend,
         &[
@@ -102,7 +102,7 @@ where
             <T as Float>::NAN,
         ],
     );
-    let initial = <T as Scalar>::from_f64(0.75);
+    let initial = <T as coeus_core::FloatElement>::from_f64(0.75);
     let mut gradient = upload(&backend, &[initial; 7]);
     backend
         .ctc_backward_accumulate(
@@ -114,20 +114,20 @@ where
         )
         .expect("invariant: offset gradient is injective and fits its backing storage");
     let mut expected = [initial; 7];
-    expected[5] = <T as Scalar>::from_f64(-1.75);
+    expected[5] = <T as coeus_core::FloatElement>::from_f64(-1.75);
     exact_storage(&backend, &gradient, &expected);
 }
 
 fn forward_descriptors<T, B>()
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: CtcOps<T> + ComputeBackend<Error = BackendError> + Default,
 {
     let backend = B::default();
-    let input = upload(&backend, &[T::zero(); 2]);
+    let input = upload(&backend, &[T::ZERO; 2]);
     let valid = Layout::new([1, 1, 2].into());
     let scalar = Layout::new([1].into());
-    let sentinel = <T as Scalar>::from_f64(7.0);
+    let sentinel = <T as coeus_core::FloatElement>::from_f64(7.0);
     let mut loss = upload(&backend, &[sentinel; 2]);
     for (input_layout, loss_layout, operation, shape_count, stride_count) in [
         (
@@ -221,19 +221,19 @@ where
 
 fn backward_descriptors<T, B>()
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: CtcOps<T> + ComputeBackend<Error = BackendError> + Default,
 {
     let backend = B::default();
-    let input = upload(&backend, &[T::zero(); 2]);
+    let input = upload(&backend, &[T::ZERO; 2]);
     let valid = Layout::new([1, 1, 2].into());
     let scalar = Layout::new([1].into());
-    let mut loss = upload(&backend, &[T::zero()]);
+    let mut loss = upload(&backend, &[T::ZERO]);
     let state = backend
         .ctc_forward(&input, &valid, sequences(), &mut loss, &scalar)
         .expect("invariant: one-frame target has a unique alignment");
-    let upstream = upload(&backend, &[T::one(); 2]);
-    let sentinel = <T as Scalar>::from_f64(7.0);
+    let upstream = upload(&backend, &[T::ONE; 2]);
+    let sentinel = <T as coeus_core::FloatElement>::from_f64(7.0);
     let mut gradient = upload(&backend, &[sentinel; 2]);
     for (upstream_layout, gradient_layout, operation, shape_count, stride_count) in [
         (

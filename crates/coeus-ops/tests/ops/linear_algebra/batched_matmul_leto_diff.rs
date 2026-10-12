@@ -7,7 +7,7 @@
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
-fn batched_reference<T: Scalar>(
+fn batched_reference<T: Scalar + coeus_core::FloatElement>(
     a: &[T],
     batches: usize,
     m: usize,
@@ -16,14 +16,14 @@ fn batched_reference<T: Scalar>(
     n: usize,
     b_batches: usize,
 ) -> Vec<T> {
-    let mut out = vec![T::zero(); batches * m * n];
+    let mut out = vec![T::ZERO; batches * m * n];
     for batch in 0..batches {
         let a_base = batch * m * k;
         let b_base = (batch % b_batches) * k * n;
         let c_base = batch * m * n;
         for row in 0..m {
             for col in 0..n {
-                let mut acc = T::zero();
+                let mut acc = T::ZERO;
                 for inner in 0..k {
                     acc += a[a_base + row * k + inner] * b[b_base + inner * n + col];
                 }
@@ -36,19 +36,19 @@ fn batched_reference<T: Scalar>(
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
 }
 
-fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
+fn assert_same_bits<T: Scalar + coeus_core::FloatElement>(got: &[T], expected: &[T]) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            coeus_core::NumericElement::to_f64(actual).to_bits(),
+            coeus_core::NumericElement::to_f64(reference).to_bits(),
             "batched matmul mismatch at index {index}",
         );
     }
@@ -56,7 +56,7 @@ fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
 
 fn check_equal_batch_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -76,7 +76,7 @@ where
 
 fn check_rhs_broadcast_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -97,7 +97,7 @@ where
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

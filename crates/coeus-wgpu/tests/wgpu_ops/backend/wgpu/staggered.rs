@@ -6,9 +6,10 @@
 //! binds the trait, not a device.
 
 use coeus_core::{BackendError, ComputeBackend, Layout, SequentialBackend};
+use coeus_hephaestus::HephaestusBackendError;
 use coeus_ops::{Axis, StaggeredPairOps};
 use coeus_tensor::Tensor;
-use coeus_wgpu::{WgpuBackend, WgpuBackendError};
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 const SHAPE: [usize; 3] = [8, 6, 10];
 const AXES: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
@@ -55,7 +56,7 @@ fn assert_close(actual: &[f32], expected: &[f32], what: &str) {
 
 fn through_both(axis: Axis, order: usize, divergence: bool) -> (Vec<f32>, Vec<f32>) {
     let sequential = SequentialBackend;
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let host = field();
     let input = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &host);
     let input_wgpu = input.to_backend_on(&sequential, &wgpu);
@@ -114,10 +115,11 @@ fn through_both(axis: Axis, order: usize, divergence: bool) -> (Vec<f32>, Vec<f3
         )
     }
     .expect("wgpu staggered dispatch");
-    let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(device_storage, layout())
-        .to_backend_on(&wgpu, &sequential)
-        .as_slice()
-        .to_vec();
+    let actual =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(device_storage, layout())
+            .to_backend_on(&wgpu, &sequential)
+            .as_slice()
+            .to_vec();
 
     (actual, expected)
 }
@@ -156,7 +158,7 @@ fn wgpu_staggered_divergence_matches_sequential() {
 #[test]
 fn wgpu_staggered_pair_is_a_negative_adjoint_through_the_seam() {
     let sequential = SequentialBackend;
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let p = field();
     let u: Vec<f32> = p.iter().rev().map(|v| v * 0.6 + 0.1).collect();
     let pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 4, [1.0, 1.0, 1.0])
@@ -176,10 +178,11 @@ fn wgpu_staggered_pair_is_a_negative_adjoint_through_the_seam() {
             &layout(),
         )
         .expect("wgpu gradient dispatch");
-        let gradient = Tensor::<f32, WgpuBackend>::from_raw_parts(gradient, layout())
-            .to_backend_on(&wgpu, &sequential)
-            .as_slice()
-            .to_vec();
+        let gradient =
+            Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(gradient, layout())
+                .to_backend_on(&wgpu, &sequential)
+                .as_slice()
+                .to_vec();
 
         let u_host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &u);
         let u_device = u_host.to_backend_on(&sequential, &wgpu);
@@ -194,10 +197,11 @@ fn wgpu_staggered_pair_is_a_negative_adjoint_through_the_seam() {
             &layout(),
         )
         .expect("wgpu divergence dispatch");
-        let divergence = Tensor::<f32, WgpuBackend>::from_raw_parts(divergence, layout())
-            .to_backend_on(&wgpu, &sequential)
-            .as_slice()
-            .to_vec();
+        let divergence =
+            Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(divergence, layout())
+                .to_backend_on(&wgpu, &sequential)
+                .as_slice()
+                .to_vec();
 
         let left: f32 = gradient.iter().zip(&u).map(|(a, b)| a * b).sum();
         let right: f32 = -p.iter().zip(&divergence).map(|(a, b)| a * b).sum::<f32>();
@@ -220,7 +224,7 @@ fn wgpu_staggered_pair_is_a_negative_adjoint_through_the_seam() {
 /// cannot resolve in one reflection step.
 #[test]
 fn wgpu_staggered_rejects_a_grid_thinner_than_the_stencil() {
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let thin = vec![4_usize, 8, 8];
     let count: usize = thin.iter().product();
     let pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 6, [1.0, 1.0, 1.0])
@@ -244,7 +248,7 @@ fn wgpu_staggered_rejects_a_grid_thinner_than_the_stencil() {
 #[test]
 fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
     let sequential = SequentialBackend;
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let pair = StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 4, SPACING)
         .expect("wgpu staggered preparation");
     let host = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), &field());
@@ -295,7 +299,10 @@ fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
             ),
         ] {
             match result {
-                Err(WgpuBackendError::Validation(BackendError::Storage { operation, reason })) => {
+                Err(HephaestusBackendError::Backend(BackendError::Storage {
+                    operation,
+                    reason,
+                })) => {
                     assert_eq!(operation, expected_operation);
                     assert_eq!(reason, expected_reason);
                 }
@@ -311,13 +318,16 @@ fn wgpu_staggered_rejects_unrepresentable_operand_layouts() {
 fn staggered_preparation_rejects_invalid_spacing_without_a_device() {
     // Backend construction is a ZST operation; invalid preparation must not
     // reach device discovery or kernel compilation.
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     for axis in 0..3 {
         for value in [0.0, -0.0, -1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
             let mut spacing = SPACING;
             spacing[axis] = value;
             match StaggeredPairOps::<f32>::prepare_staggered_pair(&wgpu, 4, spacing) {
-                Err(WgpuBackendError::Validation(BackendError::Storage { operation, reason })) => {
+                Err(HephaestusBackendError::Backend(BackendError::Storage {
+                    operation,
+                    reason,
+                })) => {
                     assert_eq!(operation, "prepare_staggered_pair");
                     assert_eq!(
                         reason,

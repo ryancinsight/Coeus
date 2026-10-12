@@ -1,11 +1,11 @@
 use coeus_core::{ComputeBackend, SequentialBackend};
 use coeus_tensor::Tensor;
-use coeus_wgpu::{add, WgpuBackend};
+use coeus_wgpu::{add, HephaestusBackend, WgpuProvider};
 
 #[test]
 fn test_wgpu_transfers_and_addition() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let b_data = vec![10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0];
@@ -29,14 +29,14 @@ fn test_wgpu_transfers_and_addition() {
 #[test]
 fn test_wgpu_backend_ops_unified() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
-    let a = Tensor::<f32, WgpuBackend>::from_slice_on(
+    let a = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on(
         vec![2, 3],
         &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
         &wgpu_b,
     );
-    let b = Tensor::<f32, WgpuBackend>::from_slice_on(
+    let b = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on(
         vec![2, 3],
         &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
         &wgpu_b,
@@ -50,8 +50,16 @@ fn test_wgpu_backend_ops_unified() {
     let d_cpu = d.to_backend_on(&wgpu_b, &seq);
     assert_eq!(d_cpu.as_slice(), &[1.0, 0.0, 3.0, 0.0, 5.0, 0.0]);
 
-    let m1 = Tensor::<f32, WgpuBackend>::from_slice_on(vec![2, 2], &[1.0, 2.0, 3.0, 4.0], &wgpu_b);
-    let m2 = Tensor::<f32, WgpuBackend>::from_slice_on(vec![2, 2], &[5.0, 6.0, 7.0, 8.0], &wgpu_b);
+    let m1 = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on(
+        vec![2, 2],
+        &[1.0, 2.0, 3.0, 4.0],
+        &wgpu_b,
+    );
+    let m2 = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on(
+        vec![2, 2],
+        &[5.0, 6.0, 7.0, 8.0],
+        &wgpu_b,
+    );
     let mr = coeus_ops::matmul(&m1, &m2, &wgpu_b);
     let mr_cpu = mr.to_backend_on(&wgpu_b, &seq);
     assert_eq!(mr_cpu.as_slice(), &[19.0, 22.0, 43.0, 50.0]);
@@ -64,7 +72,7 @@ fn test_wgpu_backend_ops_unified() {
 #[test]
 fn test_wgpu_tiled_matmul() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let m = 20;
     let k = 24;
@@ -103,9 +111,13 @@ fn test_wgpu_tiled_matmul() {
 #[test]
 fn test_wgpu_cow_semantics() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
-    let a = Tensor::<f32, WgpuBackend>::from_slice_on(vec![3], &[1.0, 2.0, 3.0], &wgpu_b);
+    let a = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on(
+        vec![3],
+        &[1.0, 2.0, 3.0],
+        &wgpu_b,
+    );
     let mut b = a.clone();
 
     wgpu_b.fill(b.storage_mut(), 10.0);

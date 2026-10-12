@@ -7,7 +7,7 @@
 // This is the exact semantic of `torch.index_select(input, dim, index)`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Select slices from `input` along `dim` at positions given by `index`.
@@ -58,7 +58,7 @@ where
     if k == in_shape[dim] {
         let mut is_identity = true;
         for (i, &v) in idx_s.iter().enumerate() {
-            if (<T as Scalar>::to_f64(v) as usize) != i {
+            if (<T as NumericElement>::to_f64(v) as usize) != i {
                 is_identity = false;
                 break;
             }
@@ -104,7 +104,7 @@ where
 
             // The `dim`-th coordinate indexes into `index`, giving us the
             // source position in the input along `dim`.
-            let sel = <T as Scalar>::to_f64(idx_s[dim_coord]) as usize;
+            let sel = <T as NumericElement>::to_f64(idx_s[dim_coord]) as usize;
             assert!(
                 sel < in_shape[dim],
                 "index_select: index value {sel} out of bounds for dim {dim} size {}",

@@ -10,7 +10,7 @@
 // committing a baseline. Not run in headless CI.
 
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_ops::conv_transpose2d;
 use coeus_tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -28,7 +28,7 @@ fn bench_matmul(c: &mut Criterion) {
         return;
     }
     let seq = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     let mut group = c.benchmark_group("CUDA Matmul (square)");
     for &sz in &[128usize, 512] {
         let a = fill(sz * sz, 1.0);
@@ -60,7 +60,7 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
         return;
     }
     let seq = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     const CASES: &[(usize, usize, usize, usize, usize, usize)] =
         &[(4, 8, 16, 16, 8, 3), (4, 16, 32, 32, 16, 3)];
     let (stride, padding, output_padding, dilation) = (2usize, 1usize, 1usize, 1usize);

@@ -1,5 +1,5 @@
 use coeus_core::{ComputeBackend, SequentialBackend};
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -7,7 +7,7 @@ fn test_cuda_backend_transfer_roundtrip() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     assert_eq!(cuda_b.name(), "cuda");
 
     let data = vec![1.0f32, 2.0, 3.0];
@@ -30,7 +30,7 @@ fn test_cuda_backend_ops() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0];
@@ -72,7 +72,7 @@ fn test_cuda_norm_p_provider_dispatch() {
         return;
     }
 
-    let backend = CudaBackend::new();
+    let backend = HephaestusBackend::<CudaProvider>::new();
     let sequential = SequentialBackend::new();
     let input =
         Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);

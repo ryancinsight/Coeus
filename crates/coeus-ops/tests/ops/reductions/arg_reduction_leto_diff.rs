@@ -11,7 +11,7 @@ use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -24,7 +24,7 @@ fn assert_indices(got: &[i64], expected: &[i64], context: &str) {
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,

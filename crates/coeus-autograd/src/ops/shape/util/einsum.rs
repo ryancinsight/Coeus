@@ -26,6 +26,44 @@ pub enum EinsumError {
         /// Number of operands the subscript was evaluated against.
         operand_count: usize,
     },
+    /// The subscript names a different operand count than provided.
+    OperandCountMismatch {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Comma-separated groups in the subscript.
+        subscript_operands: usize,
+        /// Provided operand count.
+        provided: usize,
+    },
+    /// An operand's rank disagrees with its subscript pattern.
+    RankMismatch {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Operand index whose rank disagrees.
+        operand: usize,
+        /// Rank the pattern requires.
+        expected_ndim: usize,
+        /// Operand's actual rank.
+        actual_ndim: usize,
+    },
+    /// A contraction dimension disagrees between operands.
+    DimMismatch {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Operand index whose dimension disagrees.
+        operand: usize,
+        /// Required extent.
+        expected: usize,
+        /// Operand's actual extent.
+        actual: usize,
+    },
+    /// The non-tracked fallback execution failed for this subscript.
+    ForwardFailed {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Fallback-reported failure detail.
+        reason: String,
+    },
 }
 
 impl core::fmt::Display for EinsumError {
@@ -38,6 +76,35 @@ impl core::fmt::Display for EinsumError {
                 f,
                 "einsum: unsupported {operand_count}-operand pattern '{subscript}'"
             ),
+            Self::OperandCountMismatch {
+                subscript,
+                subscript_operands,
+                provided,
+            } => write!(
+                f,
+                "einsum '{subscript}' names {subscript_operands} operands but {provided} were provided"
+            ),
+            Self::RankMismatch {
+                subscript,
+                operand,
+                expected_ndim,
+                actual_ndim,
+            } => write!(
+                f,
+                "einsum '{subscript}' operand {operand} must be {expected_ndim}-D, got {actual_ndim}-D"
+            ),
+            Self::DimMismatch {
+                subscript,
+                operand,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "einsum '{subscript}' dimension mismatch on operand {operand}: expected {expected}, got {actual}"
+            ),
+            Self::ForwardFailed { subscript, reason } => {
+                write!(f, "einsum '{subscript}' failed: {reason}")
+            }
         }
     }
 }
@@ -58,8 +125,14 @@ impl std::error::Error for EinsumError {}
 ///
 /// # Errors
 ///
-/// Returns [`EinsumError::UnsupportedPattern`] for a single-operand
-/// subscript this implementation does not recognize.
+/// Returns [`EinsumError::OperandCountMismatch`] when the subscript names a
+/// different operand count than provided, [`EinsumError::RankMismatch`]
+/// when an operand's rank disagrees with its pattern,
+/// [`EinsumError::DimMismatch`] when a contraction dimension disagrees,
+/// [`EinsumError::UnsupportedPattern`] for a subscript this implementation
+/// does not recognize, or [`EinsumError::ForwardFailed`] when the
+/// non-tracked fallback execution fails. Caller-supplied subscripts are
+/// untrusted input: rejection is typed, never a panic.
 #[inline]
 pub fn einsum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,
@@ -77,13 +150,13 @@ where
     };
     let lhs_parts: Vec<&str> = lhs_raw.split(',').map(str::trim).collect();
 
-    assert_eq!(
-        lhs_parts.len(),
-        operands.len(),
-        "einsum: subscript has {} operand(s) but {} Var(s) provided",
-        lhs_parts.len(),
-        operands.len()
-    );
+    if lhs_parts.len() != operands.len() {
+        return Err(EinsumError::OperandCountMismatch {
+            subscript: subscript.to_string(),
+            subscript_operands: lhs_parts.len(),
+            provided: operands.len(),
+        });
+    }
 
     let rhs = rhs.trim();
 
@@ -94,7 +167,14 @@ where
 
         // "ij->ji" — 2-D transpose
         if lhs == "ij" && rhs == "ji" {
-            assert_eq!(a.tensor.ndim(), 2, "einsum ij->ji: requires 2-D input");
+            if a.tensor.ndim() != 2 {
+                return Err(EinsumError::RankMismatch {
+                    subscript: subscript.to_string(),
+                    operand: 0,
+                    expected_ndim: 2,
+                    actual_ndim: a.tensor.ndim(),
+                });
+            }
             return Ok(crate::ops::permute(a, &[1, 0]));
         }
 
@@ -102,7 +182,9 @@ where
         if a.tensor.ndim() >= 2 {
             let chars: Vec<char> = lhs.chars().collect();
             let rhs_chars: Vec<char> = rhs.chars().collect();
-            if chars.len() == rhs_chars.len() {
+            // Fewer than two labels cannot name a last-two-dims swap (and
+            // `n - 2` would underflow); fall through to the typed rejection.
+            if chars.len() == rhs_chars.len() && chars.len() >= 2 {
                 let n = chars.len();
                 let mut expected_rhs = chars.clone();
                 expected_rhs.swap(n - 2, n - 1);
@@ -116,9 +198,21 @@ where
 
         // "ii->" — trace (non-differentiable w.r.t. off-diagonal; forward only)
         if lhs == "ii" && rhs.is_empty() {
-            assert_eq!(a.tensor.ndim(), 2, "einsum ii->: requires 2-D input");
+            if a.tensor.ndim() != 2 {
+                return Err(EinsumError::RankMismatch {
+                    subscript: subscript.to_string(),
+                    operand: 0,
+                    expected_ndim: 2,
+                    actual_ndim: a.tensor.ndim(),
+                });
+            }
             let backend = B::default();
-            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend).expect("einsum");
+            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend).map_err(|error| {
+                EinsumError::ForwardFailed {
+                    subscript: subscript.to_string(),
+                    reason: error.to_string(),
+                }
+            })?;
             return Ok(Var::new(t, false));
         }
 
@@ -129,7 +223,12 @@ where
     }
 
     // ── Two-operand ───────────────────────────────────────────────────────
-    assert_eq!(operands.len(), 2);
+    if operands.len() != 2 {
+        return Err(EinsumError::UnsupportedPattern {
+            subscript: subscript.to_string(),
+            operand_count: operands.len(),
+        });
+    }
     let a = operands[0];
     let b = operands[1];
     let a_lhs = lhs_parts[0];
@@ -137,12 +236,42 @@ where
 
     // "i,i->" — dot product (element-wise mul then sum)
     if a_lhs == "i" && b_lhs == "i" && rhs.is_empty() {
+        for (operand, var) in [(0, a), (1, b)] {
+            if var.tensor.ndim() != 1 {
+                return Err(EinsumError::RankMismatch {
+                    subscript: subscript.to_string(),
+                    operand,
+                    expected_ndim: 1,
+                    actual_ndim: var.tensor.ndim(),
+                });
+            }
+        }
+        // Same label, one extent: without this, `mul` broadcasts or panics
+        // on unbroadcastable shapes instead of reporting the mismatch.
+        if a.tensor.shape()[0] != b.tensor.shape()[0] {
+            return Err(EinsumError::DimMismatch {
+                subscript: subscript.to_string(),
+                operand: 1,
+                expected: a.tensor.shape()[0],
+                actual: b.tensor.shape()[0],
+            });
+        }
         let product = crate::ops::mul(a, b);
         return Ok(crate::ops::sum(&product));
     }
 
     // "i,j->ij" — outer product via broadcast + mul
     if a_lhs == "i" && b_lhs == "j" && rhs == "ij" {
+        for (operand, var) in [(0, a), (1, b)] {
+            if var.tensor.ndim() != 1 {
+                return Err(EinsumError::RankMismatch {
+                    subscript: subscript.to_string(),
+                    operand,
+                    expected_ndim: 1,
+                    actual_ndim: var.tensor.ndim(),
+                });
+            }
+        }
         let m = a.tensor.shape()[0];
         let n = b.tensor.shape()[0];
         let a_col = crate::ops::unsqueeze(a, 1); // [m, 1]
@@ -154,15 +283,31 @@ where
 
     // "ij,jk->ik" — 2-D matrix multiply
     if a_lhs == "ij" && b_lhs == "jk" && rhs == "ik" {
-        assert_eq!(a.tensor.ndim(), 2, "einsum ij,jk->ik: a must be 2-D");
-        assert_eq!(b.tensor.ndim(), 2, "einsum ij,jk->ik: b must be 2-D");
+        for (operand, var) in [(0, a), (1, b)] {
+            if var.tensor.ndim() != 2 {
+                return Err(EinsumError::RankMismatch {
+                    subscript: subscript.to_string(),
+                    operand,
+                    expected_ndim: 2,
+                    actual_ndim: var.tensor.ndim(),
+                });
+            }
+        }
         return Ok(crate::ops::matmul(a, b));
     }
 
     // "bij,bjk->bik" — batched 3-D matrix multiply via per-batch slice + matmul + cat
     if a_lhs == "bij" && b_lhs == "bjk" && rhs == "bik" {
-        assert_eq!(a.tensor.ndim(), 3, "einsum bij,bjk->bik: a must be 3-D");
-        assert_eq!(b.tensor.ndim(), 3, "einsum bij,bjk->bik: b must be 3-D");
+        for (operand, var) in [(0, a), (1, b)] {
+            if var.tensor.ndim() != 3 {
+                return Err(EinsumError::RankMismatch {
+                    subscript: subscript.to_string(),
+                    operand,
+                    expected_ndim: 3,
+                    actual_ndim: var.tensor.ndim(),
+                });
+            }
+        }
         let batch = a.tensor.shape()[0];
         let batch_results: Vec<Var<T, B>> = (0..batch)
             .map(|bi| {
@@ -202,8 +347,16 @@ where
 
     // "ij,j->i" — matrix-vector multiply
     if a_lhs == "ij" && b_lhs == "j" && rhs == "i" {
-        assert_eq!(a.tensor.ndim(), 2, "einsum ij,j->i: a must be 2-D");
-        assert_eq!(b.tensor.ndim(), 1, "einsum ij,j->i: b must be 1-D");
+        for (operand, var, expected_ndim) in [(0, a, 2), (1, b, 1)] {
+            if var.tensor.ndim() != expected_ndim {
+                return Err(EinsumError::RankMismatch {
+                    subscript: subscript.to_string(),
+                    operand,
+                    expected_ndim,
+                    actual_ndim: var.tensor.ndim(),
+                });
+            }
+        }
         let k = b.tensor.shape()[0];
         let b_col = crate::ops::reshape(b, vec![k, 1]);
         let mm = crate::ops::matmul(a, &b_col);
@@ -214,7 +367,12 @@ where
     let backend = B::default();
     let raw_operands: Vec<&coeus_tensor::Tensor<T, B>> =
         operands.iter().map(|v| &v.tensor).collect();
-    let out = coeus_ops::einsum(subscript, &raw_operands, &backend).expect("einsum");
+    let out = coeus_ops::einsum(subscript, &raw_operands, &backend).map_err(|error| {
+        EinsumError::ForwardFailed {
+            subscript: subscript.to_string(),
+            reason: error.to_string(),
+        }
+    })?;
     Ok(Var::new(out, false))
 }
 
@@ -226,7 +384,8 @@ where
 ///
 /// # Errors
 ///
-/// Returns [`EinsumError::UnsupportedPattern`] for any other subscript.
+/// Returns [`EinsumError::UnsupportedPattern`] for any other subscript, or
+/// the inner two-operand contraction's error.
 #[inline]
 pub fn einsum3<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,

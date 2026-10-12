@@ -28,10 +28,25 @@
 //! `ComputeBackend::allocate`, counts the request itself separately, and keeps
 //! counting kernel-owned vectors. A per-element coordinate buffer therefore
 //! still fails while allocator size-class behavior cannot perturb the oracle.
+//!
+//! ## Allocation-site attribution
+//!
+//! A count mismatch reports only that the counts differ, not *which*
+//! allocation is extra — and the `scatter_add` budget flakes on hosted CI
+//! without ever reproducing locally, so the extra allocation has never been
+//! observed. Setting `COEUS_ALLOC_ATTRIBUTION=1` makes the allocator record
+//! a sequence number, size, and raw instruction pointers per counted
+//! allocation (`backtrace::trace`, which captures without resolving), and a
+//! mismatch then prints both sides' sites before failing; resolve the
+//! addresses offline with `addr2line` against the test binary (resolving at
+//! print time can block where no symbol server is reachable).
+//! Recording's own allocations are guard-skipped rather than counted, and
+//! the flag's absence leaves the counter-only path untouched.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 use coeus_core::{
     BackendError, ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, CpuStorage,
@@ -79,8 +94,11 @@ struct CountingAllocator;
 // the returned pointers, so the allocator's contract is exactly `System`'s.
 unsafe impl GlobalAlloc for CountingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if !StorageAllocationScope::active() {
+        if !ATTRIBUTION_GUARD.with(|guard| guard.get()) && !StorageAllocationScope::active() {
             ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
+            if ATTRIBUTION_ARMED.load(Ordering::Relaxed) {
+                record_attribution_into(&ATTRIBUTION_LOG, &ATTRIBUTION_SEQ, layout);
+            }
         }
         System.alloc(layout)
     }
@@ -92,6 +110,123 @@ unsafe impl GlobalAlloc for CountingAllocator {
 
 #[global_allocator]
 static ALLOC: CountingAllocator = CountingAllocator;
+
+/// One counted allocation with its capture site.
+///
+/// Recorded only when [`attribution_enabled`] holds; otherwise the allocator
+/// only bumps the counter and the log stays empty.
+struct Attribution {
+    seq: usize,
+    size: usize,
+    /// Raw instruction pointers, innermost first. Captured with the
+    /// resolution-free `backtrace::trace` — never `std::backtrace` formatting,
+    /// whose symbol resolution blocks where no symbol server is reachable.
+    ips: Vec<usize>,
+}
+
+static ATTRIBUTION_SEQ: AtomicUsize = AtomicUsize::new(0);
+static ATTRIBUTION_LOG: Mutex<Vec<Attribution>> = Mutex::new(Vec::new());
+
+thread_local! {
+    /// Set while the allocator records an entry, so the recording's own
+    /// allocations (backtrace frames, log growth) are neither counted nor
+    /// recorded instead of recursing.
+    static ATTRIBUTION_GUARD: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Whether allocation-site attribution is recorded.
+///
+/// Read once from `COEUS_ALLOC_ATTRIBUTION`; when unset, recording never
+/// runs and every measurement behaves exactly as the counter-only path.
+///
+/// Call only from ordinary code, never from the allocator: the `OnceLock`
+/// initialiser reads the environment, which allocates, and re-entering the
+/// lock from inside `alloc` deadlocks the process at startup. The allocator
+/// reads [`ATTRIBUTION_ARMED`] instead, which [`allocations_during`] sets
+/// from safe context before each measurement.
+fn attribution_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("COEUS_ALLOC_ATTRIBUTION").is_some())
+}
+
+/// Attribution switch the allocator may read.
+///
+/// A plain atomic: reading it allocates nothing and blocks on nothing, so
+/// it is safe inside `alloc`, unlike the `OnceLock` behind
+/// [`attribution_enabled`].
+static ATTRIBUTION_ARMED: AtomicBool = AtomicBool::new(false);
+
+fn lock_log(log: &Mutex<Vec<Attribution>>) -> std::sync::MutexGuard<'_, Vec<Attribution>> {
+    log.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Record `layout` into `log`, returning the entry's sequence number.
+///
+/// Takes the log and sequence counter as parameters so the plumbing test
+/// below runs against local state instead of racing the global log with
+/// concurrently running tests.
+fn record_attribution_into(
+    log: &Mutex<Vec<Attribution>>,
+    seq: &AtomicUsize,
+    layout: Layout,
+) -> usize {
+    if ATTRIBUTION_GUARD.with(|guard| guard.replace(true)) {
+        return usize::MAX;
+    }
+    let seq = seq.fetch_add(1, Ordering::Relaxed);
+    // Raw-IP capture needs no environment and resolves nothing: attribution
+    // must work on a hosted runner whose environment and symbol access the
+    // test does not control. The capture's own allocations land while the
+    // guard above is set, so they are skipped, not recorded.
+    let mut ips = Vec::new();
+    backtrace::trace(|frame| {
+        ips.push(frame.ip() as usize);
+        true
+    });
+    let entry = Attribution {
+        seq,
+        size: layout.size(),
+        ips,
+    };
+    lock_log(log).push(entry);
+    ATTRIBUTION_GUARD.with(|guard| guard.set(false));
+    seq
+}
+
+fn drain_attribution_into(log: &Mutex<Vec<Attribution>>) -> Vec<Attribution> {
+    std::mem::take(&mut *lock_log(log))
+}
+
+/// Render `entries` for a count-mismatch failure.
+///
+/// Prints raw instruction addresses, never resolved symbols: resolving
+/// frames touches the platform symbol provider, which blocks without
+/// symbol-server access (observed as a hang formatting deep kernel stacks
+/// on a sandboxed runner). Resolve the addresses offline with
+/// `addr2line`/`llvm-symbolizer` against the test binary instead.
+fn format_attribution(kernel: &str, side: &str, entries: &[Attribution]) -> String {
+    if entries.is_empty() {
+        return format!(
+            "{kernel} {side}: attribution log empty \
+             (rerun with COEUS_ALLOC_ATTRIBUTION=1 to capture sites)\n"
+        );
+    }
+    use std::fmt::Write as _;
+
+    let mut out = String::new();
+    for entry in entries {
+        writeln!(
+            out,
+            "{kernel} {side}: alloc #{} ({} bytes) at:",
+            entry.seq, entry.size
+        )
+        .expect("writing to a String is infallible");
+        for ip in &entry.ips {
+            writeln!(out, "    0x{ip:x}").expect("writing to a String is infallible");
+        }
+    }
+    out
+}
 
 #[derive(Clone, Copy, Default)]
 struct CountingBackend;
@@ -168,13 +303,20 @@ impl ComputeBackend for CountingBackend {
     }
 }
 
-/// Allocation count observed while running `body`.
-fn allocations_during<R>(body: impl FnOnce() -> R) -> usize {
+/// Allocation count observed while running `body`, plus the entries recorded
+/// during it (empty unless `COEUS_ALLOC_ATTRIBUTION` is set).
+fn allocations_during<R>(body: impl FnOnce() -> R) -> (usize, Vec<Attribution>) {
+    // Settle the enabled flag and drop warmup entries outside the window, so
+    // neither can land inside one side's measurement but not the other's.
+    // Arming reads the `OnceLock` here, in ordinary code: the allocator
+    // itself must never touch it (see `attribution_enabled`).
+    ATTRIBUTION_ARMED.store(attribution_enabled(), Ordering::Relaxed);
+    drop(drain_attribution_into(&ATTRIBUTION_LOG));
     let before = ALLOCATIONS.load(Ordering::Relaxed);
     let result = body();
     let after = ALLOCATIONS.load(Ordering::Relaxed);
     drop(result);
-    after - before
+    (after - before, drain_attribution_into(&ATTRIBUTION_LOG))
 }
 
 fn tensor(shape: &[usize], values: &[f64]) -> Tensor<f64, SequentialBackend> {
@@ -219,16 +361,19 @@ fn assert_size_independent(
     drop(large());
 
     STORAGE_REQUESTS.store(0, Ordering::Relaxed);
-    let small_allocs = allocations_during(&small);
+    let (small_allocs, small_sites) = allocations_during(&small);
     let small_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
-    let large_allocs = allocations_during(&large);
+    let (large_allocs, large_sites) = allocations_during(&large);
     let large_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
 
     assert_eq!(
-        small_allocs, large_allocs,
+        small_allocs,
+        large_allocs,
         "{kernel}: kernel-owned allocation count must not scale with workload \
          size (small={small_allocs}, large={large_allocs}). A difference means \
-         a per-element or per-slice allocation has returned to this kernel."
+         a per-element or per-slice allocation has returned to this kernel.\n{}\n{}",
+        format_attribution(kernel, "small", &small_sites),
+        format_attribution(kernel, "large", &large_sites),
     );
     assert_eq!(
         (small_storage_requests, large_storage_requests),
@@ -312,17 +457,20 @@ fn scatter_add_allocation_count_is_independent_of_index_size() {
     drop(coeus_ops::scatter_add(&li, 1, &lx, &ls, &backend));
 
     STORAGE_REQUESTS.store(0, Ordering::Relaxed);
-    let small_allocs =
+    let (small_allocs, small_sites) =
         allocations_during(|| Box::new(coeus_ops::scatter_add(&si, 1, &sx, &ss, &backend)));
     let small_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
-    let large_allocs =
+    let (large_allocs, large_sites) =
         allocations_during(|| Box::new(coeus_ops::scatter_add(&li, 1, &lx, &ls, &backend)));
     let large_storage_requests = STORAGE_REQUESTS.swap(0, Ordering::Relaxed);
 
     assert_eq!(
-        small_allocs, large_allocs,
+        small_allocs,
+        large_allocs,
         "scatter_add: kernel-owned allocation count must not scale with workload size \
-         (small={small_allocs}, large={large_allocs})"
+         (small={small_allocs}, large={large_allocs})\n{}\n{}",
+        format_attribution("scatter_add", "small", &small_sites),
+        format_attribution("scatter_add", "large", &large_sites),
     );
     assert_eq!(
         (small_storage_requests, large_storage_requests),
@@ -349,13 +497,67 @@ fn topk_allocation_count_is_independent_of_slice_count() {
     let count = |t: &Tensor<f64, SequentialBackend>| {
         allocations_during(|| Box::new(coeus_ops::topk(t, 2, 1, true)))
     };
-    let small_allocs = count(&small);
-    let large_allocs = count(&large);
+    let (small_allocs, small_sites) = count(&small);
+    let (large_allocs, large_sites) = count(&large);
 
     assert_eq!(
-        small_allocs, large_allocs,
+        small_allocs,
+        large_allocs,
         "topk: allocation count must not scale with workload size \
          (small={small_allocs}, large={large_allocs}). A difference means a \
-         per-element or per-slice allocation has returned to this kernel."
+         per-element or per-slice allocation has returned to this kernel.\n{}\n{}",
+        format_attribution("topk", "small", &small_sites),
+        format_attribution("topk", "large", &large_sites),
+    );
+}
+
+#[test]
+fn attribution_log_roundtrips_size_and_captured_backtrace() {
+    // Local log and counter: hermetic under parallel test threads, unlike
+    // the globals the allocator itself records into.
+    let log = Mutex::new(Vec::new());
+    let seq = AtomicUsize::new(0);
+    let layout = Layout::from_size_align(64, 8).expect("valid test layout");
+    let recorded = record_attribution_into(&log, &seq, layout);
+    assert_eq!(recorded, 0, "first sequence number starts at zero");
+    let entries = drain_attribution_into(&log);
+    assert_eq!(
+        entries.len(),
+        1,
+        "one recorded allocation drains exactly once"
+    );
+    assert_eq!(entries[0].seq, 0);
+    assert_eq!(entries[0].size, 64);
+    assert!(
+        !entries[0].ips.is_empty(),
+        "capture records at least the capture frame"
+    );
+    assert!(
+        drain_attribution_into(&log).is_empty(),
+        "drain leaves the log empty"
+    );
+}
+
+#[test]
+fn attribution_formatter_names_kernel_side_and_size() {
+    let log = Mutex::new(Vec::new());
+    let seq = AtomicUsize::new(0);
+    let layout = Layout::from_size_align(33, 8).expect("valid test layout");
+    record_attribution_into(&log, &seq, layout);
+    let entries = drain_attribution_into(&log);
+
+    let rendered = format_attribution("scatter_add", "large", &entries);
+    assert!(
+        rendered.contains("scatter_add large: alloc #0 (33 bytes) at:"),
+        "rendered entry must name kernel, side, seq, and size, got:\n{rendered}"
+    );
+    assert!(
+        rendered.contains("0x"),
+        "rendered entry must include raw frame addresses, got:\n{rendered}"
+    );
+    let empty = format_attribution("scatter_add", "small", &[]);
+    assert!(
+        empty.contains("COEUS_ALLOC_ATTRIBUTION=1"),
+        "empty log must point at the capture flag, got:\n{empty}"
     );
 }

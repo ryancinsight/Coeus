@@ -6,7 +6,9 @@ use super::{seq, wgpu};
 fn assert_seeded_parity(
     operation: &str,
     cpu: impl AsRef<[f32]>,
-    gpu: &<coeus_wgpu::WgpuBackend as ComputeBackend>::DeviceBuffer<f32>,
+    gpu: &<coeus_wgpu::HephaestusBackend<coeus_wgpu::WgpuProvider> as ComputeBackend>::DeviceBuffer<
+        f32,
+    >,
 ) {
     let expected = cpu.as_ref();
     let mut actual = vec![0.0; expected.len()];
@@ -23,7 +25,7 @@ fn random_initialization_dispatches_with_seeded_provider_parity() {
     };
     assert!(matches!(
         invalid,
-        coeus_wgpu::WgpuBackendError::Dispatch {
+        coeus_hephaestus::HephaestusBackendError::Device {
             operation: "uniform initialization",
             source: hephaestus_core::HephaestusError::InvalidConfiguration { .. },
         }

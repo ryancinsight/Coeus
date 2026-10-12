@@ -29,8 +29,7 @@ where
             dilation,
             output,
             output_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -59,8 +58,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -85,8 +83,7 @@ where
             dilation,
             output,
             output_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -111,8 +108,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -137,8 +133,7 @@ where
             dilation,
             output,
             output_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -167,8 +162,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -193,8 +187,7 @@ where
             dilation,
             output,
             output_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -219,8 +212,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
-        Ok(())
+        )
     }
 
     // ── Pool 1D ──────────────────────────────────────────────────────────────
@@ -247,8 +239,7 @@ where
             dilation,
             output,
             output_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -277,8 +268,7 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -303,8 +293,7 @@ where
             dilation,
             output,
             output_layout,
-        );
-        Ok(())
+        )
     }
 
     #[inline]
@@ -329,7 +318,6 @@ where
             dilation,
             grad_input,
             grad_input_layout,
-        );
-        Ok(())
+        )
     }
 }

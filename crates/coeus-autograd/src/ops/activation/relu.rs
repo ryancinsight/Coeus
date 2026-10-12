@@ -4,7 +4,7 @@ use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use crate::{mul, reshape, where_cond};
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -127,7 +127,9 @@ const SELU_SCALE: f64 = 1.050_700_987_355_480_5;
 /// ZST tag for SELU autograd.
 /// Backward: `scale` if `x > 0`, else `scale * alpha * exp(x)`.
 pub struct SeluOp;
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for SeluOp {
+impl<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B>
+    for SeluOp
+{
     const OP_NAME: &'static str = "selu";
 
     #[inline(always)]
@@ -160,7 +162,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// Tracked SELU activation.
 #[must_use]
 #[inline]
-pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn selu<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Var<T, B> {
     unary_op::<T, B, SeluOp>(a)
 }
 

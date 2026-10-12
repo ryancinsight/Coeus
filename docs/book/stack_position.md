@@ -36,9 +36,10 @@ kwavers (physics-informed NNs)  apollo (learned spectra)  application models
 ## Hephaestus Integration
 
 Every compute-intensive op dispatches through a Hephaestus op trait.
-The backend is selected by the `B: ComputeBackend` type parameter:
-`CudaBackend` routes to `hephaestus-cuda`, `WgpuBackend` to
-`hephaestus-wgpu`, etc.
+The backend is selected by the `B: ComputeBackend` type parameter: one
+generic `HephaestusBackend<P>` monomorphized per vendor provider, so
+`HephaestusBackend<CudaProvider>` routes to `hephaestus-cuda`,
+`HephaestusBackend<WgpuProvider>` to `hephaestus-wgpu`, etc.
 
 ## Consus Integration
 

@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 /// region convention — and zero elsewhere. `input @ P_T` then averages each
 /// region; being a constant matmul it is differentiable (the backward scatters
 /// the per-region-averaged gradient back to every input position in the region).
-fn avg_pool_matrix_t<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+fn avg_pool_matrix_t<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     in_len: usize,
     out_len: usize,
     backend: &B,
@@ -29,7 +29,7 @@ fn avg_pool_matrix_t<T: Float, B: coeus_ops::BackendOps<T> + Default>(
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let mut pt = vec![T::zero(); in_len * out_len];
+    let mut pt = vec![T::ZERO; in_len * out_len];
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
@@ -56,7 +56,10 @@ where
 /// filled with `-inf` and `max_axis` routes the gradient to each region's
 /// argmax. The transient `[rows, out_len, in_len]` mask is `out_len`× the slice
 /// — modest for typical pools; an argmax-scatter kernel would avoid it.
-fn masked_adaptive_max<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+fn masked_adaptive_max<
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     x2: &Var<T, B>,
     rows: usize,
     in_len: usize,
@@ -67,11 +70,11 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     // outside[o, l] = 1 where l is NOT in region o → filled with -inf below.
-    let mut outside = vec![T::one(); out_len * in_len];
+    let mut outside = vec![T::ONE; out_len * in_len];
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
-        outside[o * in_len + start..o * in_len + end].fill(T::zero());
+        outside[o * in_len + start..o * in_len + end].fill(T::ZERO);
     }
     let outside_var = Var::new(
         Tensor::from_slice_on([1, out_len, in_len], &outside, backend),
@@ -85,7 +88,7 @@ where
     let masked = coeus_autograd::masked_fill(
         &xb,
         &ob,
-        <T as coeus_core::Scalar>::from_f64(f64::NEG_INFINITY),
+        <T as coeus_core::FloatElement>::from_f64(f64::NEG_INFINITY),
     );
     coeus_autograd::max_axis(&masked, 2)
 }

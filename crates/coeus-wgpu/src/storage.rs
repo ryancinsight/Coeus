@@ -7,7 +7,7 @@ use themis::{MemoryTier, PlacementHint};
 
 #[test]
 fn storage_allocates_device_tier() {
-    let storage = HephaestusStorage::<crate::WgpuBackend, f32>::new(16);
+    let storage = HephaestusStorage::<crate::WgpuProvider, f32>::new(16);
     assert_eq!(storage.buffer().tier(), MemoryTier::Device);
 }
 
@@ -29,7 +29,7 @@ fn device_upload_roundtrip_preserves_values() {
 
 #[test]
 fn backend_zero_memory_operations_preserve_exact_values() {
-    let backend = crate::backend::WgpuBackend::new();
+    let backend = crate::HephaestusBackend::<crate::WgpuProvider>::new();
     let mut storage = backend.allocate_zeroed::<u32>(4);
     let mut values = [u32::MAX; 4];
     backend.copy_to_host(&storage, &mut values);
@@ -66,7 +66,7 @@ fn copy_on_write_preserves_values_in_both_device_buffers() {
         .hephaestus_device
         .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::Device))
         .expect("failed to upload COW source");
-    let mut writable = HephaestusStorage::<crate::WgpuBackend, _>::from_buffer(source);
+    let mut writable = HephaestusStorage::<crate::WgpuProvider, _>::from_buffer(source);
     let retained = writable.clone();
 
     writable.make_unique();

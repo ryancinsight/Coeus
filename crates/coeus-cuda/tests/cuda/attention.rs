@@ -1,11 +1,11 @@
-// CudaBackend SDP attention parity differential tests.
+// HephaestusBackend<CudaProvider> SDP attention parity differential tests.
 //
 // Every case exercises provider-owned Hephaestus kernels and asserts
 // element-wise agreement with `SequentialBackend` within a derived tolerance.
 // Skipped unless a live CUDA device/context exists.
 
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_ops::{scaled_dot_product_attention, scaled_dot_product_attention_backward};
 use coeus_tensor::Tensor;
 
@@ -21,11 +21,14 @@ const D_V: usize = 3;
 /// difference; 1e-3 is the reduction-order-sensitive bound shared with conv.
 const TOL: f32 = 1e-3;
 
-fn backends() -> Option<(SequentialBackend, CudaBackend)> {
+fn backends() -> Option<(SequentialBackend, HephaestusBackend<CudaProvider>)> {
     if !crate::availability::device_available() {
         return None;
     }
-    Some((SequentialBackend::new(), CudaBackend::new()))
+    Some((
+        SequentialBackend::new(),
+        HephaestusBackend::<CudaProvider>::new(),
+    ))
 }
 
 fn assert_close(label: &str, actual: &[f32], expected: &[f32]) {
@@ -236,9 +239,12 @@ fn test_cuda_attention_backward() {
     )
     .expect("CPU attention backward must succeed");
 
-    let mut gq_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_Q, D_K], &cuda);
-    let mut gk_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_K, D_K], &cuda);
-    let mut gv_g = Tensor::<f32, CudaBackend>::zeros_on([BATCH, SEQ_K, D_V], &cuda);
+    let mut gq_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([BATCH, SEQ_Q, D_K], &cuda);
+    let mut gk_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([BATCH, SEQ_K, D_K], &cuda);
+    let mut gv_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([BATCH, SEQ_K, D_V], &cuda);
     scaled_dot_product_attention_backward(
         &go_g,
         &q_g,

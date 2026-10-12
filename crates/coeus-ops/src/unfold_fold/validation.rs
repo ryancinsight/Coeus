@@ -64,39 +64,3 @@ pub(crate) fn window_count(
             reason: "window-count arithmetic overflow",
         })
 }
-
-pub(crate) fn require_signed_coordinates(
-    operation: &'static str,
-    output_width: usize,
-    kernel: usize,
-    stride: usize,
-    padding: usize,
-    dilation: usize,
-) -> Result<(), BackendError> {
-    let maximum = output_width
-        .saturating_sub(1)
-        .checked_mul(stride)
-        .and_then(|value| {
-            kernel
-                .saturating_sub(1)
-                .checked_mul(dilation)
-                .and_then(|kernel_span| value.checked_add(kernel_span))
-        })
-        .and_then(|value| value.checked_add(padding))
-        .ok_or(BackendError::Overflow {
-            operation,
-            reason: "signed-coordinate arithmetic overflow",
-        })?;
-    // `isize::MAX` is always non-negative and representable in `usize` on
-    // every supported target (both share the pointer width), so
-    // `unsigned_abs` is an infallible, sign-loss-free widening rather than a
-    // truncating/sign-losing `as` cast.
-    if maximum <= isize::MAX.unsigned_abs() {
-        Ok(())
-    } else {
-        Err(BackendError::Storage {
-            operation,
-            reason: "window coordinates exceed the signed host index range".to_owned(),
-        })
-    }
-}

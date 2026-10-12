@@ -2,7 +2,7 @@
 
 pub(super) use coeus_autograd::Var;
 pub(super) use coeus_core::SequentialBackend;
-pub(super) use coeus_cuda::CudaBackend;
+pub(super) use coeus_cuda::{CudaProvider, HephaestusBackend};
 pub(super) use coeus_ops::{ConvOps, OptimizerOps, PoolOps};
 pub(super) use coeus_tensor::Tensor;
 
@@ -30,25 +30,25 @@ pub(super) const CUDA_TOL: f32 = 1e-4;
 /// Tolerance for accumulating ops whose GPU reduction order differs from CPU.
 pub(super) const CUDA_ACC_TOL: f32 = 1e-3;
 
-pub(super) fn backends() -> Option<(SequentialBackend, CudaBackend)> {
+pub(super) fn backends() -> Option<(SequentialBackend, HephaestusBackend<CudaProvider>)> {
     if !crate::availability::device_available() {
         return None;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     Some((SequentialBackend::new(), cuda_b))
 }
 
 pub(super) fn to_gpu(
     t: &Tensor<f32, SequentialBackend>,
     s: &SequentialBackend,
-    c: &CudaBackend,
-) -> Tensor<f32, CudaBackend> {
+    c: &HephaestusBackend<CudaProvider>,
+) -> Tensor<f32, HephaestusBackend<CudaProvider>> {
     t.to_backend_on(s, c)
 }
 
 pub(super) fn to_cpu(
-    t: &Tensor<f32, CudaBackend>,
-    c: &CudaBackend,
+    t: &Tensor<f32, HephaestusBackend<CudaProvider>>,
+    c: &HephaestusBackend<CudaProvider>,
     s: &SequentialBackend,
 ) -> Tensor<f32, SequentialBackend> {
     t.to_backend_on(c, s)

@@ -207,6 +207,52 @@ pub enum BackendError {
         /// Provider-reported storage detail.
         reason: String,
     },
+    /// An einsum subscript names a different operand count than provided.
+    #[error(
+        "einsum '{subscript}' names {subscript_operands} operands but {provided} were provided"
+    )]
+    EinsumOperandCount {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Comma-separated groups in the subscript.
+        subscript_operands: usize,
+        /// Provided operand count.
+        provided: usize,
+    },
+    /// An einsum operand's rank disagrees with its subscript pattern.
+    #[error("einsum '{subscript}' operand {operand} must be {expected}-D, got {actual}-D")]
+    EinsumRank {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Operand index whose rank disagrees.
+        operand: usize,
+        /// Rank the pattern requires.
+        expected: usize,
+        /// Operand's actual rank.
+        actual: usize,
+    },
+    /// An einsum contraction dimension disagrees between operands.
+    #[error(
+        "einsum '{subscript}' dimension mismatch on operand {operand}: expected {expected}, got {actual}"
+    )]
+    EinsumDim {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Operand index whose dimension disagrees.
+        operand: usize,
+        /// Required extent.
+        expected: usize,
+        /// Operand's actual extent.
+        actual: usize,
+    },
+    /// An einsum subscript names no supported pattern for its operand count.
+    #[error("einsum: unsupported {operand_count}-operand pattern '{subscript}'")]
+    EinsumUnsupportedPattern {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Number of operands the subscript was evaluated against.
+        operand_count: usize,
+    },
 }
 
 #[cfg(test)]

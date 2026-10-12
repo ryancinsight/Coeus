@@ -74,7 +74,7 @@ where
     let mask_contiguous = mask.to_contiguous_on(backend);
     let input_values = input_contiguous.as_slice();
     let mask_values = mask_contiguous.as_slice();
-    let mut output = vec![T::zero(); input.numel()];
+    let mut output = vec![T::ZERO; input.numel()];
 
     for pre in 0..pre_count {
         for post in 0..post_count {
@@ -82,7 +82,7 @@ where
             let mut row_max: Option<T> = None;
             for lane in 0..axis {
                 let idx = base + lane * post_count;
-                if mask_values[idx] != T::zero() {
+                if mask_values[idx] != T::ZERO {
                     row_max = Some(match row_max {
                         Some(current) if current > input_values[idx] => current,
                         _ => input_values[idx],
@@ -94,17 +94,17 @@ where
                 continue;
             };
 
-            let mut row_sum = T::zero();
+            let mut row_sum = T::ZERO;
             for lane in 0..axis {
                 let idx = base + lane * post_count;
-                if mask_values[idx] != T::zero() {
+                if mask_values[idx] != T::ZERO {
                     let value = (input_values[idx] - row_max).exp();
                     output[idx] = value;
                     row_sum += value;
                 }
             }
 
-            if row_sum != T::zero() {
+            if row_sum != T::ZERO {
                 for lane in 0..axis {
                     let idx = base + lane * post_count;
                     output[idx] = output[idx] / row_sum;
@@ -149,14 +149,14 @@ where
     // Build lower-triangular mask (1.0 = keep, 0.0 = masked).
     let numel = input.numel();
     let outer: usize = shape[..dim - 1].iter().product::<usize>().max(1);
-    let mut mask_data = vec![T::zero(); numel];
+    let mut mask_data = vec![T::ZERO; numel];
     for batch in 0..outer {
         for i in 0..seq_q {
             for j in 0..seq_k {
                 if j <= i {
                     let flat = batch * seq_q * seq_k + i * seq_k + j;
                     if flat < numel {
-                        mask_data[flat] = T::one();
+                        mask_data[flat] = T::ONE;
                     }
                 }
             }

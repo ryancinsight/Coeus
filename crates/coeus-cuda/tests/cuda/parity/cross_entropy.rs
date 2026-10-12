@@ -1,5 +1,5 @@
 use super::{assert_parity_tol, backends, to_cpu, to_gpu, Tensor, Var, CUDA_TOL};
-use coeus_cuda::CudaBackendError;
+use coeus_hephaestus::HephaestusBackendError;
 
 #[test]
 fn cross_entropy_dispatches_with_cuda_value_and_gradient_parity() {
@@ -20,14 +20,14 @@ fn cross_entropy_dispatches_with_cuda_value_and_gradient_parity() {
     let invalid_target = coeus_nn::cross_entropy_loss(&cuda_logits, &[0, 1, 4]);
     assert!(matches!(
         invalid_target,
-        Err(CudaBackendError::Validation {
-            source: coeus_core::BackendError::IndexOutOfRange {
+        Err(HephaestusBackendError::Backend(
+            coeus_core::BackendError::IndexOutOfRange {
                 position: 2,
                 index: 4,
                 bound: 4,
                 ..
-            }
-        })
+            },
+        ))
     ));
 
     let cpu_loss = coeus_nn::cross_entropy_loss(&cpu_logits, &targets)

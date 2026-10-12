@@ -1,14 +1,15 @@
 # coeus-wgpu
 
-WebGPU backend for [Coeus](../../README.md) tensor operations.
-
-Implements the [`coeus-hephaestus`](../coeus-hephaestus/README.md) provider
-traits through Hephaestus, giving Coeus a portable GPU path across Vulkan and
-Metal without a second device implementation.
+WebGPU provider for [Coeus](../../README.md) tensor operations through the
+generic [`coeus-hephaestus`](../coeus-hephaestus/README.md) backend, giving
+Coeus a portable GPU path across Vulkan and Metal without a second device
+implementation.
 
 ## What is here
 
-- `HephaestusStorage<WgpuBackend, T>` retaining the provider-owned device
+- `WgpuProvider` naming the WGPU device and its operation bundles; every
+  operator resolves through `HephaestusBackend<WgpuProvider>`.
+- `HephaestusStorage<WgpuProvider, T>` retaining the provider-owned device
   allocation and detaching cloned storage before writes.
 - Coeus-to-provider adapters for tensor shapes, expressions, and layouts.
 - Provider dispatch for elementwise, matmul, reduction, pooling, unfold/fold,

@@ -86,7 +86,7 @@ where
 /// # Panics
 /// Panics if `k == 0`, `k > input.tensor.shape()[dim]`, or `dim >= input.tensor.ndim()`.
 #[must_use]
-pub fn topk<T: Scalar + leto_ops::Scalar, B>(
+pub fn topk<T: Scalar + coeus_core::FloatElement + leto_ops::Scalar, B>(
     input: &Var<T, B>,
     k: usize,
     dim: usize,

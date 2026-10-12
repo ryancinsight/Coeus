@@ -54,7 +54,7 @@ fn rmsnorm_case<T: GradcheckScalar>() {
         let mut rms = coeus_ops::mean_axis(&x_sq, 1, &backend).expect("row mean square");
         let epsilon = Tensor::<T, MoiraiBackend>::full_on(
             [1],
-            <T as coeus_core::Scalar>::from_f64(EPS),
+            <T as coeus_core::FloatElement>::from_f64(EPS),
             &backend,
         );
         coeus_ops::add_assign(&mut rms, &epsilon, &backend).expect("mean square + eps");
@@ -111,7 +111,7 @@ fn batchnorm1d_case<T: GradcheckScalar>() {
         let mut stdev = variance;
         let epsilon = Tensor::<T, MoiraiBackend>::full_on(
             [1],
-            <T as coeus_core::Scalar>::from_f64(EPS),
+            <T as coeus_core::FloatElement>::from_f64(EPS),
             &backend,
         );
         coeus_ops::add_assign(&mut stdev, &epsilon, &backend).expect("variance + eps");
@@ -142,17 +142,17 @@ fn batchnorm1d_case<T: GradcheckScalar>() {
                 istdev,
                 m_const: Tensor::<T, MoiraiBackend>::full_on(
                     [1],
-                    <T as coeus_core::Scalar>::from_f64(M as f64),
+                    <T as coeus_core::FloatElement>::from_f64(M as f64),
                     &backend,
                 ),
                 minus_half: Tensor::<T, MoiraiBackend>::full_on(
                     [1],
-                    <T as coeus_core::Scalar>::from_f64(-0.5),
+                    <T as coeus_core::FloatElement>::from_f64(-0.5),
                     &backend,
                 ),
                 two_const: Tensor::<T, MoiraiBackend>::full_on(
                     [1],
-                    <T as coeus_core::Scalar>::from_f64(2.0),
+                    <T as coeus_core::FloatElement>::from_f64(2.0),
                     &backend,
                 ),
                 n: N,

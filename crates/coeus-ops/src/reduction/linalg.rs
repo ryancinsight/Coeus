@@ -10,10 +10,11 @@
 // `cross` has no such decomposition available (the per-channel 3-vector
 // product is not an elementwise-then-reduce operation). It dispatches
 // through the `CrossOps` capability (ADR 0077): every backend computes it
-// via the shared host-fold path (`cross_fold`), except `WgpuBackend`, which
-// routes through hephaestus's on-device `CrossProductOps` seam for the
-// layout that seam can express (contiguous, `dim` the last axis) and falls
-// back to the same host-fold otherwise.
+// via the shared host-fold path (`cross_fold`), except
+// `HephaestusBackend<WgpuProvider>`, which routes through hephaestus's
+// on-device `CrossProductOps` seam for the layout that seam can express
+// (contiguous, `dim` the last axis) and falls back to the same host-fold
+// otherwise.
 
 use crate::backend_ops::{BackendOps, CrossOps};
 use coeus_core::Scalar;
@@ -22,7 +23,7 @@ use coeus_tensor::Tensor;
 /// Flat inner product: `Σ_i aᵢ bᵢ` after flattening.
 ///
 /// Matches `torch.dot(input, tensor)`. Both arguments may be any shape with
-/// the same number of elements; empty input returns `T::zero()`.
+/// the same number of elements; empty input returns `T::ZERO`.
 ///
 /// # Precision
 /// Native `T` precision throughout (no widening accumulator; `Scalar`
@@ -42,7 +43,7 @@ pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T
     let n = a.numel();
     assert_eq!(n, b.numel(), "dot: numel mismatch: a={n}, b={}", b.numel());
     if n == 0 {
-        return T::zero();
+        return T::ZERO;
     }
     let backend = B::default();
     let flatten = |x: &Tensor<T, B>| -> Tensor<T, B> {
@@ -72,9 +73,10 @@ pub fn dot<T: Scalar, B: BackendOps<T> + Default>(a: &Tensor<T, B>, b: &Tensor<T
 /// Equal-shape precondition is asserted (matches the PyTorch binding).
 ///
 /// # Provider residency
-/// Dispatches through [`CrossOps`] (ADR 0077): `WgpuBackend` runs on-device
-/// for a contiguous tensor with `dim` the last axis; every other backend
-/// (and `WgpuBackend` outside that layout) uses the shared host-fold.
+/// Dispatches through [`CrossOps`] (ADR 0077):
+/// `HephaestusBackend<WgpuProvider>` runs on-device for a contiguous tensor
+/// with `dim` the last axis; every other backend (and the WGPU provider
+/// outside that layout) uses the shared host-fold.
 #[inline]
 #[must_use]
 pub fn cross<T: Scalar, B: CrossOps<T> + Default>(

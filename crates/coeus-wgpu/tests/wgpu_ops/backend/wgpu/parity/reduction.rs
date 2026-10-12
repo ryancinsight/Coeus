@@ -101,10 +101,12 @@ fn test_wgpu_reduction_rejects_unsupported_rank() {
 
     assert!(matches!(
         error,
-        coeus_wgpu::WgpuBackendError::Validation(coeus_core::BackendError::UnsupportedRank {
-            operation: "reduction",
-            rank: 3,
-            max_rank: 2,
-        })
+        coeus_hephaestus::HephaestusBackendError::Backend(
+            coeus_core::BackendError::UnsupportedRank {
+                operation: "reduce",
+                rank: 3,
+                max_rank: 2,
+            }
+        )
     ));
 }

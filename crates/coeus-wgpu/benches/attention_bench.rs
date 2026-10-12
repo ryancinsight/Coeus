@@ -14,7 +14,7 @@
 use coeus_core::SequentialBackend;
 use coeus_ops::{scaled_dot_product_attention, scaled_dot_product_attention_backward};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 /// (batch*heads, seq_q, seq_k, d_k, d_v) — heads folded into batch, matching
@@ -28,7 +28,7 @@ fn fill(n: usize, phase: f32) -> Vec<f32> {
 
 fn bench_attention_forward(c: &mut Criterion) {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let scale = 0.125f32;
 
     let mut group = c.benchmark_group("SDP Attention Forward");
@@ -83,7 +83,7 @@ fn bench_attention_forward(c: &mut Criterion) {
 
 fn bench_attention_backward(c: &mut Criterion) {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let scale = 0.125f32;
 
     let mut group = c.benchmark_group("SDP Attention Backward");
@@ -133,9 +133,12 @@ fn bench_attention_backward(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("Coeus WGPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, WgpuBackend>::zeros_on([b, sq, dk], &wgpu);
-                let mut gk = Tensor::<f32, WgpuBackend>::zeros_on([b, sk, dk], &wgpu);
-                let mut gv = Tensor::<f32, WgpuBackend>::zeros_on([b, sk, dv], &wgpu);
+                let mut gq =
+                    Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([b, sq, dk], &wgpu);
+                let mut gk =
+                    Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([b, sk, dk], &wgpu);
+                let mut gv =
+                    Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([b, sk, dv], &wgpu);
                 scaled_dot_product_attention_backward(
                     black_box(&go_g),
                     black_box(&q_g),

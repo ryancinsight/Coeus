@@ -76,7 +76,7 @@ pub struct MhaProjectionParams<'a, T: Scalar, B: coeus_ops::BackendOps<T> + Defa
 /// Returns a typed contract failure before evaluating invalid Q/K/V,
 /// projection, head-count, bias, or mask shapes.
 pub fn multi_head_attention_cross<
-    T: coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+    T: coeus_ops::AttentionScalar + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     const H: usize,
     M: AttentionMask,
@@ -138,7 +138,7 @@ pub fn multi_head_attention_cross<
     }
 
     let d_head = d_model / H;
-    let scale = T::one() / <T as Scalar>::from_f64((d_head as f64).sqrt());
+    let scale = T::ONE / <T as coeus_core::FloatElement>::from_f64((d_head as f64).sqrt());
 
     let batch = dimensions.batch;
     let seq_q = dimensions.seq_q;

@@ -94,8 +94,7 @@ impl PyTensor {
     where
         F: FnOnce(&Var<f64>) -> Var<f64> + Send,
     {
-        let inner = py.allow_threads(|| op(&self.inner));
-        Ok(Self::from_var(inner))
+        Ok(crate::tensor::dispatch::apply_unary(self, py, op))
     }
 
     #[inline]

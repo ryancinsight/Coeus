@@ -18,11 +18,17 @@ fn layout(shape: &[usize]) -> Layout {
     Layout::new(Shape::from(shape.to_vec()))
 }
 
-fn matmul_reference<T: Scalar>(a: &[T], m: usize, k: usize, b: &[T], n: usize) -> Vec<T> {
-    let mut out = vec![T::zero(); m * n];
+fn matmul_reference<T: Scalar + coeus_core::FloatElement>(
+    a: &[T],
+    m: usize,
+    k: usize,
+    b: &[T],
+    n: usize,
+) -> Vec<T> {
+    let mut out = vec![T::ZERO; m * n];
     for row in 0..m {
         for col in 0..n {
-            let mut acc = T::zero();
+            let mut acc = T::ZERO;
             for inner in 0..k {
                 acc += a[row * k + inner] * b[inner * n + col];
             }
@@ -41,7 +47,7 @@ fn device_matmul<T, B>(
     c_layout: &Layout,
 ) -> Vec<T>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -62,14 +68,14 @@ where
         )
         .expect("valid matmul test layouts");
 
-    let mut out = vec![T::zero(); c_layout.numel()];
+    let mut out = vec![T::ZERO; c_layout.numel()];
     backend.copy_to_host(&c_buffer, &mut out);
     out
 }
 
 fn check_contiguous_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -97,7 +103,7 @@ where
 
 fn check_transposed_input_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -132,12 +138,12 @@ where
     assert_same_bits(&got, &expected);
 }
 
-fn assert_same_bits<T: Scalar>(got: &[T], expected: &[T]) {
+fn assert_same_bits<T: Scalar + coeus_core::FloatElement>(got: &[T], expected: &[T]) {
     assert_eq!(got.len(), expected.len());
     for (index, (&actual, &reference)) in got.iter().zip(expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            coeus_core::NumericElement::to_f64(actual).to_bits(),
+            coeus_core::NumericElement::to_f64(reference).to_bits(),
             "matmul mismatch at index {index}",
         );
     }

@@ -13,14 +13,14 @@ use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
 }
 
-fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
+fn assert_values<T: Scalar + coeus_core::FloatElement>(got: &[T], expected: &[T], context: &str) {
     assert_eq!(got.len(), expected.len(), "{context}: length mismatch");
     for (index, (&actual, &reference)) in got.iter().zip(expected).enumerate() {
         assert_eq!(actual, reference, "{context}: mismatch at index {index}");
@@ -29,7 +29,7 @@ fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

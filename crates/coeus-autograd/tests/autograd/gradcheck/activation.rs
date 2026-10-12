@@ -435,7 +435,7 @@ fn relu_negative_branch_zero_case<T: GradcheckScalar>() {
         .backward()
         .expect("relu backward completes");
     let grad = tracked.grad().expect("input must receive a gradient");
-    let zero = <T as coeus_core::Scalar>::from_f64(0.0);
+    let zero = <T as coeus_core::FloatElement>::from_f64(0.0);
     for (index, &component) in grad.as_slice().iter().enumerate() {
         assert_eq!(
             component, zero,
@@ -610,8 +610,8 @@ fn clamp_inside_bounds_case<T: GradcheckScalar>() {
     check(&smooth(0.88), |x: &Var<T, MoiraiBackend>| {
         clamp(
             x,
-            <T as coeus_core::Scalar>::from_f64(-1.2),
-            <T as coeus_core::Scalar>::from_f64(1.2),
+            <T as coeus_core::FloatElement>::from_f64(-1.2),
+            <T as coeus_core::FloatElement>::from_f64(1.2),
         )
     });
 }
@@ -629,7 +629,7 @@ fn prelu_below_kink_case<T: GradcheckScalar>() {
     let x = Sampler::new(0.92, -1.8, -0.2).tensor::<T>(&SHAPE);
     let slope = Tensor::<T, MoiraiBackend>::from_slice_on(
         [1],
-        &[<T as coeus_core::Scalar>::from_f64(0.25)],
+        &[<T as coeus_core::FloatElement>::from_f64(0.25)],
         &MoiraiBackend::new(),
     );
     let w = weighting::<T>(&SHAPE);

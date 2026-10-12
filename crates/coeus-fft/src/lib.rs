@@ -63,7 +63,7 @@ where
     B: ComputeBackend + Default,
 {
     let backend = B::default();
-    let mut current = vec![T::zero(); delta.numel()];
+    let mut current = vec![T::ZERO; delta.numel()];
     let delta_host = tensor_to_vec(delta);
     let guard = grad.write();
     backend.copy_to_host(guard.storage(), &mut current);
@@ -80,7 +80,7 @@ where
 {
     let backend = B::default();
     let contiguous = tensor.to_contiguous();
-    let mut host = vec![T::zero(); contiguous.numel()];
+    let mut host = vec![T::ZERO; contiguous.numel()];
     backend.copy_to_host(contiguous.storage(), &mut host);
     host
 }
@@ -317,7 +317,7 @@ where
     ) -> Result<(), B::Error> {
         if let Some(Some(ref grad)) = input_grads.first() {
             let go = tensor_to_vec(grad_out)[0];
-            let factor = go * <T as Scalar>::from_f64(2.0);
+            let factor = go * <T as coeus_core::FloatElement>::from_f64(2.0);
             let spec_host = tensor_to_vec(&self.spectrum);
             let grad_spec: Vec<Complex<T>> = spec_host
                 .iter()
@@ -349,7 +349,7 @@ where
     let spectrum = fft_1d(&x.tensor);
     let energy = tensor_to_vec(&spectrum)
         .iter()
-        .fold(T::zero(), |acc, c| acc + c.re * c.re + c.im * c.im);
+        .fold(T::ZERO, |acc, c| acc + c.re * c.re + c.im * c.im);
     let out_tensor = Tensor::from_slice_on([1], &[energy], &backend);
     let requires_grad = coeus_autograd::is_grad_enabled() && x.grad.is_some();
     let grad = if requires_grad {

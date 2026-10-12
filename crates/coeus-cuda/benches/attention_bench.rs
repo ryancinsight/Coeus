@@ -11,7 +11,7 @@
 // committing a baseline. Not run in headless CI.
 
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_ops::{scaled_dot_product_attention, scaled_dot_product_attention_backward};
 use coeus_tensor::Tensor;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -33,7 +33,7 @@ fn bench_attention_forward(c: &mut Criterion) {
         return;
     }
     let seq = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     let scale = 0.125f32;
 
     let mut group = c.benchmark_group("CUDA SDP Attention Forward");
@@ -87,7 +87,7 @@ fn bench_attention_backward(c: &mut Criterion) {
         return;
     }
     let seq = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     let scale = 0.125f32;
 
     let mut group = c.benchmark_group("CUDA SDP Attention Backward");
@@ -129,9 +129,12 @@ fn bench_attention_backward(c: &mut Criterion) {
         });
         group.bench_with_input(BenchmarkId::new("Coeus CUDA", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, CudaBackend>::zeros_on([b, sq, dk], &cuda);
-                let mut gk = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dk], &cuda);
-                let mut gv = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dv], &cuda);
+                let mut gq =
+                    Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([b, sq, dk], &cuda);
+                let mut gk =
+                    Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([b, sk, dk], &cuda);
+                let mut gv =
+                    Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on([b, sk, dv], &cuda);
                 scaled_dot_product_attention_backward(
                     black_box(&go_g),
                     black_box(&q_g),

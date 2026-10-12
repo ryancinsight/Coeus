@@ -12,7 +12,7 @@
 use coeus_core::SequentialBackend;
 use coeus_ops::conv_transpose2d;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 fn fill(n: usize, phase: f32) -> Vec<f32> {
@@ -21,7 +21,7 @@ fn fill(n: usize, phase: f32) -> Vec<f32> {
 
 fn bench_matmul(c: &mut Criterion) {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let mut group = c.benchmark_group("Matmul (square)");
     for &sz in &[128usize, 512] {
         let a = fill(sz * sz, 1.0);
@@ -50,7 +50,7 @@ fn bench_matmul(c: &mut Criterion) {
 
 fn bench_conv_transpose2d(c: &mut Criterion) {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     // (n, c_in, h, w, c_out, k) with stride 2 (upsampling, the common use).
     const CASES: &[(usize, usize, usize, usize, usize, usize)] =
         &[(4, 8, 16, 16, 8, 3), (4, 16, 32, 32, 16, 3)];

@@ -1,5 +1,5 @@
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_tensor::{Tensor, Transpose};
 
 #[test]
@@ -8,7 +8,7 @@ fn test_cuda_strided_ops() {
         return;
     }
     let seq = SequentialBackend::new();
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
 
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     let b_data = vec![10.0f32, 20.0, 30.0];
@@ -71,7 +71,7 @@ fn test_cuda_strided_activation_tail_matches_cpu() {
     }
 
     let seq = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     let data = [
         -2.0_f32, -1.5, -1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0,
     ];
@@ -114,7 +114,7 @@ fn test_cuda_f64_comparisons_match_cpu() {
     }
 
     let sequential = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     let lhs_values = [-2.0_f64, -0.5, 0.0, 0.5, 2.0, 3.0];
     let rhs_values = [-1.0_f64, -0.5, 0.25, 0.5, 4.0, 3.0];
     let lhs = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &lhs_values).transpose();
@@ -169,7 +169,7 @@ fn test_cuda_strided_parameterized_activations_match_cpu() {
         return;
     }
     let sequential = SequentialBackend::new();
-    let backend = CudaBackend::new();
+    let backend = HephaestusBackend::<CudaProvider>::new();
     let values = [-2.0_f32, -1.0, -0.5, 0.0, 0.25, 0.5, 1.0, 2.0];
     let input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &values).transpose();
     let device_input = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &values)

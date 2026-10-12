@@ -32,7 +32,7 @@ fn read_rank_three(layout: &Layout, storage: &[f64]) -> Vec<f64> {
 }
 
 fn assert_attention_scalar_contract<T: coeus_leto::AttentionScalar>() {
-    let scalar = <T as coeus_core::Scalar>::from_f64;
+    let scalar = <T as coeus_core::FloatElement>::from_f64;
     let query_layout = Layout::new([1, 1, 1].into());
     let key_layout = Layout::new([1, 2, 1].into());
     let value_layout = Layout::new([1, 2, 1].into());

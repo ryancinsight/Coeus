@@ -1,7 +1,7 @@
 use coeus_core::{ComputeBackend, Layout};
 use coeus_ops::{BinaryOp, ElementwiseOps};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 use super::{assert_parity, seq, to_cpu, to_gpu, wgpu};
 
@@ -207,7 +207,7 @@ fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
     );
     let a_gpu = to_gpu(&a);
     let b_gpu = to_gpu(&b);
-    let mut out_gpu = Tensor::<f32, WgpuBackend>::zeros_on(vec![4, 4], &w);
+    let mut out_gpu = Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on(vec![4, 4], &w);
     let out_layout = out_gpu.layout().clone();
     let allocation_id = out_gpu.storage().allocation_id();
 
@@ -242,7 +242,7 @@ fn test_wgpu_hephaestus_contiguous_unary_reuses_output_buffer() {
     let w = wgpu();
     let x = Tensor::from_slice(vec![8], &[-4.0f32, -2.0, -1.0, -0.5, 0.5, 1.0, 2.0, 4.0]);
     let x_gpu = to_gpu(&x);
-    let mut out_gpu = Tensor::<f32, WgpuBackend>::zeros_on(vec![8], &w);
+    let mut out_gpu = Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on(vec![8], &w);
     let out_layout = out_gpu.layout().clone();
     let allocation_id = out_gpu.storage().allocation_id();
 

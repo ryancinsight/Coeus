@@ -1,7 +1,7 @@
 use coeus_core::SequentialBackend;
 use coeus_ops::{ConvOps, PoolOps};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 use super::{assert_parity, seq, to_cpu, to_gpu, wgpu};
 
@@ -43,7 +43,8 @@ fn test_wgpu_parity_conv1d_forward() {
     let in_g = to_gpu(&in_t);
     let w_g = to_gpu(&w_t);
     let b_g = to_gpu(&b_t);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![batch, out_c, out_len], &w);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on(vec![batch, out_c, out_len], &w);
     let gpu_out_layout = gpu_out.layout().clone();
     w.conv1d(
         in_g.storage(),
@@ -111,7 +112,8 @@ fn test_wgpu_parity_conv2d_forward() {
     let in_g = to_gpu(&in_t);
     let wg = to_gpu(&wt);
     let bg = to_gpu(&bt);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![batch, out_c, oh, ow], &w);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on(vec![batch, out_c, oh, ow], &w);
     let gpu_out_layout = gpu_out.layout().clone();
     w.conv2d(
         in_g.storage(),
@@ -162,7 +164,8 @@ fn test_wgpu_parity_max_pool2d() {
     .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on(vec![2, 2, 2, 2], &w);
     let gpu_out_layout = gpu_out.layout().clone();
     w.max_pool2d(
         xg.storage(),
@@ -205,7 +208,8 @@ fn test_wgpu_parity_avg_pool2d() {
     .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on(vec![2, 2, 2, 2], &w);
     let gpu_out_layout = gpu_out.layout().clone();
     w.avg_pool2d(
         xg.storage(),

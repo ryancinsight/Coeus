@@ -28,7 +28,9 @@ pub struct RotaryEmbedding<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Mo
     pub d_head: usize,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
+    RotaryEmbedding<T, B>
+{
     /// Create a new Rotary Embedding layer.
     ///
     /// - `max_len`: maximum sequence length.
@@ -41,8 +43,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> RotaryEmbedding<T, B> {
         );
         let backend = B::default();
 
-        let mut cos_values = vec![T::zero(); max_len * d_head];
-        let mut sin_values = vec![T::zero(); max_len * d_head];
+        let mut cos_values = vec![T::ZERO; max_len * d_head];
+        let mut sin_values = vec![T::ZERO; max_len * d_head];
         let half_dim = d_head / 2;
         for pos in 0..max_len {
             for i in 0..half_dim {

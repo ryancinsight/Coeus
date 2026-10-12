@@ -63,7 +63,7 @@ pub enum GradientSyncError<B, C> {
 /// Returns [`GradientSyncError::Communicator`] when the all-reduce fails and
 /// [`GradientSyncError::Backend`] when gradient scaling cannot be applied.
 pub fn synchronize_gradients<
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     C: Communicator,
 >(

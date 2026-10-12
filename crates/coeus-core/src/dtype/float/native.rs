@@ -6,22 +6,6 @@ macro_rules! impl_scalar_float_native {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn zero() -> Self {
-                0.0 as $t
-            }
-            #[inline(always)]
-            fn one() -> Self {
-                1.0 as $t
-            }
-            #[inline(always)]
-            fn to_f64(self) -> f64 {
-                self as f64
-            }
-            #[inline(always)]
-            fn from_f64(v: f64) -> Self {
-                v as Self
-            }
-            #[inline(always)]
             fn sqrt_val(self) -> Self {
                 self.sqrt()
             }
@@ -200,9 +184,9 @@ macro_rules! impl_scalar_float_native {
             }
             #[inline(always)]
             fn gelu_op(self) -> Self {
-                let half = <$t as Scalar>::from_f64(0.5);
-                let one = <$t as Scalar>::from_f64(1.0);
-                let inv_sqrt_two = <$t as Scalar>::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+                let half = <$t as FloatElement>::from_f64(0.5);
+                let one = <$t as FloatElement>::from_f64(1.0);
+                let inv_sqrt_two = <$t as FloatElement>::from_f64(core::f64::consts::FRAC_1_SQRT_2);
                 half * self * (one + (self * inv_sqrt_two).erf_op())
             }
             #[inline(always)]

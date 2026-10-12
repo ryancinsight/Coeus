@@ -183,7 +183,7 @@ impl Sampler {
         let values: Vec<T> = self
             .values(count)
             .into_iter()
-            .map(<T as coeus_core::Scalar>::from_f64)
+            .map(<T as coeus_core::FloatElement>::from_f64)
             .collect();
         Tensor::from_slice_on(shape.to_vec(), &values, &MoiraiBackend::new())
     }

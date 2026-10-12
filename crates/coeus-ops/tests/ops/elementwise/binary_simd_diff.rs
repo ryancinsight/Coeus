@@ -18,7 +18,7 @@ use coeus_ops::{BinaryOp, CpuBackend};
 const SIZES: &[usize] = &[1, 2, 7, 8, 31, 8192, 8193, 16_384, 20_001];
 
 /// Scalar reference for a single op, in the element type's native precision.
-fn reference<T: Scalar>(op: BinaryOp, x: T, y: T) -> T {
+fn reference<T: Scalar + coeus_core::FloatElement>(op: BinaryOp, x: T, y: T) -> T {
     match op {
         BinaryOp::Add => x + y,
         BinaryOp::Sub => x - y,
@@ -34,7 +34,7 @@ fn reference<T: Scalar>(op: BinaryOp, x: T, y: T) -> T {
 }
 
 /// Drive the public CPU kernel for one (backend, op, length) and return the host result.
-fn device_binary<T: Scalar + leto_ops::Scalar, B: CpuBackend>(
+fn device_binary<T: Scalar + coeus_core::FloatElement + leto_ops::Scalar, B: CpuBackend>(
     backend: &B,
     op: BinaryOp,
     a: &[T],
@@ -56,13 +56,15 @@ where
         .elementwise_binary(op, &a_buf, &layout, &b_buf, &layout, &mut c_buf, &layout)
         .expect("valid binary test layouts");
 
-    let mut out = vec![T::zero(); n];
+    let mut out = vec![T::ZERO; n];
     backend.copy_to_host(&c_buf, &mut out);
     out
 }
 
-fn check_op<T: Scalar + leto_ops::Scalar, B: CpuBackend>(backend: &B, op: BinaryOp)
-where
+fn check_op<T: Scalar + coeus_core::FloatElement + leto_ops::Scalar, B: CpuBackend>(
+    backend: &B,
+    op: BinaryOp,
+) where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     for &n in SIZES {
@@ -80,8 +82,8 @@ where
         for i in 0..n {
             // Bitwise-exact: single IEEE op per lane, scalar == SIMD.
             assert_eq!(
-                Scalar::to_f64(got[i]).to_bits(),
-                Scalar::to_f64(expected[i]).to_bits(),
+                coeus_core::NumericElement::to_f64(got[i]).to_bits(),
+                coeus_core::NumericElement::to_f64(expected[i]).to_bits(),
                 "{op:?} mismatch at i={i}, n={n}",
             );
         }

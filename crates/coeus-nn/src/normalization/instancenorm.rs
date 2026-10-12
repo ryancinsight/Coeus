@@ -46,7 +46,7 @@ struct InstanceNormCache<T: Float, B: coeus_ops::BackendOps<T> + Default> {
 }
 
 /// Rebuild `cache` if the spatial size changed.
-fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+fn ensure_cache<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     cache: &mut Option<InstanceNormCache<T, B>>,
     spatial: usize,
     eps: f64,
@@ -57,7 +57,7 @@ fn ensure_cache<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         let ln_weight = Var::new(Tensor::ones_on([spatial], &backend), false);
         let ln_bias = Var::new(Tensor::zeros_on([spatial], &backend), false);
         let eps_t = Tensor::full_on([1], T::from_f64(eps), &backend);
-        let d_const = Tensor::full_on([1], T::from_f64(spatial as f64), &backend);
+        let d_const = Tensor::full_on([1], T::from_count(spatial), &backend);
         *cache = Some(InstanceNormCache {
             spatial,
             ln_weight,

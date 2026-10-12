@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 #[test]
 fn cumulative_scans_match_cpu_on_rank_two_device_tensors() {
@@ -9,7 +9,7 @@ fn cumulative_scans_match_cpu_on_rank_two_device_tensors() {
     }
 
     let sequential = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let input =
         Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     let device_input = input.to_backend_on(&sequential, &wgpu);
@@ -48,7 +48,7 @@ fn product_axis_matches_cpu_on_rank_two_device_tensors() {
     }
 
     let sequential = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let input =
         Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, 4.0, 0.5, 6.0]);
     let device_input = input.to_backend_on(&sequential, &wgpu);
@@ -69,7 +69,7 @@ fn norm_p_dispatches_with_wgpu_provider_parity() {
     }
 
     let sequential = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let input =
         Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
     let device_input = input.to_backend_on(&sequential, &wgpu);

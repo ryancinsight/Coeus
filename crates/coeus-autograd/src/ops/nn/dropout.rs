@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
@@ -81,7 +81,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
 }
 
 /// Tracked Dropout.
-pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn dropout<T: Float + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     p: f64,
     is_training: bool,
@@ -100,7 +100,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
         Tensor::<T, coeus_core::MoiraiBackend>::from_fn_on(shape.clone(), &cpu_backend, |_| {
             let r = rng.borrow_mut().next_f64();
             if r < p {
-                T::zero()
+                T::ZERO
             } else {
                 T::from_f64(scale)
             }

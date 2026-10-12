@@ -12,7 +12,7 @@ use coeus_core::Float;
 /// Computes mean squared error between pred and target.
 /// Returns a scalar Var (shape `[1]`).
 #[inline]
-pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn mse_loss<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Var<T, B> {
@@ -94,7 +94,7 @@ pub fn smooth_l1_loss<
 /// Composed from existing autograd ops. When `full=true`, adds `0.5 * log(2π)`.
 #[inline]
 pub fn gaussian_nll_loss<
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -108,13 +108,13 @@ pub fn gaussian_nll_loss<
     let log_var = coeus_autograd::log(var);
     let loss = coeus_autograd::scalar_mul(
         &coeus_autograd::add(&var_term, &log_var),
-        <T as coeus_core::Scalar>::from_f64(0.5),
+        <T as coeus_core::FloatElement>::from_f64(0.5),
     );
     if full {
-        let two_pi = <T as coeus_core::Scalar>::from_f64(2.0 * std::f64::consts::PI);
+        let two_pi = <T as coeus_core::FloatElement>::from_f64(2.0 * std::f64::consts::PI);
         coeus_autograd::scalar_add(
             &coeus_autograd::mean(&loss),
-            <T as coeus_core::Scalar>::from_f64(0.5) * two_pi.log_op(),
+            <T as coeus_core::FloatElement>::from_f64(0.5) * two_pi.log_op(),
         )
     } else {
         coeus_autograd::mean(&loss)

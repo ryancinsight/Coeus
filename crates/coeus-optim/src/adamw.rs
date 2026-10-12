@@ -61,7 +61,7 @@ pub struct AdamW<T: Float, B: coeus_ops::BackendOps<T> + Default = MoiraiBackend
     pub v: Vec<Tensor<T, B>>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> AdamW<T, B> {
     /// Construct an AdamW optimizer.
     ///
     /// # Parameters

@@ -33,7 +33,7 @@ impl<T: coeus_core::Scalar, B: coeus_ops::BackendOps<T> + Default, M: AttentionM
 }
 
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + coeus_core::FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         M: AttentionMask,
     > ScaledDotProductAttention<T, B, M>
@@ -61,7 +61,7 @@ impl<
             1,
         )?;
         let scale = scale.unwrap_or_else(|| {
-            T::one() / <T as coeus_core::Scalar>::from_f64((dimensions.d_k as f64).sqrt())
+            T::ONE / <T as coeus_core::FloatElement>::from_f64((dimensions.d_k as f64).sqrt())
         });
         let (out, _attn_weights) =
             coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale)
@@ -75,7 +75,7 @@ impl<
 
 /// Convenience `Module` impl — self-attention: Q = K = V = input.
 impl<
-        T: coeus_ops::AttentionScalar,
+        T: coeus_ops::AttentionScalar + coeus_core::FloatElement,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         M: AttentionMask,
     > Module<T, B> for ScaledDotProductAttention<T, B, M>

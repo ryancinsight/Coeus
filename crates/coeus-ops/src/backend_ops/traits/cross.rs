@@ -7,10 +7,10 @@ use coeus_core::{ComputeBackend, Layout, Scalar};
 /// `coeus_ops::cross` through the shared host-fold path
 /// (`crate::backend_ops::defaults::cross::cross_fold`), so folding this
 /// into the required bundle would force an identical no-op impl onto every
-/// backend for a capability `dot`/`cross` never required before. A backend
-/// with an on-device seam (currently `WgpuBackend`, for the contiguous
-/// last-axis layout) overrides [`CrossOps::cross_storage`] instead of
-/// relying on the shared default.
+/// backend for a capability `dot`/`cross` never required before. The
+/// Hephaestus blanket impl branches per layout: providers with an on-device
+/// seam (currently WGPU, for the contiguous last-axis layout) run there and
+/// every other case uses the shared host-fold.
 pub trait CrossOps<T: Scalar>: ComputeBackend {
     /// Allocate and initialize storage for the cross product of `a` and `b`
     /// along `dim`.

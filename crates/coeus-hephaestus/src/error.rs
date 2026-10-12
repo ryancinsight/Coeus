@@ -28,13 +28,17 @@ impl HephaestusBackendError {
     }
 }
 
+/// Map a caller-side configuration failure (invalid order, spacing, layout,
+/// or shape) into the backend validation category.
+///
+/// Configuration faults are contract rejections, not provider dispatch
+/// failures, so they surface as [`BackendError::Storage`] — the same category
+/// both full vendor backends historically reported — rather than as a device
+/// error.
 #[inline]
 pub(crate) fn invalid_configuration_error(
     operation: &'static str,
     reason: String,
 ) -> HephaestusBackendError {
-    HephaestusBackendError::device(
-        operation,
-        HephaestusError::InvalidConfiguration { message: reason },
-    )
+    HephaestusBackendError::Backend(BackendError::Storage { operation, reason })
 }

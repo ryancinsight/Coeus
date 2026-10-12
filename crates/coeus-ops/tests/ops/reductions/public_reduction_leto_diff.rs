@@ -13,19 +13,23 @@ use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
 }
 
-fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], context: &str) {
+fn assert_same_bits<T: Scalar + coeus_core::FloatElement, const N: usize>(
+    got: &[T],
+    expected: [T; N],
+    context: &str,
+) {
     assert_eq!(got.len(), expected.len(), "{context} length mismatch");
     for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
         assert_eq!(
-            Scalar::to_f64(actual).to_bits(),
-            Scalar::to_f64(reference).to_bits(),
+            coeus_core::NumericElement::to_f64(actual).to_bits(),
+            coeus_core::NumericElement::to_f64(reference).to_bits(),
             "{context} mismatch at index {index}",
         );
     }
@@ -33,7 +37,7 @@ fn assert_same_bits<T: Scalar, const N: usize>(got: &[T], expected: [T; N], cont
 
 fn check_reductions<T, B>(backend: &B)
 where
-    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + coeus_core::FloatElement + leto_ops::Scalar,
     B: BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -44,8 +48,9 @@ where
 
     let total = coeus_ops::sum(&tensor, backend).expect("valid sum");
     assert_eq!(
-        Scalar::to_f64(total).to_bits(),
-        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(21.0)).to_bits()
+        coeus_core::NumericElement::to_f64(total).to_bits(),
+        coeus_core::NumericElement::to_f64(<T as coeus_core::FloatElement>::from_f64(21.0))
+            .to_bits()
     );
 
     let product_axis = coeus_ops::prod_axis(&tensor, 1, backend).expect("valid product axis");
@@ -58,8 +63,9 @@ where
 
     let mean = coeus_ops::mean(&tensor, backend).expect("valid mean");
     assert_eq!(
-        Scalar::to_f64(mean).to_bits(),
-        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
+        coeus_core::NumericElement::to_f64(mean).to_bits(),
+        coeus_core::NumericElement::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5))
+            .to_bits()
     );
 
     let sum_axis = coeus_ops::sum_axis(&tensor, 0, backend).expect("valid sum axis");
@@ -97,8 +103,9 @@ where
     let transposed = tensor.transpose();
     let transposed_mean_scalar = coeus_ops::mean(&transposed, backend).expect("valid mean");
     assert_eq!(
-        Scalar::to_f64(transposed_mean_scalar).to_bits(),
-        Scalar::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5)).to_bits()
+        coeus_core::NumericElement::to_f64(transposed_mean_scalar).to_bits(),
+        coeus_core::NumericElement::to_f64(<T as coeus_core::FloatElement>::from_f64(3.5))
+            .to_bits()
     );
 
     let transposed_sum =

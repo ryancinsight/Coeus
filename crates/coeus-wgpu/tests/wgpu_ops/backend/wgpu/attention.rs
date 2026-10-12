@@ -1,7 +1,7 @@
 use coeus_core::SequentialBackend;
 use coeus_ops::{scaled_dot_product_attention, scaled_dot_product_attention_backward};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 const BATCH: usize = 1;
 const SEQ_Q: usize = 3;
@@ -56,7 +56,7 @@ fn assert_close_device(label: &str, actual: &[f32], expected: &[f32]) {
 
 fn run_device_forward(is_causal: bool, label: &str) {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (query_data, key_data, value_data, _) = attention_inputs();
     let scale = 0.5f32;
 
@@ -109,7 +109,7 @@ fn wgpu_attention_forward_causal_matches_cpu_on_device() {
 fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
     // Contiguous mask + causal -> on-device masked WGSL kernel.
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (query_data, key_data, value_data, _) = attention_inputs();
     let mask_data = vec![1.0f32, 1.0, 0.0, 1.0];
     let scale = 0.5f32;
@@ -165,7 +165,7 @@ fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
 #[test]
 fn wgpu_attention_backward_matches_cpu() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (query_data, key_data, value_data, grad_out_data) = attention_inputs();
     let scale = 0.25f32;
 
@@ -204,9 +204,12 @@ fn wgpu_attention_backward_matches_cpu() {
     )
     .expect("CPU attention backward must succeed");
 
-    let mut actual_q = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_Q, D_K], &wgpu);
-    let mut actual_k = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_K], &wgpu);
-    let mut actual_v = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_V], &wgpu);
+    let mut actual_q =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([BATCH, SEQ_Q, D_K], &wgpu);
+    let mut actual_k =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([BATCH, SEQ_K, D_K], &wgpu);
+    let mut actual_v =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([BATCH, SEQ_K, D_V], &wgpu);
     scaled_dot_product_attention_backward(
         &grad_out_gpu,
         &query_gpu,

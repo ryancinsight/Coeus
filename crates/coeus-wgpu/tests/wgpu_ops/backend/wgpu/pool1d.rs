@@ -1,6 +1,6 @@
 use coeus_core::{ComputeBackend, Layout, SequentialBackend};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 const INPUT: [f32; 7] = [1.0, 5.0, 2.0, 7.0, 3.0, 10.0, 4.0];
 const KERNEL_SIZE: usize = 3;
@@ -23,7 +23,7 @@ fn assert_close(actual: &[f32], expected: &[f32]) {
 #[test]
 fn wgpu_pool1d_max_matches_sequential() {
     let sequential = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 7], &INPUT);
     let input_wgpu = input.to_backend_on(&sequential, &wgpu);
     let output_layout = Layout::new(vec![1, 1, 3].into());
@@ -57,8 +57,11 @@ fn wgpu_pool1d_max_matches_sequential() {
         &output_layout,
     )
     .expect("WGPU max_pool1d dispatch");
-    let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_storage, output_layout.clone())
-        .to_backend_on(&wgpu, &sequential);
+    let actual = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        actual_storage,
+        output_layout.clone(),
+    )
+    .to_backend_on(&wgpu, &sequential);
     assert_close(actual.as_slice(), expected.as_slice());
 
     let grad_out = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[1.0, 2.0, 3.0]);
@@ -101,15 +104,18 @@ fn wgpu_pool1d_max_matches_sequential() {
         &input_layout,
     )
     .expect("WGPU max_pool1d backward dispatch");
-    let actual_grad = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_grad_storage, input_layout)
-        .to_backend_on(&wgpu, &sequential);
+    let actual_grad = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        actual_grad_storage,
+        input_layout,
+    )
+    .to_backend_on(&wgpu, &sequential);
     assert_close(actual_grad.as_slice(), expected_grad.as_slice());
 }
 
 #[test]
 fn wgpu_pool1d_avg_matches_sequential() {
     let sequential = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 7], &INPUT);
     let input_wgpu = input.to_backend_on(&sequential, &wgpu);
     let output_layout = Layout::new(vec![1, 1, 3].into());
@@ -143,8 +149,11 @@ fn wgpu_pool1d_avg_matches_sequential() {
         &output_layout,
     )
     .expect("WGPU avg_pool1d dispatch");
-    let actual = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_storage, output_layout)
-        .to_backend_on(&wgpu, &sequential);
+    let actual = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        actual_storage,
+        output_layout,
+    )
+    .to_backend_on(&wgpu, &sequential);
     assert_close(actual.as_slice(), expected.as_slice());
 
     let grad_out = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3], &[2.0, 3.0, 2.0]);
@@ -183,7 +192,10 @@ fn wgpu_pool1d_avg_matches_sequential() {
         &input_layout,
     )
     .expect("WGPU avg_pool1d backward dispatch");
-    let actual_grad = Tensor::<f32, WgpuBackend>::from_raw_parts(actual_grad_storage, input_layout)
-        .to_backend_on(&wgpu, &sequential);
+    let actual_grad = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        actual_grad_storage,
+        input_layout,
+    )
+    .to_backend_on(&wgpu, &sequential);
     assert_close(actual_grad.as_slice(), expected_grad.as_slice());
 }

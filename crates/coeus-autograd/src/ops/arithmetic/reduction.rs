@@ -1,6 +1,6 @@
 use super::traits::{reduction_op, ReductionAutogradOp};
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// ZST tag for sum reduction autograd.
@@ -43,14 +43,15 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 
 /// ZST tag for mean reduction autograd.
 pub struct MeanOp;
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for MeanOp {
+impl<T: Scalar + FloatElement, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
+    for MeanOp
+{
     const OP_NAME: &'static str = "mean";
 
     #[inline(always)]
     fn forward(a: &Tensor<T, B>, _param: Option<usize>, backend: &B) -> Tensor<T, B> {
         let total = coeus_ops::sum(a, backend).expect("invariant: mean input is valid");
-        let n = a.numel() as f64;
-        Tensor::from_slice_on([1], &[total / T::from_f64(n)], backend)
+        Tensor::from_slice_on([1], &[total / T::from_count(a.numel())], backend)
     }
 
     #[inline(always)]
@@ -99,7 +100,9 @@ pub fn sum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> V
 /// Tracked mean reduction of all elements.
 #[must_use]
 #[inline]
-pub fn mean<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn mean<T: Scalar + FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Var<T, B> {
     reduction_op::<T, B, MeanOp>(a, None)
 }
 
@@ -144,9 +147,9 @@ where
         .iter()
         .map(|&v| {
             if <T as Float>::is_nan(v) {
-                T::one()
+                T::ONE
             } else {
-                T::zero()
+                T::ZERO
             }
         })
         .collect();
@@ -154,7 +157,7 @@ where
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::ZERO);
     sum(&cleaned)
 }
 
@@ -164,7 +167,10 @@ where
 /// Differentiable: gradient at NaN positions is zero.
 #[must_use]
 #[inline]
-pub fn nanmean<T: coeus_core::Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nanmean<
+    T: coeus_core::Float + coeus_core::FloatElement + leto_ops::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
 ) -> Var<T, B>
 where
@@ -178,9 +184,9 @@ where
         .iter()
         .map(|&v| {
             if <T as Float>::is_nan(v) {
-                T::one()
+                T::ONE
             } else {
-                T::zero()
+                T::ZERO
             }
         })
         .collect();
@@ -188,9 +194,9 @@ where
         coeus_tensor::Tensor::from_slice_on(a.tensor.shape_cloned(), &mask_data, &backend),
         false,
     );
-    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::zero());
+    let cleaned = crate::ops::shape::masked_fill(a, &mask, T::ZERO);
     let s = sum(&cleaned);
-    crate::scalar_div(&s, <T as coeus_core::Scalar>::from_f64(count as f64))
+    crate::scalar_div(&s, T::from_count(count))
 }
 
 #[cfg(test)]

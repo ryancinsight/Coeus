@@ -1,13 +1,16 @@
 use coeus_autograd::{cosine_similarity, Var};
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_tensor::Tensor;
 
-fn backends() -> Option<(SequentialBackend, CudaBackend)> {
+fn backends() -> Option<(SequentialBackend, HephaestusBackend<CudaProvider>)> {
     if !crate::availability::device_available() {
         return None;
     }
-    Some((SequentialBackend::new(), CudaBackend::new()))
+    Some((
+        SequentialBackend::new(),
+        HephaestusBackend::<CudaProvider>::new(),
+    ))
 }
 
 #[test]

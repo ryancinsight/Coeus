@@ -27,7 +27,7 @@ pub struct PReLU<T: Float, B: coeus_ops::BackendOps<T> + Default = coeus_core::M
     pub weight: Var<T, B>,
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> PReLU<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> PReLU<T, B> {
     /// Create a PReLU module with `num_parameters` learnable slopes (`1` for
     /// a shared scalar, or the channel count for per-channel slopes), each
     /// initialized to `init` (PyTorch/Burn default: `0.25`).
@@ -41,7 +41,9 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> PReLU<T, B> {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Default for PReLU<T, B> {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Default
+    for PReLU<T, B>
+{
     fn default() -> Self {
         Self::new(1, 0.25)
     }

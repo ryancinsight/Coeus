@@ -1,5 +1,5 @@
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_ops::{ConvOps, OptimizerOps, PoolOps};
 use coeus_tensor::Tensor;
 
@@ -8,7 +8,7 @@ fn test_cuda_adamw_step() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let param_data = vec![1.0f32, 2.0, 3.0, 4.0];
@@ -125,7 +125,7 @@ fn test_cuda_conv3d() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let input_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -139,7 +139,7 @@ fn test_cuda_conv3d() {
     let weight_cuda = weight_seq.to_backend_on(&seq, &cuda_b);
 
     let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 1, 1, 1]);
-    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 1, 1, 1]);
+    let mut out_cuda = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 1, 1, 1]);
 
     let input_seq_layout = input_seq.layout().clone();
     let weight_seq_layout = weight_seq.layout().clone();
@@ -187,7 +187,7 @@ fn test_cuda_max_pool3d_forward_backward() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
@@ -195,7 +195,7 @@ fn test_cuda_max_pool3d_forward_backward() {
     let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
 
     let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2]);
-    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2]);
+    let mut out_cuda = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 2, 2, 2]);
 
     let input_seq_layout = input_seq.layout().clone();
     let out_seq_layout = out_seq.layout().clone();
@@ -238,7 +238,8 @@ fn test_cuda_max_pool3d_forward_backward() {
     let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
 
     let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3]);
-    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3]);
+    let mut grad_input_cuda =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 3, 3, 3]);
 
     let grad_out_seq_layout = grad_out_seq.layout().clone();
     let grad_input_seq_layout = grad_input_seq.layout().clone();
@@ -284,7 +285,7 @@ fn test_cuda_avg_pool3d_forward_backward() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
@@ -292,7 +293,7 @@ fn test_cuda_avg_pool3d_forward_backward() {
     let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
 
     let mut out_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2, 2]);
-    let mut out_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2, 2]);
+    let mut out_cuda = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 2, 2, 2]);
 
     let input_seq_layout = input_seq.layout().clone();
     let out_seq_layout = out_seq.layout().clone();
@@ -335,7 +336,8 @@ fn test_cuda_avg_pool3d_forward_backward() {
     let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
 
     let mut grad_input_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 3, 3, 3]);
-    let mut grad_input_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 3, 3, 3]);
+    let mut grad_input_cuda =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 3, 3, 3]);
 
     let grad_out_seq_layout = grad_out_seq.layout().clone();
     let grad_input_seq_layout = grad_input_seq.layout().clone();

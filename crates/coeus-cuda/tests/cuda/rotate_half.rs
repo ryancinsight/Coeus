@@ -1,6 +1,6 @@
 use coeus_autograd::{rotate_half, sum, Var};
 use coeus_core::{ComputeBackend, Layout, SequentialBackend};
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_ops::{BinaryOp, ElementwiseOps};
 use coeus_tensor::Tensor;
 
@@ -10,7 +10,7 @@ fn rotate_half_dispatches_with_cuda_parity() {
         return;
     }
     let cpu = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     let input = Tensor::from_slice_on([2, 4], &[1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &cpu)
         .to_backend_on(&cpu, &cuda);
     let input = Var::new(input, true);
@@ -37,7 +37,7 @@ fn unary_assignment_detaches_shared_cuda_view() {
     }
 
     let cpu = SequentialBackend::new();
-    let cuda = CudaBackend::new();
+    let cuda = HephaestusBackend::<CudaProvider>::new();
     let base = Tensor::from_slice_on([2, 3], &[-3.0_f32, -1.0, 0.0, 2.0, 4.0, -5.0], &cpu)
         .to_backend_on(&cpu, &cuda);
     let mut assigned = base.slice(&[(0, 2), (1, 3)]);
@@ -62,7 +62,7 @@ fn partial_update_preserves_cuda_parent_and_shared_source() {
         return;
     }
 
-    let backend = CudaBackend::new();
+    let backend = HephaestusBackend::<CudaProvider>::new();
     let parent_layout = Layout::new([2, 3].into());
     let destination_layout = parent_layout.slice(&[(0, 2), (1, 3)]);
     let rhs_layout = Layout::new([2, 2].into());

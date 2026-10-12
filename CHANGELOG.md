@@ -4,6 +4,35 @@
 
 ### Changed
 
+- [major] `coeus-wgpu`'s `WgpuBackend` is replaced by the generic
+  `HephaestusBackend<WgpuProvider>` from `coeus-hephaestus`: one
+  monomorphized backend per vendor provider instead of a per-vendor shim
+  struct. `WgpuBackendError::{Validation, Dispatch}` map to
+  `HephaestusBackendError::{Backend, Device}`. See
+  [ADR 0071](docs/adr/0071-provider-owned-accelerator-backends.md).
+
+- [major] Fused-expression evaluation is lifted into `coeus-hephaestus` as
+  generic `evaluate_fused` / `evaluate_fused_reduce` over a new
+  `FusionProvider` seam (operation bundle plus kernel dialect, with
+  equality bindings proving each vendor's elementwise and reduction bundles
+  agree). `coeus-wgpu::evaluate_fused{,_reduce}` and
+  `coeus_cuda::evaluate_fused{,_reduce}` are removed; callers use the bridge
+  functions directly. Behavior unifies on the historically stronger side in
+  each divergence: typed `try_device` acquisition failure (previously WGPU
+  panicked), `LayoutRankMismatch` for rank-inconsistent fusion layouts,
+  explicit empty-axis identity fill for sum/product, and the
+  `"fused elementwise"` operation label.
+
+- [major] `coeus-cuda`'s `CudaBackend` is replaced by the generic
+  `HephaestusBackend<CudaProvider>` from `coeus-hephaestus`, and the
+  feature-disabled `cuda-unavailable` stub backend is removed: the library
+  now binds unconditionally over `hephaestus_cuda::CudaDevice` (a stub
+  without the `cuda` feature), so acquisition fails honestly with an
+  unavailable-device error. `CudaBackendError::{Validation, Dispatch}` map
+  to `HephaestusBackendError::{Backend, Device}`; the rank-rejection label
+  is the bridge's `"reduce"` rather than the shim's `"reduction"`. See
+  [ADR 0071](docs/adr/0071-provider-owned-accelerator-backends.md).
+
 - [major] `Communicator` collectives return `Result<(), Self::Error>`.
   `TcpCommunicator` returns `TcpMeshError` instead of panicking on peer I/O
   failure, and a failed collective poisons all of that rank's links so every

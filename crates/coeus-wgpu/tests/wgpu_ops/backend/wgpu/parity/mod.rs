@@ -12,7 +12,7 @@ mod strided;
 
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 const WGPU_TOL: f32 = 1e-4;
 
@@ -20,17 +20,17 @@ fn seq() -> SequentialBackend {
     SequentialBackend::new()
 }
 
-fn wgpu() -> WgpuBackend {
-    WgpuBackend::new()
+fn wgpu() -> HephaestusBackend<WgpuProvider> {
+    HephaestusBackend::<WgpuProvider>::new()
 }
 
-/// Transfer a CPU tensor to the WgpuBackend.
-fn to_gpu(t: &Tensor<f32, SequentialBackend>) -> Tensor<f32, WgpuBackend> {
+/// Transfer a CPU tensor to the HephaestusBackend<WgpuProvider>.
+fn to_gpu(t: &Tensor<f32, SequentialBackend>) -> Tensor<f32, HephaestusBackend<WgpuProvider>> {
     t.to_backend_on(&seq(), &wgpu())
 }
 
-/// Transfer a WgpuBackend tensor back to CPU.
-fn to_cpu(t: &Tensor<f32, WgpuBackend>) -> Tensor<f32, SequentialBackend> {
+/// Transfer a HephaestusBackend<WgpuProvider> tensor back to CPU.
+fn to_cpu(t: &Tensor<f32, HephaestusBackend<WgpuProvider>>) -> Tensor<f32, SequentialBackend> {
     t.to_backend_on(&wgpu(), &seq())
 }
 

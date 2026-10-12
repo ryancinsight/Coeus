@@ -1,7 +1,7 @@
 // On-device optimizer step parity against the CPU reference.
 //
 // Each provider-owned stateful update (`sgd`, `adam`, `rmsprop`, `adamw`, `adagrad`)
-// runs the same step on `WgpuBackend` and `SequentialBackend` with identical
+// runs the same step on `HephaestusBackend<WgpuProvider>` and `SequentialBackend` with identical
 // inputs and asserts element-wise agreement on the updated parameter and
 // optimizer state. The updates are element-wise (no cross-element reduction),
 // so the device result matches the CPU `f32` arithmetic within tight roundoff.
@@ -9,7 +9,7 @@
 use coeus_core::SequentialBackend;
 use coeus_ops::OptimizerOps;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 /// Element-wise fused-update tolerance: device f32 vs CPU f32 over the same
 /// straight-line arithmetic (mul/add/sqrt/div, no reduction reorder).
@@ -33,9 +33,12 @@ const S2: [f32; 6] = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16];
 
 fn pair<const N: usize>(
     seq: &SequentialBackend,
-    wgpu: &WgpuBackend,
+    wgpu: &HephaestusBackend<WgpuProvider>,
     data: &[f32; N],
-) -> (Tensor<f32, SequentialBackend>, Tensor<f32, WgpuBackend>) {
+) -> (
+    Tensor<f32, SequentialBackend>,
+    Tensor<f32, HephaestusBackend<WgpuProvider>>,
+) {
     let cpu = Tensor::<f32, SequentialBackend>::from_slice(SHAPE.to_vec(), data);
     let gpu = cpu.to_backend_on(seq, wgpu);
     (cpu, gpu)
@@ -44,7 +47,7 @@ fn pair<const N: usize>(
 #[test]
 fn test_wgpu_sgd_step() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
     let (g_c, g_g) = pair(&seq, &wgpu, &G);
     let (mut vel_c, mut vel_g) = pair(&seq, &wgpu, &S1);
@@ -77,7 +80,7 @@ fn test_wgpu_sgd_step() {
 #[test]
 fn test_wgpu_sgd_ranks_zero_through_eight() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     for rank in 0..=8 {
         let shape = vec![1; rank];
         let mut p_c = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &[2.0]);
@@ -129,7 +132,7 @@ fn test_wgpu_sgd_ranks_zero_through_eight() {
 #[test]
 fn test_wgpu_adam_step() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
     let (g_c, g_g) = pair(&seq, &wgpu, &G);
     let (mut m_c, mut m_g) = pair(&seq, &wgpu, &S1);
@@ -198,7 +201,7 @@ fn test_wgpu_adam_step() {
 #[test]
 fn test_wgpu_rmsprop_step() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
     let (g_c, g_g) = pair(&seq, &wgpu, &G);
     let (mut v_c, mut v_g) = pair(&seq, &wgpu, &S1);
@@ -231,7 +234,7 @@ fn test_wgpu_rmsprop_step() {
 #[test]
 fn test_wgpu_adagrad_step() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
     let (g_c, g_g) = pair(&seq, &wgpu, &G);
     let (mut h_c, mut h_g) = pair(&seq, &wgpu, &S1);
@@ -264,7 +267,7 @@ fn test_wgpu_adagrad_step() {
 #[test]
 fn test_wgpu_adamw_step() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (mut p_c, mut p_g) = pair(&seq, &wgpu, &P);
     let (g_c, g_g) = pair(&seq, &wgpu, &G);
     let (mut m_c, mut m_g) = pair(&seq, &wgpu, &S1);

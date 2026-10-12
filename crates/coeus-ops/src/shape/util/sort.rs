@@ -7,7 +7,7 @@
 // The sort is stable (preserves relative order of equal elements).
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Scalar, TryFromCount};
 use coeus_tensor::Tensor;
 
 /// Stably sorts `input` along `axis`, like PyTorch `torch.sort` or NumPy `sort`.
@@ -16,9 +16,10 @@ use coeus_tensor::Tensor;
 /// positions encoded as `T`.
 ///
 /// # Panics
-/// Panics if `axis >= input.ndim()`.
+/// Panics if `axis >= input.ndim()`, or if an axis position does not fit
+/// the element type (integer `T` narrower than the axis length).
 #[inline]
-pub fn sort<T: Scalar + PartialOrd, B: BackendOps<T> + Default>(
+pub fn sort<T: Scalar + PartialOrd + TryFromCount, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     axis: usize,
     descending: bool,
@@ -41,8 +42,8 @@ where
     let inner: usize = shape[axis + 1..].iter().product();
     let numel: usize = shape.iter().product();
 
-    let mut out_vals = vec![T::zero(); numel];
-    let mut out_idx = vec![T::zero(); numel];
+    let mut out_vals = vec![T::ZERO; numel];
+    let mut out_idx = vec![T::ZERO; numel];
 
     // Iterate over every (outer, inner) slice and sort along `axis`.
     for o in 0..outer {
@@ -71,7 +72,8 @@ where
             for (a, (val, orig_idx)) in pairs.into_iter().enumerate() {
                 let flat = o * (axis_len * inner) + a * inner + i;
                 out_vals[flat] = val;
-                out_idx[flat] = T::from_f64(orig_idx as f64);
+                out_idx[flat] =
+                    T::try_from_count(orig_idx).expect("sort axis positions fit the element type");
             }
         }
     }

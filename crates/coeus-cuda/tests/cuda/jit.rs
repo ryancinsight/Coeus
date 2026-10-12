@@ -1,5 +1,5 @@
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -7,7 +7,7 @@ fn test_cuda_evaluate_fused() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let a_data = vec![1.0f32, -2.0, 3.0, -4.0];
@@ -22,7 +22,8 @@ fn test_cuda_evaluate_fused() {
     use coeus_ops::fuse::TensorExprExt;
     let expr = (a_cuda.expr() * b_cuda.expr() + 5.0).relu();
 
-    let out_cuda = coeus_cuda::evaluate_fused(&expr).expect("CUDA fused elementwise dispatch");
+    let out_cuda =
+        coeus_hephaestus::evaluate_fused(&expr).expect("CUDA fused elementwise dispatch");
     let out_seq = out_cuda.to_backend_on(&cuda_b, &seq);
 
     let mut expected = vec![0.0f32; 4];
@@ -40,7 +41,7 @@ fn test_cuda_jit_fusion_correctness() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let a_data = vec![1.0f32, -2.0, 3.0, -4.0, 5.0, -6.0];
@@ -61,7 +62,8 @@ fn test_cuda_jit_fusion_correctness() {
         .relu()
         .sigmoid();
 
-    let out_cuda = coeus_cuda::evaluate_fused(&expr).expect("CUDA fused elementwise dispatch");
+    let out_cuda =
+        coeus_hephaestus::evaluate_fused(&expr).expect("CUDA fused elementwise dispatch");
     let out_seq = out_cuda.to_backend_on(&cuda_b, &seq);
 
     let mut expected = [0.0f32; 6];
@@ -90,7 +92,7 @@ fn test_cuda_jit_reductions() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let a_data = vec![1.0f32, 2.0, 3.0, 10.0, -5.0, 6.0];
@@ -116,7 +118,7 @@ fn test_cuda_evaluate_fused_reduce() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let a_data = vec![1.0f32, -2.0, 3.0, 10.0, -5.0, 6.0];
@@ -126,15 +128,15 @@ fn test_cuda_evaluate_fused_reduce() {
     use coeus_ops::fuse::TensorExprExt;
     let expr = (a_cuda.expr() * 2.0).relu();
 
-    let sum_cuda = coeus_cuda::evaluate_fused_reduce(&expr, coeus_ops::ReductionOp::Sum, 1)
+    let sum_cuda = coeus_hephaestus::evaluate_fused_reduce(&expr, coeus_ops::ReductionOp::Sum, 1)
         .expect("CUDA fused sum dispatch");
     let sum_seq = sum_cuda.to_backend_on(&cuda_b, &seq);
 
-    let max_cuda = coeus_cuda::evaluate_fused_reduce(&expr, coeus_ops::ReductionOp::Max, 1)
+    let max_cuda = coeus_hephaestus::evaluate_fused_reduce(&expr, coeus_ops::ReductionOp::Max, 1)
         .expect("CUDA fused max dispatch");
     let max_seq = max_cuda.to_backend_on(&cuda_b, &seq);
 
-    let min_cuda = coeus_cuda::evaluate_fused_reduce(&expr, coeus_ops::ReductionOp::Min, 1)
+    let min_cuda = coeus_hephaestus::evaluate_fused_reduce(&expr, coeus_ops::ReductionOp::Min, 1)
         .expect("CUDA fused min dispatch");
     let min_seq = min_cuda.to_backend_on(&cuda_b, &seq);
 

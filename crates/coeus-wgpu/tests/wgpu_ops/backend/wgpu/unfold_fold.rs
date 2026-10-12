@@ -1,11 +1,11 @@
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 #[test]
 fn wgpu_unfold_fold_1d_matches_sequential() {
     let sequential = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let input = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4], &[1.0, 2.0, 3.0, 4.0]);
     let input_wgpu = input.to_backend_on(&sequential, &wgpu);
 
@@ -27,7 +27,7 @@ fn wgpu_unfold_fold_1d_matches_sequential() {
 #[test]
 fn wgpu_unfold_fold_2d_matches_sequential() {
     let sequential = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let input = Tensor::<f32, SequentialBackend>::from_slice(
         vec![1, 1, 3, 3],
         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],

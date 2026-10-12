@@ -8,23 +8,23 @@ a compile-time decision with no runtime overhead.
 
 | Backend type | Description |
 |-------------|-------------|
-| `MoiraiBackend` | Default CPU backend via Moirai parallel pool |
-| `CudaBackend` | NVIDIA CUDA via `hephaestus-cuda` |
-| `WgpuBackend` | Cross-platform GPU via `hephaestus-wgpu` |
-| `RocmBackend` | AMD ROCm via `hephaestus-rocm` |
-| `MetalBackend` | Apple Metal via `hephaestus-metal` |
+| `MoiraiBackend` | Default CPU backend (Moirai parallel pool; compute kernels delegate to `coeus-leto` / `leto-ops` where available) |
+| `HephaestusBackend<CudaProvider>` | NVIDIA CUDA via `hephaestus-cuda` |
+| `HephaestusBackend<WgpuProvider>` | Cross-platform GPU via `hephaestus-wgpu` |
+| `HephaestusBackend<RocmProvider>` | AMD ROCm via `hephaestus-rocm` |
+| `HephaestusBackend<MetalProvider>` | Apple Metal via `hephaestus-metal` |
 
 ## Selecting a Backend
 
 ```rust,ignore
-use coeus::Tensor;
-use coeus::backend::CudaBackend;
+use coeus_tensor::Tensor;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 
 // Default CPU tensor
 let a: Tensor<f32> = Tensor::zeros([256, 256]);
 
 // CUDA tensor (same API)
-let b: Tensor<f32, CudaBackend> = Tensor::zeros([256, 256]);
+let b: Tensor<f32, HephaestusBackend<CudaProvider>> = Tensor::zeros([256, 256]);
 ```
 
 ## `ComputeBackend` Trait

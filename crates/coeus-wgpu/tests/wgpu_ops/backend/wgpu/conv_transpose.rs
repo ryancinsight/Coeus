@@ -8,7 +8,7 @@ use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_ops::ConvOps;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 /// Accumulating-op tolerance: gather (device) vs scatter (CPU) sum-order over
 /// `c_in * k` terms; f32 roundoff plus reorder, bounded well under this.
@@ -28,7 +28,7 @@ fn assert_close(label: &str, gpu: &[f32], cpu: &[f32]) {
 #[test]
 fn test_wgpu_conv_transpose1d() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (n, c_in, l, c_out, k) = (2, 3, 5, 4, 3);
     let (stride, padding, output_padding, dilation) = (2usize, 1usize, 0usize, 1usize);
     let l_out = (l - 1) * stride - 2 * padding + dilation * (k - 1) + output_padding + 1;
@@ -63,7 +63,8 @@ fn test_wgpu_conv_transpose1d() {
     let in_g = in_c.to_backend_on(&seq, &wgpu);
     let w_g = w_c.to_backend_on(&seq, &wgpu);
     let b_g = b_c.to_backend_on(&seq, &wgpu);
-    let mut out_g = Tensor::<f32, WgpuBackend>::zeros_on([n, c_out, l_out], &wgpu);
+    let mut out_g =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([n, c_out, l_out], &wgpu);
     wgpu.conv_transpose1d(
         in_g.storage(),
         in_g.layout(),
@@ -89,7 +90,7 @@ fn test_wgpu_conv_transpose1d() {
 #[test]
 fn test_wgpu_conv_transpose2d() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let (n, c_in, h, w, c_out, kh, kw) = (2, 2, 4, 4, 3, 3, 3);
     let (stride, padding, output_padding, dilation) = (2usize, 1usize, 1usize, 1usize);
     let h_out = (h - 1) * stride - 2 * padding + dilation * (kh - 1) + output_padding + 1;
@@ -127,7 +128,8 @@ fn test_wgpu_conv_transpose2d() {
     let in_g = in_c.to_backend_on(&seq, &wgpu);
     let w_g = wt_c.to_backend_on(&seq, &wgpu);
     let b_g = b_c.to_backend_on(&seq, &wgpu);
-    let mut out_g = Tensor::<f32, WgpuBackend>::zeros_on([n, c_out, h_out, w_out], &wgpu);
+    let mut out_g =
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::zeros_on([n, c_out, h_out, w_out], &wgpu);
     wgpu.conv_transpose2d(
         in_g.storage(),
         in_g.layout(),
@@ -153,7 +155,7 @@ fn test_wgpu_conv_transpose2d() {
 #[test]
 fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
 
     let input = [0.5f32, -0.25, 0.75];
     let weight = [0.7f32, -0.4];
@@ -188,11 +190,11 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 3], &input, &wgpu),
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on([1, 1, 3], &input, &wgpu),
         true,
     );
     let weight_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2], &weight, &wgpu),
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on([1, 1, 2], &weight, &wgpu),
         true,
     );
     let out_gpu = coeus_ops::conv_transpose1d(
@@ -209,11 +211,9 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
     let tracked_gpu =
         coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
-        .backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
-            [1, 1, 4],
-            &seed,
-            &wgpu,
-        ))
+        .backward_with_seed(
+            Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on([1, 1, 4], &seed, &wgpu),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);
@@ -233,7 +233,7 @@ fn test_wgpu_conv_transpose1d_backward_matches_cpu_autograd() {
 #[test]
 fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
     let seq = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
 
     let input = [0.5f32, -0.25, 0.75, 1.25];
     let weight = [0.6f32, -0.2, 0.3, -0.5];
@@ -268,11 +268,11 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &input, &wgpu),
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on([1, 1, 2, 2], &input, &wgpu),
         true,
     );
     let weight_gpu = Var::new(
-        Tensor::<f32, WgpuBackend>::from_slice_on([1, 1, 2, 2], &weight, &wgpu),
+        Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on([1, 1, 2, 2], &weight, &wgpu),
         true,
     );
     let out_gpu = coeus_ops::conv_transpose2d(
@@ -289,11 +289,13 @@ fn test_wgpu_conv_transpose2d_backward_matches_cpu_autograd() {
     let tracked_gpu =
         coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
-        .backward_with_seed(Tensor::<f32, WgpuBackend>::from_slice_on(
-            [1, 1, 3, 3],
-            &seed,
-            &wgpu,
-        ))
+        .backward_with_seed(
+            Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_slice_on(
+                [1, 1, 3, 3],
+                &seed,
+                &wgpu,
+            ),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_grad_gpu = input_gpu.grad().unwrap().to_backend_on(&wgpu, &seq);

@@ -1,4 +1,4 @@
-use crate::backend::get_cuda_device;
+use crate::backend::{get_cuda_device, CudaProvider};
 use coeus_core::StorageMut;
 use coeus_hephaestus::HephaestusStorage;
 use hephaestus_core::{ComputeDevice, DeviceBuffer};
@@ -6,7 +6,7 @@ use themis::{MemoryTier, PlacementHint};
 
 #[test]
 fn storage_allocates_device_tier() {
-    let storage = HephaestusStorage::<crate::CudaBackend, f32>::new(8);
+    let storage = HephaestusStorage::<CudaProvider, f32>::new(8);
     assert_eq!(storage.buffer().tier(), MemoryTier::Device);
 }
 
@@ -35,7 +35,7 @@ fn copy_on_write_preserves_values_in_both_device_buffers() {
     let source = device
         .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::Device))
         .expect("failed to upload COW source");
-    let mut writable = HephaestusStorage::<crate::CudaBackend, _>::from_buffer(source);
+    let mut writable = HephaestusStorage::<CudaProvider, _>::from_buffer(source);
     let retained = writable.clone();
 
     writable.make_unique();

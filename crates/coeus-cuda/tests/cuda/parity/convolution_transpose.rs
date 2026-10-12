@@ -40,7 +40,8 @@ fn test_cuda_parity_conv_transpose1d() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, c_out, l_out], &c);
+    let mut out_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![n, c_out, l_out], &c);
     c.conv_transpose1d(
         in_g.storage(),
         in_g.layout(),
@@ -107,7 +108,8 @@ fn test_cuda_parity_conv_transpose2d() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&wt_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, c_out, h_out, w_out], &c);
+    let mut out_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![n, c_out, h_out, w_out], &c);
     c.conv_transpose2d(
         in_g.storage(),
         in_g.layout(),
@@ -162,11 +164,11 @@ fn test_cuda_parity_conv_transpose1d_backward() {
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 3], &input, &c),
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::from_slice_on([1, 1, 3], &input, &c),
         true,
     );
     let weight_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2], &weight, &c),
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::from_slice_on([1, 1, 2], &weight, &c),
         true,
     );
     let out_gpu =
@@ -175,11 +177,9 @@ fn test_cuda_parity_conv_transpose1d_backward() {
     let tracked_gpu =
         coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
-        .backward_with_seed(Tensor::<f32, CudaBackend>::from_slice_on(
-            [1, 1, 4],
-            &seed,
-            &c,
-        ))
+        .backward_with_seed(
+            Tensor::<f32, HephaestusBackend<CudaProvider>>::from_slice_on([1, 1, 4], &seed, &c),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     assert_parity_tol(
@@ -247,11 +247,11 @@ fn test_cuda_parity_conv_transpose2d_backward() {
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &input, &c),
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::from_slice_on([1, 1, 2, 2], &input, &c),
         true,
     );
     let weight_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &weight, &c),
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::from_slice_on([1, 1, 2, 2], &weight, &c),
         true,
     );
     let out_gpu =
@@ -260,11 +260,9 @@ fn test_cuda_parity_conv_transpose2d_backward() {
     let tracked_gpu =
         coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
-        .backward_with_seed(Tensor::<f32, CudaBackend>::from_slice_on(
-            [1, 1, 3, 3],
-            &seed,
-            &c,
-        ))
+        .backward_with_seed(
+            Tensor::<f32, HephaestusBackend<CudaProvider>>::from_slice_on([1, 1, 3, 3], &seed, &c),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     assert_parity_tol(

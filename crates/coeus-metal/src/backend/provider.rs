@@ -1,15 +1,16 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
-    CrossEntropyProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
-    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
-    RotateHalfProvider, ScalarPowerProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    CrossEntropyProvider, CrossProductProvider, ElementwiseProvider, HephaestusProvider,
+    HostCrossProductOps, MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider,
+    RandomInitProvider, ReductionProvider, RotateHalfProvider, ScalarPowerProvider,
+    StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
 };
 use hephaestus_core::{PoolingOps, SlidingWindowOps};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
     MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
-    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps,
+    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps, MetalStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -125,4 +126,14 @@ where
     MetalSlidingWindowOps: SlidingWindowOps<MetalDevice, T>,
 {
     type Operations = MetalSlidingWindowOps;
+}
+
+impl StaggeredProvider for MetalProvider {
+    type Operations = MetalStaggered3DOps;
+}
+
+/// Host-fold cross product: hephaestus has no Metal `CrossProductOps` seam
+/// (ADR 0077).
+impl<T: Scalar> CrossProductProvider<T> for MetalProvider {
+    type Operations = HostCrossProductOps;
 }

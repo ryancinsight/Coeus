@@ -1,11 +1,11 @@
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 #[test]
 fn cosine_similarity_dispatches_with_wgpu_parity() {
     let cpu = SequentialBackend::new();
-    let wgpu = WgpuBackend::new();
+    let wgpu = HephaestusBackend::<WgpuProvider>::new();
     let x1_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[0.0, 0.0, 2.0, 1.0]);
     let x2_cpu = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 0.0, 1.0, 0.0]);
     let x1_wgpu = x1_cpu.to_backend_on(&cpu, &wgpu);
@@ -67,7 +67,7 @@ fn cosine_similarity_dispatches_with_wgpu_parity() {
 #[test]
 fn test_wgpu_silu_parity() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
     let input_cpu = Tensor::<f32, SequentialBackend>::from_slice([5], &input_data);
@@ -109,7 +109,7 @@ fn test_wgpu_silu_parity() {
 #[test]
 fn test_wgpu_mish_parity() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
     let input_cpu = Tensor::<f32, SequentialBackend>::from_slice([5], &input_data);
@@ -151,7 +151,7 @@ fn test_wgpu_mish_parity() {
 #[test]
 fn test_wgpu_elu_parity() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
     let input_cpu = Tensor::<f32, SequentialBackend>::from_slice([5], &input_data);

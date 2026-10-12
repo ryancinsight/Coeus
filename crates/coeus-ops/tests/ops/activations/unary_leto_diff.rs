@@ -50,7 +50,7 @@ const OPS: &[CpuUnaryOp] = &[
 
 fn device_unary<T, B>(backend: &B, op: CpuUnaryOp, input: &[T]) -> Vec<T>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -63,12 +63,12 @@ where
         .elementwise_unary(op, &input_buffer, &layout, &mut output_buffer, &layout)
         .expect("valid unary test layouts");
 
-    let mut output = vec![T::zero(); input.len()];
+    let mut output = vec![T::ZERO; input.len()];
     backend.copy_to_host(&output_buffer, &mut output);
     output
 }
 
-fn inputs_for<T: Scalar>(op: CpuUnaryOp) -> Vec<T> {
+fn inputs_for<T: Scalar + coeus_core::FloatElement>(op: CpuUnaryOp) -> Vec<T> {
     let values: &[f64] = match op {
         CpuUnaryOp::Log | CpuUnaryOp::Sqrt | CpuUnaryOp::Lgamma => &[0.25, 1.0, 4.0, 16.0],
         _ => &[-2.0, -0.5, 0.0, 0.5, 2.0],
@@ -78,7 +78,7 @@ fn inputs_for<T: Scalar>(op: CpuUnaryOp) -> Vec<T> {
 
 fn check_unary<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -92,8 +92,8 @@ where
 
         for (index, (&actual, &reference)) in got.iter().zip(&expected).enumerate() {
             assert_eq!(
-                Scalar::to_f64(actual).to_bits(),
-                Scalar::to_f64(reference).to_bits(),
+                coeus_core::NumericElement::to_f64(actual).to_bits(),
+                coeus_core::NumericElement::to_f64(reference).to_bits(),
                 "{op:?} mismatch at index {index}"
             );
         }

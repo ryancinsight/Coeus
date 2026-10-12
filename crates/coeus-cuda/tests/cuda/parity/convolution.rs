@@ -38,7 +38,8 @@ fn test_cuda_parity_conv1d_forward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![batch, out_c, out_len], &c);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![batch, out_c, out_len], &c);
     let gpu_out_layout = gpu_out.layout().clone();
     c.conv1d(
         in_g.storage(),
@@ -101,7 +102,8 @@ fn test_cuda_parity_conv2d_forward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let wg = to_gpu(&wt, &s, &c);
     let bg = to_gpu(&bt, &s, &c);
-    let mut gpu_out = Tensor::<f32, CudaBackend>::zeros_on(vec![batch, out_c, oh, ow], &c);
+    let mut gpu_out =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![batch, out_c, oh, ow], &c);
     let gpu_out_layout = gpu_out.layout().clone();
     c.conv2d(
         in_g.storage(),
@@ -176,9 +178,11 @@ fn test_cuda_parity_conv2d_backward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let go_g = to_gpu(&go_t, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, in_c, h, w], &c);
-    let mut gw_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c, in_c, kh, kw], &c);
-    let mut gb_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c], &c);
+    let mut gi_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![n, in_c, h, w], &c);
+    let mut gw_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![out_c, in_c, kh, kw], &c);
+    let mut gb_g = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![out_c], &c);
     c.conv2d_backward(
         go_g.storage(),
         go_g.layout(),
@@ -258,7 +262,8 @@ fn test_cuda_parity_conv3d_forward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, out_c, od, oh, ow], &c);
+    let mut out_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![n, out_c, od, oh, ow], &c);
     c.conv3d(
         in_g.storage(),
         in_g.layout(),
@@ -331,9 +336,11 @@ fn test_cuda_parity_conv3d_backward() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let go_g = to_gpu(&go_t, &s, &c);
-    let mut gi_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, in_c, d, h, w], &c);
-    let mut gw_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c, in_c, kd, kh, kw], &c);
-    let mut gb_g = Tensor::<f32, CudaBackend>::zeros_on(vec![out_c], &c);
+    let mut gi_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![n, in_c, d, h, w], &c);
+    let mut gw_g =
+        Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![out_c, in_c, kd, kh, kw], &c);
+    let mut gb_g = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros_on(vec![out_c], &c);
     c.conv3d_backward(
         go_g.storage(),
         go_g.layout(),

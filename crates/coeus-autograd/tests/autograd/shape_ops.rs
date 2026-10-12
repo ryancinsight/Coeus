@@ -220,3 +220,153 @@ fn test_einsum3_matmul_chain_backward() {
         "dC",
     );
 }
+
+#[test]
+fn test_einsum_rejects_operand_count_mismatch() {
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let Err(err) = coeus_autograd::einsum("ij,jk->ik", &[&a]) else {
+        panic!("count mismatch must fail");
+    };
+    assert!(
+        matches!(
+            err,
+            coeus_autograd::EinsumError::OperandCountMismatch {
+                subscript_operands: 2,
+                provided: 1,
+                ..
+            }
+        ),
+        "expected OperandCountMismatch, got {err:?}"
+    );
+}
+
+#[test]
+fn test_einsum_rejects_rank_mismatch() {
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![2, 2, 2], &[1.0f32; 8], &backend),
+        true,
+    );
+    let Err(err) = coeus_autograd::einsum("ij->ji", &[&a]) else {
+        panic!("rank mismatch must fail");
+    };
+    assert!(
+        matches!(
+            err,
+            coeus_autograd::EinsumError::RankMismatch {
+                operand: 0,
+                expected_ndim: 2,
+                actual_ndim: 3,
+                ..
+            }
+        ),
+        "expected RankMismatch, got {err:?}"
+    );
+}
+
+#[test]
+fn test_einsum_rejects_malformed_subscript_without_panic() {
+    // Garbage with two operands reaches the non-tracked fallback, whose
+    // typed rejection is mapped — this panicked before the conversion.
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let b = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[5.0f32, 6.0, 7.0, 8.0], &backend),
+        true,
+    );
+    let Err(err) = coeus_autograd::einsum("ab,cd->ef", &[&a, &b]) else {
+        panic!("malformed subscript must fail");
+    };
+    assert!(
+        matches!(err, coeus_autograd::EinsumError::ForwardFailed { .. }),
+        "expected ForwardFailed, got {err:?}"
+    );
+}
+
+#[test]
+fn test_einsum_rejects_empty_subscript_without_panic() {
+    // "->" parses to empty labels; the last-two-dims swap check must
+    // decline (n < 2 would underflow `n - 2`), not panic.
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let Err(err) = coeus_autograd::einsum("->", &[&a]) else {
+        panic!("empty subscript must fail");
+    };
+    assert!(
+        matches!(
+            err,
+            coeus_autograd::EinsumError::UnsupportedPattern {
+                operand_count: 1,
+                ..
+            }
+        ),
+        "expected UnsupportedPattern, got {err:?}"
+    );
+}
+
+#[test]
+fn test_einsum_rejects_unsupported_arity() {
+    // Three parts with three Vars passes the count check but no two-operand
+    // branch applies (three-operand contraction is `einsum3`'s entry).
+    let backend = MoiraiBackend::new();
+    let mk = |v: f32| {
+        Var::new(
+            Tensor::from_slice_on(vec![2, 2], &[v, v, v, v], &backend),
+            true,
+        )
+    };
+    let (a, b, c) = (mk(1.0), mk(2.0), mk(3.0));
+    let Err(err) = coeus_autograd::einsum("ij,jk,kl->il", &[&a, &b, &c]) else {
+        panic!("unsupported arity must fail");
+    };
+    assert!(
+        matches!(
+            err,
+            coeus_autograd::EinsumError::UnsupportedPattern {
+                operand_count: 3,
+                ..
+            }
+        ),
+        "expected UnsupportedPattern, got {err:?}"
+    );
+}
+
+#[test]
+fn test_einsum_dot_rejects_length_mismatch() {
+    // Same label, one extent: without the check, `mul` broadcasts or
+    // panics on unbroadcastable shapes instead of reporting the mismatch.
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![4], &[1.0f32, 2.0, 3.0, 4.0], &backend),
+        true,
+    );
+    let b = Var::new(
+        Tensor::from_slice_on(vec![3], &[1.0f32, 0.0, 1.0], &backend),
+        true,
+    );
+    let Err(err) = coeus_autograd::einsum("i,i->", &[&a, &b]) else {
+        panic!("length mismatch must fail");
+    };
+    assert!(
+        matches!(
+            err,
+            coeus_autograd::EinsumError::DimMismatch {
+                operand: 1,
+                expected: 4,
+                actual: 3,
+                ..
+            }
+        ),
+        "expected DimMismatch, got {err:?}"
+    );
+}

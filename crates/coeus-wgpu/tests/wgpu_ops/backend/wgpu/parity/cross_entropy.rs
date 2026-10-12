@@ -1,9 +1,9 @@
 use super::{assert_parity, seq, to_cpu, to_gpu};
 use coeus_autograd::Var;
 use coeus_core::{BackendError, ComputeBackend, Layout};
+use coeus_hephaestus::HephaestusBackendError;
 use coeus_ops::CrossEntropyOps;
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackendError;
 
 #[test]
 fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
@@ -25,7 +25,7 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
     let invalid_target = coeus_nn::cross_entropy_loss(&wgpu_logits, &[0, 1, 4]);
     assert!(matches!(
         invalid_target,
-        Err(WgpuBackendError::Validation(
+        Err(HephaestusBackendError::Backend(
             coeus_core::BackendError::IndexOutOfRange {
                 position: 2,
                 index: 4,
@@ -83,7 +83,7 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         .expect_err("rank-one logits must fail before provider dispatch");
     assert!(matches!(
         error,
-        WgpuBackendError::Validation(BackendError::LayoutRankMismatch { lhs: 1, rhs: 2, .. })
+        HephaestusBackendError::Backend(BackendError::LayoutRankMismatch { lhs: 1, rhs: 2, .. })
     ));
 
     let short_targets = backend
@@ -102,7 +102,7 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         .expect_err("provider-native target count must match the batch");
     assert!(matches!(
         error,
-        WgpuBackendError::Validation(BackendError::ShapeMismatch { .. })
+        HephaestusBackendError::Backend(BackendError::ShapeMismatch { .. })
     ));
 
     let loss_parent = loss.clone();

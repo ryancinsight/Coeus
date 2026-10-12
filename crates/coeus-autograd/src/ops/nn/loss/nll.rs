@@ -104,7 +104,7 @@ where
             c,
             mean_scale: Tensor::full_on(
                 [1],
-                T::one() / <T as Scalar>::from_f64(n as f64),
+                T::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
                 &backend,
             ),
         };

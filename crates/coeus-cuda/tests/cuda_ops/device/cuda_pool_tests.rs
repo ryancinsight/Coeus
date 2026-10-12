@@ -1,7 +1,7 @@
 #![cfg(feature = "cuda")]
 
 use coeus_core::SequentialBackend;
-use coeus_cuda::CudaBackend;
+use coeus_cuda::{CudaProvider, HephaestusBackend};
 use coeus_tensor::Tensor;
 
 #[test]
@@ -9,7 +9,7 @@ fn test_cuda_max_pool2d() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
@@ -17,7 +17,7 @@ fn test_cuda_max_pool2d() {
     let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
 
     let mut output_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2]);
-    let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2]);
+    let mut output_cuda = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 2, 2]);
 
     let (out_seq_storage, out_seq_layout) = output_seq.storage_mut_and_layout();
     coeus_ops::PoolOps::max_pool2d(
@@ -58,7 +58,7 @@ fn test_cuda_max_pool2d() {
     let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
 
     let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4]);
-    let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4]);
+    let mut grad_in_cuda = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 4, 4]);
 
     let (gi_seq_storage, gi_seq_layout) = grad_in_seq.storage_mut_and_layout();
     coeus_ops::PoolOps::max_pool2d_backward(
@@ -102,7 +102,7 @@ fn test_cuda_avg_pool2d() {
     if !crate::availability::device_available() {
         return;
     }
-    let cuda_b = CudaBackend::new();
+    let cuda_b = HephaestusBackend::<CudaProvider>::new();
     let seq = SequentialBackend::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
@@ -110,7 +110,7 @@ fn test_cuda_avg_pool2d() {
     let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
 
     let mut output_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 2, 2]);
-    let mut output_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 2, 2]);
+    let mut output_cuda = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 2, 2]);
 
     let (out_seq_storage, out_seq_layout) = output_seq.storage_mut_and_layout();
     coeus_ops::PoolOps::avg_pool2d(
@@ -151,7 +151,7 @@ fn test_cuda_avg_pool2d() {
     let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
 
     let mut grad_in_seq = Tensor::<f32, SequentialBackend>::zeros(vec![1, 1, 4, 4]);
-    let mut grad_in_cuda = Tensor::<f32, CudaBackend>::zeros(vec![1, 1, 4, 4]);
+    let mut grad_in_cuda = Tensor::<f32, HephaestusBackend<CudaProvider>>::zeros(vec![1, 1, 4, 4]);
 
     let (gi_seq_storage, gi_seq_layout) = grad_in_seq.storage_mut_and_layout();
     coeus_ops::PoolOps::avg_pool2d_backward(

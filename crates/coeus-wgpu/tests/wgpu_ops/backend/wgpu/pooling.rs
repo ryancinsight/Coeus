@@ -1,11 +1,11 @@
 use coeus_core::{ComputeBackend, SequentialBackend};
 use coeus_tensor::Tensor;
-use coeus_wgpu::WgpuBackend;
+use coeus_wgpu::{HephaestusBackend, WgpuProvider};
 
 #[test]
 fn test_wgpu_max_pool2d() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
     let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data);
@@ -27,7 +27,7 @@ fn test_wgpu_max_pool2d() {
     )
     .expect("WGPU max_pool2d dispatch");
 
-    let out_wgpu_tensor: Tensor<f32, WgpuBackend> =
+    let out_wgpu_tensor: Tensor<f32, HephaestusBackend<WgpuProvider>> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
     let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
@@ -58,7 +58,7 @@ fn test_wgpu_max_pool2d() {
     )
     .expect("WGPU max_pool2d backward dispatch");
 
-    let gi_wgpu_tensor: Tensor<f32, WgpuBackend> =
+    let gi_wgpu_tensor: Tensor<f32, HephaestusBackend<WgpuProvider>> =
         Tensor::from_raw_parts(grad_input_wgpu_storage, gi_layout);
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
@@ -74,7 +74,7 @@ fn test_wgpu_max_pool2d() {
 #[test]
 fn test_wgpu_avg_pool2d() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_data: Vec<f32> = (1..=16).map(|x| x as f32).collect();
     let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &input_data);
@@ -96,7 +96,7 @@ fn test_wgpu_avg_pool2d() {
     )
     .expect("WGPU avg_pool2d dispatch");
 
-    let out_wgpu_tensor: Tensor<f32, WgpuBackend> =
+    let out_wgpu_tensor: Tensor<f32, HephaestusBackend<WgpuProvider>> =
         Tensor::from_raw_parts(out_wgpu_storage, out_layout.clone());
     let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
@@ -125,7 +125,7 @@ fn test_wgpu_avg_pool2d() {
     )
     .expect("WGPU avg_pool2d backward dispatch");
 
-    let gi_wgpu_tensor: Tensor<f32, WgpuBackend> =
+    let gi_wgpu_tensor: Tensor<f32, HephaestusBackend<WgpuProvider>> =
         Tensor::from_raw_parts(grad_input_wgpu_storage, gi_layout);
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
@@ -138,7 +138,7 @@ fn test_wgpu_avg_pool2d() {
 #[test]
 fn test_wgpu_max_pool3d() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
     let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
@@ -160,8 +160,10 @@ fn test_wgpu_max_pool3d() {
     )
     .expect("WGPU max_pool3d dispatch");
 
-    let out_wgpu_tensor =
-        Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
+    let out_wgpu_tensor = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        out_wgpu_storage,
+        out_layout.clone(),
+    );
     let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(8);
@@ -207,8 +209,10 @@ fn test_wgpu_max_pool3d() {
     )
     .expect("WGPU max_pool3d backward dispatch");
 
-    let gi_wgpu_tensor =
-        Tensor::<f32, WgpuBackend>::from_raw_parts(grad_input_wgpu_storage, gi_layout.clone());
+    let gi_wgpu_tensor = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        grad_input_wgpu_storage,
+        gi_layout.clone(),
+    );
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
     let mut grad_input_expected_storage = seq.allocate::<f32>(27);
@@ -236,7 +240,7 @@ fn test_wgpu_max_pool3d() {
 #[test]
 fn test_wgpu_avg_pool3d() {
     let seq = SequentialBackend::new();
-    let wgpu_b = WgpuBackend::new();
+    let wgpu_b = HephaestusBackend::<WgpuProvider>::new();
 
     let input_data: Vec<f32> = (1..=27).map(|x| x as f32).collect();
     let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 1, 3, 3, 3], &input_data);
@@ -258,8 +262,10 @@ fn test_wgpu_avg_pool3d() {
     )
     .expect("WGPU avg_pool3d dispatch");
 
-    let out_wgpu_tensor =
-        Tensor::<f32, WgpuBackend>::from_raw_parts(out_wgpu_storage, out_layout.clone());
+    let out_wgpu_tensor = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        out_wgpu_storage,
+        out_layout.clone(),
+    );
     let out_wgpu_cpu = out_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
     let mut out_expected_storage = seq.allocate::<f32>(8);
@@ -316,8 +322,10 @@ fn test_wgpu_avg_pool3d() {
     )
     .expect("WGPU avg_pool3d backward dispatch");
 
-    let gi_wgpu_tensor =
-        Tensor::<f32, WgpuBackend>::from_raw_parts(grad_input_wgpu_storage, gi_layout.clone());
+    let gi_wgpu_tensor = Tensor::<f32, HephaestusBackend<WgpuProvider>>::from_raw_parts(
+        grad_input_wgpu_storage,
+        gi_layout.clone(),
+    );
     let gi_wgpu_cpu = gi_wgpu_tensor.to_backend_on(&wgpu_b, &seq);
 
     let mut grad_input_expected_storage = seq.allocate::<f32>(27);
