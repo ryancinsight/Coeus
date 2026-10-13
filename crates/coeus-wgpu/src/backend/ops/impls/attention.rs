@@ -1,7 +1,6 @@
 use crate::backend::{get_wgpu_context, try_get_wgpu_context, WgpuBackend, WgpuBackendError};
 use coeus_core::Layout;
 use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
-use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_wgpu::{WgpuAttentionOps, WgpuDevice};
 
 // SAFETY: `HephaestusStorage` retains the provider buffer behind `Arc`, and the
@@ -30,16 +29,6 @@ unsafe impl AttentionProvider<f32> for WgpuBackend {
 
 impl AttentionBackend<f32> for WgpuBackend {
     type Provider = Self;
-
-    fn attention_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
-
-    fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

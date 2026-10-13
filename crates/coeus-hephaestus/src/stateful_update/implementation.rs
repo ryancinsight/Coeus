@@ -118,17 +118,4 @@ where
     P: StatefulUpdateProvider,
 {
     type Provider = P;
-
-    fn stateful_update_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<P::Device as hephaestus_core::ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
-
-    fn stateful_update_error(
-        operation: &'static str,
-        source: hephaestus_core::HephaestusError,
-    ) -> Self::Error {
-        P::Error::from(crate::HephaestusBackendError::device(operation, source))
-    }
 }

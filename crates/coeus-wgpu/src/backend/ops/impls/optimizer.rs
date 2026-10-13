@@ -1,8 +1,7 @@
-use crate::backend::{WgpuBackend, WgpuBackendError};
+use crate::backend::WgpuBackend;
 use coeus_core::Layout;
 use coeus_hephaestus::{StatefulUpdateBackend, StatefulUpdateProvider};
-use hephaestus_core::{ComputeDevice, HephaestusError};
-use hephaestus_wgpu::{WgpuDevice, WgpuStatefulUpdateOps};
+use hephaestus_wgpu::WgpuStatefulUpdateOps;
 
 impl StatefulUpdateProvider for WgpuBackend {
     type Operations = WgpuStatefulUpdateOps;
@@ -10,16 +9,6 @@ impl StatefulUpdateProvider for WgpuBackend {
 
 impl StatefulUpdateBackend for WgpuBackend {
     type Provider = Self;
-
-    fn stateful_update_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
-
-    fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
-    }
 }
 
 impl coeus_ops::OptimizerOps<f32> for WgpuBackend {

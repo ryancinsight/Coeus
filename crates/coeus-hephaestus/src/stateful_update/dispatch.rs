@@ -230,18 +230,12 @@ where
 {
     let parameter_layout = ranked::<N>(request.operation, request.parameter_layout)?;
     let gradient_layout = ranked::<N>(request.operation, request.gradient_layout)?;
-    let parameter = StridedView::new(
-        B::stateful_update_buffer(request.parameter),
-        &parameter_layout,
-    );
-    let gradient = StridedView::new(
-        B::stateful_update_buffer(request.gradient),
-        &gradient_layout,
-    );
+    let parameter = StridedView::new(B::buffer(request.parameter), &parameter_layout);
+    let gradient = StridedView::new(B::buffer(request.gradient), &gradient_layout);
     let result = match request.states {
         State::One(state, layout) => {
             let layout = ranked::<N>(request.operation, layout)?;
-            let states = [StridedView::new(B::stateful_update_buffer(state), &layout)];
+            let states = [StridedView::new(B::buffer(state), &layout)];
             plan_stateful_update(
                 StatefulUpdateOperands {
                     parameter,
@@ -256,8 +250,8 @@ where
             let first_layout = ranked::<N>(request.operation, first_layout)?;
             let second_layout = ranked::<N>(request.operation, second_layout)?;
             let states = [
-                StridedView::new(B::stateful_update_buffer(first), &first_layout),
-                StridedView::new(B::stateful_update_buffer(second), &second_layout),
+                StridedView::new(B::buffer(first), &first_layout),
+                StridedView::new(B::buffer(second), &second_layout),
             ];
             plan_stateful_update(
                 StatefulUpdateOperands {
@@ -272,7 +266,7 @@ where
     };
     result
         .map(|_| ())
-        .map_err(|source| B::stateful_update_error(request.operation, source))
+        .map_err(|source| B::dispatch_error(request.operation, source))
 }
 
 fn execute<B, Rule, const N: usize>(
@@ -285,19 +279,13 @@ where
 {
     let parameter_layout = ranked::<N>(request.operation, request.parameter_layout)?;
     let gradient_layout = ranked::<N>(request.operation, request.gradient_layout)?;
-    let parameter = StridedView::new(
-        B::stateful_update_buffer(request.parameter),
-        &parameter_layout,
-    );
-    let gradient = StridedView::new(
-        B::stateful_update_buffer(request.gradient),
-        &gradient_layout,
-    );
+    let parameter = StridedView::new(B::buffer(request.parameter), &parameter_layout);
+    let gradient = StridedView::new(B::buffer(request.gradient), &gradient_layout);
 
     match request.states {
         State::One(state, layout) => {
             let layout = ranked::<N>(request.operation, layout)?;
-            let states = [StridedView::new(B::stateful_update_buffer(state), &layout)];
+            let states = [StridedView::new(B::buffer(state), &layout)];
             Operations::<B>::default()
                 .stateful_update::<Rule, f32, N>(
                     <Provider<B> as HephaestusProvider>::device(),
@@ -308,14 +296,14 @@ where
                     },
                     parameters,
                 )
-                .map_err(|source| B::stateful_update_error(request.operation, source))
+                .map_err(|source| B::dispatch_error(request.operation, source))
         }
         State::Two(first, first_layout, second, second_layout) => {
             let first_layout = ranked::<N>(request.operation, first_layout)?;
             let second_layout = ranked::<N>(request.operation, second_layout)?;
             let states = [
-                StridedView::new(B::stateful_update_buffer(first), &first_layout),
-                StridedView::new(B::stateful_update_buffer(second), &second_layout),
+                StridedView::new(B::buffer(first), &first_layout),
+                StridedView::new(B::buffer(second), &second_layout),
             ];
             Operations::<B>::default()
                 .stateful_update::<Rule, f32, N>(
@@ -327,7 +315,7 @@ where
                     },
                     parameters,
                 )
-                .map_err(|source| B::stateful_update_error(request.operation, source))
+                .map_err(|source| B::dispatch_error(request.operation, source))
         }
     }
 }

@@ -1,7 +1,7 @@
-use crate::backend::{WgpuBackend, WgpuBackendError};
+use crate::backend::WgpuBackend;
 use coeus_core::Layout;
 use coeus_hephaestus::{prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider};
-use hephaestus_core::{ComputeDevice, HephaestusError};
+use hephaestus_core::ComputeDevice;
 use hephaestus_wgpu::{WgpuCrossEntropyOps, WgpuDevice};
 
 // SAFETY: `WgpuCrossEntropyOps` initializes both forward outputs and only
@@ -12,12 +12,6 @@ unsafe impl CrossEntropyProvider for WgpuBackend {
 
 impl CrossEntropyBackend for WgpuBackend {
     type Provider = Self;
-
-    fn cross_entropy_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<WgpuDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
 
     fn cross_entropy_candidate(
         storage: &Self::DeviceBuffer<f32>,
@@ -38,13 +32,6 @@ impl CrossEntropyBackend for WgpuBackend {
         storage: &Self::DeviceBuffer<u32>,
     ) -> &<WgpuDevice as ComputeDevice>::Buffer<u32> {
         storage.buffer()
-    }
-
-    fn cross_entropy_dispatch_error(
-        operation: &'static str,
-        source: HephaestusError,
-    ) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
     }
 }
 

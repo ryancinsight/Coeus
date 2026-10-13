@@ -1,9 +1,9 @@
-use crate::HephaestusProvider;
-use coeus_core::{backend::ComputeBackend, Layout};
+use crate::{HephaestusProvider, HephaestusSeamBackend};
+use coeus_core::Layout;
 use coeus_ops::{OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation};
 use hephaestus_core::{
-    AdaGrad, AdaGradParameters, Adam, AdamParameters, AdamW, AdamWParameters, ComputeDevice,
-    HephaestusError, RmsProp, RmsPropParameters, Sgd, SgdParameters, StatefulUpdateOps,
+    AdaGrad, AdaGradParameters, Adam, AdamParameters, AdamW, AdamWParameters, HephaestusError,
+    RmsProp, RmsPropParameters, Sgd, SgdParameters, StatefulUpdateOps,
 };
 
 /// Provider-owned stateful-update operation marker.
@@ -13,17 +13,17 @@ pub trait StatefulUpdateProvider: HephaestusProvider {
 }
 
 /// Projects one Coeus backend into its provider-owned stateful-update path.
-pub trait StatefulUpdateBackend: ComputeBackend {
+///
+/// Device access and typed error mapping come from the shared
+/// [`HephaestusSeamBackend`] seam; the default dispatch methods retain
+/// validation and provider invocation as a single monomorphized
+/// implementation.
+pub trait StatefulUpdateBackend: HephaestusSeamBackend
+where
+    Self: HephaestusSeamBackend<Device = <Self::Provider as HephaestusProvider>::Device>,
+{
     /// Hephaestus provider selected by this Coeus backend.
     type Provider: StatefulUpdateProvider;
-
-    #[doc(hidden)]
-    fn stateful_update_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<<Self::Provider as HephaestusProvider>::Device as ComputeDevice>::Buffer<f32>;
-
-    #[doc(hidden)]
-    fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error;
 
     #[doc(hidden)]
     fn validate_optimizer_step(
@@ -44,7 +44,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
                 OptimizerStateRef::One(state, state_layout),
             ) => {
                 SgdParameters::new(learning_rate, momentum)
-                    .map_err(|source| Self::stateful_update_error("SGD step", source))?;
+                    .map_err(|source| Self::dispatch_error("SGD step", source))?;
                 super::dispatch::validate_one::<Self, Sgd>(
                     "SGD step",
                     parameter,
@@ -66,7 +66,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
                 OptimizerStateRef::Two(first, first_layout, second, second_layout),
             ) => {
                 AdamParameters::new(learning_rate, beta_one, beta_two, epsilon, step)
-                    .map_err(|source| Self::stateful_update_error("Adam step", source))?;
+                    .map_err(|source| Self::dispatch_error("Adam step", source))?;
                 super::dispatch::validate_two::<Self, Adam>(
                     "Adam step",
                     parameter,
@@ -88,7 +88,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
                 OptimizerStateRef::One(state, state_layout),
             ) => {
                 RmsPropParameters::new(learning_rate, alpha, epsilon)
-                    .map_err(|source| Self::stateful_update_error("RMSProp step", source))?;
+                    .map_err(|source| Self::dispatch_error("RMSProp step", source))?;
                 super::dispatch::validate_one::<Self, RmsProp>(
                     "RMSProp step",
                     parameter,
@@ -118,7 +118,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
                     weight_decay,
                     step,
                 )
-                .map_err(|source| Self::stateful_update_error("AdamW step", source))?;
+                .map_err(|source| Self::dispatch_error("AdamW step", source))?;
                 super::dispatch::validate_two::<Self, AdamW>(
                     "AdamW step",
                     parameter,
@@ -139,7 +139,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
                 OptimizerStateRef::One(state, state_layout),
             ) => {
                 AdaGradParameters::new(learning_rate, epsilon)
-                    .map_err(|source| Self::stateful_update_error("AdaGrad step", source))?;
+                    .map_err(|source| Self::dispatch_error("AdaGrad step", source))?;
                 super::dispatch::validate_one::<Self, AdaGrad>(
                     "AdaGrad step",
                     parameter,
@@ -150,7 +150,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
                     state_layout,
                 )
             }
-            _ => Err(Self::stateful_update_error(
+            _ => Err(Self::dispatch_error(
                 "optimizer step preflight",
                 HephaestusError::InvalidConfiguration {
                     message: "optimizer rule and persistent state cardinality disagree".to_string(),
@@ -176,7 +176,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
         Self: Sized,
     {
         let parameters = SgdParameters::new(learning_rate, momentum)
-            .map_err(|source| Self::stateful_update_error("SGD step", source))?;
+            .map_err(|source| Self::dispatch_error("SGD step", source))?;
         super::dispatch::one::<Self, Sgd>(
             "SGD step",
             parameter,
@@ -211,7 +211,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
         Self: Sized,
     {
         let parameters = AdamParameters::new(learning_rate, beta_one, beta_two, epsilon, step)
-            .map_err(|source| Self::stateful_update_error("Adam step", source))?;
+            .map_err(|source| Self::dispatch_error("Adam step", source))?;
         super::dispatch::two::<Self, Adam>(
             "Adam step",
             parameter,
@@ -244,7 +244,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
         Self: Sized,
     {
         let parameters = RmsPropParameters::new(learning_rate, alpha, epsilon)
-            .map_err(|source| Self::stateful_update_error("RMSProp step", source))?;
+            .map_err(|source| Self::dispatch_error("RMSProp step", source))?;
         super::dispatch::one::<Self, RmsProp>(
             "RMSProp step",
             parameter,
@@ -287,7 +287,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
             weight_decay,
             step,
         )
-        .map_err(|source| Self::stateful_update_error("AdamW step", source))?;
+        .map_err(|source| Self::dispatch_error("AdamW step", source))?;
         super::dispatch::two::<Self, AdamW>(
             "AdamW step",
             parameter,
@@ -319,7 +319,7 @@ pub trait StatefulUpdateBackend: ComputeBackend {
         Self: Sized,
     {
         let parameters = AdaGradParameters::new(learning_rate, epsilon)
-            .map_err(|source| Self::stateful_update_error("AdaGrad step", source))?;
+            .map_err(|source| Self::dispatch_error("AdaGrad step", source))?;
         super::dispatch::one::<Self, AdaGrad>(
             "AdaGrad step",
             parameter,

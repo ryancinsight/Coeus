@@ -1,5 +1,5 @@
 use super::{gradients, layouts};
-use crate::{attention::provider::AttentionBackend, HephaestusProvider};
+use crate::attention::provider::AttentionBackend;
 use coeus_core::{Float, Layout, Scalar, StorageMut};
 use hephaestus_core::{
     plan_attention_backward, AttentionBackwardOperands, AttentionOps, AttentionScalar, StridedView,
@@ -55,37 +55,34 @@ where
         .transpose()?;
     {
         let operands = AttentionBackwardOperands {
-            grad_output: StridedView::new(
-                B::attention_buffer(request.grad_output),
-                &grad_output_layout,
-            ),
-            query: StridedView::new(B::attention_buffer(request.query), &query_layout),
-            key: StridedView::new(B::attention_buffer(request.key), &key_layout),
-            value: StridedView::new(B::attention_buffer(request.value), &value_layout),
-            weights: StridedView::new(B::attention_buffer(request.weights), &weights_layout),
+            grad_output: StridedView::new(B::buffer(request.grad_output), &grad_output_layout),
+            query: StridedView::new(B::buffer(request.query), &query_layout),
+            key: StridedView::new(B::buffer(request.key), &key_layout),
+            value: StridedView::new(B::buffer(request.value), &value_layout),
+            weights: StridedView::new(B::buffer(request.weights), &weights_layout),
             scale: request.scale,
             gradients: gradients::bind(
                 request
                     .grad_query
                     .as_ref()
                     .zip(grad_query_layout.as_ref())
-                    .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                    .map(|((buffer, _), layout)| (B::buffer(buffer), layout)),
                 request
                     .grad_key
                     .as_ref()
                     .zip(grad_key_layout.as_ref())
-                    .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                    .map(|((buffer, _), layout)| (B::buffer(buffer), layout)),
                 request
                     .grad_value
                     .as_ref()
                     .zip(grad_value_layout.as_ref())
-                    .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                    .map(|((buffer, _), layout)| (B::buffer(buffer), layout)),
             ),
         };
         // Shared storage is detached below; preflight validates descriptors before
         // any destination changes. Dispatch then checks the detached buffer aliases.
         plan_attention_backward(&operands, false)
-            .map_err(|source| B::attention_dispatch_error(OPERATION, source))?;
+            .map_err(|source| B::dispatch_error(OPERATION, source))?;
     }
     if let Some((buffer, _)) = request.grad_query.as_mut() {
         buffer.make_unique()?;
@@ -99,35 +96,32 @@ where
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();
     operations
         .attention_backward_accumulate(
-            <B::Provider as HephaestusProvider>::device(),
+            B::device(),
             AttentionBackwardOperands {
-                grad_output: StridedView::new(
-                    B::attention_buffer(request.grad_output),
-                    &grad_output_layout,
-                ),
-                query: StridedView::new(B::attention_buffer(request.query), &query_layout),
-                key: StridedView::new(B::attention_buffer(request.key), &key_layout),
-                value: StridedView::new(B::attention_buffer(request.value), &value_layout),
-                weights: StridedView::new(B::attention_buffer(request.weights), &weights_layout),
+                grad_output: StridedView::new(B::buffer(request.grad_output), &grad_output_layout),
+                query: StridedView::new(B::buffer(request.query), &query_layout),
+                key: StridedView::new(B::buffer(request.key), &key_layout),
+                value: StridedView::new(B::buffer(request.value), &value_layout),
+                weights: StridedView::new(B::buffer(request.weights), &weights_layout),
                 scale: request.scale,
                 gradients: gradients::bind(
                     request
                         .grad_query
                         .as_ref()
                         .zip(grad_query_layout.as_ref())
-                        .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                        .map(|((buffer, _), layout)| (B::buffer(buffer), layout)),
                     request
                         .grad_key
                         .as_ref()
                         .zip(grad_key_layout.as_ref())
-                        .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                        .map(|((buffer, _), layout)| (B::buffer(buffer), layout)),
                     request
                         .grad_value
                         .as_ref()
                         .zip(grad_value_layout.as_ref())
-                        .map(|((buffer, _), layout)| (B::attention_buffer(buffer), layout)),
+                        .map(|((buffer, _), layout)| (B::buffer(buffer), layout)),
                 ),
             },
         )
-        .map_err(|source| B::attention_dispatch_error(OPERATION, source))
+        .map_err(|source| B::dispatch_error(OPERATION, source))
 }

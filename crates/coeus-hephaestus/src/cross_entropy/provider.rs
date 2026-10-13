@@ -1,6 +1,8 @@
-use crate::{backend::HephaestusBackend, HephaestusProvider, HephaestusStorage};
+use crate::{
+    backend::HephaestusBackend, HephaestusProvider, HephaestusSeamBackend, HephaestusStorage,
+};
 use coeus_core::{Layout, Storage};
-use hephaestus_core::{ComputeDevice, CrossEntropyOps, DeviceBuffer, HephaestusError};
+use hephaestus_core::{ComputeDevice, CrossEntropyOps, DeviceBuffer};
 use themis::PlacementHint;
 
 /// Hephaestus provider owning mean cross-entropy kernels.
@@ -18,14 +20,16 @@ pub unsafe trait CrossEntropyProvider: HephaestusProvider {
 }
 
 /// Projects Coeus buffers into one provider-owned cross-entropy path.
-pub trait CrossEntropyBackend: coeus_core::ComputeBackend {
+///
+/// Device access and typed error mapping come from the shared
+/// [`HephaestusSeamBackend`] seam; the trait keeps only the loss-specific
+/// failure-atomic candidate surface and the `u32` target projection.
+pub trait CrossEntropyBackend: HephaestusSeamBackend
+where
+    Self: HephaestusSeamBackend<Device = <Self::Provider as HephaestusProvider>::Device>,
+{
     /// Hephaestus provider selected by this Coeus backend.
     type Provider: CrossEntropyProvider;
-
-    #[doc(hidden)]
-    fn cross_entropy_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<<Self::Provider as HephaestusProvider>::Device as hephaestus_core::ComputeDevice>::Buffer<f32>;
 
     #[doc(hidden)]
     fn cross_entropy_candidate(
@@ -44,12 +48,6 @@ pub trait CrossEntropyBackend: coeus_core::ComputeBackend {
     fn cross_entropy_target_buffer(
         storage: &Self::DeviceBuffer<u32>,
     ) -> &<<Self::Provider as HephaestusProvider>::Device as hephaestus_core::ComputeDevice>::Buffer<u32>;
-
-    #[doc(hidden)]
-    fn cross_entropy_dispatch_error(
-        operation: &'static str,
-        source: HephaestusError,
-    ) -> Self::Error;
 
     #[doc(hidden)]
     #[expect(
@@ -118,12 +116,6 @@ where
 {
     type Provider = P;
 
-    fn cross_entropy_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<P::Device as hephaestus_core::ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
-
     fn cross_entropy_candidate(
         storage: &Self::DeviceBuffer<f32>,
         preserve_contents: bool,
@@ -143,13 +135,6 @@ where
         storage: &Self::DeviceBuffer<u32>,
     ) -> &<P::Device as hephaestus_core::ComputeDevice>::Buffer<u32> {
         storage.buffer()
-    }
-
-    fn cross_entropy_dispatch_error(
-        operation: &'static str,
-        source: HephaestusError,
-    ) -> Self::Error {
-        P::Error::from(crate::HephaestusBackendError::device(operation, source))
     }
 }
 
