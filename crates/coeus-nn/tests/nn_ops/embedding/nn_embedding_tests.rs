@@ -4,12 +4,13 @@ use coeus_tensor::{Tensor, Transpose};
 
 #[test]
 fn test_embedding_forward_backward_indices() {
-    let mut layer = Embedding::<f64>::new(5, 3);
+    let mut layer = Embedding::<f64>::new(5, 3).expect("invariant: test operation succeeds");
     // Initialize weight matrix to constant value of 2.0
-    init::constant(&mut layer.weight, 2.0);
+    init::constant(&mut layer.weight, 2.0).expect("invariant: test operation succeeds");
 
     // Indices to look up: shape [2, 2]
-    let indices = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 2, 4, 1]);
+    let indices = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 2, 4, 1])
+        .expect("invariant: test backend operation succeeds");
 
     // Perform forward pass using forward_indices
     let output = layer
@@ -33,7 +34,8 @@ fn test_embedding_forward_backward_indices() {
         4.0, 4.1, 4.2, // row 3
         5.0, 5.1, 5.2, // row 4
     ];
-    layer.weight.tensor = Tensor::from_slice(vec![5, 3], &w_data);
+    layer.weight.tensor = Tensor::from_slice(vec![5, 3], &w_data)
+        .expect("invariant: test backend operation succeeds");
 
     let output = layer
         .forward_indices(&indices)
@@ -79,16 +81,22 @@ fn test_embedding_forward_backward_indices() {
 
 #[test]
 fn test_embedding_module_forward() {
-    let mut layer = Embedding::<f64>::new(3, 2);
+    let mut layer = Embedding::<f64>::new(3, 2).expect("invariant: test operation succeeds");
     let w_data = vec![
         1.0, 2.0, // row 0
         3.0, 4.0, // row 1
         5.0, 6.0, // row 2
     ];
-    layer.weight.tensor = Tensor::from_slice(vec![3, 2], &w_data);
+    layer.weight.tensor = Tensor::from_slice(vec![3, 2], &w_data)
+        .expect("invariant: test backend operation succeeds");
 
     // Module::forward takes &Var<T, B>
-    let input = Var::new(Tensor::from_slice(vec![2], &[2.0f64, 0.0]), false);
+    let input = Var::new(
+        Tensor::from_slice(vec![2], &[2.0f64, 0.0])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = layer.forward(&input).expect("valid Embedding input");
 
     assert_eq!(output.tensor.shape(), &[2, 2]);
@@ -101,14 +109,16 @@ fn test_embedding_module_forward() {
 
 #[test]
 fn test_embedding_non_contiguous() {
-    let mut layer = Embedding::<f64>::new(3, 2);
-    let w_raw = Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let mut layer = Embedding::<f64>::new(3, 2).expect("invariant: test operation succeeds");
+    let w_raw = Tensor::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("invariant: test backend operation succeeds");
     let w_t = w_raw.transpose(); // shape [3, 2], non-contiguous
     assert!(!w_t.is_contiguous());
     layer.weight.tensor = w_t;
 
     // Index tensor is also non-contiguous:
-    let idx_raw = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 1, 2, 0]);
+    let idx_raw = Tensor::<i32, _>::from_slice(vec![2, 2], &[0, 1, 2, 0])
+        .expect("invariant: test backend operation succeeds");
     let idx_t = idx_raw.transpose(); // shape [2, 2], non-contiguous
     assert!(!idx_t.is_contiguous());
 
@@ -133,7 +143,8 @@ fn test_embedding_non_contiguous() {
     assert_eq!(&out_slice[6..8], &[1.0, 4.0]);
 
     // Backward pass
-    let grad_out = Tensor::from_slice(vec![2, 2, 2], &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]);
+    let grad_out = Tensor::from_slice(vec![2, 2, 2], &[1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+        .expect("invariant: test backend operation succeeds");
     output
         .backward_with_seed(grad_out)
         .expect("invariant: valid autograd fixture completes backward");
@@ -150,9 +161,14 @@ fn test_embedding_non_contiguous() {
 fn embedding_rejects_invalid_float_indices() {
     use coeus_nn::ModuleError;
 
-    let layer = Embedding::<f64>::new(3, 2);
+    let layer = Embedding::<f64>::new(3, 2).expect("invariant: test operation succeeds");
     for invalid in [f64::NAN, f64::INFINITY, -1.0, 1.5, 3.0] {
-        let input = Var::new(Tensor::from_slice([1], &[invalid]), false);
+        let input = Var::new(
+            Tensor::from_slice([1], &[invalid])
+                .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
         let error = layer
             .forward(&input)
             .err()
@@ -181,8 +197,9 @@ fn embedding_rejects_invalid_float_indices() {
 fn embedding_integer_api_rejects_out_of_range_index() {
     use coeus_nn::ModuleError;
 
-    let layer = Embedding::<f64>::new(3, 2);
-    let indices = Tensor::<i32, _>::from_slice([2], &[0, 3]);
+    let layer = Embedding::<f64>::new(3, 2).expect("invariant: test operation succeeds");
+    let indices = Tensor::<i32, _>::from_slice([2], &[0, 3])
+        .expect("invariant: test backend operation succeeds");
     let error = layer
         .forward_indices(&indices)
         .err()

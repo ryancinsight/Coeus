@@ -1,7 +1,7 @@
 // ── nonzero — row-major coordinates of non-zero elements ──
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{CountRangeError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_tensor::Tensor;
 
 /// Return the row-major coordinates of all non-zero elements.
@@ -11,13 +11,14 @@ use coeus_tensor::Tensor;
 ///
 /// # Errors
 ///
-/// Returns [`CountRangeError`] when `T` is an integer element whose range does
-/// not contain a coordinate of `input`; float elements never fail.
+/// Returns `B::Error` when backend allocation fails, or when `T` is an
+/// integer element whose range does not contain a coordinate of `input`;
+/// float elements never fail conversion.
 #[inline]
 pub fn nonzero<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     backend: &B,
-) -> Result<Tensor<T, B>, CountRangeError>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -31,12 +32,16 @@ where
         if input.get(&idx) != T::ZERO {
             count += 1;
             for coord in idx {
-                out_vec.push(T::try_from_count(coord)?);
+                let value = T::try_from_count(coord).map_err(|error| BackendError::Storage {
+                    operation: "nonzero",
+                    reason: error.to_string(),
+                })?;
+                out_vec.push(value);
             }
         }
     }
 
-    Ok(Tensor::from_slice_on(vec![count, ndim], &out_vec, backend))
+    Tensor::from_slice_on(vec![count, ndim], &out_vec, backend)
 }
 
 #[cfg(test)]
@@ -48,7 +53,8 @@ mod tests {
     #[test]
     fn nonzero_1d_returns_positions() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![4], &[0.0f64, 2.0, 0.0, 3.0]);
+        let input = Tensor::from_slice(vec![4], &[0.0f64, 2.0, 0.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
         let out =
             nonzero(&input, &b).expect("invariant: float elements represent every coordinate");
         assert_eq!(out.shape(), &[2, 1]);
@@ -58,7 +64,8 @@ mod tests {
     #[test]
     fn nonzero_2d_returns_row_major_indices() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![2, 3], &[0.0f64, 5.0, 0.0, 6.0, 7.0, 0.0]);
+        let input = Tensor::from_slice(vec![2, 3], &[0.0f64, 5.0, 0.0, 6.0, 7.0, 0.0])
+            .expect("invariant: test backend operation succeeds");
         let out =
             nonzero(&input, &b).expect("invariant: float elements represent every coordinate");
         assert_eq!(out.shape(), &[3, 2]);
@@ -68,7 +75,8 @@ mod tests {
     #[test]
     fn nonzero_all_zero_returns_empty_rows() {
         let b = SequentialBackend::new();
-        let input = Tensor::<f64, SequentialBackend>::zeros(vec![2, 2]);
+        let input = Tensor::<f64, SequentialBackend>::zeros(vec![2, 2])
+            .expect("invariant: test backend operation succeeds");
         let out =
             nonzero(&input, &b).expect("invariant: float elements represent every coordinate");
         assert_eq!(out.shape(), &[0, 2]);
@@ -80,18 +88,25 @@ mod tests {
         let b = SequentialBackend::new();
         let mut values = vec![0i8; 129];
         values[128] = 1;
-        let input = Tensor::from_slice(vec![129], &values);
+        let input = Tensor::from_slice(vec![129], &values)
+            .expect("invariant: test backend operation succeeds");
         let Err(err) = nonzero(&input, &b) else {
             panic!("coordinate 128 does not fit i8");
         };
-        assert_eq!(err.count(), 128);
-        assert_eq!(err.target(), "i8");
+        assert!(
+            matches!(
+                err,
+                coeus_core::BackendError::Storage { operation, .. } if operation == "nonzero"
+            ),
+            "unexpected error: {err:?}"
+        );
     }
 
     #[test]
     fn nonzero_single_element_tensor() {
         let b = SequentialBackend::new();
-        let input = Tensor::from_slice(vec![1], &[4.0f64]);
+        let input = Tensor::from_slice(vec![1], &[4.0f64])
+            .expect("invariant: test backend operation succeeds");
         let out =
             nonzero(&input, &b).expect("invariant: float elements represent every coordinate");
         assert_eq!(out.shape(), &[1, 1]);

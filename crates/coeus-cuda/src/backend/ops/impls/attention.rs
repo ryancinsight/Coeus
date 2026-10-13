@@ -9,6 +9,7 @@ use hephaestus_cuda::{CudaAttentionOps, CudaDevice};
 // process-global CUDA device owns stream synchronization for every dispatch.
 unsafe impl HephaestusProvider for CudaBackend {
     type Device = CudaDevice;
+    type Error = CudaBackendError;
 
     const NAME: &'static str = "cuda";
 
@@ -21,7 +22,10 @@ unsafe impl HephaestusProvider for CudaBackend {
     }
 }
 
-impl<T> AttentionProvider<T> for CudaBackend
+// SAFETY: `CudaAttentionOps` initializes both forward outputs before a
+// successful return and accumulates backward gradients into initialized
+// destinations, as required by the Hephaestus attention contract.
+unsafe impl<T> AttentionProvider<T> for CudaBackend
 where
     T: CudaScalar + Float + AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
@@ -47,7 +51,8 @@ where
     }
 }
 
-impl<T> coeus_ops::AttentionOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::AttentionOps<T> for CudaBackend
 where
     T: CudaScalar + Float + AttentionScalar + coeus_ops::AttentionScalar,
     CudaAttentionOps: AttentionOps<CudaDevice, T>,

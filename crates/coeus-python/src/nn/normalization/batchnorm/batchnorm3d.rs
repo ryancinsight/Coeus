@@ -1,5 +1,6 @@
 use crate::{
-    error::map_module_error,
+    error::{map_backend_error, map_module_error},
+    init::map_initialization_error,
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;
@@ -45,7 +46,8 @@ impl PyBatchNorm3d {
             num_features,
             eps,
             momentum,
-        );
+        )
+        .map_err(map_initialization_error)?;
 
         let weight = Py::new(
             py,
@@ -62,13 +64,15 @@ impl PyBatchNorm3d {
         let running_mean = Py::new(
             py,
             PyTensor {
-                inner: coeus_autograd::Var::new(rust_bn.running_mean.borrow().clone(), false),
+                inner: coeus_autograd::Var::new(rust_bn.running_mean.borrow().clone(), false)
+                    .map_err(map_backend_error)?,
             },
         )?;
         let running_var = Py::new(
             py,
             PyTensor {
-                inner: coeus_autograd::Var::new(rust_bn.running_var.borrow().clone(), false),
+                inner: coeus_autograd::Var::new(rust_bn.running_var.borrow().clone(), false)
+                    .map_err(map_backend_error)?,
             },
         )?;
 
@@ -119,14 +123,13 @@ impl PyBatchNorm3d {
                 self.momentum,
                 rm_t,
                 rv_t,
-            );
-            let out = bn.forward(&input_var);
+            )
+            .map_err(map_initialization_error)?;
+            let out = bn.forward(&input_var).map_err(map_module_error)?;
             let rm = bn.running_mean.into_inner();
             let rv = bn.running_var.into_inner();
-            (out, rm, rv)
-        });
-
-        let out_var = out_var.map_err(map_module_error)?;
+            Ok::<_, PyErr>((out, rm, rv))
+        })?;
         self.running_mean.bind(py).borrow_mut().inner.tensor = next_rm;
         self.running_var.bind(py).borrow_mut().inner.tensor = next_rv;
 
@@ -150,13 +153,12 @@ impl PyBatchNorm3d {
                 self.momentum,
                 rm_t,
                 rv_t,
-            );
+            )
+            .map_err(map_initialization_error)?;
             bn.is_training = false;
-            bn.forward(&input_var)
+            bn.forward(&input_var).map_err(map_module_error)
         });
-        out_var
-            .map(|inner| PyTensor { inner })
-            .map_err(map_module_error)
+        out_var.map(|inner| PyTensor { inner })
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -196,8 +198,8 @@ impl PyBatchNorm3d {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
-        self.bias.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
+        self.bias.bind(py).borrow().zero_grad()
     }
 }

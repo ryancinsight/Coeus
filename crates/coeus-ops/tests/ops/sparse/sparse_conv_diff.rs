@@ -31,6 +31,7 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
     Tensor::from_slice_on(vec![3, 3], &A_DENSE, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn make_coo<B>(backend: &B) -> CooTensor<f64, B>
@@ -44,8 +45,10 @@ where
     //   indices[0..5] (row coords) = [0,0,1,2,2]
     //   indices[5..10] (col coords) = [0,2,1,0,2]
     let indices =
-        Tensor::<i64, B>::from_slice_on(vec![2, 5], &[0, 0, 1, 2, 2, 0, 2, 1, 0, 2], backend);
-    let values = Tensor::<f64, B>::from_slice_on(vec![5], &[2.0, 1.0, 3.0, 1.0, 4.0], backend);
+        Tensor::<i64, B>::from_slice_on(vec![2, 5], &[0, 0, 1, 2, 2, 0, 2, 1, 0, 2], backend)
+            .expect("invariant: test backend operation succeeds");
+    let values = Tensor::<f64, B>::from_slice_on(vec![5], &[2.0, 1.0, 3.0, 1.0, 4.0], backend)
+        .expect("invariant: test backend operation succeeds");
     CooTensor::new(vec![3, 3].into(), indices, values)
 }
 
@@ -55,9 +58,12 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
-    let values = Tensor::<f64, B>::from_slice_on(vec![5], &[2.0, 1.0, 3.0, 1.0, 4.0], backend);
-    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend);
-    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend);
+    let values = Tensor::<f64, B>::from_slice_on(vec![5], &[2.0, 1.0, 3.0, 1.0, 4.0], backend)
+        .expect("invariant: test backend operation succeeds");
+    let col_indices = Tensor::<i64, B>::from_slice_on(vec![5], &[0i64, 2, 1, 0, 2], backend)
+        .expect("invariant: test backend operation succeeds");
+    let row_offsets = Tensor::<i64, B>::from_slice_on(vec![4], &[0i64, 2, 3, 5], backend)
+        .expect("invariant: test backend operation succeeds");
     CsrTensor::new(vec![3, 3].into(), values, col_indices, row_offsets)
 }
 
@@ -70,20 +76,23 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     let d = dense_a(backend);
-    let coo = coeus_ops::dense_to_coo(&d, backend);
+    let coo = coeus_ops::dense_to_coo(&d, backend).expect("invariant: test operation succeeds");
 
     // COO should have 5 non-zeros.
     assert_eq!(coo.nnz(), 5, "dense_to_coo nnz");
     assert_eq!(&**coo.shape(), d.shape(), "dense_to_coo shape");
 
     // Roundtrip: COO -> dense.
-    let recovered = coeus_ops::coo_to_dense(&coo, backend);
+    let recovered =
+        coeus_ops::coo_to_dense(&coo, backend).expect("invariant: test operation succeeds");
     assert_eq!(recovered.shape(), &[3, 3], "coo_to_dense shape");
     assert_eq!(recovered.as_slice(), &A_DENSE, "coo_to_dense roundtrip");
 
     // All-zero matrix: COO should have 0 nnz.
-    let zeros = Tensor::<f64, B>::zeros_on([2, 3], backend);
-    let coo_z = coeus_ops::dense_to_coo(&zeros, backend);
+    let zeros = Tensor::<f64, B>::zeros_on([2, 3], backend)
+        .expect("invariant: test backend operation succeeds");
+    let coo_z =
+        coeus_ops::dense_to_coo(&zeros, backend).expect("invariant: test operation succeeds");
     assert_eq!(coo_z.nnz(), 0, "dense_to_coo all-zero nnz");
 }
 
@@ -96,7 +105,7 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     let coo = make_coo(backend);
-    let dense = coeus_ops::coo_to_dense(&coo, backend);
+    let dense = coeus_ops::coo_to_dense(&coo, backend).expect("invariant: test operation succeeds");
     assert_eq!(dense.shape(), &[3, 3], "coo_to_dense shape");
     assert_eq!(dense.as_slice(), &A_DENSE, "coo_to_dense values");
 }
@@ -110,10 +119,11 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     let d = dense_a(backend);
-    let csr = coeus_ops::dense_to_csr(&d, backend);
+    let csr = coeus_ops::dense_to_csr(&d, backend).expect("invariant: test operation succeeds");
 
     // Recovered dense must equal original.
-    let recovered = coeus_ops::csr_to_dense(&csr, backend);
+    let recovered =
+        coeus_ops::csr_to_dense(&csr, backend).expect("invariant: test operation succeeds");
     assert_eq!(
         recovered.shape(),
         &[3, 3],
@@ -127,9 +137,12 @@ where
 
     // Identity matrix: each row has exactly 1 non-zero.
     let eye_data = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-    let eye = Tensor::<f64, B>::from_slice_on(vec![3, 3], &eye_data, backend);
-    let csr_eye = coeus_ops::dense_to_csr(&eye, backend);
-    let rec_eye = coeus_ops::csr_to_dense(&csr_eye, backend);
+    let eye = Tensor::<f64, B>::from_slice_on(vec![3, 3], &eye_data, backend)
+        .expect("invariant: test backend operation succeeds");
+    let csr_eye =
+        coeus_ops::dense_to_csr(&eye, backend).expect("invariant: test operation succeeds");
+    let rec_eye =
+        coeus_ops::csr_to_dense(&csr_eye, backend).expect("invariant: test operation succeeds");
     assert_eq!(rec_eye.as_slice(), &eye_data, "dense_to_csr identity");
 }
 
@@ -142,7 +155,7 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     let csr = make_csr(backend);
-    let dense = coeus_ops::csr_to_dense(&csr, backend);
+    let dense = coeus_ops::csr_to_dense(&csr, backend).expect("invariant: test operation succeeds");
     assert_eq!(dense.shape(), &[3, 3], "csr_to_dense shape");
     assert_eq!(dense.as_slice(), &A_DENSE, "csr_to_dense values");
 }
@@ -156,10 +169,10 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     let coo = make_coo(backend);
-    let csr = coeus_ops::coo_to_csr(&coo, backend);
+    let csr = coeus_ops::coo_to_csr(&coo, backend).expect("invariant: test operation succeeds");
 
     // After COO->CSR, recover the dense matrix to verify correctness.
-    let dense = coeus_ops::csr_to_dense(&csr, backend);
+    let dense = coeus_ops::csr_to_dense(&csr, backend).expect("invariant: test operation succeeds");
     assert_eq!(dense.shape(), &[3, 3], "coo_to_csr dense shape");
     assert_eq!(dense.as_slice(), &A_DENSE, "coo_to_csr then csr_to_dense");
 }

@@ -6,7 +6,8 @@ use hephaestus_cuda::{
     MaxOp, MinOp, OpIdentity, ProdOp, SumOp,
 };
 
-impl<T> ReductionProvider<T> for CudaBackend
+// SAFETY: Provider reductions and scans overwrite every logical output on success without reading prior contents.
+unsafe impl<T> ReductionProvider<T> for CudaBackend
 where
     T: CudaScalar
         + DialectScalar<CudaC>
@@ -28,7 +29,8 @@ where
     type ScanOperations = CudaScanOps;
 }
 
-impl<T> coeus_ops::ReductionOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::ReductionOps<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC> + bytemuck::Pod,
     CudaBackend: ReductionProvider<T>,
@@ -43,9 +45,7 @@ where
         c: &mut Self::DeviceBuffer<T>,
         c_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        HephaestusBackend::<CudaBackend>::new()
-            .reduce(op, a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<CudaBackend>::new().reduce(op, a, a_layout, axis, c, c_layout)
     }
 
     fn reduce_mean(
@@ -88,9 +88,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<CudaBackend>::new()
-            .cumsum(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<CudaBackend>::new().cumsum(a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -105,9 +103,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<CudaBackend>::new()
-            .suffix_sum(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<CudaBackend>::new().suffix_sum(a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -122,9 +118,7 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<CudaBackend>::new()
-            .cumprod(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<CudaBackend>::new().cumprod(a, a_layout, axis, c, c_layout)
     }
 
     #[inline]
@@ -139,8 +133,6 @@ where
     where
         T: leto_ops::Scalar,
     {
-        HephaestusBackend::<CudaBackend>::new()
-            .suffix_prod(a, a_layout, axis, c, c_layout)
-            .map_err(Into::into)
+        HephaestusBackend::<CudaBackend>::new().suffix_prod(a, a_layout, axis, c, c_layout)
     }
 }

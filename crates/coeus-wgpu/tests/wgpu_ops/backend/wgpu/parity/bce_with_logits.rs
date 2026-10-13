@@ -8,15 +8,23 @@ fn bce_with_logits_dispatches_with_wgpu_value_and_gradient_parity() {
         return;
     }
 
-    let logits = Tensor::from_slice_on([2, 2], &[100.0_f32, -100.0, 1.5, -0.5], &seq());
-    let target = Tensor::from_slice_on([2, 2], &[1.0_f32, 0.0, 1.0, 0.0], &seq());
-    let cpu_logits = Var::new(logits.clone().permute(&[1, 0]), true);
-    let cpu_target = Var::new(target.clone().permute(&[1, 0]), true);
-    let wgpu_logits = Var::new(to_gpu(&logits).permute(&[1, 0]), true);
-    let wgpu_target = Var::new(to_gpu(&target).permute(&[1, 0]), true);
+    let logits = Tensor::from_slice_on([2, 2], &[100.0_f32, -100.0, 1.5, -0.5], &seq())
+        .expect("invariant: test backend operation succeeds");
+    let target = Tensor::from_slice_on([2, 2], &[1.0_f32, 0.0, 1.0, 0.0], &seq())
+        .expect("invariant: test backend operation succeeds");
+    let cpu_logits = Var::new(logits.clone().permute(&[1, 0]), true)
+        .expect("invariant: test backend operation succeeds");
+    let cpu_target = Var::new(target.clone().permute(&[1, 0]), true)
+        .expect("invariant: test backend operation succeeds");
+    let wgpu_logits = Var::new(to_gpu(&logits).permute(&[1, 0]), true)
+        .expect("invariant: test backend operation succeeds");
+    let wgpu_target = Var::new(to_gpu(&target).permute(&[1, 0]), true)
+        .expect("invariant: test backend operation succeeds");
 
-    let cpu_loss = coeus_nn::bce_with_logits(&cpu_logits, &cpu_target);
-    let wgpu_loss = coeus_nn::bce_with_logits(&wgpu_logits, &wgpu_target);
+    let cpu_loss = coeus_nn::bce_with_logits(&cpu_logits, &cpu_target)
+        .expect("invariant: test backend operation succeeds");
+    let wgpu_loss = coeus_nn::bce_with_logits(&wgpu_logits, &wgpu_target)
+        .expect("invariant: test backend operation succeeds");
     cpu_loss
         .backward()
         .expect("CPU BCE-with-logits backward must succeed");

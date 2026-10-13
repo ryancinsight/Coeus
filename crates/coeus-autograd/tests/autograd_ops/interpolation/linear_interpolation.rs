@@ -11,17 +11,22 @@ fn three_dimensional_backward_matches_analytical_derivatives() {
             [1, 1, 2, 2, 2],
             &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
             &backend,
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let grid = Var::new(
-        Tensor::from_slice_on([1, 3, 1, 1, 1], &[0.5, 0.5, 0.5], &backend),
+        Tensor::from_slice_on([1, 3, 1, 1, 1], &[0.5, 0.5, 0.5], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sampled = linear_interpolation::<3, _, _>(&image, &grid, Replicate)
         .expect("valid three-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[3.5]);
     sum(&sampled)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
@@ -38,17 +43,22 @@ fn three_dimensional_backward_matches_analytical_derivatives() {
 fn two_dimensional_backward_matches_analytical_derivatives() {
     let backend = MoiraiBackend;
     let image = Var::new(
-        Tensor::from_slice_on([1, 1, 2, 2], &[0.0, 1.0, 2.0, 3.0], &backend),
+        Tensor::from_slice_on([1, 1, 2, 2], &[0.0, 1.0, 2.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let grid = Var::new(
-        Tensor::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend),
+        Tensor::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[1.25]);
     sum(&sampled)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(
@@ -65,16 +75,21 @@ fn two_dimensional_backward_matches_analytical_derivatives() {
 fn constant_image_has_zero_coordinate_gradient() {
     let backend = MoiraiBackend;
     let image = Var::new(
-        Tensor::from_slice_on([1, 1, 2, 2], &[7.0; 4], &backend),
+        Tensor::from_slice_on([1, 1, 2, 2], &[7.0; 4], &backend)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let grid = Var::new(
-        Tensor::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend),
+        Tensor::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     sum(&sampled)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(

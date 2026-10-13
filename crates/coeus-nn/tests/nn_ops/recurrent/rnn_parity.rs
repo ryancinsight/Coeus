@@ -31,7 +31,12 @@ fn zeros_var<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(
 where
     B::DeviceBuffer<f64>: coeus_core::CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::zeros_on(shape.to_vec(), backend), false)
+    Var::new(
+        Tensor::zeros_on(shape.to_vec(), backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn check_gru_cell<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
@@ -123,8 +128,18 @@ fn pin_ones<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(
         coeus_core::CpuAddressableStorage<f64> + coeus_core::CpuAddressableStorageMut<f64>,
 {
     let ones = [1.0_f64; 4];
-    cell.w_ih.weight = Var::new(Tensor::from_slice_on([2, 2], &ones, backend), true);
-    cell.w_hh.weight = Var::new(Tensor::from_slice_on([2, 2], &ones, backend), true);
+    cell.w_ih.weight = Var::new(
+        Tensor::from_slice_on([2, 2], &ones, backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    cell.w_hh.weight = Var::new(
+        Tensor::from_slice_on([2, 2], &ones, backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 }
 
 fn check_rnn_cell<B: BackendOps<f64> + coeus_ops::RandomInitOps<f64> + Default>(backend: &B)
@@ -150,7 +165,12 @@ where
     );
 
     // x=[1,2], h=0, all-ones W_ih → pre = [1+2, 1+2] = [3,3]; h_new = tanh(3).
-    let x = Var::new(Tensor::from_slice_on([1, 2], &[1.0, 2.0], backend), false);
+    let x = Var::new(
+        Tensor::from_slice_on([1, 2], &[1.0, 2.0], backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let h_new = cell.step(&x, &h0).expect("valid RNNCell input");
     let t3 = 3.0_f64.tanh();
     let got = h_new.tensor.as_slice();

@@ -23,6 +23,7 @@ fn dense_4x5() -> Tensor<f32, Seq> {
         5.0,    0.0, 0.0, 6.0, 7.0,
     ];
     Tensor::<f32, Seq>::from_slice([4, 5], &data)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_close(label: &str, got: &[f32], want: &[f32]) {
@@ -37,15 +38,17 @@ fn assert_close(label: &str, got: &[f32], want: &[f32]) {
 fn spmv_matches_dense_matmul() {
     let s = SequentialBackend::new();
     let dense = dense_4x5();
-    let csr = dense_to_csr(&dense, &s);
+    let csr = dense_to_csr(&dense, &s).expect("invariant: test operation succeeds");
 
     // x: [5] vector; reference reshapes to [5,1] for the dense matmul.
     let x_data = [0.5f32, -1.0, 2.0, 3.0, -0.25];
-    let x = Tensor::<f32, Seq>::from_slice([5], &x_data);
-    let x_col = Tensor::<f32, Seq>::from_slice([5, 1], &x_data);
+    let x = Tensor::<f32, Seq>::from_slice([5], &x_data)
+        .expect("invariant: test backend operation succeeds");
+    let x_col = Tensor::<f32, Seq>::from_slice([5, 1], &x_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let y_sparse = spmv(&csr, &x, &s); // [4]
-    let y_dense = matmul(&dense, &x_col, &s); // [4,1]
+    let y_sparse = spmv(&csr, &x, &s).expect("invariant: test operation succeeds"); // [4]
+    let y_dense = matmul(&dense, &x_col, &s).expect("invariant: test operation succeeds"); // [4,1]
 
     assert_eq!(y_sparse.shape(), &[4]);
     assert_close("spmv", y_sparse.as_slice(), y_dense.as_slice());
@@ -55,14 +58,15 @@ fn spmv_matches_dense_matmul() {
 fn spmm_matches_dense_matmul() {
     let s = SequentialBackend::new();
     let dense = dense_4x5();
-    let csr = dense_to_csr(&dense, &s);
+    let csr = dense_to_csr(&dense, &s).expect("invariant: test operation succeeds");
 
     // B: [5, 3] dense right operand.
     let b_data: Vec<f32> = (0..5 * 3).map(|i| (i as f32) * 0.1 - 0.7).collect();
-    let b = Tensor::<f32, Seq>::from_slice([5, 3], &b_data);
+    let b = Tensor::<f32, Seq>::from_slice([5, 3], &b_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let c_sparse = spmm(&csr, &b, &s); // [4, 3]
-    let c_dense = matmul(&dense, &b, &s); // [4, 3]
+    let c_sparse = spmm(&csr, &b, &s).expect("invariant: test operation succeeds"); // [4, 3]
+    let c_dense = matmul(&dense, &b, &s).expect("invariant: test operation succeeds"); // [4, 3]
 
     assert_eq!(c_sparse.shape(), &[4, 3]);
     assert_close("spmm", c_sparse.as_slice(), c_dense.as_slice());
@@ -74,15 +78,16 @@ fn spmm_identity_roundtrip() {
     // independently checking dense_to_csr fidelity.
     let s = SequentialBackend::new();
     let dense = dense_4x5();
-    let csr = dense_to_csr(&dense, &s);
+    let csr = dense_to_csr(&dense, &s).expect("invariant: test operation succeeds");
 
     let mut eye = vec![0.0f32; 5 * 5];
     for i in 0..5 {
         eye[i * 5 + i] = 1.0;
     }
-    let identity = Tensor::<f32, Seq>::from_slice([5, 5], &eye);
+    let identity = Tensor::<f32, Seq>::from_slice([5, 5], &eye)
+        .expect("invariant: test backend operation succeeds");
 
-    let c = spmm(&csr, &identity, &s); // [4, 5] == dense
+    let c = spmm(&csr, &identity, &s).expect("invariant: test operation succeeds"); // [4, 5] == dense
     assert_close("spmm_identity", c.as_slice(), dense.as_slice());
 }
 
@@ -95,10 +100,11 @@ fn spmm_backward_dense_matches_transpose_matmul() {
     let s = SequentialBackend::new();
     let dense = dense_4x5(); // A: [M=4, K=5]
     let (m, k, n) = (4usize, 5usize, 3usize);
-    let csr = dense_to_csr(&dense, &s);
+    let csr = dense_to_csr(&dense, &s).expect("invariant: test operation succeeds");
 
     let gc: Vec<f32> = (0..m * n).map(|i| (i as f32) * 0.2 - 0.5).collect();
-    let grad_c = Tensor::<f32, Seq>::from_slice([m, n], &gc);
+    let grad_c = Tensor::<f32, Seq>::from_slice([m, n], &gc)
+        .expect("invariant: test backend operation succeeds");
 
     let grad_b = spmm_backward_dense(
         csr.values(),
@@ -107,7 +113,8 @@ fn spmm_backward_dense_matches_transpose_matmul() {
         &[m, k],
         &grad_c,
         &s,
-    ); // [K, N]
+    )
+    .expect("invariant: test operation succeeds"); // [K, N]
 
     // Reference: Aᵀ [K, M] · grad_C [M, N].
     let a = dense.as_slice();
@@ -117,8 +124,9 @@ fn spmm_backward_dense_matches_transpose_matmul() {
             at[c * m + r] = a[r * k + c];
         }
     }
-    let a_t = Tensor::<f32, Seq>::from_slice([k, m], &at);
-    let grad_b_ref = matmul(&a_t, &grad_c, &s); // [K, N]
+    let a_t = Tensor::<f32, Seq>::from_slice([k, m], &at)
+        .expect("invariant: test backend operation succeeds");
+    let grad_b_ref = matmul(&a_t, &grad_c, &s).expect("invariant: test operation succeeds"); // [K, N]
 
     assert_eq!(grad_b.shape(), &[k, n]);
     assert_close("spmm_bwd_dense", grad_b.as_slice(), grad_b_ref.as_slice());
@@ -132,12 +140,14 @@ fn spmm_backward_values_matches_masked_outer() {
     let s = SequentialBackend::new();
     let dense = dense_4x5(); // A: [M=4, K=5]
     let (m, k, n) = (4usize, 5usize, 3usize);
-    let csr = dense_to_csr(&dense, &s);
+    let csr = dense_to_csr(&dense, &s).expect("invariant: test operation succeeds");
 
     let b_data: Vec<f32> = (0..k * n).map(|i| (i as f32) * 0.15 - 0.3).collect();
-    let b = Tensor::<f32, Seq>::from_slice([k, n], &b_data);
+    let b = Tensor::<f32, Seq>::from_slice([k, n], &b_data)
+        .expect("invariant: test backend operation succeeds");
     let gc: Vec<f32> = (0..m * n).map(|i| (i as f32) * 0.1 - 0.4).collect();
-    let grad_c = Tensor::<f32, Seq>::from_slice([m, n], &gc);
+    let grad_c = Tensor::<f32, Seq>::from_slice([m, n], &gc)
+        .expect("invariant: test backend operation succeeds");
 
     let grad_vals = spmm_backward_values(
         csr.col_indices(),
@@ -146,7 +156,8 @@ fn spmm_backward_values_matches_masked_outer() {
         &b,
         &grad_c,
         &s,
-    ); // [nnz]
+    )
+    .expect("invariant: test operation succeeds"); // [nnz]
 
     // Reference in CSR value order.
     let row_off: Vec<i64> = csr.row_offsets().as_slice().to_vec();

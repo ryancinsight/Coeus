@@ -39,58 +39,68 @@ impl FftScalar for f64 {
     }
 }
 
-pub(crate) fn accumulate_grad<T, B>(grad: &Arc<GradBuffer<T, B>>, delta: &Tensor<T, B>)
+pub(crate) fn accumulate_grad<T, B>(
+    grad: &Arc<GradBuffer<T, B>>,
+    delta: &Tensor<T, B>,
+) -> Result<(), B::Error>
 where
     T: Scalar,
     B: ComputeBackend + Default,
 {
     let backend = B::default();
     let mut current = vec![T::ZERO; delta.numel()];
-    let delta_host = tensor_to_vec(delta);
+    let delta_host = tensor_to_vec(delta)?;
     let guard = grad.write();
-    backend.copy_to_host(guard.storage(), &mut current);
+    backend.copy_to_host(guard.storage(), &mut current)?;
     for (dst, src) in current.iter_mut().zip(delta_host) {
         *dst += src;
     }
-    backend.copy_to_device(&current, guard.storage_mut());
+    backend.copy_to_device(&current, guard.storage_mut()?)?;
+    Ok(())
 }
 
-pub(crate) fn tensor_to_vec<T, B>(tensor: &Tensor<T, B>) -> Vec<T>
+pub(crate) fn tensor_to_vec<T, B>(tensor: &Tensor<T, B>) -> Result<Vec<T>, B::Error>
 where
     T: Scalar,
     B: ComputeBackend + Default,
 {
     let backend = B::default();
-    let contiguous = tensor.to_contiguous();
+    let contiguous = tensor.to_contiguous()?;
     let mut host = vec![T::ZERO; contiguous.numel()];
-    backend.copy_to_host(contiguous.storage(), &mut host);
-    host
+    backend.copy_to_host(contiguous.storage(), &mut host)?;
+    Ok(host)
 }
 
 /// Apollo-backed 1-D forward FFT for Coeus tensors.
-#[must_use]
-pub fn fft_1d<T, B>(signal: &Tensor<T, B>) -> Tensor<Complex<T>, B>
+///
+/// # Errors
+///
+/// Returns the backend error when reading the input or allocating the output fails.
+pub fn fft_1d<T, B>(signal: &Tensor<T, B>) -> Result<Tensor<Complex<T>, B>, B::Error>
 where
     T: FftScalar,
     B: ComputeBackend + Default,
 {
     assert_eq!(signal.ndim(), 1, "fft_1d requires 1-D input");
     let backend = B::default();
-    let input = tensor_to_vec(signal);
+    let input = tensor_to_vec(signal)?;
     let spectrum = T::fft_1d_impl(&input);
     Tensor::from_slice_on(signal.shape_cloned(), &spectrum, &backend)
 }
 
 /// Apollo-backed 1-D inverse FFT for Coeus tensors.
-#[must_use]
-pub fn ifft_1d<T, B>(spectrum: &Tensor<Complex<T>, B>) -> Tensor<T, B>
+///
+/// # Errors
+///
+/// Returns the backend error when reading the input or allocating the output fails.
+pub fn ifft_1d<T, B>(spectrum: &Tensor<Complex<T>, B>) -> Result<Tensor<T, B>, B::Error>
 where
     T: FftScalar,
     B: ComputeBackend + Default,
 {
     assert_eq!(spectrum.ndim(), 1, "ifft_1d requires 1-D input");
     let backend = B::default();
-    let input = tensor_to_vec(spectrum);
+    let input = tensor_to_vec(spectrum)?;
     let signal = T::ifft_1d_impl(&input);
     Tensor::from_slice_on(spectrum.shape_cloned(), &signal, &backend)
 }

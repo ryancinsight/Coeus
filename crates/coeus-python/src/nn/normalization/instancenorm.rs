@@ -1,5 +1,6 @@
 use crate::{
     error::map_module_error,
+    init::map_initialization_error,
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;
@@ -32,7 +33,8 @@ impl PyInstanceNorm1d {
         let inst = coeus_nn::normalization::instancenorm::InstanceNorm1d::<
             f64,
             coeus_core::MoiraiBackend,
-        >::new(num_features, eps);
+        >::new(num_features, eps)
+        .map_err(map_initialization_error)?;
         let weight = Py::new(py, PyTensor { inner: inst.weight })?;
         let bias = Py::new(py, PyTensor { inner: inst.bias })?;
         Ok(Self {
@@ -56,12 +58,13 @@ impl PyInstanceNorm1d {
             let mut inst = coeus_nn::normalization::instancenorm::InstanceNorm1d::<
                 f64,
                 coeus_core::MoiraiBackend,
-            >::new(num_features, eps);
+            >::new(num_features, eps)
+            .map_err(map_initialization_error)?;
             inst.weight = w_var;
             inst.bias = b_var;
-            inst.forward(&input_var)
+            inst.forward(&input_var).map_err(map_module_error)
         });
-        inner.map(PyTensor::from_var).map_err(map_module_error)
+        inner.map(PyTensor::from_var)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -87,9 +90,9 @@ impl PyInstanceNorm1d {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
-        self.bias.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
+        self.bias.bind(py).borrow().zero_grad()
     }
 }
 
@@ -121,7 +124,8 @@ impl PyInstanceNorm3d {
         let inst = coeus_nn::normalization::instancenorm::InstanceNorm3d::<
             f64,
             coeus_core::MoiraiBackend,
-        >::new(num_features, eps);
+        >::new(num_features, eps)
+        .map_err(map_initialization_error)?;
         let weight = Py::new(py, PyTensor { inner: inst.weight })?;
         let bias = Py::new(py, PyTensor { inner: inst.bias })?;
         Ok(Self {
@@ -145,12 +149,13 @@ impl PyInstanceNorm3d {
             let mut inst = coeus_nn::normalization::instancenorm::InstanceNorm3d::<
                 f64,
                 coeus_core::MoiraiBackend,
-            >::new(num_features, eps);
+            >::new(num_features, eps)
+            .map_err(map_initialization_error)?;
             inst.weight = w_var;
             inst.bias = b_var;
-            inst.forward(&input_var)
+            inst.forward(&input_var).map_err(map_module_error)
         });
-        inner.map(PyTensor::from_var).map_err(map_module_error)
+        inner.map(PyTensor::from_var)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -176,9 +181,9 @@ impl PyInstanceNorm3d {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
-        self.bias.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
+        self.bias.bind(py).borrow().zero_grad()
     }
 }
 
@@ -210,7 +215,8 @@ impl PyInstanceNorm2d {
         let inst = coeus_nn::normalization::instancenorm::InstanceNorm2d::<
             f64,
             coeus_core::MoiraiBackend,
-        >::new(num_features, eps);
+        >::new(num_features, eps)
+        .map_err(map_initialization_error)?;
         let weight = Py::new(py, PyTensor { inner: inst.weight })?;
         let bias = Py::new(py, PyTensor { inner: inst.bias })?;
         Ok(Self {
@@ -234,12 +240,13 @@ impl PyInstanceNorm2d {
             let mut inst = coeus_nn::normalization::instancenorm::InstanceNorm2d::<
                 f64,
                 coeus_core::MoiraiBackend,
-            >::new(num_features, eps);
+            >::new(num_features, eps)
+            .map_err(map_initialization_error)?;
             inst.weight = w_var;
             inst.bias = b_var;
-            inst.forward(&input_var)
+            inst.forward(&input_var).map_err(map_module_error)
         });
-        inner.map(PyTensor::from_var).map_err(map_module_error)
+        inner.map(PyTensor::from_var)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -265,8 +272,8 @@ impl PyInstanceNorm2d {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
-        self.bias.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()?;
+        self.bias.bind(py).borrow().zero_grad()
     }
 }

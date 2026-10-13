@@ -4,7 +4,8 @@ use coeus_tensor::{broadcast::broadcast_shapes, Tensor};
 #[test]
 fn tensor_broadcast_matches_leto_layout_metadata_and_values() {
     let backend = SequentialBackend;
-    let row = Tensor::<i32, SequentialBackend>::from_slice_on([1, 3], &[10, 20, 30], &backend);
+    let row = Tensor::<i32, SequentialBackend>::from_slice_on([1, 3], &[10, 20, 30], &backend)
+        .expect("invariant: test backend operation succeeds");
 
     let broadcasted = row.broadcast([2, 3]);
     let direct = coeus_leto::to_leto_layout::<2>(row.layout())
@@ -40,7 +41,8 @@ fn tensor_broadcast_preserves_source_offset_for_sliced_views() {
         [3, 3],
         &[1, 2, 3, 4, 5, 6, 7, 8, 9],
         &backend,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let row = matrix.slice(&[(1, 2), (0, 3)]);
     let broadcasted = row.broadcast([2, 3]);
 
@@ -60,7 +62,8 @@ fn tensor_broadcast_preserves_source_offset_for_sliced_views() {
 #[test]
 fn tensor_scalar_broadcast_matches_leto_layout_metadata_and_values() {
     let backend = SequentialBackend;
-    let scalar = Tensor::<i32, SequentialBackend>::from_slice_on([], &[7], &backend);
+    let scalar = Tensor::<i32, SequentialBackend>::from_slice_on([], &[7], &backend)
+        .expect("invariant: test backend operation succeeds");
     let broadcasted = scalar.broadcast([2, 2]);
 
     assert_eq!(broadcasted.shape(), &[2, 2]);
@@ -86,7 +89,8 @@ fn broadcast_shape_helper_routes_through_leto_bridge() {
 #[should_panic(expected = "coeus-leto broadcast validation failed")]
 fn tensor_broadcast_rejects_incompatible_shape() {
     let backend = SequentialBackend;
-    let tensor = Tensor::<i32, SequentialBackend>::from_slice_on([2, 2], &[1, 2, 3, 4], &backend);
+    let tensor = Tensor::<i32, SequentialBackend>::from_slice_on([2, 2], &[1, 2, 3, 4], &backend)
+        .expect("invariant: test backend operation succeeds");
     let _ = tensor.broadcast([3, 2]);
 }
 

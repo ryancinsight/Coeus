@@ -27,19 +27,27 @@ fn fused_integer_reductions_generate_type_correct_wgsl() {
     let seq = SequentialBackend::new();
     let wgpu = WgpuBackend::new();
 
-    let signed_cpu = Tensor::<i32, SequentialBackend>::from_slice(vec![2, 2], &[-4, -2, 3, 5]);
-    let signed_gpu = signed_cpu.to_backend_on(&seq, &wgpu);
+    let signed_cpu = Tensor::<i32, SequentialBackend>::from_slice(vec![2, 2], &[-4, -2, 3, 5])
+        .expect("invariant: test backend operation succeeds");
+    let signed_gpu = signed_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
     let signed_max =
         coeus_wgpu::evaluate_fused_reduce(&signed_gpu.expr(), coeus_ops::ReductionOp::Max, 1)
             .expect("signed WGPU maximum should compile and dispatch")
-            .to_backend_on(&wgpu, &seq);
+            .to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds");
 
-    let unsigned_cpu = Tensor::<u32, SequentialBackend>::from_slice(vec![2, 2], &[4, 2, 3, 5]);
-    let unsigned_gpu = unsigned_cpu.to_backend_on(&seq, &wgpu);
+    let unsigned_cpu = Tensor::<u32, SequentialBackend>::from_slice(vec![2, 2], &[4, 2, 3, 5])
+        .expect("invariant: test backend operation succeeds");
+    let unsigned_gpu = unsigned_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
     let unsigned_min =
         coeus_wgpu::evaluate_fused_reduce(&unsigned_gpu.expr(), coeus_ops::ReductionOp::Min, 1)
             .expect("unsigned WGPU minimum should compile and dispatch")
-            .to_backend_on(&wgpu, &seq);
+            .to_backend_on(&wgpu, &seq)
+            .expect("invariant: test backend operation succeeds");
 
     assert_eq!(signed_max.as_slice(), &[-2, 5]);
     assert_eq!(unsigned_min.as_slice(), &[2, 3]);
@@ -49,8 +57,11 @@ fn fused_integer_reductions_generate_type_correct_wgsl() {
 fn fused_reduction_rejects_axis_outside_expression_rank() {
     let seq = SequentialBackend::new();
     let wgpu = WgpuBackend::new();
-    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0, 2.0]);
-    let gpu = cpu.to_backend_on(&seq, &wgpu);
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![2], &[1.0, 2.0])
+        .expect("invariant: test backend operation succeeds");
+    let gpu = cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
 
     let error = match coeus_wgpu::evaluate_fused_reduce(&gpu.expr(), coeus_ops::ReductionOp::Sum, 1)
     {
@@ -72,15 +83,20 @@ fn fused_reduction_rejects_axis_outside_expression_rank() {
 fn fused_empty_axis_matches_cpu_contract() {
     let seq = SequentialBackend::new();
     let wgpu = WgpuBackend::new();
-    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 0], &[]);
-    let gpu = cpu.to_backend_on(&seq, &wgpu);
+    let cpu = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 0], &[])
+        .expect("invariant: test backend operation succeeds");
+    let gpu = cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
 
     let sum = coeus_wgpu::evaluate_fused_reduce(&gpu.expr(), coeus_ops::ReductionOp::Sum, 1)
         .expect("empty WGPU sum should return its identity")
-        .to_backend_on(&wgpu, &seq);
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
     let product = coeus_wgpu::evaluate_fused_reduce(&gpu.expr(), coeus_ops::ReductionOp::Prod, 1)
         .expect("empty WGPU product should return its identity")
-        .to_backend_on(&wgpu, &seq);
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(sum.as_slice(), &[0.0, 0.0]);
     assert_eq!(product.as_slice(), &[1.0, 1.0]);
     for operation in [
@@ -113,14 +129,23 @@ fn test_wgpu_fusion_parity() {
     let c_data = vec![-5.0f32, 5.0, -10.0, 10.0, -15.0, 15.0];
 
     // Create tensors on CPU
-    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &a_data);
-    let b_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &b_data);
-    let c_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &c_data);
+    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &a_data)
+        .expect("invariant: test backend operation succeeds");
+    let b_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &b_data)
+        .expect("invariant: test backend operation succeeds");
+    let c_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &c_data)
+        .expect("invariant: test backend operation succeeds");
 
     // Transfer to GPU
-    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
-    let b_gpu = b_cpu.to_backend_on(&seq, &wgpu_b);
-    let c_gpu = c_cpu.to_backend_on(&seq, &wgpu_b);
+    let a_gpu = a_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
+    let b_gpu = b_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
+    let c_gpu = c_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
     // Fused expression on GPU: (a_gpu * b_gpu + c_gpu).relu().sigmoid()
     let expr = (a_gpu.expr() * b_gpu.expr() + c_gpu.expr())
@@ -129,7 +154,9 @@ fn test_wgpu_fusion_parity() {
     let out_gpu = evaluate_fused(&expr).expect("WGPU fused expression should dispatch");
 
     // Transfer back to CPU
-    let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_cpu = out_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     // Fused expression on CPU
     let expr_cpu = (a_cpu.expr() * b_cpu.expr() + c_cpu.expr())
@@ -161,8 +188,11 @@ fn test_wgpu_evaluate_fused_reduce() {
     let shape = vec![2, 3];
     let a_data = vec![1.0f32, -2.0, 3.0, -4.0, 5.0, -6.0];
 
-    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &a_data);
-    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &a_data)
+        .expect("invariant: test backend operation succeeds");
+    let a_gpu = a_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
     // Fused expression: (a * 2.0).relu()
     let expr_gpu = (a_gpu.expr() * 2.0).relu();
@@ -173,7 +203,9 @@ fn test_wgpu_evaluate_fused_reduce() {
     // Fused sum reduction along axis 1
     let out_sum_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Sum, 1)
         .expect("fused WGPU sum reduction should dispatch");
-    let out_sum_cpu = out_sum_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_sum_cpu = out_sum_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
     let expected_sum =
         coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Sum, 1, &seq)
             .expect("CPU fused sum should evaluate");
@@ -184,7 +216,9 @@ fn test_wgpu_evaluate_fused_reduce() {
     let out_mean_gpu =
         coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Mean, 1)
             .expect("fused WGPU mean reduction should dispatch");
-    let out_mean_cpu = out_mean_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_mean_cpu = out_mean_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
     let expected_mean = coeus_ops::fuse::evaluate_fused_reduce_cpu(
         &expr_cpu,
         coeus_ops::ReductionOp::Mean,
@@ -220,7 +254,9 @@ fn test_wgpu_evaluate_fused_reduce() {
     // Fused max reduction along axis 1
     let out_max_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Max, 1)
         .expect("fused WGPU max reduction should dispatch");
-    let out_max_cpu = out_max_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_max_cpu = out_max_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
     let expected_max =
         coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Max, 1, &seq)
             .expect("CPU fused maximum should evaluate");
@@ -230,7 +266,9 @@ fn test_wgpu_evaluate_fused_reduce() {
     // Fused min reduction along axis 1
     let out_min_gpu = coeus_wgpu::evaluate_fused_reduce(&expr_gpu, coeus_ops::ReductionOp::Min, 1)
         .expect("fused WGPU min reduction should dispatch");
-    let out_min_cpu = out_min_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_min_cpu = out_min_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
     let expected_min =
         coeus_ops::fuse::evaluate_fused_reduce_cpu(&expr_cpu, coeus_ops::ReductionOp::Min, 1, &seq)
             .expect("CPU fused minimum should evaluate");
@@ -246,15 +284,20 @@ fn test_wgpu_fusion_silu() {
     let shape = vec![5];
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
 
-    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data);
-    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data)
+        .expect("invariant: test backend operation succeeds");
+    let a_gpu = a_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
     // Fused expression: a.silu()
     let expr_gpu = a_gpu.expr().silu();
     let out_gpu = evaluate_fused(&expr_gpu).expect("WGPU fused expression should dispatch");
 
     // Transfer back to CPU
-    let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_cpu = out_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     // Compute expected using CPU fusion
     let expr_cpu = a_cpu.expr().silu();
@@ -284,15 +327,20 @@ fn test_wgpu_fusion_mish() {
     let shape = vec![5];
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
 
-    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data);
-    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data)
+        .expect("invariant: test backend operation succeeds");
+    let a_gpu = a_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
     // Fused expression: a.mish()
     let expr_gpu = a_gpu.expr().mish();
     let out_gpu = evaluate_fused(&expr_gpu).expect("WGPU fused expression should dispatch");
 
     // Transfer back to CPU
-    let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_cpu = out_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     // Compute expected using CPU fusion
     let expr_cpu = a_cpu.expr().mish();
@@ -322,15 +370,20 @@ fn test_wgpu_fusion_gelu() {
     let shape = vec![5];
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
 
-    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data);
-    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data)
+        .expect("invariant: test backend operation succeeds");
+    let a_gpu = a_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
     // Fused expression: a.gelu()
     let expr_gpu = a_gpu.expr().gelu();
     let out_gpu = evaluate_fused(&expr_gpu).expect("WGPU fused expression should dispatch");
 
     // Transfer back to CPU
-    let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_cpu = out_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     // Compute expected using CPU fusion
     let expr_cpu = a_cpu.expr().gelu();
@@ -362,15 +415,20 @@ fn test_wgpu_fusion_gelu_grad() {
     let shape = vec![5];
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
 
-    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data);
-    let a_gpu = a_cpu.to_backend_on(&seq, &wgpu_b);
+    let a_cpu = Tensor::<f32, SequentialBackend>::from_slice(shape.clone(), &data)
+        .expect("invariant: test backend operation succeeds");
+    let a_gpu = a_cpu
+        .to_backend_on(&seq, &wgpu_b)
+        .expect("invariant: test backend operation succeeds");
 
     // Fused expression: a.gelu_grad()
     let expr_gpu = a_gpu.expr().gelu_grad();
     let out_gpu = evaluate_fused(&expr_gpu).expect("WGPU fused expression should dispatch");
 
     // Transfer back to CPU
-    let out_cpu = out_gpu.to_backend_on(&wgpu_b, &seq);
+    let out_cpu = out_gpu
+        .to_backend_on(&wgpu_b, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     // Compute expected using CPU fusion
     let expr_cpu = a_cpu.expr().gelu_grad();

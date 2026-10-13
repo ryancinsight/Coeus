@@ -10,7 +10,9 @@ fn assert_seeded_parity(
 ) {
     let expected = cpu.as_ref();
     let mut actual = vec![0.0; expected.len()];
-    wgpu().copy_to_host(gpu, &mut actual);
+    wgpu()
+        .copy_to_host(gpu, &mut actual)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(actual, expected, "{operation} must preserve seeded values");
 }
 

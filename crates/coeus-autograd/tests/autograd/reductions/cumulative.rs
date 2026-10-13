@@ -5,17 +5,19 @@ use super::*;
 #[test]
 fn test_cumsum_autograd() {
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = cumsum(&x, 0);
+    let y = cumsum(&x, 0).expect("invariant: test operation succeeds");
     let y_s = y.tensor.as_slice();
     assert!((y_s[0] - 1.0).abs() < 1e-10);
     assert!((y_s[1] - 3.0).abs() < 1e-10);
     assert!((y_s[2] - 6.0).abs() < 1e-10);
     assert!((y_s[3] - 10.0).abs() < 1e-10);
 
-    let seed = Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend);
+    let seed = Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
@@ -36,18 +38,23 @@ fn test_var_autograd_matches_analytic() {
     // x = [1,2,3,4]: mean = 2.5; unbiased var = ((1.5)^2+(0.5)^2+(0.5)^2+(1.5)^2)/3
     // = 5/3; biased divides by 4 -> 5/4.
     let data = [1.0f64, 2.0, 3.0, 4.0];
-    let x = Var::new(Tensor::from_slice_on(vec![4], &data, &backend), true);
+    let x = Var::new(
+        Tensor::from_slice_on(vec![4], &data, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let (v, mu) = var_mean(&x, true);
+    let (v, mu) = var_mean(&x, true).expect("invariant: test operation succeeds");
     assert!((mu.tensor.as_slice()[0] - 2.5).abs() < 1e-14, "mean");
     assert!(
         (v.tensor.as_slice()[0] - 5.0 / 3.0).abs() < 1e-14,
         "unbiased var: {}",
         v.tensor.as_slice()[0]
     );
-    let vb = var(&x, false);
+    let vb = var(&x, false).expect("invariant: test operation succeeds");
     assert!((vb.tensor.as_slice()[0] - 1.25).abs() < 1e-14, "biased var");
-    let s = std_dev(&x, true);
+    let s = std_dev(&x, true).expect("invariant: test operation succeeds");
     assert!(
         (s.tensor.as_slice()[0] - (5.0f64 / 3.0).sqrt()).abs() < 1e-14,
         "std"
@@ -77,13 +84,25 @@ fn test_var_autograd_matches_analytic() {
         let mut dm = data;
         dm[i] -= h;
         let vp = var(
-            &Var::new(Tensor::from_slice_on(vec![4], &dp, &backend), false),
+            &Var::new(
+                Tensor::from_slice_on(vec![4], &dp, &backend)
+                    .expect("invariant: test backend operation succeeds"),
+                false,
+            )
+            .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test operation succeeds");
         let vm = var(
-            &Var::new(Tensor::from_slice_on(vec![4], &dm, &backend), false),
+            &Var::new(
+                Tensor::from_slice_on(vec![4], &dm, &backend)
+                    .expect("invariant: test backend operation succeeds"),
+                false,
+            )
+            .expect("invariant: test backend operation succeeds"),
             true,
-        );
+        )
+        .expect("invariant: test operation succeeds");
         let numeric = (vp.tensor.as_slice()[0] - vm.tensor.as_slice()[0]) / (2.0 * h);
         assert!(
             (numeric - gx[i]).abs() < 1e-8,
@@ -98,9 +117,14 @@ fn test_var_axis_autograd_matches_analytic() {
     let backend = MoiraiBackend::new();
     // [[1,2,3],[4,6,8]] axis=1: means [2,6]; unbiased vars [1, 4].
     let data = [1.0f64, 2.0, 3.0, 4.0, 6.0, 8.0];
-    let x = Var::new(Tensor::from_slice_on(vec![2, 3], &data, &backend), true);
+    let x = Var::new(
+        Tensor::from_slice_on(vec![2, 3], &data, &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
 
-    let (v, mu) = var_mean_axis(&x, 1, true);
+    let (v, mu) = var_mean_axis(&x, 1, true).expect("invariant: test operation succeeds");
     assert_eq!(v.tensor.shape(), &[2, 1], "keepdim shape");
     let vs = v.tensor.as_slice().to_vec();
     let ms = mu.tensor.as_slice().to_vec();
@@ -132,10 +156,12 @@ fn test_prod_autograd_matches_analytic() {
     let backend = MoiraiBackend::new();
     // prod([1,2,3,4]) = 24; d prod/dx_i = prod_{j != i} x_j = [24, 12, 8, 6].
     let x = Var::new(
-        Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend),
+        Tensor::from_slice_on(vec![4], &[1.0f64, 2.0, 3.0, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let y = coeus_autograd::prod(&x);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let y = coeus_autograd::prod(&x).expect("invariant: test operation succeeds");
     assert!((y.tensor.as_slice()[0] - 24.0).abs() < 1e-14, "fwd");
     y.backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -148,10 +174,12 @@ fn test_prod_autograd_matches_analytic() {
     // Adversarial zero: prod([2,0,3]) = 0; only the zero position has a
     // non-zero gradient (d/dx_1 = 2*3 = 6) — exact, not epsilon-fudged.
     let z = Var::new(
-        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend),
+        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let yz = coeus_autograd::prod(&z);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let yz = coeus_autograd::prod(&z).expect("invariant: test operation succeeds");
     assert_eq!(yz.tensor.as_slice()[0], 0.0, "fwd zero");
     yz.backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -167,12 +195,17 @@ fn test_prod_autograd_matches_analytic() {
 
     // A non-unit seed scales the exact one-zero derivative.
     let seeded = Var::new(
-        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend),
+        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let seeded_product = coeus_autograd::prod(&seeded);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let seeded_product = coeus_autograd::prod(&seeded).expect("invariant: test operation succeeds");
     seeded_product
-        .backward_with_seed(Tensor::from_slice_on(vec![1], &[7.0], &backend))
+        .backward_with_seed(
+            Tensor::from_slice_on(vec![1], &[7.0], &backend)
+                .expect("invariant: test backend operation succeeds"),
+        )
         .expect("invariant: seeded product backward completes");
     let seeded_grad = seeded.grad().unwrap();
     for (i, want) in [0.0, 42.0, 0.0].iter().enumerate() {
@@ -185,10 +218,13 @@ fn test_prod_autograd_matches_analytic() {
 
     // Two zeros annihilate every partial product, so every derivative is zero.
     let multiple = Var::new(
-        Tensor::from_slice_on(vec![5], &[2.0f64, 0.0, 3.0, 0.0, 5.0], &backend),
+        Tensor::from_slice_on(vec![5], &[2.0f64, 0.0, 3.0, 0.0, 5.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
-    let multiple_product = coeus_autograd::prod(&multiple);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let multiple_product =
+        coeus_autograd::prod(&multiple).expect("invariant: test operation succeeds");
     multiple_product
         .backward()
         .expect("invariant: multi-zero product backward completes");
@@ -205,9 +241,11 @@ fn test_cumprod_backward_exact_at_zeros() {
     // Zero-free regression: x = [1,2,3], out = [1,2,6], ones seed.
     // grad_i = Σ_{j≥i} ∏_{k≤j,k≠i} x_k: [1+2+6, 1+3, 2] = [9, 4, 2].
     let x = Var::new(
-        Tensor::from_slice_on(vec![3], &[1.0f64, 2.0, 3.0], &backend),
+        Tensor::from_slice_on(vec![3], &[1.0f64, 2.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = cumsum_free_cumprod(&x);
     y.backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -224,9 +262,11 @@ fn test_cumprod_backward_exact_at_zeros() {
     // dx0 = d out0/dx0 = 1 (later outs carry x1 = 0);
     // dx1 = x0 + x0·x2 = 2 + 6 = 8; dx2 = x0·x1 = 0.
     let x = Var::new(
-        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend),
+        Tensor::from_slice_on(vec![3], &[2.0f64, 0.0, 3.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = cumsum_free_cumprod(&x);
     y.backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -243,9 +283,11 @@ fn test_cumprod_backward_exact_at_zeros() {
     // and after it; the first zero's gradient sums only up to the second:
     // dx = [1, 2 + 2·3, 0, 0, 0] = [1, 8, 0, 0, 0].
     let x = Var::new(
-        Tensor::from_slice_on(vec![5], &[2.0f64, 0.0, 3.0, 0.0, 5.0], &backend),
+        Tensor::from_slice_on(vec![5], &[2.0f64, 0.0, 3.0, 0.0, 5.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = cumsum_free_cumprod(&x);
     y.backward()
         .expect("invariant: valid autograd fixture completes backward");
@@ -261,5 +303,6 @@ fn test_cumprod_backward_exact_at_zeros() {
 
 /// Sum the cumprod so backward seeds ones across all cumprod outputs.
 fn cumsum_free_cumprod(x: &Var<f64, MoiraiBackend>) -> Var<f64, MoiraiBackend> {
-    coeus_autograd::sum(&coeus_autograd::cumprod(x, 0))
+    coeus_autograd::sum(&coeus_autograd::cumprod(x, 0).expect("invariant: test operation succeeds"))
+        .expect("invariant: test operation succeeds")
 }

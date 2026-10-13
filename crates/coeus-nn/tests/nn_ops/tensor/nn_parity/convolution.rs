@@ -17,13 +17,28 @@ fn test_conv1d_parity() {
     let b_data = vec![0.1f32, -0.1, 0.5];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 2, 4], &x_data), true);
-    let mut conv_coeus = CoeusConv1d::<f32, SequentialBackend>::with_params(2, 3, 3, 1, 0, 1, true);
-    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![3, 2, 3], &w_data), true);
-    conv_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![3], &b_data),
+    let x_coeus = CoeusVar::new(
+        CoeusTensor::from_slice(vec![1, 2, 4], &x_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    ));
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mut conv_coeus = CoeusConv1d::<f32, SequentialBackend>::with_params(2, 3, 3, 1, 0, 1, true)
+        .expect("valid Conv1d dimensions");
+    conv_coeus.weight = CoeusVar::new(
+        CoeusTensor::from_slice(vec![3, 2, 3], &w_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    conv_coeus.bias = Some(
+        CoeusVar::new(
+            CoeusTensor::from_slice(vec![3], &b_data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds"),
+    );
 
     // Coeus forward
     let out_coeus = conv_coeus.forward(&x_coeus).expect("valid Conv1d input");
@@ -100,13 +115,28 @@ fn test_conv2d_parity() {
     let b_data = vec![0.1f32, -0.2];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 2, 3, 3], &x_data), true);
-    let mut conv_coeus = CoeusConv2d::<f32, SequentialBackend>::with_params(2, 2, 2, 1, 0, 1, true);
-    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![2, 2, 2, 2], &w_data), true);
-    conv_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![2], &b_data),
+    let x_coeus = CoeusVar::new(
+        CoeusTensor::from_slice(vec![1, 2, 3, 3], &x_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    ));
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mut conv_coeus = CoeusConv2d::<f32, SequentialBackend>::with_params(2, 2, 2, 1, 0, 1, true)
+        .expect("valid Conv2d dimensions");
+    conv_coeus.weight = CoeusVar::new(
+        CoeusTensor::from_slice(vec![2, 2, 2, 2], &w_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    conv_coeus.bias = Some(
+        CoeusVar::new(
+            CoeusTensor::from_slice(vec![2], &b_data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds"),
+    );
 
     // Coeus forward
     let out_coeus = conv_coeus.forward(&x_coeus).expect("valid Conv2d input");
@@ -187,13 +217,28 @@ fn test_conv3d_parity() {
     let b_data = vec![0.1f32];
 
     // Coeus setup
-    let x_coeus = CoeusVar::new(CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &x_data), true);
-    let mut conv_coeus = CoeusConv3d::<f32, SequentialBackend>::with_params(1, 1, 2, 1, 0, 1, true);
-    conv_coeus.weight = CoeusVar::new(CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &w_data), true);
-    conv_coeus.bias = Some(CoeusVar::new(
-        CoeusTensor::from_slice(vec![1], &b_data),
+    let x_coeus = CoeusVar::new(
+        CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &x_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    ));
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mut conv_coeus = CoeusConv3d::<f32, SequentialBackend>::with_params(1, 1, 2, 1, 0, 1, true)
+        .expect("valid Conv3d dimensions");
+    conv_coeus.weight = CoeusVar::new(
+        CoeusTensor::from_slice(vec![1, 1, 2, 2, 2], &w_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    conv_coeus.bias = Some(
+        CoeusVar::new(
+            CoeusTensor::from_slice(vec![1], &b_data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds"),
+    );
 
     // Coeus forward
     let out_coeus = conv_coeus.forward(&x_coeus).expect("valid Conv3d input");

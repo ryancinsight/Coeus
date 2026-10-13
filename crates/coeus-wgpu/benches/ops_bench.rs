@@ -26,23 +26,33 @@ fn bench_matmul(c: &mut Criterion) {
     for &sz in &[128usize, 512] {
         let a = fill(sz * sz, 1.0);
         let b = fill(sz * sz, 2.0);
-        let a_cpu = Tensor::<f32, SequentialBackend>::from_slice([sz, sz], &a);
-        let b_cpu = Tensor::<f32, SequentialBackend>::from_slice([sz, sz], &b);
-        let a_g = a_cpu.to_backend_on(&seq, &wgpu);
-        let b_g = b_cpu.to_backend_on(&seq, &wgpu);
+        let a_cpu = Tensor::<f32, SequentialBackend>::from_slice([sz, sz], &a)
+            .expect("invariant: test backend operation succeeds");
+        let b_cpu = Tensor::<f32, SequentialBackend>::from_slice([sz, sz], &b)
+            .expect("invariant: test backend operation succeeds");
+        let a_g = a_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let b_g = b_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
         let id = format!("{sz}x{sz}");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                black_box(coeus_ops::matmul(
-                    black_box(&a_cpu),
-                    black_box(&b_cpu),
-                    &seq,
-                ))
+                black_box(
+                    coeus_ops::matmul(black_box(&a_cpu), black_box(&b_cpu), &seq)
+                        .expect("invariant: test operation succeeds"),
+                )
             });
         });
         group.bench_with_input(BenchmarkId::new("Coeus WGPU", &id), &id, |bn, _| {
-            bn.iter(|| black_box(coeus_ops::matmul(black_box(&a_g), black_box(&b_g), &wgpu)));
+            bn.iter(|| {
+                black_box(
+                    coeus_ops::matmul(black_box(&a_g), black_box(&b_g), &wgpu)
+                        .expect("invariant: test operation succeeds"),
+                )
+            });
         });
     }
     group.finish();
@@ -60,10 +70,16 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
     for &(n, c_in, h, w, c_out, k) in CASES {
         let input = fill(n * c_in * h * w, 1.0);
         let weight = fill(c_in * c_out * k * k, 3.0);
-        let in_cpu = Tensor::<f32, SequentialBackend>::from_slice([n, c_in, h, w], &input);
-        let w_cpu = Tensor::<f32, SequentialBackend>::from_slice([c_in, c_out, k, k], &weight);
-        let in_g = in_cpu.to_backend_on(&seq, &wgpu);
-        let w_g = w_cpu.to_backend_on(&seq, &wgpu);
+        let in_cpu = Tensor::<f32, SequentialBackend>::from_slice([n, c_in, h, w], &input)
+            .expect("invariant: test backend operation succeeds");
+        let w_cpu = Tensor::<f32, SequentialBackend>::from_slice([c_in, c_out, k, k], &weight)
+            .expect("invariant: test backend operation succeeds");
+        let in_g = in_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
+        let w_g = w_cpu
+            .to_backend_on(&seq, &wgpu)
+            .expect("invariant: test backend operation succeeds");
         let id = format!("{n}x{c_in}x{h}x{w}_k{k}");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {

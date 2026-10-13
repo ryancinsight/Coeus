@@ -8,9 +8,11 @@ use coeus_tensor::Tensor;
 fn var(data: &[f64]) -> Var<f64, MoiraiBackend> {
     let backend = MoiraiBackend::new();
     Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![data.len()], data, &backend),
+        Tensor::<f64, MoiraiBackend>::from_slice_on(vec![data.len()], data, &backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
     )
+    .expect("invariant: test backend operation succeeds")
 }
 
 #[test]
@@ -20,9 +22,10 @@ fn test_maximum_forward_and_backward() {
     //   grad_a = [0,1,1], grad_b = [1,0,0]
     let a = var(&[1.0, 5.0, 3.0]);
     let b = var(&[4.0, 2.0, 3.0]);
-    let out = maximum(&a, &b);
+    let out = maximum(&a, &b).expect("invariant: test operation succeeds");
     assert_eq!(out.tensor.as_slice(), &[4.0, 5.0, 3.0], "fwd maximum");
     sum(&out)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(a.grad().unwrap().as_slice(), &[0.0, 1.0, 1.0], "grad_a max");
@@ -36,9 +39,10 @@ fn test_minimum_forward_and_backward() {
     //   grad_a = [1,0,1], grad_b = [0,1,0]
     let a = var(&[1.0, 5.0, 3.0]);
     let b = var(&[4.0, 2.0, 3.0]);
-    let out = minimum(&a, &b);
+    let out = minimum(&a, &b).expect("invariant: test operation succeeds");
     assert_eq!(out.tensor.as_slice(), &[1.0, 2.0, 3.0], "fwd minimum");
     sum(&out)
+        .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     assert_eq!(a.grad().unwrap().as_slice(), &[1.0, 0.0, 1.0], "grad_a min");
@@ -50,8 +54,8 @@ fn test_maximum_minimum_partition_identity() {
     // For any a, b: maximum(a,b) + minimum(a,b) == a + b elementwise.
     let a = var(&[-2.0, 7.0, 0.5, 9.0]);
     let b = var(&[3.0, -1.0, 0.5, 4.0]);
-    let mx = maximum(&a, &b);
-    let mn = minimum(&a, &b);
+    let mx = maximum(&a, &b).expect("invariant: test operation succeeds");
+    let mn = minimum(&a, &b).expect("invariant: test operation succeeds");
     for i in 0..4 {
         let sum_mm = mx.tensor.as_slice()[i] + mn.tensor.as_slice()[i];
         let sum_ab = a.tensor.as_slice()[i] + b.tensor.as_slice()[i];

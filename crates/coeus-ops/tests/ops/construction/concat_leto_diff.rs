@@ -18,6 +18,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     Tensor::from_slice_on(shape.to_vec(), data, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
@@ -56,11 +57,11 @@ where
     .map(T::from_f64)
     .collect();
 
-    let axis0 = coeus_ops::cat(&[&first, &second], 0);
+    let axis0 = coeus_ops::cat(&[&first, &second], 0).expect("invariant: test operation succeeds");
     assert_eq!(axis0.shape(), &[4, 3]);
     assert_values(axis0.as_slice(), &expected_axis0, "axis-0 concat");
 
-    let axis1 = coeus_ops::cat(&[&first, &second], 1);
+    let axis1 = coeus_ops::cat(&[&first, &second], 1).expect("invariant: test operation succeeds");
     assert_eq!(axis1.shape(), &[2, 6]);
     assert_values(axis1.as_slice(), &expected_axis1, "axis-1 concat");
 }

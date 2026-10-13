@@ -1,4 +1,4 @@
-use crate::communicator::Communicator;
+use crate::communicator::{CollectiveError, Communicator};
 use crate::ops::Sum;
 use coeus_autograd::Var;
 use coeus_core::{ComputeBackend, Scalar};
@@ -39,14 +39,23 @@ pub enum GradientSyncError<B, C> {
 ///     handles.push(thread::spawn(move || {
 ///         let backend = SequentialBackend::new();
 ///         let rank = comm.rank() as f32;
-///         let x = Var::new(Tensor::zeros_on([2], &backend), true);
-///         x.set_grad(Tensor::from_slice_on([2], &[rank + 1.0, rank + 10.0], &backend));
+///         let x = Var::new(
+///             Tensor::zeros_on([2], &backend)
+///                 .expect("invariant: example gradient shape is valid"),
+///             true,
+///         ).expect("invariant: example gradient buffer allocation succeeds");
+///         x.set_grad(
+///             Tensor::from_slice_on([2], &[rank + 1.0, rank + 10.0], &backend)
+///                 .expect("invariant: example shape matches rank-local data"),
+///         );
 ///
 ///         let mut params = vec![x];
 ///         synchronize_gradients(&mut params, &comm)
 ///             .expect("valid distributed gradient layout");
 ///
-///         let synced_grad = params[0].grad().unwrap();
+///         let synced_grad = params[0]
+///             .grad()
+///             .expect("invariant: tracked example parameter retains its gradient");
 ///         let data = synced_grad.as_slice();
 ///         // (1+2)/2 = 1.5, (10+11)/2 = 10.5
 ///         assert_eq!(data[0], 1.5);
@@ -76,7 +85,8 @@ pub fn synchronize_gradients<
     }
     let backend = B::default();
     let scale_val = T::from_f64(1.0 / size as f64);
-    let scale_tensor = Tensor::full_on([1], scale_val, &backend);
+    let scale_tensor =
+        Tensor::full_on([1], scale_val, &backend).map_err(GradientSyncError::Backend)?;
 
     for param in params {
         if let Some(ref g) = param.grad {
@@ -84,7 +94,12 @@ pub fn synchronize_gradients<
 
             // All-reduce (sum) across processes
             comm.all_reduce::<T, B, Sum>(grad_tensor, &backend)
-                .map_err(GradientSyncError::Communicator)?;
+                .map_err(|error| match error {
+                    CollectiveError::Communicator(source) => {
+                        GradientSyncError::Communicator(source)
+                    }
+                    CollectiveError::Backend(source) => GradientSyncError::Backend(source),
+                })?;
 
             // Scale by 1 / world_size
             coeus_ops::mul_assign(grad_tensor, &scale_tensor, &backend)

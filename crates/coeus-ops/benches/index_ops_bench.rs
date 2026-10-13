@@ -60,6 +60,7 @@ const SHAPES: [(&str, [usize; 3]); 2] = [("small", [8, 16, 8]), ("large", [32, 6
 
 fn tensor(shape: &[usize], values: &[f64]) -> Tensor<f64, SequentialBackend> {
     Tensor::from_slice_on(shape.to_vec(), values, &SequentialBackend::new())
+        .expect("invariant: test backend operation succeeds")
 }
 
 /// Ramp so every element is distinct — a wrong index cannot alias a right one.
@@ -83,7 +84,8 @@ fn bench_gather(c: &mut Criterion, label: &str, shape: [usize; 3]) {
 
     c.bench_function(&format!("gather/dim1/{label}"), |b| {
         b.iter(|| {
-            let out = coeus_ops::gather(black_box(&input), 1, black_box(&index), &backend);
+            let out = coeus_ops::gather(black_box(&input), 1, black_box(&index), &backend)
+                .expect("invariant: test operation succeeds");
             black_box(out)
         });
     });
@@ -98,7 +100,8 @@ fn bench_index_select(c: &mut Criterion, label: &str, shape: [usize; 3]) {
 
     c.bench_function(&format!("index_select/dim1/{label}"), |b| {
         b.iter(|| {
-            let out = coeus_ops::index_select(black_box(&input), 1, black_box(&index), &backend);
+            let out = coeus_ops::index_select(black_box(&input), 1, black_box(&index), &backend)
+                .expect("invariant: test operation succeeds");
             black_box(out)
         });
     });
@@ -123,7 +126,8 @@ fn bench_scatter_add(c: &mut Criterion, label: &str, shape: [usize; 3]) {
                 black_box(&index),
                 black_box(&src),
                 &backend,
-            );
+            )
+            .expect("invariant: test operation succeeds");
             black_box(out)
         });
     });
@@ -136,7 +140,8 @@ fn bench_repeat_interleave(c: &mut Criterion, label: &str, shape: [usize; 3]) {
 
     c.bench_function(&format!("repeat_interleave/dim1/{label}"), |b| {
         b.iter(|| {
-            let out = coeus_ops::repeat_interleave(black_box(&input), 2, 1, &backend);
+            let out = coeus_ops::repeat_interleave(black_box(&input), 2, 1, &backend)
+                .expect("invariant: test operation succeeds");
             black_box(out)
         });
     });
@@ -149,7 +154,8 @@ fn bench_topk(c: &mut Criterion, label: &str, shape: [usize; 3]) {
 
     c.bench_function(&format!("topk/dim1/{label}"), |b| {
         b.iter(|| {
-            let out = coeus_ops::topk(black_box(&input), k, 1, true);
+            let out = coeus_ops::topk(black_box(&input), k, 1, true)
+                .expect("invariant: test operation succeeds");
             black_box(out)
         });
     });

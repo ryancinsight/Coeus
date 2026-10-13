@@ -27,7 +27,8 @@ where
     }
 }
 
-impl<T> coeus_ops::MatmulOps<T> for WgpuBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::MatmulOps<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
     WgpuDenseProductOps: DenseProductOps<WgpuDevice, T>,

@@ -30,9 +30,11 @@ fn test_sequential_container() {
     // Forward pass
     // Input: [batch=2, in_features=3]
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, -1.0, -2.0, -3.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, -1.0, -2.0, -3.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = seq.forward(&input).expect("valid Sequential input");
     assert_eq!(output.tensor.shape(), &[2, 2]);

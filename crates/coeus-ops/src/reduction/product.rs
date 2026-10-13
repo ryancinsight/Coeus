@@ -25,9 +25,10 @@ pub fn prod_axis<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Defaul
     let mut out_shape = a.shape_cloned();
     out_shape[axis] = 1;
 
-    let mut out = Tensor::alloc_on(out_shape, backend);
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(out_shape, backend) }?;
 
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.reduce_prod(a.storage(), a.layout(), axis, out_storage, out_layout)?;
 
     Ok(out)
@@ -45,7 +46,8 @@ pub fn prod_axis<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Defaul
 /// use coeus_tensor::Tensor;
 ///
 /// let backend = SequentialBackend::new();
-/// let input = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0]);
+/// let input = Tensor::<f32, SequentialBackend>::from_slice([2, 2], &[1.0, 2.0, 3.0, 4.0])
+///     .expect("example tensor allocation succeeds");
 /// let result = prod_tensor(&input, &backend).expect("valid product inputs");
 /// assert_eq!(result.as_slice(), &[24.0]);
 /// ```
@@ -74,9 +76,9 @@ pub fn prod_tensor<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Defa
 pub fn prod<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
-) -> T {
-    let reduced = prod_tensor(a, backend).expect("prod: provider reduction failed");
+) -> Result<T, B::Error> {
+    let reduced = prod_tensor(a, backend)?;
     let mut scalar = [T::ZERO];
-    backend.copy_to_host(reduced.storage(), &mut scalar);
-    scalar[0]
+    backend.copy_to_host(reduced.storage(), &mut scalar)?;
+    Ok(scalar[0])
 }

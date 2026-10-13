@@ -138,15 +138,16 @@ impl PyLSTMCell {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.w_ih.bind(py).borrow().zero_grad();
-        self.w_hh.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.w_ih.bind(py).borrow().zero_grad()?;
+        self.w_hh.bind(py).borrow().zero_grad()?;
         if let Some(ref b) = self.b_ih {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
         if let Some(ref b) = self.b_hh {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 }
 
@@ -271,15 +272,16 @@ impl PyGRUCell {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.w_ih.bind(py).borrow().zero_grad();
-        self.w_hh.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.w_ih.bind(py).borrow().zero_grad()?;
+        self.w_hh.bind(py).borrow().zero_grad()?;
         if let Some(ref b) = self.b_ih {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
         if let Some(ref b) = self.b_hh {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 }
 
@@ -429,15 +431,16 @@ impl PyRNNCell {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.w_ih.bind(py).borrow().zero_grad();
-        self.w_hh.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.w_ih.bind(py).borrow().zero_grad()?;
+        self.w_hh.bind(py).borrow().zero_grad()?;
         if let Some(ref b) = self.b_ih {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
         if let Some(ref b) = self.b_hh {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 }
 

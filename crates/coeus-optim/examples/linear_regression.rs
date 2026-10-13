@@ -18,7 +18,7 @@
 )]
 
 use coeus_autograd::{add, matmul, mean, mul, sub, Parameter, Var};
-use coeus_core::SequentialBackend;
+use coeus_core::{BackendError, SequentialBackend};
 use coeus_optim::{Optimizer, SGD};
 use coeus_tensor::Tensor;
 
@@ -27,7 +27,7 @@ type B = SequentialBackend;
 const N: usize = 64; // samples
 const D: usize = 3; // features
 
-fn main() {
+fn main() -> Result<(), BackendError> {
     // Ground-truth parameters to recover.
     let w_true = [2.0f32, -3.0, 0.5];
     let b_true = 1.0f32;
@@ -52,28 +52,46 @@ fn main() {
         .collect();
 
     // Constants (no grad) and trainable parameters (zero-initialized).
-    let x = Var::new(Tensor::<f32, B>::from_slice(vec![N, D], &x_data), false);
-    let y = Var::new(Tensor::<f32, B>::from_slice(vec![N, 1], &y_data), false);
-    let w = Var::new(Tensor::<f32, B>::zeros(vec![D, 1]), true);
-    let b = Var::new(Tensor::<f32, B>::zeros(vec![1, 1]), true); // broadcasts over [N, 1]
+    let x = Var::new(
+        Tensor::<f32, B>::from_slice(vec![N, D], &x_data)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let y = Var::new(
+        Tensor::<f32, B>::from_slice(vec![N, 1], &y_data)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let w = Var::new(
+        Tensor::<f32, B>::zeros(vec![D, 1]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let b = Var::new(
+        Tensor::<f32, B>::zeros(vec![1, 1]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds"); // broadcasts over [N, 1]
 
     let mut opt = SGD::new(
         vec![Parameter::new(w, "weight"), Parameter::new(b, "bias")],
         0.1f32,
         0.9f32,
-    );
+    )
+    .expect("invariant: optimizer state allocation succeeds");
 
     let mut first_loss = 0.0f32;
     let mut last_loss = 0.0f32;
     for epoch in 0..200 {
-        opt.zero_grad();
+        opt.zero_grad()?;
         // pred = X·w + b   (b: [1,1] broadcasts to [N,1])
-        let pred = add(&matmul(&x, &opt.params[0]), &opt.params[1]);
-        let diff = sub(&pred, &y);
-        let loss = mean(&mul(&diff, &diff)); // MSE
-        loss.backward()
-            .expect("invariant: valid autograd fixture completes backward");
-        opt.step().expect("optimizer step");
+        let pred = add(&matmul(&x, &opt.params[0])?, &opt.params[1])?;
+        let diff = sub(&pred, &y)?;
+        let loss = mean(&mul(&diff, &diff)?)?; // MSE
+        loss.backward()?;
+        opt.step()?;
 
         last_loss = loss.tensor.as_slice()[0];
         if epoch == 0 {
@@ -111,4 +129,5 @@ fn main() {
         "\nconverged: loss reduced {:.0}x; parameters recovered",
         first_loss / last_loss
     );
+    Ok(())
 }

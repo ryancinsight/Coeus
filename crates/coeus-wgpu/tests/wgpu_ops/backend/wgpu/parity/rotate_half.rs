@@ -11,10 +11,14 @@ fn rotate_half_dispatches_with_wgpu_parity() {
         [2, 4],
         &[1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         &seq(),
-    );
-    let input = Var::new(to_gpu(&cpu), true);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let input = Var::new(to_gpu(&cpu), true).expect("invariant: test backend operation succeeds");
     let output = rotate_half(&input).expect("WGPU rotate-half dispatch");
-    sum(&output).backward().expect("WGPU rotate-half backward");
+    sum(&output)
+        .expect("WGPU rotate-half reduction")
+        .backward()
+        .expect("WGPU rotate-half backward");
     assert_eq!(
         to_cpu(&output.tensor).as_slice(),
         &[-3.0, -4.0, 1.0, 2.0, -7.0, -8.0, 5.0, 6.0]

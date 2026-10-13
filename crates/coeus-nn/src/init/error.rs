@@ -91,3 +91,15 @@ where
         source: E,
     },
 }
+
+impl<E> From<E> for InitializationError<E>
+where
+    E: Error + 'static,
+{
+    fn from(source: E) -> Self {
+        Self::Backend {
+            operation: "parameter construction",
+            source,
+        }
+    }
+}

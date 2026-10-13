@@ -76,21 +76,29 @@ impl BackwardNode<f32, MoiraiBackend> for TestNode {
 }
 
 fn test_graph() -> Arc<dyn BackwardNode<f32, MoiraiBackend>> {
-    let leaf = Var::new(Tensor::zeros([1]), true);
+    let leaf = Var::new(
+        Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let child: Arc<dyn BackwardNode<f32, MoiraiBackend>> = Arc::new(TestNode {
         name: "child",
-        output_grad: Arc::new(GradBuffer::new(Tensor::zeros([1]))),
+        output_grad: Arc::new(GradBuffer::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+        )),
         inputs: vec![leaf],
     });
     let child_output = Var::with_creator(
-        Tensor::zeros([1]),
+        Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
         Some(Arc::clone(child.output_grad())),
         child,
     );
 
     Arc::new(TestNode {
         name: "root",
-        output_grad: Arc::new(GradBuffer::new(Tensor::zeros([1]))),
+        output_grad: Arc::new(GradBuffer::new(
+            Tensor::zeros([1]).expect("invariant: test backend operation succeeds"),
+        )),
         inputs: vec![child_output],
     })
 }

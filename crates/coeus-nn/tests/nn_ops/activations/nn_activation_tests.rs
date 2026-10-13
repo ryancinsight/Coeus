@@ -10,12 +10,14 @@ use coeus_tensor::{Tensor, Transpose};
 fn test_elu_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // Test Functional
-    let output = elu(&input);
+    let output = elu(&input).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[5]);
     let out_slice = output.tensor.as_slice();
 
@@ -40,9 +42,11 @@ fn test_elu_activation() {
 
     // Test Module
     let input_mod = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let elu_mod = ELU;
     let output_mod = elu_mod.forward(&input_mod).expect("valid ELU input");
     assert_eq!(output_mod.tensor.shape(), &[2, 2]);
@@ -53,12 +57,14 @@ fn test_elu_activation() {
 fn test_softplus_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // Test Functional
-    let output = softplus(&input);
+    let output = softplus(&input).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[5]);
     let out_slice = output.tensor.as_slice();
 
@@ -83,9 +89,11 @@ fn test_softplus_activation() {
 
     // Test Module
     let input_mod = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let softplus_mod = Softplus;
     let output_mod = softplus_mod
         .forward(&input_mod)
@@ -101,12 +109,14 @@ fn test_softplus_activation() {
 fn test_gelu_tanh_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     // Test Functional
-    let output = gelu_tanh(&input);
+    let output = gelu_tanh(&input).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[5]);
     let out_slice = output.tensor.as_slice();
 
@@ -138,9 +148,11 @@ fn test_gelu_tanh_activation() {
 
     // Test Module
     let input_mod = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let gelu_tanh_mod = GeLUTanh;
     let output_mod = gelu_tanh_mod
         .forward(&input_mod)
@@ -156,13 +168,15 @@ fn test_gelu_tanh_activation() {
 fn test_leaky_relu_activation() {
     let input_data = vec![-2.0f64, -1.0, 0.0, 1.0, 2.0];
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data),
+        Tensor::<f64, MoiraiBackend>::from_slice([5], &input_data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let slope = 0.1;
 
     // Test Functional
-    let output = leaky_relu(&input, slope);
+    let output = leaky_relu(&input, slope).expect("invariant: test operation succeeds");
     assert_eq!(output.tensor.shape(), &[5]);
     let out_slice = output.tensor.as_slice();
 
@@ -191,9 +205,11 @@ fn test_leaky_relu_activation() {
 
     // Test Module
     let input_mod = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 2], &[-1.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let leaky_mod = LeakyReLU::new(0.05);
     let output_mod = leaky_mod
         .forward(&input_mod)
@@ -208,12 +224,13 @@ fn test_leaky_relu_activation() {
 #[test]
 fn test_non_contiguous_activations() {
     let input_raw =
-        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[-2.0f64, -1.0, 0.0, 1.0, 2.0, 3.0]);
+        Tensor::<f64, MoiraiBackend>::from_slice([2, 3], &[-2.0f64, -1.0, 0.0, 1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
     let input_t = input_raw.transpose(); // shape [3, 2], non-contiguous
-    let input = Var::new(input_t, true);
+    let input = Var::new(input_t, true).expect("invariant: test backend operation succeeds");
 
     // Test ELU on transposed view
-    let output_elu = elu(&input);
+    let output_elu = elu(&input).expect("invariant: test operation succeeds");
     assert_eq!(output_elu.tensor.shape(), &[3, 2]);
     output_elu
         .backward()
@@ -221,8 +238,9 @@ fn test_non_contiguous_activations() {
     assert!(input.grad().is_some());
 
     // Reset gradient for next test
-    let input2 = Var::new(input_raw.transpose(), true);
-    let output_leaky = leaky_relu(&input2, 0.2);
+    let input2 =
+        Var::new(input_raw.transpose(), true).expect("invariant: test backend operation succeeds");
+    let output_leaky = leaky_relu(&input2, 0.2).expect("invariant: test operation succeeds");
     assert_eq!(output_leaky.tensor.shape(), &[3, 2]);
     output_leaky
         .backward()
@@ -235,13 +253,15 @@ fn test_glu_forward_and_gradient() {
     // input=[1,2,3,4], dim=0 -> halves a=[1,2], b=[3,4]; glu = a * sigmoid(b).
     // out = [1*sigma(3), 2*sigma(4)].
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([4], &[1.0, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let sig = |x: f64| 1.0 / (1.0 + (-x).exp());
     let (s3, s4) = (sig(3.0), sig(4.0));
 
-    let out = glu(&input, 0);
+    let out = glu(&input, 0).expect("invariant: test operation succeeds");
     assert_eq!(out.tensor.shape(), &[2]);
     let o = out.tensor.as_slice();
     assert!((o[0] - 1.0 * s3).abs() < 1e-12, "glu[0]: {}", o[0]);
@@ -267,12 +287,17 @@ fn test_glu_forward_and_gradient() {
 fn test_glu_module_matches_function() {
     // The GLU module (parameter-free) must forward identically to the `glu` function.
     let data = [0.5f64, -1.0, 2.0, 0.25, 3.0, -0.5];
-    let input = Var::new(Tensor::<f64, MoiraiBackend>::from_slice([6], &data), true);
+    let input = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([6], &data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let module = GLU::new(0);
     assert!(Module::<f64, MoiraiBackend>::parameters(&module).is_empty());
 
     let via_module = module.forward(&input).expect("valid GLU input");
-    let via_fn = glu(&input, 0);
+    let via_fn = glu(&input, 0).expect("invariant: test operation succeeds");
     assert_eq!(via_module.tensor.shape(), via_fn.tensor.shape());
     for (i, (&m, &f)) in via_module
         .tensor
@@ -288,9 +313,11 @@ fn test_glu_module_matches_function() {
 #[test]
 fn glu_module_rejects_invalid_axis_and_odd_extent() {
     let input = Var::new(
-        Tensor::<f64, MoiraiBackend>::from_slice([3], &[1.0, 2.0, 3.0]),
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &[1.0, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let axis_error = match GLU::new(1).forward(&input) {
         Ok(_) => panic!("out-of-range GLU axis must fail"),

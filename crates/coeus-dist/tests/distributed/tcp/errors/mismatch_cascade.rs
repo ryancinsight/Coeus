@@ -3,7 +3,9 @@
 //! wait at once instead of after the I/O bound.
 
 use coeus_core::SequentialBackend;
-use coeus_dist::{Communicator, MeshDeadlines, TcpCommunicator, TcpMesh, TcpMeshError};
+use coeus_dist::{
+    CollectiveError, Communicator, MeshDeadlines, TcpCommunicator, TcpMesh, TcpMeshError,
+};
 use coeus_tensor::Tensor;
 use std::io::ErrorKind;
 use std::net::{Ipv4Addr, SocketAddr};
@@ -60,7 +62,8 @@ fn a_hostile_element_count_fails_the_root_and_every_rank_promptly() {
         let pending = [&root, &rank_2].map(|comm| {
             scope.spawn(move || {
                 let backend = SequentialBackend::new();
-                let mut tensor = Tensor::<f32, _>::zeros_on([ELEMENTS], &backend);
+                let mut tensor = Tensor::<f32, _>::zeros_on([ELEMENTS], &backend)
+                    .expect("invariant: test backend operation succeeds");
                 comm.broadcast(&mut tensor, 0, &backend)
             })
         });
@@ -79,13 +82,13 @@ fn a_hostile_element_count_fails_the_root_and_every_rank_promptly() {
     });
 
     let root_mismatch_address = match root_outcome {
-        Err(TcpMeshError::NumelMismatch {
+        Err(CollectiveError::Communicator(TcpMeshError::NumelMismatch {
             rank,
             peer,
             address,
             expected,
             received,
-        }) => {
+        })) => {
             assert_eq!(
                 (rank, peer, expected, received),
                 (0, 1, ELEMENTS as u64, u64::MAX)
@@ -96,11 +99,11 @@ fn a_hostile_element_count_fails_the_root_and_every_rank_promptly() {
         other => panic!("root: expected NumelMismatch, got {other:?}"),
     };
     let rank_2_report_address = match rank_2_outcome {
-        Err(TcpMeshError::PeerReportedMismatch {
+        Err(CollectiveError::Communicator(TcpMeshError::PeerReportedMismatch {
             rank,
             peer,
             address,
-        }) => {
+        })) => {
             assert_eq!((rank, peer), (2, 0));
             address
         }
@@ -142,9 +145,13 @@ fn an_all_gather_mismatch_ends_the_uninvolved_rank_s_wait() {
             .map(|(rank, comm)| {
                 scope.spawn(move || {
                     let backend = SequentialBackend::new();
-                    let tensor = Tensor::<f32, _>::zeros_on([lens[rank]], &backend);
+                    let tensor = Tensor::<f32, _>::zeros_on([lens[rank]], &backend)
+                        .expect("invariant: test backend operation succeeds");
                     let mut output = (0..3)
-                        .map(|_| Tensor::zeros_on([lens[rank]], &backend))
+                        .map(|_| {
+                            Tensor::zeros_on([lens[rank]], &backend)
+                                .expect("invariant: test backend operation succeeds")
+                        })
                         .collect::<Vec<_>>();
                     comm.all_gather(&tensor, &mut output, &backend)
                 })
@@ -158,13 +165,13 @@ fn an_all_gather_mismatch_ends_the_uninvolved_rank_s_wait() {
 
     for (rank, peer) in [(0, 1), (1, 0)] {
         let mismatch_address = match &outcomes[rank] {
-            Err(TcpMeshError::NumelMismatch {
+            Err(CollectiveError::Communicator(TcpMeshError::NumelMismatch {
                 rank: reporting,
                 peer: reported,
                 address,
                 expected,
                 received,
-            }) => {
+            })) => {
                 assert_eq!(
                     (*reporting, *reported, *expected, *received),
                     (rank, peer, lens[rank] as u64, lens[peer] as u64)
@@ -182,9 +189,9 @@ fn an_all_gather_mismatch_ends_the_uninvolved_rank_s_wait() {
         );
     }
     match &outcomes[2] {
-        Err(TcpMeshError::Recv {
+        Err(CollectiveError::Communicator(TcpMeshError::Recv {
             rank, peer, source, ..
-        }) => {
+        })) => {
             assert_eq!((*rank, *peer), (2, 0));
             assert_eq!(source.kind(), ErrorKind::UnexpectedEof);
         }

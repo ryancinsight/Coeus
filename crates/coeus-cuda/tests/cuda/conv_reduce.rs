@@ -11,23 +11,36 @@ fn test_cuda_backend_conv_and_reduce() {
     let seq = SequentialBackend::new();
 
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &a_data);
-    let a_cuda = a_seq.to_backend_on(&seq, &cuda_b);
+    let a_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 4], &a_data)
+        .expect("invariant: test backend operation succeeds");
+    let a_cuda = a_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
     let r_cuda = coeus_ops::sum_axis(&a_cuda, 1, &cuda_b).expect("valid CUDA sum axis");
-    let r_seq = r_cuda.to_backend_on(&cuda_b, &seq);
+    let r_seq = r_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
     assert_eq!(r_seq.as_slice(), &[10.0, 26.0]);
 
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
     let weight_data = vec![1.0f32, 2.0, 3.0, 4.0];
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data);
-    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data);
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
-    let weight_cuda = weight_seq.to_backend_on(&seq, &cuda_b);
+    let input_cuda = input_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let weight_cuda = weight_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut out_cuda_storage = cuda_b.allocate::<f32>(6);
+    // SAFETY: the dispatched conv1d overwrites every logical output element before the buffer is read.
+    let mut out_cuda_storage =
+        unsafe { cuda_b.allocate::<f32>(6) }.expect("invariant: test backend operation succeeds");
     let out_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
 
     coeus_ops::ConvOps::conv1d(
@@ -47,9 +60,13 @@ fn test_cuda_backend_conv_and_reduce() {
 
     let out_tensor_cuda: Tensor<f32, CudaBackend> =
         Tensor::from_raw_parts(out_cuda_storage, out_layout.clone());
-    let out_seq = out_tensor_cuda.to_backend_on(&cuda_b, &seq);
+    let out_seq = out_tensor_cuda
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut out_expected_storage = seq.allocate::<f32>(6);
+    // SAFETY: the dispatched conv1d overwrites every logical output element before the buffer is read.
+    let mut out_expected_storage =
+        unsafe { seq.allocate::<f32>(6) }.expect("invariant: test backend operation succeeds");
     coeus_ops::ConvOps::conv1d(
         &seq,
         input_seq.storage(),
@@ -97,20 +114,41 @@ fn test_cuda_conv_backward() {
     let input_data = vec![1.0f32, 1.0, 1.0, 1.0, 1.0, 1.0];
     let weight_data = vec![1.0f32, 2.0, 3.0, 4.0];
 
-    let grad_out_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &grad_out_data);
-    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data);
-    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data);
+    let grad_out_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &grad_out_data)
+        .expect("invariant: test backend operation succeeds");
+    let input_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![1, 2, 3], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let weight_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![2, 2, 1], &weight_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let grad_out_cuda = grad_out_seq.to_backend_on(&seq, &cuda_b);
-    let input_cuda = input_seq.to_backend_on(&seq, &cuda_b);
-    let weight_cuda = weight_seq.to_backend_on(&seq, &cuda_b);
+    let grad_out_cuda = grad_out_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let input_cuda = input_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
+    let weight_cuda = weight_seq
+        .to_backend_on(&seq, &cuda_b)
+        .expect("invariant: test backend transfer succeeds");
 
-    let mut gi_cuda = cuda_b.allocate::<f32>(6);
-    cuda_b.fill(&mut gi_cuda, 0.0);
-    let mut gw_cuda = cuda_b.allocate::<f32>(4);
-    cuda_b.fill(&mut gw_cuda, 0.0);
-    let mut gb_cuda = cuda_b.allocate::<f32>(2);
-    cuda_b.fill(&mut gb_cuda, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut gi_cuda =
+        unsafe { cuda_b.allocate::<f32>(6) }.expect("invariant: test backend operation succeeds");
+    cuda_b
+        .fill(&mut gi_cuda, 0.0)
+        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut gw_cuda =
+        unsafe { cuda_b.allocate::<f32>(4) }.expect("invariant: test backend operation succeeds");
+    cuda_b
+        .fill(&mut gw_cuda, 0.0)
+        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut gb_cuda =
+        unsafe { cuda_b.allocate::<f32>(2) }.expect("invariant: test backend operation succeeds");
+    cuda_b
+        .fill(&mut gb_cuda, 0.0)
+        .expect("invariant: test backend operation succeeds");
 
     let gi_layout = coeus_core::Layout::new(vec![1, 2, 3].into());
     let gw_layout = coeus_core::Layout::new(vec![2, 2, 1].into());
@@ -134,12 +172,21 @@ fn test_cuda_conv_backward() {
     )
     .expect("CUDA conv1d backward dispatch");
 
-    let mut gi_expected = seq.allocate::<f32>(6);
-    seq.fill(&mut gi_expected, 0.0);
-    let mut gw_expected = seq.allocate::<f32>(4);
-    seq.fill(&mut gw_expected, 0.0);
-    let mut gb_expected = seq.allocate::<f32>(2);
-    seq.fill(&mut gb_expected, 0.0);
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut gi_expected =
+        unsafe { seq.allocate::<f32>(6) }.expect("invariant: test backend operation succeeds");
+    seq.fill(&mut gi_expected, 0.0)
+        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut gw_expected =
+        unsafe { seq.allocate::<f32>(4) }.expect("invariant: test backend operation succeeds");
+    seq.fill(&mut gw_expected, 0.0)
+        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `fill` initializes every element before any read.
+    let mut gb_expected =
+        unsafe { seq.allocate::<f32>(2) }.expect("invariant: test backend operation succeeds");
+    seq.fill(&mut gb_expected, 0.0)
+        .expect("invariant: test backend operation succeeds");
 
     coeus_ops::ConvOps::conv1d_backward(
         &seq,
@@ -161,7 +208,9 @@ fn test_cuda_conv_backward() {
     .expect("CPU conv1d backward dispatch");
 
     let gi_cuda_tensor: Tensor<f32, CudaBackend> = Tensor::from_raw_parts(gi_cuda, gi_layout);
-    let gi_cuda_cpu = gi_cuda_tensor.to_backend_on(&cuda_b, &seq);
+    let gi_cuda_cpu = gi_cuda_tensor
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
     let gi_expected_slice = gi_expected.as_slice();
     for (i, (&res, &exp)) in gi_cuda_cpu
         .as_slice()
@@ -179,7 +228,9 @@ fn test_cuda_conv_backward() {
     }
 
     let gw_cuda_tensor: Tensor<f32, CudaBackend> = Tensor::from_raw_parts(gw_cuda, gw_layout);
-    let gw_cuda_cpu = gw_cuda_tensor.to_backend_on(&cuda_b, &seq);
+    let gw_cuda_cpu = gw_cuda_tensor
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
     let gw_expected_slice = gw_expected.as_slice();
     for (i, (&res, &exp)) in gw_cuda_cpu
         .as_slice()
@@ -198,7 +249,9 @@ fn test_cuda_conv_backward() {
 
     let gb_cuda_tensor: Tensor<f32, CudaBackend> =
         Tensor::from_raw_parts(gb_cuda, coeus_core::Layout::new(vec![2].into()));
-    let gb_cuda_cpu = gb_cuda_tensor.to_backend_on(&cuda_b, &seq);
+    let gb_cuda_cpu = gb_cuda_tensor
+        .to_backend_on(&cuda_b, &seq)
+        .expect("invariant: test backend transfer succeeds");
     let gb_expected_slice = gb_expected.as_slice();
     for (i, (&res, &exp)) in gb_cuda_cpu
         .as_slice()

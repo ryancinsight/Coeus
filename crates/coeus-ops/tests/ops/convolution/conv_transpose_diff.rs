@@ -17,6 +17,7 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
     Tensor::from_slice_on(shape.to_vec(), vals, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn check_conv_transpose1d<B>(backend: &B)

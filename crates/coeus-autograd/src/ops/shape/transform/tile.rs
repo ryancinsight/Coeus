@@ -70,7 +70,7 @@ where
                 .collect();
             let out_shape: Vec<usize> = (0..n).map(|d| eff_in[d] * eff_reps[d]).collect();
 
-            let go_cont = grad_out.to_contiguous();
+            let go_cont = grad_out.to_contiguous()?;
             let go_s = go_cont.as_slice();
 
             let in_numel: usize = eff_in.iter().product();
@@ -101,12 +101,13 @@ where
 
             // Reshape from eff_in back to original in_shape.
             let gi_inc = if pad_in > 0 {
-                Tensor::from_slice(
+                Tensor::from_slice_on(
                     self.in_shape.clone(),
                     &gi_data[..self.in_shape.iter().product::<usize>()],
-                )
+                    &backend,
+                )?
             } else {
-                Tensor::from_slice(eff_in, &gi_data)
+                Tensor::from_slice_on(eff_in, &gi_data, &backend)?
             };
 
             let gl = g.write();
@@ -117,25 +118,24 @@ where
 }
 
 /// Tracked tile: replicate `input` by `reps[d]` times along each dimension `d`.
-#[must_use]
 #[inline]
 pub fn tile<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     reps: &[usize],
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::tile(&input.tensor, reps, &backend);
+    let out_tensor = coeus_ops::tile(&input.tensor, reps, &backend)?;
 
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -150,9 +150,9 @@ where
     } else {
         None
     };
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

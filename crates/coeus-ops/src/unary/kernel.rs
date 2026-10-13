@@ -15,9 +15,10 @@ pub fn elementwise_unary<T: Scalar, B: ElementwiseOps<T>>(
     backend: &B,
     op: UnaryOp,
 ) -> Result<Tensor<T, B>, B::Error> {
-    let mut out = Tensor::alloc_on(input.shape_cloned(), backend);
+    // SAFETY: The following operation writes every output element before it is read.
+    let mut out = unsafe { Tensor::alloc_on(input.shape_cloned(), backend) }?;
 
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.elementwise_unary(op, input.storage(), input.layout(), out_storage, out_layout)?;
 
     Ok(out)
@@ -42,7 +43,7 @@ pub fn elementwise_unary_to<T: Scalar, B: ElementwiseOps<T>>(
     backend: &B,
     op: UnaryOp,
 ) -> Result<(), B::Error> {
-    let (out_storage, out_layout) = out.storage_mut_and_layout();
+    let (out_storage, out_layout) = out.storage_mut_and_layout()?;
     backend.elementwise_unary(op, input.storage(), input.layout(), out_storage, out_layout)
 }
 
@@ -56,7 +57,8 @@ mod tests {
     #[test]
     fn unary_assignment_detaches_shared_storage() {
         let backend = SequentialBackend::new();
-        let original = Tensor::from_slice([4], &[-3.0_f32, -1.0, 0.0, 2.0]);
+        let original = Tensor::from_slice([4], &[-3.0_f32, -1.0, 0.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
         let mut assigned = original.clone();
 
         elementwise_unary_assign(&mut assigned, &backend, UnaryOp::Neg).expect("neg assignment");
@@ -68,8 +70,12 @@ mod tests {
     #[test]
     fn unary_assignment_preserves_input_on_provider_error() {
         let backend = SequentialBackend::new();
-        let mut storage = backend.allocate::<f32>(2);
-        backend.copy_to_device(&[-3.0, 2.0], &mut storage);
+        // SAFETY: `copy_to_device` initializes both elements before the provider reads them.
+        let mut storage = unsafe { backend.allocate::<f32>(2) }
+            .expect("invariant: test backend storage operation succeeds");
+        backend
+            .copy_to_device(&[-3.0, 2.0], &mut storage)
+            .expect("invariant: test backend storage operation succeeds");
         let mut invalid_layout = Layout::new([3].into());
 
         backend

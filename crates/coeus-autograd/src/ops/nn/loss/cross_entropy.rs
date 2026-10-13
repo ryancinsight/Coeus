@@ -47,7 +47,7 @@ where
         if let Some(Some(gradient)) = input_grads.first() {
             let backend = B::default();
             let destination = gradient.write();
-            let (destination_storage, destination_layout) = destination.storage_mut_and_layout();
+            let (destination_storage, destination_layout) = destination.storage_mut_and_layout()?;
             backend.cross_entropy_backward_accumulate(
                 grad_out.storage(),
                 grad_out.layout(),
@@ -76,14 +76,18 @@ pub fn cross_entropy_loss<T, B>(
     targets: <B as CrossEntropyOps<T>>::Targets,
     output: Tensor<T, B>,
     probabilities: Tensor<T, B>,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     T: Float,
     B: coeus_ops::BackendOps<T> + CrossEntropyOps<T> + Default,
 {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(logits);
-    let grad = requires_grad.then(|| Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend))));
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on([1], &backend)?)))
+    } else {
+        None
+    };
     let creator = grad.as_ref().map(|output_grad| {
         Arc::new(CrossEntropyLossNode {
             output_grad: Arc::clone(output_grad),
@@ -93,9 +97,9 @@ where
         }) as Arc<dyn BackwardNode<T, B>>
     });
 
-    Var {
+    Ok(Var {
         tensor: output,
         grad,
         creator,
-    }
+    })
 }

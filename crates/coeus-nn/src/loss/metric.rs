@@ -9,6 +9,10 @@ use coeus_core::Float;
 
 /// Row-wise p-norm pairwise distance (PyTorch `PairwiseDistance`).
 /// x1, x2: `[N, D]`; returns `[N]` with `out_i = (sum_k |x1-x2|^p + eps)^(1/p)`.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn pairwise_distance<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -18,7 +22,7 @@ pub fn pairwise_distance<
     x2: &Var<T, B>,
     p: T,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::pairwise_distance(x1, x2, p, eps)
 }
 
@@ -28,6 +32,10 @@ pub fn pairwise_distance<
 /// `[N, D]`. Composed from the tracked pairwise-distance, subtract, shift, ReLU,
 /// and mean ops, so backward (including the anchor's two gradient paths) is the
 /// autograd graph's — no bespoke node.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn triplet_margin_loss<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -39,11 +47,13 @@ pub fn triplet_margin_loss<
     margin: T,
     p: T,
     eps: T,
-) -> Var<T, B> {
-    let d_ap = coeus_autograd::pairwise_distance(anchor, positive, p, eps);
-    let d_an = coeus_autograd::pairwise_distance(anchor, negative, p, eps);
-    let shifted = coeus_autograd::scalar_add(&coeus_autograd::sub(&d_ap, &d_an), margin);
-    coeus_autograd::mean(&coeus_autograd::relu(&shifted))
+) -> Result<Var<T, B>, B::Error> {
+    let d_ap = coeus_autograd::pairwise_distance(anchor, positive, p, eps)?;
+    let d_an = coeus_autograd::pairwise_distance(anchor, negative, p, eps)?;
+    let diff = coeus_autograd::sub(&d_ap, &d_an)?;
+    let shifted = coeus_autograd::scalar_add(&diff, margin)?;
+    let relu = coeus_autograd::relu(&shifted)?;
+    coeus_autograd::mean(&relu)
 }
 
 /// Triplet margin loss with pluggable distance function
@@ -52,26 +62,37 @@ pub fn triplet_margin_loss<
 /// Generalizes `triplet_margin_loss` by accepting a custom distance function.
 /// `distance(a, p)` and `distance(a, n)` are computed via the provided closure.
 /// Returns `mean(max(0, d_ap - d_an + margin))`.
+///
+/// # Errors
+///
+/// Returns the backend error when the distance closure or an intermediate
+/// allocation or dispatch fails.
 pub fn triplet_margin_with_distance_loss<T, B, F>(
     anchor: &Var<T, B>,
     positive: &Var<T, B>,
     negative: &Var<T, B>,
     distance: F,
     margin: T,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     T: Float + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
-    F: Fn(&Var<T, B>, &Var<T, B>) -> Var<T, B>,
+    F: Fn(&Var<T, B>, &Var<T, B>) -> Result<Var<T, B>, B::Error>,
 {
-    let d_ap = distance(anchor, positive);
-    let d_an = distance(anchor, negative);
-    let shifted = coeus_autograd::scalar_add(&coeus_autograd::sub(&d_ap, &d_an), margin);
-    coeus_autograd::mean(&coeus_autograd::relu(&shifted))
+    let d_ap = distance(anchor, positive)?;
+    let d_an = distance(anchor, negative)?;
+    let diff = coeus_autograd::sub(&d_ap, &d_an)?;
+    let shifted = coeus_autograd::scalar_add(&diff, margin)?;
+    let relu = coeus_autograd::relu(&shifted)?;
+    coeus_autograd::mean(&relu)
 }
 
 /// Cosine Embedding Loss.
 /// x1: `[N, D]`, x2: `[N, D]`, y: `[N]`, margin: threshold.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn cosine_embedding_loss<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -81,7 +102,7 @@ pub fn cosine_embedding_loss<
     x2: &Var<T, B>,
     y: &[T],
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::cosine_embedding_loss(x1, x2, y, margin)
 }
 
@@ -94,7 +115,10 @@ pub fn cosine_embedding_loss<
 ///
 /// Panics when the inputs do not share a two-dimensional non-empty shape,
 /// `dim` is not one, or `eps` is not finite and strictly positive.
-#[must_use]
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn cosine_similarity<
     T: coeus_core::FloatElement + Float,
@@ -104,6 +128,6 @@ pub fn cosine_similarity<
     x2: &Var<T, B>,
     dim: usize,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::cosine_similarity(x1, x2, dim, eps)
 }

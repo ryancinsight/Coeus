@@ -27,8 +27,8 @@ use coeus_tensor::Tensor;
 pub fn tile<T: Scalar, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     reps: &[usize],
-    _backend: &B,
-) -> Tensor<T, B>
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -55,11 +55,11 @@ where
     let in_cont = if pad_in > 0 {
         // Reshape to eff_in shape.
         let _in_numel: usize = in_shape.iter().product();
-        let in_c = input.to_contiguous();
+        let in_c = input.to_contiguous()?;
         // Build a tensor with eff_in shape pointing to the same data.
-        Tensor::from_slice(eff_in.clone(), in_c.as_slice())
+        Tensor::from_slice_on(eff_in.clone(), in_c.as_slice(), backend)?
     } else {
-        input.to_contiguous()
+        input.to_contiguous()?
     };
     let in_s = in_cont.as_slice();
 
@@ -89,7 +89,7 @@ where
         })
         .collect();
 
-    Tensor::from_slice(out_shape, &data)
+    Tensor::from_slice_on(out_shape, &data, backend)
 }
 
 #[cfg(test)]
@@ -101,8 +101,9 @@ mod tests {
     #[test]
     fn tile_1d_repeats_twice() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[1.0f32, 2.0, 3.0]);
-        let out = tile(&x, &[2], &b);
+        let x = Tensor::from_slice(vec![3], &[1.0f32, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = tile(&x, &[2], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[6]);
         assert_eq!(out.as_slice(), &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
     }
@@ -110,8 +111,9 @@ mod tests {
     #[test]
     fn tile_2d_repeats_both_dims() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0]);
-        let out = tile(&x, &[2, 3], &b);
+        let x = Tensor::from_slice(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = tile(&x, &[2, 3], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[4, 6]);
         // Row 0 = [1,2,1,2,1,2], Row 1 = [3,4,3,4,3,4], Row 2=Row 0, Row 3=Row 1
         assert_eq!(out.as_slice()[0..6], [1.0, 2.0, 1.0, 2.0, 1.0, 2.0]);
@@ -121,8 +123,9 @@ mod tests {
     #[test]
     fn tile_identity_reps_all_ones() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let out = tile(&x, &[1, 1], &b);
+        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = tile(&x, &[1, 1], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), x.shape());
         assert_eq!(out.as_slice(), x.as_slice());
     }
@@ -130,9 +133,10 @@ mod tests {
     #[test]
     fn tile_adds_leading_dim_when_reps_longer() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![3], &[1.0f32, 2.0, 3.0]);
+        let x = Tensor::from_slice(vec![3], &[1.0f32, 2.0, 3.0])
+            .expect("invariant: test backend operation succeeds");
         // reps=[2,2] is longer than ndim=1: treat input as [1,3], tile → [2,6]
-        let out = tile(&x, &[2, 2], &b);
+        let out = tile(&x, &[2, 2], &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 6]);
     }
 }

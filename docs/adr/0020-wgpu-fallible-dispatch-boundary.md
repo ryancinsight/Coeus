@@ -4,6 +4,8 @@
 - Date: 2026-07-23
 - Scope: `coeus-core`, `coeus-ops`, `coeus-wgpu`, and the matching CUDA/CPU
   operation implementations
+- Revision 2026-09-29: the `COEUS-FALLIBLE-STORAGE-CORE` cutover completes the storage-driven autograd, neural-network,
+  model, binding, and test caller closure.
 
 ## Context
 
@@ -67,109 +69,15 @@ is made by the API migration without a benchmark baseline.
 
 ## Implementation status
 
-The elementwise, matmul, and axis-reduction families now use the associated
-backend error and fallible operation seams. CPU Leto failures map to the
-shared validation error, CUDA preserves provider failures, and WGPU preserves
-typed layout and dispatch failures. High-level arithmetic, unary, shape,
-matmul, and direct reduction callers use the result contract. The existing
-autograd/NN boundary remains infallible and uses explicit invariant checks;
-converting those public contracts to typed results is separate breaking work.
-No compatibility adapter or silent fallback was retained. The focused
-`coeus-ops` gate passes 110/110 nextest tests, 22/22 doctests, warning-denied
-Clippy, locked compilation, and no-deps Rustdoc. Coeus root patches collapse
-Git-sourced Aequitas/Eunomia/Themis/Hermes identities onto the local Atlas
-providers,
-which removes the Leto `Quantity<T>::in_unit` trait-identity failure and the
-WGPU `PlacementHint` type split from the Coeus locked graph. The locked WGPU
-library check passes. The public WGPU matmul wrapper returns the typed result and
-checks rank, inner-dimension, output element-count, and layout-conversion
-failures; the public add wrapper returns a typed shape error instead of
-panicking. Full WGPU all-target verification remains gated by the incomplete
-peer fallible-operation migration. No runtime performance or memory claim is
-made without profile and benchmark evidence.
+The shared backend operation traits, CPU/CUDA/WGPU implementations, and public
+operation callers use the backend-associated typed error. Checked WGPU layout,
+dispatch-grid, and kernel-parameter conversion happens before device dispatch;
+CPU and CUDA preserve their provider errors. The `COEUS-FALLIBLE-STORAGE-CORE` cutover completes the tensor,
+autograd, neural-network, optimizer, distributed, and Python caller closure
+required by fallible storage construction and transfer. No compatibility
+adapter, CPU fallback, or silent success path remains in that closure.
 
-The unary WGPU kernel family now consumes `GpuLayoutInfo::try_from_layout`,
-returns `Result` through both contiguous and strided dispatch paths, routes
-`lgamma` through the provider-owned Hephaestus expression, and validates the
-rounded workgroup count before the WGPU ABI boundary. Unit tests cover
-rounding, overflow, out-of-range counts, and the provider expression without
-initializing a device. Direct nightly rustfmt and `git diff --check` pass. The
-locked `coeus-ops` check, 110/110 nextest tests, 22/22 doctests, warning-denied
-Clippy, and no-deps Rustdoc now pass; WGPU all-target verification remains
-outside this provider-identity integration increment.
-
-The binary WGPU kernel family now uses the same checked layout and workgroup
-boundary for contiguous and general broadcasting dispatch. Its `Result` is
-propagated through `ElementwiseOps` and the public `add` wrapper. Direct
-nightly rustfmt and `git diff --check` pass; the locked `coeus-ops` check and
-focused tests pass after the provider-identity cutover.
-
-The axis-reduction family now uses the same typed result boundary. CPU maps
-Leto failures, CUDA propagates fallback errors, and WGPU validates layout rank,
-axis range, singleton output shape, checked output element count, and checked
-workgroup count before device initialization. Public core reduction functions,
-direct Coeus tests/benches, and the existing infallible autograd/NN callers use
-explicit result handling. The autograd graph and NN module traits remain
-infallible; converting those public contracts to typed results is separate
-breaking work rather than a local adapter. The locked `coeus-ops` check,
-110/110 nextest tests, 22/22 doctests, warning-denied Clippy, and no-deps
-Rustdoc pass. No WGPU all-target performance result is claimed because that
-matrix remains outside this provider-identity integration increment.
-
-The 1D pooling family now uses the same typed dispatch boundary. CPU calls
-remain monomorphized to the Leto-backed implementation, WGPU validates rank,
-layout ABI values, pooling parameters, element-count arithmetic, and the
-rounded workgroup count before submitting native WGSL, and CUDA propagates
-native kernel validation and launch failures. The infallible autograd/NN
-boundary retains explicit invariant diagnostics; no host fallback or silent
-success path is introduced.
-
-The 2D pooling family now derives output and gradient element counts from the
-canonical `Layout` values at the WGPU operation boundary rather than accepting
-storage-length or caller-supplied count arguments. CPU, WGPU, and CUDA
-implementations return the backend-associated result, and WGPU validates rank,
-layout ABI values, parameter narrowing, checked element-count arithmetic, and
-the rounded workgroup count before native WGSL submission. Direct WGPU and CUDA
-parity callers and the infallible autograd/NN boundary consume the result with
-explicit invariant diagnostics. The 3D pooling family remains a separate
-increment.
-
-The 3D pooling family now uses the same boundary. Its WGPU kernels validate
-rank-five layouts, checked WGSL parameter conversions, element-count arithmetic,
-and workgroup limits before device initialization; CPU and CUDA implementations
-return the associated backend result, and high-level callers retain explicit
-invariant diagnostics. The PoolOps trait no longer has a unit-returning pooling
-dimension, so all pooling callers share one typed dispatch contract.
-
-The final pooling integration propagates the WGPU 1D kernel result through its
-backend wrapper instead of discarding it. CUDA 2D and 3D dispatch now returns a
-typed context or kernel-contract failure when native launch cannot proceed;
-the superseded host-staging pooling fallback module is removed. This closes the
-backend-substitution and full-buffer allocation path without claiming a
-measured runtime or resident-memory delta.
-
-The fused-reduction family now follows the same boundary. Its public WGPU entry
-point and generated-kernel dispatcher return the backend-associated result and
-validate expression shape, axis, fixed-rank layout metadata, output arithmetic,
-WGSL parameter widths, metadata-buffer capacity, and active-device workgroup and
-storage-buffer limits before submission. The shared expression seam holds
-borrowed tensor references and returns typed incompatible-broadcast failures;
-CPU, CUDA, and WGPU no longer depend on a safe raw-pointer input contract. The
-CPU execution seam marks its synchronous-join obligation as unsafe, and WGPU
-storage keeps provider buffers crate-private so foreign-device buffers cannot be
-constructed through the public type. One shared empty-axis contract returns the
-sum and product identities while rejecting mean, maximum, and minimum; WGPU
-codegen emits scalar-specific literals for every `WgpuScalar`. The hot kernel
-remains statically dispatched over `T: WgpuScalar`; validation is
-operation-boundary work and adds no per-element branch or vtable. No runtime or
-memory improvement is claimed without controlled measurements.
-
-The unfold/fold family now follows the associated backend-error contract across
-CPU, CUDA, and WGPU. WGPU geometry validation lives in a dedicated leaf and
-checks exact ranks and dimensions, nonzero kernel/stride/dilation parameters,
-checked effective-kernel and output-shape arithmetic, WGSL `u32` conversion,
-layout metadata, output element counts, and dispatch grids before acquiring the
-device context. CUDA converts rejected native launches to its typed kernel error
-instead of asserting. Public tensor, autograd, and neural-network callers
-propagate or map the backend error; no CPU or host fallback is introduced. The validation
-path is operation-boundary work and the element kernels remain monomorphized.
+Existing value-semantic CPU/provider tests and the focused package gates cover
+successful execution. Forced provider-failure fixtures and the real-device
+matrix remain tracked on the repository board; this ADR makes no runtime or
+memory-performance claim without controlled measurements.

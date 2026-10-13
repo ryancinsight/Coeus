@@ -16,7 +16,7 @@ pub fn pad<T: Scalar, B: ComputeBackend + Default>(
     x: &Tensor<T, B>,
     pads: &[(usize, usize)],
     value: T,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -25,7 +25,7 @@ where
 
     // Fast path: no padding anywhere.
     if pads.iter().all(|&(b, a)| b == 0 && a == 0) {
-        return x.clone();
+        return Ok(x.clone());
     }
 
     let backend = B::default();

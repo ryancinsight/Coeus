@@ -56,7 +56,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Sl
 pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     ranges: &[(usize, usize)],
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let out_tensor = x.tensor.slice(ranges);
 
@@ -68,7 +68,7 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = SliceNode {
@@ -78,9 +78,9 @@ pub fn slice<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

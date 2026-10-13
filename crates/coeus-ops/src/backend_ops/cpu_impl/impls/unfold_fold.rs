@@ -3,7 +3,8 @@ use super::super::CpuBackend;
 use crate::backend_ops::traits::UnfoldFoldOps;
 use coeus_core::{CpuAddressableStorageMut, Layout, Scalar, Storage};
 
-impl<T: Scalar, B: CpuBackend> UnfoldFoldOps<T> for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T: Scalar, B: CpuBackend> UnfoldFoldOps<T> for B
 where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -39,7 +40,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -78,7 +79,7 @@ where
             dilation,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -126,7 +127,7 @@ where
             dilation_w,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 
@@ -180,7 +181,7 @@ where
             dilation_w,
             output,
             output_layout,
-        );
+        )?;
         Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    error::map_module_error,
+    error::{map_backend_error, map_module_error},
     tensor::{PyStateDict, PyTensor},
 };
 use pyo3::prelude::*;
@@ -50,7 +50,8 @@ impl PyRMSNorm {
         };
         let rms = coeus_nn::normalization::rmsnorm::RMSNorm::<f64, coeus_core::MoiraiBackend>::new(
             shape_int, eps,
-        );
+        )
+        .map_err(map_backend_error)?;
         let weight = Py::new(py, PyTensor { inner: rms.weight })?;
         Ok(Self { weight, eps })
     }
@@ -63,10 +64,11 @@ impl PyRMSNorm {
         let eps_val = self.eps;
 
         let inner = py.allow_threads(move || {
-            let rms = coeus_nn::normalization::rmsnorm::RMSNorm::from_parts(w_var, eps_val);
-            rms.forward(&input_var)
+            let rms = coeus_nn::normalization::rmsnorm::RMSNorm::from_parts(w_var, eps_val)
+                .map_err(map_backend_error)?;
+            rms.forward(&input_var).map_err(map_module_error)
         });
-        inner.map(PyTensor::from_var).map_err(map_module_error)
+        inner.map(PyTensor::from_var)
     }
 
     fn state_dict(&self, py: Python<'_>) -> PyResult<PyStateDict> {
@@ -88,7 +90,7 @@ impl PyRMSNorm {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.weight.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.weight.bind(py).borrow().zero_grad()
     }
 }

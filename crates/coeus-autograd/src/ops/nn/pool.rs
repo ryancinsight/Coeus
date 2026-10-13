@@ -182,8 +182,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.first() {
-            let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend);
-            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout();
+            let mut grad_input = Tensor::zeros_on(self.inp_clone.shape_cloned(), &backend)?;
+            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout()?;
             dispatch_max_pool_backward::<T, B, DIM>(
                 PoolBackwardInputs {
                     backend: &backend,
@@ -214,14 +214,14 @@ fn max_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -245,11 +245,11 @@ fn max_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Tracked 1D Max Pooling.
@@ -260,7 +260,7 @@ pub fn max_pool1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     max_pool_nd_inner::<T, B, 1>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -272,7 +272,7 @@ pub fn max_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     max_pool_nd_inner::<T, B, 2>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -284,7 +284,7 @@ pub fn max_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     max_pool_nd_inner::<T, B, 3>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -339,8 +339,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g_in)) = input_grads.first() {
-            let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend);
-            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout();
+            let mut grad_input = Tensor::zeros_on(self.inp_shape.clone(), &backend)?;
+            let (gi_storage, gi_layout) = grad_input.storage_mut_and_layout()?;
             dispatch_avg_pool_backward::<T, B, DIM>(PoolBackwardInputs {
                 backend: &backend,
                 grad_out_storage: grad_out.storage(),
@@ -367,14 +367,14 @@ fn avg_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input);
     let grad = if requires_grad {
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -398,11 +398,11 @@ fn avg_pool_nd_inner<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM:
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }
 
 /// Tracked 1D Average Pooling.
@@ -413,7 +413,7 @@ pub fn avg_pool1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     avg_pool_nd_inner::<T, B, 1>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -425,7 +425,7 @@ pub fn avg_pool2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     avg_pool_nd_inner::<T, B, 2>(input, out_tensor, kernel_size, stride, padding, dilation)
 }
 
@@ -437,6 +437,6 @@ pub fn avg_pool3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     stride: usize,
     padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     avg_pool_nd_inner::<T, B, 3>(input, out_tensor, kernel_size, stride, padding, dilation)
 }

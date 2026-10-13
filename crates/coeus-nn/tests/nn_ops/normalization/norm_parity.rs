@@ -43,13 +43,14 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
     Tensor::from_slice_on(shape.to_vec(), vals, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -> Var<f64, B>
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(t(shape, vals, backend), false)
+    Var::new(t(shape, vals, backend), false).expect("invariant: test backend operation succeeds")
 }
 
 // ── BatchNorm1d ────────────────────────────────────────────────────────────
@@ -66,7 +67,8 @@ where
     let running_mean = t(&[1], &[1.0], backend);
     let running_var = t(&[1], &[3.0], backend);
 
-    let mut bn = BatchNorm1d::from_parts(1, weight, bias, 1.0, 0.1, running_mean, running_var);
+    let mut bn = BatchNorm1d::from_parts(1, weight, bias, 1.0, 0.1, running_mean, running_var)
+        .expect("invariant: test operation succeeds");
     bn.set_training(false);
 
     let inp = v(&[1, 1, 3], &[2.0, 5.0, -1.0], backend);
@@ -93,7 +95,8 @@ where
     let rm2 = t(&[2], &[0.0, 4.0], backend);
     let rv2 = t(&[2], &[3.0, 3.0], backend);
 
-    let mut bn2 = BatchNorm1d::from_parts(2, w2, b2, 1.0, 0.1, rm2, rv2);
+    let mut bn2 = BatchNorm1d::from_parts(2, w2, b2, 1.0, 0.1, rm2, rv2)
+        .expect("invariant: test operation succeeds");
     bn2.set_training(false);
 
     let inp2 = v(&[1, 2, 2], &[1.0, 3.0, 7.0, 9.0], backend);
@@ -118,7 +121,7 @@ where
     // Group 0: [1,5] → mean=3, var=4, stdev=2 → x_hat=[-1, 1]
     // Group 1: [3,7] → mean=5, var=4, stdev=2 → x_hat=[-1, 1]
     // output = [-1, 1, -1, 1]
-    let gn = GroupNorm::<f64, B, 2>::new(4, 0.0);
+    let gn = GroupNorm::<f64, B, 2>::new(4, 0.0).expect("invariant: test operation succeeds");
     let inp = v(&[1, 4], &[1.0, 5.0, 3.0, 7.0], backend);
     let out = Module::<f64, B>::forward(&gn, &inp).expect("valid GroupNorm input");
 
@@ -207,7 +210,7 @@ where
     // Input [1, 2] = [[2, 2]], weight=[4, 3], eps=0.
     // x²=[4,4], mean_sq=4, rms=2, x_hat=[1,1], out=[4,3].
     let weight = v(&[2], &[4.0, 3.0], backend);
-    let rms = RMSNorm::from_parts(weight, 0.0);
+    let rms = RMSNorm::from_parts(weight, 0.0).expect("invariant: test operation succeeds");
     let inp = v(&[1, 2], &[2.0, 2.0], backend);
     let out = Module::<f64, B>::forward(&rms, &inp).expect("valid RMSNorm input");
 
@@ -221,7 +224,7 @@ where
     // Scalar: input [[2]], weight=[5], eps=0.
     // rms=2, x_hat=[1], out=[5].
     let weight2 = v(&[1], &[5.0], backend);
-    let rms2 = RMSNorm::from_parts(weight2, 0.0);
+    let rms2 = RMSNorm::from_parts(weight2, 0.0).expect("invariant: test operation succeeds");
     let inp2 = v(&[1, 1], &[2.0], backend);
     let out2 = Module::<f64, B>::forward(&rms2, &inp2).expect("valid RMSNorm input");
     assert_eq!(
@@ -232,7 +235,7 @@ where
 
     // Batch: N=3, same values [[2,2],[2,2],[2,2]] → each row same oracle.
     let weight3 = v(&[2], &[4.0, 3.0], backend);
-    let rms3 = RMSNorm::from_parts(weight3, 0.0);
+    let rms3 = RMSNorm::from_parts(weight3, 0.0).expect("invariant: test operation succeeds");
     let inp3 = v(&[3, 2], &[2.0, 2.0, 2.0, 2.0, 2.0, 2.0], backend);
     let out3 = Module::<f64, B>::forward(&rms3, &inp3).expect("valid RMSNorm input");
     assert_eq!(out3.tensor.shape(), &[3, 2], "RMSNorm N=3 shape");
@@ -274,18 +277,33 @@ fn check_batch_norm_1d_training<B: BackendOps<f64> + Default>(backend: &B)
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    let weight = Var::new(Tensor::from_slice_on(vec![1], &[1.0_f64], backend), true);
-    let bias = Var::new(Tensor::from_slice_on(vec![1], &[0.0_f64], backend), true);
-    let running_mean = Tensor::zeros_on([1], backend);
-    let running_var = Tensor::ones_on([1], backend);
+    let weight = Var::new(
+        Tensor::from_slice_on(vec![1], &[1.0_f64], backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let bias = Var::new(
+        Tensor::from_slice_on(vec![1], &[0.0_f64], backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let running_mean =
+        Tensor::zeros_on([1], backend).expect("invariant: test backend operation succeeds");
+    let running_var =
+        Tensor::ones_on([1], backend).expect("invariant: test backend operation succeeds");
 
-    let bn = BatchNorm1d::from_parts(1, weight, bias, 0.0, 0.0, running_mean, running_var);
+    let bn = BatchNorm1d::from_parts(1, weight, bias, 0.0, 0.0, running_mean, running_var)
+        .expect("invariant: test operation succeeds");
     // is_training = true by default
 
     let inp = Var::new(
-        Tensor::from_slice_on(vec![2, 1, 2], &[1.0_f64, 3.0, 5.0, 7.0], backend),
+        Tensor::from_slice_on(vec![2, 1, 2], &[1.0_f64, 3.0, 5.0, 7.0], backend)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let out = Module::<f64, B>::forward(&bn, &inp).expect("valid BatchNorm1d input");
     assert_eq!(out.tensor.shape(), &[2, 1, 2]);
 

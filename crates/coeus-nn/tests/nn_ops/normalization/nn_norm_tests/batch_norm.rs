@@ -4,8 +4,12 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_batchnorm1d_forward_shape() {
-    let bn = BatchNorm1d::<f64>::new(4, 1e-5, 0.1);
-    let input = Var::new(Tensor::zeros(vec![2, 4, 10]), true);
+    let bn = BatchNorm1d::<f64>::new(4, 1e-5, 0.1).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::zeros(vec![2, 4, 10]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = bn.forward(&input).expect("valid BatchNorm1d input");
 
     assert_eq!(output.tensor.shape(), &[2, 4, 10]);
@@ -16,16 +20,18 @@ fn test_batchnorm1d_forward_shape() {
 
 #[test]
 fn test_batchnorm1d_backward_gradients_exist() {
-    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
     let input = Var::new(
         Tensor::from_slice(
             vec![2, 2, 3],
             &[
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = bn.forward(&input).expect("valid BatchNorm1d input");
     output
@@ -39,12 +45,14 @@ fn test_batchnorm1d_backward_gradients_exist() {
 
 #[test]
 fn test_batchnorm1d_running_stats_update() {
-    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
 
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        Tensor::from_slice(vec![1, 2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let rm_before = bn.running_mean.borrow().clone();
     assert_eq!(rm_before.as_slice()[0], 0.0);
@@ -59,8 +67,13 @@ fn test_batchnorm1d_running_stats_update() {
 
 #[test]
 fn batchnorm1d_rejects_single_training_element_without_state_mutation() {
-    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1);
-    let input = Var::new(Tensor::from_slice(vec![1, 2], &[1.0, 2.0]), false);
+    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::from_slice(vec![1, 2], &[1.0, 2.0])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let mean_before = bn.running_mean.borrow().clone();
     let variance_before = bn.running_var.borrow().clone();
 
@@ -86,11 +99,13 @@ fn batchnorm1d_rejects_single_training_element_without_state_mutation() {
 
 #[test]
 fn batchnorm1d_state_borrow_failure_is_typed_and_transactional() {
-    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm1d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        Tensor::from_slice(vec![1, 2, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let mean_before = bn.running_mean.borrow().clone();
     let variance_before = bn.running_var.borrow().clone();
     let running_mean_guard = bn.running_mean.borrow();
@@ -117,8 +132,12 @@ fn batchnorm1d_state_borrow_failure_is_typed_and_transactional() {
 
 #[test]
 fn test_batchnorm2d_forward_shape() {
-    let bn = BatchNorm2d::<f64>::new(4, 1e-5, 0.1);
-    let input = Var::new(Tensor::zeros(vec![2, 4, 3, 3]), true);
+    let bn = BatchNorm2d::<f64>::new(4, 1e-5, 0.1).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::zeros(vec![2, 4, 3, 3]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = bn.forward(&input).expect("valid BatchNorm2d input");
 
     assert_eq!(output.tensor.shape(), &[2, 4, 3, 3]);
@@ -129,11 +148,13 @@ fn test_batchnorm2d_forward_shape() {
 
 #[test]
 fn test_batchnorm2d_backward_gradients_exist() {
-    let bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = bn.forward(&input).expect("valid BatchNorm2d input");
     output
@@ -147,12 +168,14 @@ fn test_batchnorm2d_backward_gradients_exist() {
 
 #[test]
 fn test_batchnorm2d_running_stats_update() {
-    let bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
 
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let rm_before = bn.running_mean.borrow().clone();
     assert_eq!(rm_before.as_slice()[0], 0.0);
@@ -167,14 +190,16 @@ fn test_batchnorm2d_running_stats_update() {
 
 #[test]
 fn test_batchnorm2d_multi_channel_forward() {
-    let mut bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1);
-    init::constant(&mut bn.weight, 1.0);
-    init::constant(&mut bn.bias, 0.0);
+    let mut bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
+    init::constant(&mut bn.weight, 1.0).expect("invariant: test operation succeeds");
+    init::constant(&mut bn.bias, 0.0).expect("invariant: test operation succeeds");
 
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        Tensor::from_slice(vec![1, 2, 2, 2], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = bn.forward(&input).expect("valid BatchNorm2d input");
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2]);

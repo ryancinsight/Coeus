@@ -114,7 +114,7 @@ where
     ) -> Result<Self::CtcState, Self::Error> {
         sequence_rank("ctc_log_probs", log_probs_layout)?;
         scalar_shape("ctc_loss", loss_layout)?;
-        let mut loss = to_leto_view_mut::<T, 1>(loss_layout, loss.as_mut_slice())
+        let mut loss = to_leto_view_mut::<T, 1>(loss_layout, loss.as_mut_slice()?)
             .map_err(|error| map_leto_error("ctc_loss", error))?;
         let destination = loss
             .get_mut([0])
@@ -149,7 +149,7 @@ where
         let upstream = *output_gradient
             .get([0])
             .expect("invariant: the validated scalar view contains coordinate zero");
-        let mut gradient = to_leto_view_mut::<T, 3>(gradient_layout, gradient.as_mut_slice())
+        let mut gradient = to_leto_view_mut::<T, 3>(gradient_layout, gradient.as_mut_slice()?)
             .map_err(|error| map_leto_error("ctc_gradient", error))?;
         state
             .backward_accumulate(upstream, &mut gradient)

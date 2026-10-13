@@ -12,7 +12,12 @@ use coeus_tensor::Tensor;
 fn unfold1d_output_shape() {
     // [1, 2, 6], kernel=3, stride=1, padding=0, dilation=1 → [1, 6, 4]
     let m = Unfold1d::<f32, SequentialBackend>::new(3, 1, 0, 1);
-    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 6]), false);
+    let x = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 6])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Unfold1d input");
     assert_eq!(y.tensor.shape(), &[1, 6, 4]);
 }
@@ -24,9 +29,11 @@ fn unfold1d_identity_kernel1_stride1() {
     let m = Unfold1d::<f64, SequentialBackend>::new(1, 1, 0, 1);
     let data: Vec<f64> = (0..8).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Unfold1d input");
     assert_eq!(y.tensor.shape(), &[1, 2, 4]);
     // Each C*k slot is a single element — data should pass through unchanged.
@@ -41,9 +48,11 @@ fn unfold1d_values_kernel3() {
     let data = [10.0_f64, 20.0, 30.0, 40.0, 50.0];
     let m = Unfold1d::<f64, SequentialBackend>::new(3, 1, 0, 1);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Unfold1d input");
     assert_eq!(y.tensor.shape(), &[1, 3, 3]);
     let s = y.tensor.as_slice();
@@ -67,7 +76,12 @@ fn unfold1d_values_kernel3() {
 fn fold1d_output_shape() {
     // Reverse of unfold1d_output_shape: [1, 6, 4] → [1, 2, 6]
     let m = Fold1d::<f32, SequentialBackend>::new(6, 3, 1, 0, 1);
-    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 6, 4]), false);
+    let x = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![1, 6, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Fold1d input");
     assert_eq!(y.tensor.shape(), &[1, 2, 6]);
 }
@@ -77,8 +91,9 @@ fn fold1d_unfold1d_roundtrip_no_overlap() {
     // Stride = kernel_size means no overlap, so fold(unfold(x)) == count * x
     // (count = 1 for no overlap).
     let data: Vec<f64> = (0..8).map(|i| i as f64).collect();
-    let x_orig = Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data);
-    let x = Var::new(x_orig.clone(), false);
+    let x_orig = Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 4], &data)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_orig.clone(), false).expect("invariant: test backend operation succeeds");
 
     let unfold = Unfold1d::<f64, SequentialBackend>::new(2, 2, 0, 1);
     let fold = Fold1d::<f64, SequentialBackend>::new(4, 2, 2, 0, 1);
@@ -100,9 +115,11 @@ fn unfold2d_output_shape() {
     // [1, 2, 4, 4], kernel=2, stride=2, no padding, no dilation → [1, 8, 4]
     let m = Unfold2d::<f32, SequentialBackend>::new(2, 2, 0, 1);
     let x = Var::new(
-        Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 4, 4]),
+        Tensor::<f32, SequentialBackend>::ones(vec![1, 2, 4, 4])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Unfold2d input");
     assert_eq!(y.tensor.shape(), &[1, 8, 4]); // C*kH*kW=2*4=8, H_out*W_out=2*2=4
 }
@@ -113,9 +130,11 @@ fn unfold2d_values_single_window() {
     let data = [1.0_f64, 2.0, 3.0, 4.0];
     let m = Unfold2d::<f64, SequentialBackend>::new(2, 1, 0, 1);
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 2, 2], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Unfold2d input");
     assert_eq!(y.tensor.shape(), &[1, 4, 1]); // C*kH*kW=4, L_out=1
     let s = y.tensor.as_slice();
@@ -128,7 +147,12 @@ fn unfold2d_values_single_window() {
 fn fold2d_output_shape() {
     // Reverse: [1, 8, 4] → [1, 2, 4, 4]
     let m = Fold2d::<f32, SequentialBackend>::new(4, 4, 2, 2, 0, 1);
-    let x = Var::new(Tensor::<f32, SequentialBackend>::ones(vec![1, 8, 4]), false);
+    let x = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![1, 8, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Fold2d input");
     assert_eq!(y.tensor.shape(), &[1, 2, 4, 4]);
 }
@@ -138,9 +162,11 @@ fn fold2d_unfold2d_roundtrip_no_overlap() {
     // Stride = kernel_size, no overlap → fold(unfold(x)) == x.
     let data: Vec<f64> = (0..16).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4, 4], &data)
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let unfold = Unfold2d::<f64, SequentialBackend>::new(2, 2, 0, 1);
     let fold = Fold2d::<f64, SequentialBackend>::new(4, 4, 2, 2, 0, 1);
@@ -165,9 +191,11 @@ fn unfold1d_backward_accumulates_window_overlap() {
     let m = Unfold1d::<f64, SequentialBackend>::new(3, 1, 0, 1);
     let data = [10.0_f64, 20.0, 30.0, 40.0, 50.0];
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 5], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     m.forward(&x)
         .expect("valid Unfold1d input")
         .backward()
@@ -187,9 +215,11 @@ fn unfold2d_backward_accumulates_window_overlap() {
     let m = Unfold2d::<f64, SequentialBackend>::new(2, 1, 0, 1);
     let data: Vec<f64> = (1..=9).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 3, 3], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     m.forward(&x)
         .expect("valid Unfold2d input")
         .backward()
@@ -209,9 +239,11 @@ fn fold1d_backward_is_im2col_of_ones() {
     let m = Fold1d::<f64, SequentialBackend>::new(6, 2, 2, 0, 1);
     let data: Vec<f64> = (1..=6).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 3], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 2, 3], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Fold1d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 6]);
     y.backward()
@@ -227,9 +259,11 @@ fn fold2d_backward_is_im2col_of_ones() {
     let m = Fold2d::<f64, SequentialBackend>::new(4, 4, 2, 2, 0, 1);
     let data: Vec<f64> = (1..=16).map(|i| i as f64).collect();
     let x = Var::new(
-        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 4, 4], &data),
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 4, 4], &data)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let y = m.forward(&x).expect("valid Fold2d input");
     assert_eq!(y.tensor.shape(), &[1, 1, 4, 4]);
     y.backward()
@@ -242,7 +276,12 @@ fn fold2d_backward_is_im2col_of_ones() {
 
 #[test]
 fn unfold_rejects_invalid_rank_and_window_configuration() {
-    let input_1d = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 1, 4]), false);
+    let input_1d = Var::new(
+        Tensor::<f32, SequentialBackend>::ones([1, 1, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let config_error = Unfold1d::<f32, SequentialBackend>::new(0, 1, 0, 1)
         .forward(&input_1d)
         .err()
@@ -261,7 +300,12 @@ fn unfold_rejects_invalid_rank_and_window_configuration() {
         other => panic!("expected typed Unfold1d configuration error, got {other:?}"),
     }
 
-    let wrong_rank = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 4, 4]), false);
+    let wrong_rank = Var::new(
+        Tensor::<f32, SequentialBackend>::ones([1, 4, 4])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let rank_error = Unfold2d::<f32, SequentialBackend>::new(2, 1, 0, 1)
         .forward(&wrong_rank)
         .err()
@@ -282,7 +326,12 @@ fn unfold_rejects_invalid_rank_and_window_configuration() {
 
 #[test]
 fn fold_rejects_incompatible_channel_and_window_shapes() {
-    let fold1d_input = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 5, 3]), false);
+    let fold1d_input = Var::new(
+        Tensor::<f32, SequentialBackend>::ones([1, 5, 3])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let channel_error = Fold1d::<f32, SequentialBackend>::new(6, 2, 2, 0, 1)
         .forward(&fold1d_input)
         .err()
@@ -302,7 +351,12 @@ fn fold_rejects_incompatible_channel_and_window_shapes() {
         other => panic!("expected typed Fold1d shape error, got {other:?}"),
     }
 
-    let fold2d_input = Var::new(Tensor::<f32, SequentialBackend>::ones([1, 4, 3]), false);
+    let fold2d_input = Var::new(
+        Tensor::<f32, SequentialBackend>::ones([1, 4, 3])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let window_error = Fold2d::<f32, SequentialBackend>::new(4, 4, 2, 2, 0, 1)
         .forward(&fold2d_input)
         .err()

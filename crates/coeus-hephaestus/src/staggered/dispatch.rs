@@ -152,7 +152,7 @@ where
 {
     const OPERATION: &str = "staggered_gradient";
     let params = parameters::<B>(OPERATION, pair, axis, (input.1, output.1))?;
-    output.0.make_unique();
+    output.0.make_unique()?;
     B::Operations::default()
         .staggered_gradient_into(
             B::staggered_device(),
@@ -180,7 +180,7 @@ where
 {
     const OPERATION: &str = "staggered_divergence";
     let params = parameters::<B>(OPERATION, pair, axis, (input.1, output.1))?;
-    output.0.make_unique();
+    output.0.make_unique()?;
     B::Operations::default()
         .staggered_divergence_into(
             B::staggered_device(),

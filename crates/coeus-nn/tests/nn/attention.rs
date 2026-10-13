@@ -9,7 +9,11 @@ fn test_mha_self_attention_shape() {
 
     let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 4, NullMask>::new(8, true)
         .expect("valid four-head attention fixture");
-    let input = Var::new(Tensor::zeros(vec![1, 5, 8]), true);
+    let input = Var::new(
+        Tensor::zeros(vec![1, 5, 8]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = mha.forward(&input).expect("valid MultiHeadAttention input");
     assert_eq!(output.tensor.shape(), &[1, 5, 8]);
 }
@@ -23,9 +27,21 @@ fn test_mha_cross_attention_shape() {
 
     let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
         .expect("valid two-head cross-attention fixture");
-    let query = Var::new(Tensor::zeros(vec![1, 3, 4]), true);
-    let key = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
-    let value = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
+    let query = Var::new(
+        Tensor::zeros(vec![1, 3, 4]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let key = Var::new(
+        Tensor::zeros(vec![1, 5, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let value = Var::new(
+        Tensor::zeros(vec![1, 5, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = mha
         .forward_cross(&query, &key, &value, None)
         .expect("valid MultiHeadAttention cross-attention input");
@@ -69,9 +85,11 @@ fn test_mha_backward_gradients_exist() {
     let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
         .expect("valid two-head backward fixture");
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 4], &[0.1f64, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]),
+        Tensor::from_slice(vec![1, 2, 4], &[0.1f64, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = mha.forward(&input).expect("valid MultiHeadAttention input");
     output
         .backward()
@@ -93,7 +111,11 @@ fn scaled_attention_rejects_rank_before_indexing() {
     use coeus_nn::{ModuleError, ScaledDotProductAttention};
 
     let attention = ScaledDotProductAttention::<f64, coeus_core::MoiraiBackend, NullMask>::new();
-    let input = Var::new(Tensor::zeros(vec![2, 4]), false);
+    let input = Var::new(
+        Tensor::zeros(vec![2, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let error = Module::forward(&attention, &input)
         .err()
@@ -115,7 +137,11 @@ fn mha_rejects_non_divisible_head_count() {
 
     let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
         .expect("valid projection fixture");
-    let input = Var::new(Tensor::zeros(vec![1, 2, 4]), false);
+    let input = Var::new(
+        Tensor::zeros(vec![1, 2, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let error =
         coeus_nn::multi_head_attention_cross::<f64, coeus_core::MoiraiBackend, 3, NullMask>(
             &input,
@@ -154,8 +180,16 @@ fn mha_rejects_projection_and_mask_shapes() {
 
     let mut mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
         .expect("valid mutable projection fixture");
-    let input = Var::new(Tensor::zeros(vec![1, 3, 4]), false);
-    mha.w_k = Var::new(Tensor::zeros(vec![3, 4]), true);
+    let input = Var::new(
+        Tensor::zeros(vec![1, 3, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    mha.w_k = Var::new(
+        Tensor::zeros(vec![3, 4]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let projection_error = mha
         .forward_cross(&input, &input, &input, None)
         .err()
@@ -170,8 +204,16 @@ fn mha_rejects_projection_and_mask_shapes() {
         } if expected == vec![4, 4] && actual == vec![3, 4]
     ));
 
-    mha.w_k = Var::new(Tensor::zeros(vec![4, 4]), true);
-    let mask = Var::new(Tensor::ones(vec![1, 4]), false);
+    mha.w_k = Var::new(
+        Tensor::zeros(vec![4, 4]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mask = Var::new(
+        Tensor::ones(vec![1, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let mask_error = mha
         .forward_cross(&input, &input, &input, Some(&mask))
         .err()
@@ -194,9 +236,21 @@ fn mha_rejects_incompatible_query_key_value_shapes() {
 
     let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
         .expect("valid incompatible-shape fixture");
-    let query = Var::new(Tensor::zeros(vec![2, 3, 4]), false);
-    let key = Var::new(Tensor::zeros(vec![1, 5, 4]), false);
-    let value = Var::new(Tensor::zeros(vec![2, 5, 4]), false);
+    let query = Var::new(
+        Tensor::zeros(vec![2, 3, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let key = Var::new(
+        Tensor::zeros(vec![1, 5, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let value = Var::new(
+        Tensor::zeros(vec![2, 5, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let batch_error = mha
         .forward_cross(&query, &key, &value, None)
         .err()
@@ -211,8 +265,16 @@ fn mha_rejects_incompatible_query_key_value_shapes() {
         } if expected == vec![2] && actual == vec![1]
     ));
 
-    let key = Var::new(Tensor::zeros(vec![2, 5, 4]), false);
-    let value = Var::new(Tensor::zeros(vec![2, 4, 4]), false);
+    let key = Var::new(
+        Tensor::zeros(vec![2, 5, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let value = Var::new(
+        Tensor::zeros(vec![2, 4, 4]).expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
     let sequence_error = mha
         .forward_cross(&query, &key, &value, None)
         .err()

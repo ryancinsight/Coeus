@@ -1,5 +1,5 @@
 use crate::{
-    error::map_module_error,
+    error::{map_backend_error, map_module_error},
     init::map_initialization_error,
     tensor::{PyStateDict, PyTensor},
 };
@@ -9,7 +9,11 @@ pub(crate) fn validate_key_padding_mask(mask: Option<&PyTensor>) -> PyResult<()>
     let Some(mask) = mask else {
         return Ok(());
     };
-    let values = mask.inner.tensor.to_contiguous();
+    let values = mask
+        .inner
+        .tensor
+        .to_contiguous()
+        .map_err(map_backend_error)?;
     if let Some((index, value)) = values
         .as_slice()
         .iter()
@@ -402,23 +406,24 @@ impl PyMultiHeadAttention {
     }
 
     /// Zero the gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.w_q.bind(py).borrow().zero_grad();
-        self.w_k.bind(py).borrow().zero_grad();
-        self.w_v.bind(py).borrow().zero_grad();
-        self.w_o.bind(py).borrow().zero_grad();
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.w_q.bind(py).borrow().zero_grad()?;
+        self.w_k.bind(py).borrow().zero_grad()?;
+        self.w_v.bind(py).borrow().zero_grad()?;
+        self.w_o.bind(py).borrow().zero_grad()?;
         if let Some(ref b) = self.b_q {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
         if let Some(ref b) = self.b_k {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
         if let Some(ref b) = self.b_v {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
         if let Some(ref b) = self.b_o {
-            b.bind(py).borrow().zero_grad();
+            b.bind(py).borrow().zero_grad()?;
         }
+        Ok(())
     }
 }
 
@@ -443,14 +448,15 @@ impl PyRotaryEmbedding {
     #[new]
     #[pyo3(signature = (max_len, d_head, base = 10000.0))]
     /// Create a RotaryEmbedding with `max_len` positions, `d_head` key/query dim, and frequency `base`.
-    pub fn new(max_len: usize, d_head: usize, base: f64) -> Self {
-        let inner = coeus_nn::positional::RotaryEmbedding::new(max_len, d_head, base);
-        Self {
+    pub fn new(max_len: usize, d_head: usize, base: f64) -> PyResult<Self> {
+        let inner = coeus_nn::positional::RotaryEmbedding::new(max_len, d_head, base)
+            .map_err(map_initialization_error)?;
+        Ok(Self {
             inner,
             max_len,
             d_head,
             base,
-        }
+        })
     }
 
     /// Forward pass through the RotaryEmbedding layer.

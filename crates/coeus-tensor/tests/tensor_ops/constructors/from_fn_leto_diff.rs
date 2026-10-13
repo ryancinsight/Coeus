@@ -16,7 +16,8 @@ where
     let shape = [2usize, 3, 2];
     let tensor = Tensor::<i32, B>::from_fn_on(shape, &backend, |index| {
         i32::try_from(index[0] * 100 + index[1] * 10 + index[2]).unwrap()
-    });
+    })
+    .expect("invariant: test backend operation succeeds");
     let expected = coeus_leto::from_shape_fn_values(&shape, |index| {
         i32::try_from(index[0] * 100 + index[1] * 10 + index[2]).unwrap()
     })

@@ -188,14 +188,19 @@ impl Default for GradcheckConfig {
 /// use coeus_tensor::Tensor;
 ///
 /// let backend = MoiraiBackend::new();
-/// let x = Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[0.5, -1.25, 2.0], &backend);
+/// let x = Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[0.5, -1.25, 2.0], &backend)
+///     .expect("invariant: example shape matches data");
 /// // A non-uniform weighting keeps the probed gradient away from zero.
 /// let w = Var::new(
-///     Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, -2.0, 0.5], &backend),
+///     Tensor::<f64, MoiraiBackend>::from_slice_on([3], &[1.0, -2.0, 0.5], &backend)
+///         .expect("invariant: example shape matches data"),
 ///     false,
-/// );
+/// ).expect("invariant: constant example variable needs no gradient buffer");
 ///
-/// gradcheck(&[x], |v| sum(&mul(&v[0], &w))).expect("weighted sum is differentiable");
+/// gradcheck(&[x], |v| {
+///     let product = mul(&v[0], &w).expect("invariant: equal-shaped example operands multiply");
+///     sum(&product).expect("invariant: example reduction succeeds")
+/// }).expect("invariant: weighted sum is differentiable");
 /// ```
 pub fn gradcheck<T, B, F>(inputs: &[Tensor<T, B>], loss_fn: F) -> Result<(), GradcheckError>
 where
@@ -234,7 +239,8 @@ where
     let tracked: Vec<Var<T, B>> = inputs
         .iter()
         .map(|tensor| Var::new(tensor.clone(), true))
-        .collect();
+        .collect::<Result<_, _>>()
+        .map_err(|error: B::Error| GradcheckError::Backward(error.to_string()))?;
     let loss = loss_fn(&tracked);
     if loss.tensor.numel() != 1 {
         return Err(GradcheckError::NonScalarLoss {
@@ -284,8 +290,12 @@ where
             let center = perturber.base[element].to_f64();
             let step = step_factor * center.abs().max(1.0);
 
-            let plus = perturber.evaluate(element, center + step);
-            let minus = perturber.evaluate(element, center - step);
+            let plus = perturber
+                .evaluate(element, center + step)
+                .map_err(|error| GradcheckError::Backward(error.to_string()))?;
+            let minus = perturber
+                .evaluate(element, center - step)
+                .map_err(|error| GradcheckError::Backward(error.to_string()))?;
 
             // Realized denominator: `center ± step` was rounded into `T`, so the
             // step actually taken differs from `2·step` by a representation
@@ -388,11 +398,11 @@ where
     ///
     /// Gradient tracking is off: only the forward value is needed, so no tape
     /// is built for the `2 · numel` perturbation evaluations.
-    fn evaluate(&self, element: usize, value: f64) -> Perturbed {
+    fn evaluate(&self, element: usize, value: f64) -> Result<Perturbed, B::Error> {
         let mut data = self.base.clone();
         data[element] = narrow::<T>(value);
         let perturbed = data[element].to_f64();
-        let replaced = Tensor::from_slice_on(self.shape.clone(), &data, self.backend);
+        let replaced = Tensor::from_slice_on(self.shape.clone(), &data, self.backend)?;
 
         let vars: Vec<Var<T, B>> = self
             .inputs
@@ -406,12 +416,12 @@ where
                 };
                 Var::new(source, false)
             })
-            .collect();
+            .collect::<Result<_, _>>()?;
 
-        Perturbed {
+        Ok(Perturbed {
             loss: (self.loss_fn)(&vars).tensor.as_slice()[0].to_f64(),
             perturbed,
-        }
+        })
     }
 }
 mod error;

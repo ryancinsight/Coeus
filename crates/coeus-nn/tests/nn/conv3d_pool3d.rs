@@ -4,8 +4,12 @@ use coeus_tensor::Tensor;
 
 #[test]
 fn test_conv3d_forward_shape() {
-    let conv = Conv3d::<f64>::new(2, 4, 3, true);
-    let input = Var::new(Tensor::zeros(vec![2, 2, 8, 8, 8]), true);
+    let conv = Conv3d::<f64>::new(2, 4, 3, true).expect("invariant: test operation succeeds");
+    let input = Var::new(
+        Tensor::zeros(vec![2, 2, 8, 8, 8]).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
     let output = conv.forward(&input).expect("valid Conv3d input");
 
     assert_eq!(output.tensor.shape(), &[2, 4, 6, 6, 6]);
@@ -16,19 +20,21 @@ fn test_conv3d_forward_shape() {
 
 #[test]
 fn test_conv3d_forward_computation() {
-    let mut conv = Conv3d::<f64>::new(1, 1, 2, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv3d::<f64>::new(1, 1, 2, true).expect("invariant: test operation succeeds");
+    init::constant(&mut conv.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.0);
+        init::constant(b, 0.0).expect("invariant: test operation succeeds");
     }
 
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = conv.forward(&input).expect("valid Conv3d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -39,19 +45,21 @@ fn test_conv3d_forward_computation() {
 
 #[test]
 fn test_conv3d_backward_gradients_match_reference() {
-    let mut conv = Conv3d::<f64>::new(1, 1, 2, true);
-    init::constant(&mut conv.weight, 1.0);
+    let mut conv = Conv3d::<f64>::new(1, 1, 2, true).expect("invariant: test operation succeeds");
+    init::constant(&mut conv.weight, 1.0).expect("invariant: test operation succeeds");
     if let Some(ref mut b) = conv.bias {
-        init::constant(b, 0.5);
+        init::constant(b, 0.5).expect("invariant: test operation succeeds");
     }
 
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = conv.forward(&input).expect("valid Conv3d input");
     output
@@ -78,7 +86,7 @@ fn test_conv3d_backward_gradients_match_reference() {
 
 #[test]
 fn test_batchnorm3d_forward_and_backward() {
-    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1);
+    let bn = BatchNorm3d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
     let input = Var::new(
         Tensor::from_slice(
             vec![1, 2, 2, 2, 2],
@@ -86,9 +94,11 @@ fn test_batchnorm3d_forward_and_backward() {
                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, // channel 0
                 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, // channel 1
             ],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = bn.forward(&input).expect("valid BatchNorm3d input");
     assert_eq!(output.tensor.shape(), &[1, 2, 2, 2, 2]);
@@ -113,9 +123,11 @@ fn test_max_pool3d_forward_and_backward() {
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = pool.forward(&input).expect("valid MaxPool3d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);
@@ -137,9 +149,11 @@ fn test_avg_pool3d_forward_and_backward() {
         Tensor::from_slice(
             vec![1, 1, 2, 2, 2],
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-        ),
+        )
+        .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
 
     let output = pool.forward(&input).expect("valid AvgPool3d input");
     assert_eq!(output.tensor.shape(), &[1, 1, 1, 1, 1]);

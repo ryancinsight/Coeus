@@ -99,7 +99,7 @@ where
                 &backend,
                 Spec::backward(self.bits),
             )?;
-            let local = coeus_ops::mul(grad_out, &deriv, &backend);
+            let local = coeus_ops::mul(grad_out, &deriv, &backend)?;
             let lock = g.write();
             coeus_ops::add_assign(lock, &local, &backend)?;
         }
@@ -115,10 +115,9 @@ fn parameterized_unary_op<
 >(
     a: &Var<T, B>,
     bits: u64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = coeus_ops::elementwise_unary(&a.tensor, &backend, Spec::forward(bits))
-        .expect("elementwise_unary");
+    let out_tensor = coeus_ops::elementwise_unary(&a.tensor, &backend, Spec::forward(bits))?;
     let requires_grad = crate::grad_mode::should_track_var(a);
     Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
         ParameterizedUnaryNode::<T, B, Spec> {
@@ -150,13 +149,12 @@ impl ParameterizedUnarySpec for HardtanhSpec {
 /// Tracked Hardtanh: `y = clamp(x, min_val, max_val)`.
 ///
 /// Gradient is the indicator `1_{min_val < x < max_val}`.
-#[must_use]
 #[inline]
 pub fn hardtanh<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     min_val: f64,
     max_val: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let bits = pack_pairs(min_val, max_val);
     parameterized_unary_op::<T, B, HardtanhSpec>(a, bits)
 }
@@ -169,9 +167,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "hardsigmoid";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::Hardsigmoid)
-            .expect("elementwise_unary")
     }
 
     #[inline(always)]
@@ -180,9 +177,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::HardsigmoidGrad)
-            .expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::HardsigmoidGrad)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -190,9 +186,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// Tracked Hardsigmoid: `y = clamp(x/6 + 0.5, 0, 1)`.
 ///
 /// Gradient is `1/6` in `(-3, 3)` and `0` outside.
-#[must_use]
 #[inline]
-pub fn hardsigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn hardsigmoid<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, HardsigmoidOp>(a)
 }
 
@@ -204,9 +201,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "hardswish";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::Hardswish)
-            .expect("elementwise_unary")
     }
 
     #[inline(always)]
@@ -215,9 +211,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::HardswishGrad)
-            .expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::HardswishGrad)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -226,9 +221,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 ///
 /// Piecewise gradient: `0` for `x < -3`, `(2x+3)/6` for `-3 ≤ x ≤ 3`, `1`
 /// for `x > 3`.
-#[must_use]
 #[inline]
-pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn hardswish<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, HardswishOp>(a)
 }
 
@@ -255,12 +251,11 @@ impl ParameterizedUnarySpec for HardshrinkSpec {
 /// Gradient is `1` exactly where `|x| > λ`, `0` otherwise. The textbook
 /// subgradient at `|x| = λ` is undefined; PyTorch's convention is `0` and we
 /// match that here.
-#[must_use]
 #[inline]
 pub fn hardshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     lambda: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let bits = lambda.to_bits();
     parameterized_unary_op::<T, B, HardshrinkSpec>(a, bits)
 }
@@ -287,12 +282,11 @@ impl ParameterizedUnarySpec for SoftshrinkSpec {
 ///
 /// Gradient is `1` exactly where `|x| > λ`, `0` otherwise. Same subgradient
 /// convention as Hardshrink.
-#[must_use]
 #[inline]
 pub fn softshrink<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     lambda: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let bits = lambda.to_bits();
     parameterized_unary_op::<T, B, SoftshrinkSpec>(a, bits)
 }
@@ -305,9 +299,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
     const OP_NAME: &'static str = "softsign";
 
     #[inline(always)]
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::Softsign)
-            .expect("elementwise_unary")
     }
 
     #[inline(always)]
@@ -316,9 +309,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         x: &Tensor<T, B>,
         _y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B> {
-        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SoftsignGrad)
-            .expect("elementwise_unary");
+    ) -> Result<Tensor<T, B>, B::Error> {
+        let deriv = coeus_ops::elementwise_unary(x, backend, coeus_ops::UnaryOp::SoftsignGrad)?;
         coeus_ops::mul(grad_out, &deriv, backend)
     }
 }
@@ -326,9 +318,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 /// Tracked Softsign: `y = x / (1 + |x|)`.
 ///
 /// Gradient is `1 / (1 + |x|)^2`.
-#[must_use]
 #[inline]
-pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(a: &Var<T, B>) -> Var<T, B> {
+pub fn softsign<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+    a: &Var<T, B>,
+) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SoftsignOp>(a)
 }
 
@@ -355,13 +348,12 @@ impl ParameterizedUnarySpec for ThresholdSpec {
 /// Gradient is `1` exactly when `x > threshold`, `0` otherwise. At the
 /// kink `x = threshold` the replacement region dominates, so the
 /// subgradient is `0` (PyTorch convention).
-#[must_use]
 #[inline]
 pub fn threshold<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     thresh: f64,
     value: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let bits = pack_pairs(thresh, value);
     parameterized_unary_op::<T, B, ThresholdSpec>(a, bits)
 }
@@ -388,12 +380,11 @@ impl ParameterizedUnarySpec for CeluSpec {
 ///
 /// Gradient is `1` for `x ≥ 0`, else `exp(x/α)`. At the kink `x = 0`,
 /// both pieces agree on derivative `1` (continuous-differentiable ELU).
-#[must_use]
 #[inline]
 pub fn celu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     alpha: f64,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let bits = alpha.to_bits();
     parameterized_unary_op::<T, B, CeluSpec>(a, bits)
 }

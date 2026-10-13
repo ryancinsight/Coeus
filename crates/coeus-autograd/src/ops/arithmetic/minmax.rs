@@ -18,24 +18,26 @@ use coeus_core::Scalar;
 ///
 /// `maximum(a, b) = a + relu(b - a)`. Gradient flows to the larger operand;
 /// ties resolve to `a`.
-#[must_use]
 #[inline]
 pub fn maximum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
-    add(a, &relu(&sub(b, a)))
+) -> Result<Var<T, B>, B::Error> {
+    let difference = sub(b, a)?;
+    let positive = relu(&difference)?;
+    add(a, &positive)
 }
 
 /// Tracked element-wise minimum (`torch.minimum`, Burn `Tensor::min_pair`).
 ///
 /// `minimum(a, b) = a - relu(a - b)`. Gradient flows to the smaller operand;
 /// ties resolve to `a`.
-#[must_use]
 #[inline]
 pub fn minimum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     b: &Var<T, B>,
-) -> Var<T, B> {
-    sub(a, &relu(&sub(a, b)))
+) -> Result<Var<T, B>, B::Error> {
+    let difference = sub(a, b)?;
+    let positive = relu(&difference)?;
+    sub(a, &positive)
 }

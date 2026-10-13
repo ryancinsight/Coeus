@@ -47,6 +47,11 @@ struct GradientOutputs<'a, T: Scalar, B: coeus_ops::BackendOps<T>> {
     bias: Option<&'a mut B::DeviceBuffer<T>>,
 }
 
+struct GradientTarget<'a, T: Scalar, B: coeus_ops::BackendOps<T>> {
+    storage: Option<&'a mut B::DeviceBuffer<T>>,
+    layout: &'a Layout,
+}
+
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> BackwardNode<T, B>
     for ConvTransposeNode<T, B, DIM>
 {
@@ -84,22 +89,31 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
             return Ok(());
         }
 
-        let mut grad_input =
-            needs_input.then(|| Tensor::zeros_on(self.input.shape_cloned(), &backend));
-        let mut grad_weight =
-            needs_weight.then(|| Tensor::zeros_on(self.weight.shape_cloned(), &backend));
-        let mut grad_bias =
-            needs_bias.then(|| Tensor::zeros_on([self.weight.shape()[1]], &backend));
+        let mut grad_input = if needs_input {
+            Some(Tensor::zeros_on(self.input.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_weight = if needs_weight {
+            Some(Tensor::zeros_on(self.weight.shape_cloned(), &backend)?)
+        } else {
+            None
+        };
+        let mut grad_bias = if needs_bias {
+            Some(Tensor::zeros_on([self.weight.shape()[1]], &backend)?)
+        } else {
+            None
+        };
 
         let reference_layout = grad_output.layout();
-        let (input_storage, input_layout) = optional_gradient(&mut grad_input, reference_layout);
-        let (weight_storage, weight_layout) = optional_gradient(&mut grad_weight, reference_layout);
+        let input_gradient = optional_gradient(&mut grad_input, reference_layout)?;
+        let weight_gradient = optional_gradient(&mut grad_weight, reference_layout)?;
         let outputs = GradientOutputs {
-            input: input_storage,
-            input_layout,
-            weight: weight_storage,
-            weight_layout,
-            bias: grad_bias.as_mut().map(Tensor::storage_mut),
+            input: input_gradient.storage,
+            input_layout: input_gradient.layout,
+            weight: weight_gradient.storage,
+            weight_layout: weight_gradient.layout,
+            bias: grad_bias.as_mut().map(Tensor::storage_mut).transpose()?,
         };
 
         dispatch_backward::<T, B, DIM>(
@@ -123,13 +137,19 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Backward
 fn optional_gradient<'a, T: Scalar, B: coeus_ops::BackendOps<T>>(
     tensor: &'a mut Option<Tensor<T, B>>,
     reference_layout: &'a Layout,
-) -> (Option<&'a mut B::DeviceBuffer<T>>, &'a Layout) {
+) -> Result<GradientTarget<'a, T, B>, B::Error> {
     match tensor {
         Some(tensor) => {
-            let (storage, layout) = tensor.storage_mut_and_layout();
-            (Some(storage), layout)
+            let (storage, layout) = tensor.storage_mut_and_layout()?;
+            Ok(GradientTarget {
+                storage: Some(storage),
+                layout,
+            })
         }
-        None => (None, reference_layout),
+        None => Ok(GradientTarget {
+            storage: None,
+            layout: reference_layout,
+        }),
     }
 }
 
@@ -225,7 +245,7 @@ fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: us
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad = crate::grad_mode::should_track_var(input)
         || crate::grad_mode::should_track_var(weight)
@@ -233,12 +253,14 @@ fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: us
             .as_ref()
             .is_some_and(crate::grad_mode::should_track_var);
 
-    let grad = requires_grad.then(|| {
-        Arc::new(GradBuffer::new(Tensor::zeros_on(
+    let grad = if requires_grad {
+        Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             output.shape_cloned(),
             &backend,
-        )))
-    });
+        )?)))
+    } else {
+        None
+    };
 
     let creator = grad.as_ref().map(|output_grad| {
         let mut inputs = Vec::with_capacity(2 + usize::from(bias.is_some()));
@@ -258,11 +280,11 @@ fn conv_transpose<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: us
         }) as Arc<dyn BackwardNode<T, B>>
     });
 
-    Var {
+    Ok(Var {
         tensor: output,
         grad,
         creator,
-    }
+    })
 }
 
 /// Track a one-dimensional transposed convolution.
@@ -279,7 +301,7 @@ pub fn conv_transpose1d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     conv_transpose::<T, B, 1>(
         input,
         weight,
@@ -306,7 +328,7 @@ pub fn conv_transpose2d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     conv_transpose::<T, B, 2>(
         input,
         weight,
@@ -333,7 +355,7 @@ pub fn conv_transpose3d<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     padding: usize,
     output_padding: usize,
     dilation: usize,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     conv_transpose::<T, B, 3>(
         input,
         weight,

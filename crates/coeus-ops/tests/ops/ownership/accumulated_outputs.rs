@@ -1,5 +1,5 @@
 use super::optimizer::{assert_values, upload};
-use coeus_core::{Layout, Scalar};
+use coeus_core::{Layout, Scalar, Storage};
 use coeus_ops::{
     AttentionOps, AttentionScalar, ConvOps, ConvolutionBackward, ConvolutionForward, PoolOps,
     UnfoldFoldOps,
@@ -173,6 +173,37 @@ pub(crate) fn attention_preserves_output_clones<T: AttentionScalar, B: Attention
     assert_values(backend, &original_weights, &[two, three]);
     assert_values(backend, &weights, &[two, three]);
 
+    // SAFETY: AttentionOps requires successful forward dispatch to initialize
+    // every output and weight element.
+    let mut uninitialized_output = unsafe { backend.allocate(output_layout.numel()) }
+        .expect("invariant: attention output allocation succeeds");
+    // SAFETY: This allocation is checked before any read and then fully
+    // initialized by sdp_attention on success.
+    let mut uninitialized_weights = unsafe { backend.allocate(weights_layout.numel()) }
+        .expect("invariant: attention weight allocation succeeds");
+    assert!(Storage::try_as_slice(&uninitialized_output).is_none());
+    assert!(Storage::try_as_slice(&uninitialized_weights).is_none());
+    backend
+        .sdp_attention(
+            &query,
+            &query_layout,
+            &key,
+            &key_layout,
+            &value,
+            &value_layout,
+            None,
+            None,
+            false,
+            one,
+            &mut uninitialized_output,
+            &output_layout,
+            &mut uninitialized_weights,
+            &weights_layout,
+        )
+        .expect("valid attention write into uninitialized outputs");
+    assert_values(backend, &uninitialized_output, &[four]);
+    assert_values(backend, &uninitialized_weights, &[half, half]);
+
     output = original_output.clone();
     weights = original_weights.clone();
 
@@ -280,6 +311,24 @@ pub(crate) fn pooling_preserves_output_clones<T: Scalar, B: PoolOps<T>>(backend:
     let input = upload(backend, &[one, four, two]);
     let original_output = upload(backend, &[three, one]);
     let mut output = original_output.clone();
+    // SAFETY: PoolOps requires every forward output element to be initialized
+    // when max_pool1d returns success.
+    let mut uninitialized_output = unsafe { backend.allocate(output_layout.numel()) }
+        .expect("invariant: pooling output allocation succeeds");
+    assert!(Storage::try_as_slice(&uninitialized_output).is_none());
+    backend
+        .max_pool1d(
+            &input,
+            &input_layout,
+            2,
+            1,
+            0,
+            1,
+            &mut uninitialized_output,
+            &output_layout,
+        )
+        .expect("valid pooling write into uninitialized output");
+    assert_values(backend, &uninitialized_output, &[four, four]);
     // Both [1,4] and [4,2] have maximum 4.
     backend
         .max_pool1d(
@@ -336,6 +385,24 @@ pub(crate) fn windows_preserve_output_clones<T: Scalar, B: UnfoldFoldOps<T>>(bac
     let original_fold = upload(backend, &[three, one, two]);
     let mut columns = original_columns.clone();
     let mut folded = original_fold.clone();
+    // SAFETY: UnfoldFoldOps requires successful unfold to initialize every
+    // logical output element.
+    let mut uninitialized_columns = unsafe { backend.allocate(columns_layout.numel()) }
+        .expect("invariant: unfold output allocation succeeds");
+    assert!(Storage::try_as_slice(&uninitialized_columns).is_none());
+    backend
+        .unfold1d(
+            &input,
+            &input_layout,
+            2,
+            1,
+            0,
+            1,
+            &mut uninitialized_columns,
+            &columns_layout,
+        )
+        .expect("valid unfold write into uninitialized output");
+    assert_values(backend, &uninitialized_columns, &[one, two, two, four]);
     backend
         .unfold1d(
             &input,

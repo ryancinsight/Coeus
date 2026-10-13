@@ -16,11 +16,15 @@ fn test_cuda_parity_conv_transpose1d() {
         .collect();
     let bias: Vec<f32> = (0..c_out).map(|x| x as f32 * 0.25 - 0.3).collect();
 
-    let in_t = Tensor::from_slice(vec![n, c_in, l], &input);
-    let w_t = Tensor::from_slice(vec![c_in, c_out, k], &weight);
-    let b_t = Tensor::from_slice(vec![c_out], &bias);
+    let in_t = Tensor::from_slice(vec![n, c_in, l], &input)
+        .expect("invariant: test backend operation succeeds");
+    let w_t = Tensor::from_slice(vec![c_in, c_out, k], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let b_t =
+        Tensor::from_slice(vec![c_out], &bias).expect("invariant: test backend operation succeeds");
 
-    let mut out_s = Tensor::<f32, SequentialBackend>::zeros(vec![n, c_out, l_out]);
+    let mut out_s = Tensor::<f32, SequentialBackend>::zeros(vec![n, c_out, l_out])
+        .expect("invariant: test backend operation succeeds");
     let out_l = out_s.layout().clone();
     s.conv_transpose1d(
         in_t.storage(),
@@ -32,7 +36,9 @@ fn test_cuda_parity_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_s.storage_mut(),
+        out_s
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &out_l,
     )
     .expect("CPU transposed conv1d dispatch");
@@ -40,7 +46,8 @@ fn test_cuda_parity_conv_transpose1d() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&w_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, c_out, l_out], &c);
+    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, c_out, l_out], &c)
+        .expect("invariant: test backend operation succeeds");
     c.conv_transpose1d(
         in_g.storage(),
         in_g.layout(),
@@ -51,7 +58,9 @@ fn test_cuda_parity_conv_transpose1d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &out_l,
     )
     .expect("CUDA transposed conv1d dispatch");
@@ -83,11 +92,15 @@ fn test_cuda_parity_conv_transpose2d() {
         .collect();
     let bias: Vec<f32> = (0..c_out).map(|x| x as f32 * 0.2 - 0.2).collect();
 
-    let in_t = Tensor::from_slice(vec![n, c_in, h, w], &input);
-    let wt_t = Tensor::from_slice(vec![c_in, c_out, kh, kw], &weight);
-    let b_t = Tensor::from_slice(vec![c_out], &bias);
+    let in_t = Tensor::from_slice(vec![n, c_in, h, w], &input)
+        .expect("invariant: test backend operation succeeds");
+    let wt_t = Tensor::from_slice(vec![c_in, c_out, kh, kw], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let b_t =
+        Tensor::from_slice(vec![c_out], &bias).expect("invariant: test backend operation succeeds");
 
-    let mut out_s = Tensor::<f32, SequentialBackend>::zeros(vec![n, c_out, h_out, w_out]);
+    let mut out_s = Tensor::<f32, SequentialBackend>::zeros(vec![n, c_out, h_out, w_out])
+        .expect("invariant: test backend operation succeeds");
     let out_l = out_s.layout().clone();
     s.conv_transpose2d(
         in_t.storage(),
@@ -99,7 +112,9 @@ fn test_cuda_parity_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_s.storage_mut(),
+        out_s
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &out_l,
     )
     .expect("CPU transposed conv2d dispatch");
@@ -107,7 +122,8 @@ fn test_cuda_parity_conv_transpose2d() {
     let in_g = to_gpu(&in_t, &s, &c);
     let w_g = to_gpu(&wt_t, &s, &c);
     let b_g = to_gpu(&b_t, &s, &c);
-    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, c_out, h_out, w_out], &c);
+    let mut out_g = Tensor::<f32, CudaBackend>::zeros_on(vec![n, c_out, h_out, w_out], &c)
+        .expect("invariant: test backend operation succeeds");
     c.conv_transpose2d(
         in_g.storage(),
         in_g.layout(),
@@ -118,7 +134,9 @@ fn test_cuda_parity_conv_transpose2d() {
         padding,
         output_padding,
         dilation,
-        out_g.storage_mut(),
+        out_g
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &out_l,
     )
     .expect("CUDA transposed conv2d dispatch");
@@ -142,44 +160,53 @@ fn test_cuda_parity_conv_transpose1d_backward() {
     let seed = [1.0f32, -0.5, 0.25, 2.0];
 
     let input_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3], &input),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3], &input)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let weight_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2], &weight),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2], &weight)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let out_cpu =
         coeus_ops::conv_transpose1d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s)
             .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose1d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
     tracked_cpu
-        .backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
-            [1, 1, 4],
-            &seed,
-        ))
+        .expect("invariant: test backend operation succeeds")
+        .backward_with_seed(
+            Tensor::<f32, SequentialBackend>::from_slice([1, 1, 4], &seed)
+                .expect("invariant: test backend operation succeeds"),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 3], &input, &c),
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 3], &input, &c)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let weight_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2], &weight, &c),
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2], &weight, &c)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let out_gpu =
         coeus_ops::conv_transpose1d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c)
             .expect("CUDA transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose1d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
-        .backward_with_seed(Tensor::<f32, CudaBackend>::from_slice_on(
-            [1, 1, 4],
-            &seed,
-            &c,
-        ))
+        .expect("invariant: test backend operation succeeds")
+        .backward_with_seed(
+            Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 4], &seed, &c)
+                .expect("invariant: test backend operation succeeds"),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     assert_parity_tol(
@@ -227,44 +254,53 @@ fn test_cuda_parity_conv_transpose2d_backward() {
     let seed: Vec<f32> = (0..9).map(|x| x as f32 * 0.2 - 0.7).collect();
 
     let input_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &input),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &input)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let weight_cpu = Var::new(
-        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &weight),
+        Tensor::<f32, SequentialBackend>::from_slice([1, 1, 2, 2], &weight)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let out_cpu =
         coeus_ops::conv_transpose2d(&input_cpu.tensor, &weight_cpu.tensor, None, 1, 0, 0, 1, &s)
             .expect("CPU transposed convolution forward");
     let tracked_cpu =
         coeus_autograd::conv_transpose2d(&input_cpu, &weight_cpu, &None, out_cpu, 1, 0, 0, 1);
     tracked_cpu
-        .backward_with_seed(Tensor::<f32, SequentialBackend>::from_slice(
-            [1, 1, 3, 3],
-            &seed,
-        ))
+        .expect("invariant: test backend operation succeeds")
+        .backward_with_seed(
+            Tensor::<f32, SequentialBackend>::from_slice([1, 1, 3, 3], &seed)
+                .expect("invariant: test backend operation succeeds"),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     let input_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &input, &c),
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &input, &c)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let weight_gpu = Var::new(
-        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &weight, &c),
+        Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 2, 2], &weight, &c)
+            .expect("invariant: test backend operation succeeds"),
         true,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let out_gpu =
         coeus_ops::conv_transpose2d(&input_gpu.tensor, &weight_gpu.tensor, None, 1, 0, 0, 1, &c)
             .expect("CUDA transposed convolution forward");
     let tracked_gpu =
         coeus_autograd::conv_transpose2d(&input_gpu, &weight_gpu, &None, out_gpu, 1, 0, 0, 1);
     tracked_gpu
-        .backward_with_seed(Tensor::<f32, CudaBackend>::from_slice_on(
-            [1, 1, 3, 3],
-            &seed,
-            &c,
-        ))
+        .expect("invariant: test backend operation succeeds")
+        .backward_with_seed(
+            Tensor::<f32, CudaBackend>::from_slice_on([1, 1, 3, 3], &seed, &c)
+                .expect("invariant: test backend operation succeeds"),
+        )
         .expect("invariant: valid autograd fixture completes backward");
 
     assert_parity_tol(

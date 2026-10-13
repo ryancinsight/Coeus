@@ -27,6 +27,7 @@ pub struct RocmProvider;
 // context before accessing the allocation; the handle is thread-transferable.
 unsafe impl HephaestusProvider for RocmProvider {
     type Device = RocmDevice;
+    type Error = coeus_hephaestus::HephaestusBackendError;
     const NAME: &'static str = "rocm";
 
     fn device() -> &'static Self::Device {
@@ -55,49 +56,62 @@ impl ConvolutionProvider<f32> for RocmProvider {
 }
 
 #[cfg(all(feature = "rocm", target_os = "linux"))]
-impl AttentionProvider<f32> for RocmProvider {
+// SAFETY: `RocmAttentionOps` initializes both forward outputs and only
+// accumulates backward gradients into initialized destinations.
+unsafe impl AttentionProvider<f32> for RocmProvider {
     type Operations = RocmAttentionOps;
 }
 
-impl ElementwiseProvider<f32> for RocmProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<f32> for RocmProvider {
     type Operations = RocmElementwiseOps;
     type UnaryOperations = ActivationUnaryOperations;
 }
 
-impl ElementwiseProvider<u32> for RocmProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<u32> for RocmProvider {
     type Operations = RocmElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ElementwiseProvider<i32> for RocmProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ElementwiseProvider<i32> for RocmProvider {
     type Operations = RocmElementwiseOps;
     type UnaryOperations = ArithmeticUnaryOperations;
 }
 
-impl ScalarPowerProvider<f32> for RocmProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ScalarPowerProvider<f32> for RocmProvider {
     type Operations = RocmElementwiseOps;
 }
 
-impl ReductionProvider<f32> for RocmProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ReductionProvider<f32> for RocmProvider {
     type AxisOperations = RocmAxisReductionOps;
     type ScanOperations = RocmScanOps;
 }
 
-impl MatmulProvider<f32> for RocmProvider {
+// SAFETY: `RocmDenseProductOps` fully initializes each product output before
+// returning success.
+unsafe impl MatmulProvider<f32> for RocmProvider {
     type Operations = RocmDenseProductOps;
 }
 
-impl ReductionProvider<u32> for RocmProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ReductionProvider<u32> for RocmProvider {
     type AxisOperations = RocmAxisReductionOps;
     type ScanOperations = RocmScanOps;
 }
 
-impl ReductionProvider<i32> for RocmProvider {
+// SAFETY: Provider kernels overwrite every logical output on success without reading prior contents.
+unsafe impl ReductionProvider<i32> for RocmProvider {
     type AxisOperations = RocmAxisReductionOps;
     type ScanOperations = RocmScanOps;
 }
 
-impl CrossEntropyProvider for RocmProvider {
+// SAFETY: `RocmCrossEntropyOps` initializes both forward outputs and only
+// accumulates backward gradients into initialized destinations.
+unsafe impl CrossEntropyProvider for RocmProvider {
     type Operations = hephaestus_rocm::RocmCrossEntropyOps;
 }
 
@@ -117,7 +131,9 @@ impl StatefulUpdateProvider for RocmProvider {
     type Operations = hephaestus_rocm::RocmStatefulUpdateOps;
 }
 
-impl<T> PoolingProvider<T> for RocmProvider
+// SAFETY: `RocmPoolingOps` initializes forward outputs and only accumulates
+// backward gradients into initialized destinations.
+unsafe impl<T> PoolingProvider<T> for RocmProvider
 where
     T: Scalar + leto_ops::Scalar,
     RocmPoolingOps: PoolingOps<RocmDevice, T>,
@@ -125,7 +141,9 @@ where
     type Operations = RocmPoolingOps;
 }
 
-impl<T> UnfoldFoldProvider<T> for RocmProvider
+// SAFETY: `RocmSlidingWindowOps` initializes unfold outputs and clears fold
+// outputs before accumulating, as required by the Hephaestus contract.
+unsafe impl<T> UnfoldFoldProvider<T> for RocmProvider
 where
     T: Scalar + leto_ops::Scalar,
     RocmSlidingWindowOps: SlidingWindowOps<RocmDevice, T>,

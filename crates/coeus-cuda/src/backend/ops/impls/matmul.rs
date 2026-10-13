@@ -27,7 +27,8 @@ where
     }
 }
 
-impl<T> coeus_ops::MatmulOps<T> for CudaBackend
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T> coeus_ops::MatmulOps<T> for CudaBackend
 where
     T: CudaScalar,
     CudaDenseProductOps: DenseProductOps<CudaDevice, T>,

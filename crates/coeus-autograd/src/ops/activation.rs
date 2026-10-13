@@ -11,7 +11,7 @@ pub trait UnaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Sen
     const OP_NAME: &'static str;
 
     /// Execute forward pass.
-    fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B>;
+    fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error>;
 
     /// Compute input gradient: computes the derivative and scales by grad_out.
     ///
@@ -22,7 +22,7 @@ pub trait UnaryAutogradOp<T: Scalar, B: coeus_ops::BackendOps<T> + Default>: Sen
         x: &Tensor<T, B>,
         y: &Tensor<T, B>,
         backend: &B,
-    ) -> Tensor<T, B>;
+    ) -> Result<Tensor<T, B>, B::Error>;
 }
 
 /// Autograd node for a generic unary activation operation.
@@ -65,7 +65,7 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default, Op: UnaryAutogradOp<T, B>
     ) -> Result<(), B::Error> {
         let backend = B::default();
         if let Some(Some(ref g)) = input_grads.first() {
-            let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend);
+            let mask = Op::backward(grad_out, &self.a_tensor, &self.out_tensor, &backend)?;
             let gl = g.write();
             coeus_ops::add_assign(gl, &mask, &backend)?;
         }
@@ -81,9 +81,9 @@ pub fn unary_op<
     Op: UnaryAutogradOp<T, B> + 'static,
 >(
     a: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
-    let out_tensor = Op::forward(&a.tensor, &backend);
+    let out_tensor = Op::forward(&a.tensor, &backend)?;
     let saved_out_tensor = out_tensor.clone();
     let requires_grad = crate::grad_mode::should_track_var(a);
     Var::from_tracked_op(out_tensor, requires_grad, &backend, |output_grad| {
@@ -112,11 +112,11 @@ pub(crate) fn unary_backward<T, B, F>(
     x: &Tensor<T, B>,
     y: &Tensor<T, B>,
     backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,
-    F: Fn(&Tensor<T, B>, &Tensor<T, B>, &Tensor<T, B>, &B) -> Tensor<T, B>,
+    F: Fn(&Tensor<T, B>, &Tensor<T, B>, &Tensor<T, B>, &B) -> Result<Tensor<T, B>, B::Error>,
 {
     backward(grad_out, x, y, backend)
 }
@@ -133,18 +133,21 @@ pub(crate) fn backward_via_unary_derivative<T, B>(
     source: &Tensor<T, B>,
     backend: &B,
     grad_op: coeus_ops::UnaryOp,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,
 {
-    let deriv = coeus_ops::elementwise_unary(source, backend, grad_op).expect("elementwise_unary");
+    let deriv = coeus_ops::elementwise_unary(source, backend, grad_op)?;
     coeus_ops::mul(grad_out, &deriv, backend)
 }
 
 /// Returns the zero gradient for non-differentiable unary ops.
 #[inline(always)]
-pub(crate) fn zero_unary_grad<T, B>(grad_out: &Tensor<T, B>, backend: &B) -> Tensor<T, B>
+pub(crate) fn zero_unary_grad<T, B>(
+    grad_out: &Tensor<T, B>,
+    backend: &B,
+) -> Result<Tensor<T, B>, B::Error>
 where
     T: Scalar,
     B: coeus_ops::BackendOps<T> + Default,
@@ -181,7 +184,7 @@ macro_rules! unary_autograd {
             const OP_NAME: &'static str = $name;
 
             #[inline(always)]
-            fn forward(x: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
+            fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
                 coeus_ops::$fwd(x, backend)
             }
 
@@ -191,18 +194,17 @@ macro_rules! unary_autograd {
                 x: &Tensor<T, B>,
                 y: &Tensor<T, B>,
                 backend: &B,
-            ) -> Tensor<T, B> {
+            ) -> Result<Tensor<T, B>, B::Error> {
                 $crate::ops::activation::unary_backward($back, grad_out, x, y, backend)
             }
         }
 
         $(#[$meta])*
         #[doc = concat!("Tracked element-wise `", $name, "`.")]
-        #[must_use]
         #[inline]
         pub fn $fwd<T: $($bound)+, B: coeus_ops::BackendOps<T> + Default>(
             a: &Var<T, B>,
-        ) -> Var<T, B> {
+        ) -> Result<Var<T, B>, B::Error> {
             unary_op::<T, B, $op>(a)
         }
     };

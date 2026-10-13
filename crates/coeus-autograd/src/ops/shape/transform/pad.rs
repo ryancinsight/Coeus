@@ -75,13 +75,13 @@ pub fn pad<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     pads: &[(usize, usize)],
     value: T,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let out_tensor = coeus_ops::pad(&x.tensor, pads, value);
+    let out_tensor = coeus_ops::pad(&x.tensor, pads, value)?;
 
     let requires_grad = crate::grad_mode::should_track_var(x);
     if !requires_grad {
@@ -91,7 +91,7 @@ where
     let output_grad = Arc::new(GradBuffer::new(Tensor::zeros_on(
         out_tensor.shape_cloned(),
         &backend,
-    )));
+    )?));
     let grad = Some(output_grad.clone());
 
     let node = PadNode {
@@ -101,9 +101,9 @@ where
     };
     let creator = Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>);
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

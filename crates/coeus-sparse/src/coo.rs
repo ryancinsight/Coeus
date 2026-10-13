@@ -14,8 +14,8 @@ use coeus_tensor::Tensor;
 /// use coeus_core::Shape;
 /// use coeus_tensor::Tensor;
 ///
-/// let indices = Tensor::<i64>::from_slice([2, 2], &[0, 1, 1, 2]); // (0,0) and (1,2)
-/// let values = Tensor::<f32>::from_slice([2], &[5.0, 7.0]);
+/// let indices = Tensor::<i64>::from_slice([2, 2], &[0, 1, 1, 2]).expect("example tensor allocation succeeds"); // (0,0) and (1,2)
+/// let values = Tensor::<f32>::from_slice([2], &[5.0, 7.0]).expect("example tensor allocation succeeds");
 /// let coo = CooTensor::new(Shape::from(vec![2, 3]), indices, values);
 /// assert_eq!(coo.nnz(), 2);
 /// assert_eq!(coo.shape().as_ref(), &[2, 3]);
@@ -40,8 +40,8 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let indices = Tensor::<i64>::from_slice([2, 1], &[1, 0]); // entry at (1,0)
-    /// let values = Tensor::<f32>::from_slice([1], &[3.0]);
+    /// let indices = Tensor::<i64>::from_slice([2, 1], &[1, 0]).expect("example tensor allocation succeeds"); // entry at (1,0)
+    /// let values = Tensor::<f32>::from_slice([1], &[3.0]).expect("example tensor allocation succeeds");
     /// let coo = CooTensor::new(Shape::from(vec![2, 2]), indices, values);
     /// assert_eq!(coo.nnz(), 1);
     /// ```
@@ -80,8 +80,8 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let indices = Tensor::<i64>::from_slice([2, 1], &[0, 0]);
-    /// let values = Tensor::<f32>::from_slice([1], &[1.0]);
+    /// let indices = Tensor::<i64>::from_slice([2, 1], &[0, 0]).expect("example tensor allocation succeeds");
+    /// let values = Tensor::<f32>::from_slice([1], &[1.0]).expect("example tensor allocation succeeds");
     /// let coo = CooTensor::new(Shape::from(vec![3, 4]), indices, values);
     /// assert_eq!(coo.shape().as_ref(), &[3, 4]);
     /// ```
@@ -111,8 +111,8 @@ impl<T: Scalar, B: ComputeBackend> CooTensor<T, B> {
     /// use coeus_core::Shape;
     /// use coeus_tensor::Tensor;
     ///
-    /// let indices = Tensor::<i64>::from_slice([2, 3], &[0, 1, 0, 0, 1, 2]);
-    /// let values = Tensor::<f32>::from_slice([3], &[1.0, 2.0, 3.0]);
+    /// let indices = Tensor::<i64>::from_slice([2, 3], &[0, 1, 0, 0, 1, 2]).expect("example tensor allocation succeeds");
+    /// let values = Tensor::<f32>::from_slice([3], &[1.0, 2.0, 3.0]).expect("example tensor allocation succeeds");
     /// let coo = CooTensor::new(Shape::from(vec![2, 3]), indices, values);
     /// assert_eq!(coo.nnz(), 3);
     /// ```

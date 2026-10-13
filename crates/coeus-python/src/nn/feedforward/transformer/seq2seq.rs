@@ -105,8 +105,8 @@ impl PyTransformer {
 
     /// Zero gradients of all parameters across encoder and decoder.
     /// Zero all encoder and decoder parameter gradients.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.encoder.bind(py).borrow().zero_grad(py);
-        self.decoder.bind(py).borrow().zero_grad(py);
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.encoder.bind(py).borrow().zero_grad(py)?;
+        self.decoder.bind(py).borrow().zero_grad(py)
     }
 }

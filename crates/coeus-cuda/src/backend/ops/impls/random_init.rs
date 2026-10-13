@@ -16,7 +16,10 @@ impl coeus_ops::RandomInitOps<f32> for CudaBackend {
         seed: u64,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
         random_uniform::<Self, _>(layout, low, high, seed)
-            .map(coeus_hephaestus::HephaestusStorage::from_buffer)
+            .map(|buffer| {
+                // SAFETY: random_uniform initializes every element on success.
+                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+            })
             .map_err(|source| CudaBackendError::dispatch("uniform initialization", source))
     }
 
@@ -28,7 +31,10 @@ impl coeus_ops::RandomInitOps<f32> for CudaBackend {
         seed: u64,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
         random_normal::<Self, _>(layout, mean, std_dev, seed)
-            .map(coeus_hephaestus::HephaestusStorage::from_buffer)
+            .map(|buffer| {
+                // SAFETY: random_normal initializes every element on success.
+                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+            })
             .map_err(|source| CudaBackendError::dispatch("normal initialization", source))
     }
 }

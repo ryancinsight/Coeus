@@ -60,13 +60,22 @@ fn run_device_forward(is_causal: bool, label: &str) {
     let (query_data, key_data, value_data, _) = attention_inputs();
     let scale = 0.5f32;
 
-    let query_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data);
-    let key_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data);
-    let value_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data);
+    let query_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data)
+        .expect("invariant: test backend operation succeeds");
+    let key_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data)
+        .expect("invariant: test backend operation succeeds");
+    let value_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let query_gpu = query_cpu.to_backend_on(&seq, &wgpu);
-    let key_gpu = key_cpu.to_backend_on(&seq, &wgpu);
-    let value_gpu = value_cpu.to_backend_on(&seq, &wgpu);
+    let query_gpu = query_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let key_gpu = key_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let value_gpu = value_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
 
     // No mask -> on-device WGSL kernel.
     let (expected_out, expected_weights) = scaled_dot_product_attention(
@@ -78,8 +87,12 @@ fn run_device_forward(is_causal: bool, label: &str) {
     )
     .expect("WGPU attention forward must succeed");
 
-    let actual_out = actual_out.to_backend_on(&wgpu, &seq);
-    let actual_weights = actual_weights.to_backend_on(&wgpu, &seq);
+    let actual_out = actual_out
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
+    let actual_weights = actual_weights
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     assert_eq!(actual_out.shape(), expected_out.shape());
     assert_eq!(actual_weights.shape(), expected_weights.shape());
@@ -114,15 +127,27 @@ fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
     let mask_data = vec![1.0f32, 1.0, 0.0, 1.0];
     let scale = 0.5f32;
 
-    let query_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data);
-    let key_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data);
-    let value_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data);
-    let mask_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K], &mask_data);
+    let query_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data)
+        .expect("invariant: test backend operation succeeds");
+    let key_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data)
+        .expect("invariant: test backend operation succeeds");
+    let value_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data)
+        .expect("invariant: test backend operation succeeds");
+    let mask_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K], &mask_data)
+        .expect("invariant: test backend operation succeeds");
 
-    let query_gpu = query_cpu.to_backend_on(&seq, &wgpu);
-    let key_gpu = key_cpu.to_backend_on(&seq, &wgpu);
-    let value_gpu = value_cpu.to_backend_on(&seq, &wgpu);
-    let mask_gpu = mask_cpu.to_backend_on(&seq, &wgpu);
+    let query_gpu = query_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let key_gpu = key_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let value_gpu = value_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let mask_gpu = mask_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
 
     let (expected_out, expected_weights) = scaled_dot_product_attention(
         &query_cpu,
@@ -145,8 +170,12 @@ fn wgpu_attention_forward_matches_cpu_with_mask_and_causal() {
     )
     .expect("WGPU masked attention forward must succeed");
 
-    let actual_out = actual_out.to_backend_on(&wgpu, &seq);
-    let actual_weights = actual_weights.to_backend_on(&wgpu, &seq);
+    let actual_out = actual_out
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
+    let actual_weights = actual_weights
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     assert_eq!(actual_out.shape(), expected_out.shape());
     assert_eq!(actual_weights.shape(), expected_weights.shape());
@@ -169,16 +198,28 @@ fn wgpu_attention_backward_matches_cpu() {
     let (query_data, key_data, value_data, grad_out_data) = attention_inputs();
     let scale = 0.25f32;
 
-    let query_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data);
-    let key_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data);
-    let value_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data);
+    let query_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_K], &query_data)
+        .expect("invariant: test backend operation succeeds");
+    let key_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_K], &key_data)
+        .expect("invariant: test backend operation succeeds");
+    let value_cpu = Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_K, D_V], &value_data)
+        .expect("invariant: test backend operation succeeds");
     let grad_out_cpu =
-        Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_V], &grad_out_data);
+        Tensor::<f32, SequentialBackend>::from_slice([BATCH, SEQ_Q, D_V], &grad_out_data)
+            .expect("invariant: test backend operation succeeds");
 
-    let query_gpu = query_cpu.to_backend_on(&seq, &wgpu);
-    let key_gpu = key_cpu.to_backend_on(&seq, &wgpu);
-    let value_gpu = value_cpu.to_backend_on(&seq, &wgpu);
-    let grad_out_gpu = grad_out_cpu.to_backend_on(&seq, &wgpu);
+    let query_gpu = query_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let key_gpu = key_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let value_gpu = value_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let grad_out_gpu = grad_out_cpu
+        .to_backend_on(&seq, &wgpu)
+        .expect("invariant: test backend operation succeeds");
 
     let (_, weights_cpu) =
         scaled_dot_product_attention(&query_cpu, &key_cpu, &value_cpu, None, false, scale, &seq)
@@ -187,9 +228,12 @@ fn wgpu_attention_backward_matches_cpu() {
         scaled_dot_product_attention(&query_gpu, &key_gpu, &value_gpu, None, false, scale, &wgpu)
             .expect("WGPU attention forward must succeed");
 
-    let mut expected_q = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_Q, D_K], &seq);
-    let mut expected_k = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_K], &seq);
-    let mut expected_v = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_V], &seq);
+    let mut expected_q = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_Q, D_K], &seq)
+        .expect("invariant: test backend operation succeeds");
+    let mut expected_k = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_K], &seq)
+        .expect("invariant: test backend operation succeeds");
+    let mut expected_v = Tensor::<f32, SequentialBackend>::zeros_on([BATCH, SEQ_K, D_V], &seq)
+        .expect("invariant: test backend operation succeeds");
     scaled_dot_product_attention_backward(
         &grad_out_cpu,
         &query_cpu,
@@ -204,9 +248,12 @@ fn wgpu_attention_backward_matches_cpu() {
     )
     .expect("CPU attention backward must succeed");
 
-    let mut actual_q = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_Q, D_K], &wgpu);
-    let mut actual_k = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_K], &wgpu);
-    let mut actual_v = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_V], &wgpu);
+    let mut actual_q = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_Q, D_K], &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let mut actual_k = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_K], &wgpu)
+        .expect("invariant: test backend operation succeeds");
+    let mut actual_v = Tensor::<f32, WgpuBackend>::zeros_on([BATCH, SEQ_K, D_V], &wgpu)
+        .expect("invariant: test backend operation succeeds");
     scaled_dot_product_attention_backward(
         &grad_out_gpu,
         &query_gpu,
@@ -221,9 +268,15 @@ fn wgpu_attention_backward_matches_cpu() {
     )
     .expect("WGPU attention backward must succeed");
 
-    let actual_q = actual_q.to_backend_on(&wgpu, &seq);
-    let actual_k = actual_k.to_backend_on(&wgpu, &seq);
-    let actual_v = actual_v.to_backend_on(&wgpu, &seq);
+    let actual_q = actual_q
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
+    let actual_k = actual_k
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
+    let actual_v = actual_v
+        .to_backend_on(&wgpu, &seq)
+        .expect("invariant: test backend operation succeeds");
 
     assert_close("grad_q", actual_q.as_slice(), expected_q.as_slice());
     assert_close("grad_k", actual_k.as_slice(), expected_k.as_slice());

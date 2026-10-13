@@ -60,6 +60,12 @@ fn arange_reports_the_first_index_outside_the_element_range() {
     let Err(err) = Tensor::<i8, SequentialBackend>::arange_on(129, &backend) else {
         panic!("index 128 does not fit i8");
     };
-    assert_eq!(err.count(), 128);
-    assert_eq!(err.target(), "i8");
+    assert!(
+        matches!(
+            err,
+            coeus_core::BackendError::Storage { operation, .. }
+            if operation == "Tensor::arange_on"
+        ),
+        "unexpected error: {err:?}"
+    );
 }

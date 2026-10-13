@@ -29,13 +29,14 @@ where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
     Tensor::from_slice_on(shape.to_vec(), vals, backend)
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -> Var<f64, B>
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(t(shape, vals, backend), false)
+    Var::new(t(shape, vals, backend), false).expect("invariant: test backend operation succeeds")
 }
 
 fn check_conv_transpose1d<B: BackendOps<f64> + Default>(backend: &B)
@@ -52,7 +53,8 @@ where
     //   ti=2 → out[2]+=3, out[3]+=3
     // Expected: [1,3,5,3]
     let ct1 = ConvTranspose1d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -80,7 +82,8 @@ where
 
     // Identity kernel K=1: output equals input.
     let ct_id = ConvTranspose1d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1], &[1.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -101,7 +104,8 @@ where
     // Each input is separated by a stride gap; weight=[1,1]:
     // out = [1,1, 2,2, 3,3]
     let ct_s2 = ConvTranspose1d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 2], &[1.0, 1.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -138,7 +142,8 @@ where
     // Expected [3,3] (row-major): [1,2,0, 3,5,2, 0,3,4]
     // (same oracle as conv_transpose_diff.rs)
     let ct2 = ConvTranspose2d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 2, 2], &[1.0, 0.0, 0.0, 1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 2, 2], &[1.0, 0.0, 0.0, 1.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -160,7 +165,8 @@ where
 
     // Identity K=1×1: output equals input.
     let ct2_id = ConvTranspose2d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1], &[1.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -195,7 +201,8 @@ where
     // D=H=W=2 → D_out=H_out=W_out=2 (stride=1, padding=0).
     // output_dims() agrees with the public formula: 2 = (2-1)*1 + 1*(1-1) + 0 + 1.
     let ct3 = ConvTranspose3d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -229,7 +236,8 @@ where
 
     // Scale K=1, weight=[2.0]: output = 2 × input. output_dims unchanged.
     let ct3_scale = ConvTranspose3d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1, 1], &[2.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[2.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,
@@ -249,7 +257,8 @@ where
     // Stride=2 K=1 identity: each axis doubles.
     // D_out = (2-1)*2 + 1*(1-1) + 0 + 1 = 3.
     let ct3_s2 = ConvTranspose3d::<f64, B> {
-        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false),
+        weight: Var::new(t(&[1, 1, 1, 1, 1], &[1.0], backend), false)
+            .expect("invariant: test backend operation succeeds"),
         bias: None,
         in_channels: 1,
         out_channels: 1,

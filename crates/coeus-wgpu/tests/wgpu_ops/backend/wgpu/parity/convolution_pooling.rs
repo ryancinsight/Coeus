@@ -19,12 +19,16 @@ fn test_wgpu_parity_conv1d_forward() {
         .collect();
     let bias: Vec<f32> = (0..out_c).map(|x| x as f32 * 0.2 - 0.3).collect();
 
-    let in_t = Tensor::from_slice(vec![batch, in_c, len], &input);
-    let w_t = Tensor::from_slice(vec![out_c, in_c, ksize], &weight);
-    let b_t = Tensor::from_slice(vec![out_c], &bias);
+    let in_t = Tensor::from_slice(vec![batch, in_c, len], &input)
+        .expect("invariant: test backend operation succeeds");
+    let w_t = Tensor::from_slice(vec![out_c, in_c, ksize], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let b_t =
+        Tensor::from_slice(vec![out_c], &bias).expect("invariant: test backend operation succeeds");
 
     let out_len = len - ksize + 1;
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, out_len]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, out_len])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.conv1d(
         in_t.storage(),
@@ -35,7 +39,9 @@ fn test_wgpu_parity_conv1d_forward() {
         1,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &cpu_out_layout,
     )
     .expect("CPU conv1d dispatch");
@@ -43,7 +49,8 @@ fn test_wgpu_parity_conv1d_forward() {
     let in_g = to_gpu(&in_t);
     let w_g = to_gpu(&w_t);
     let b_g = to_gpu(&b_t);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![batch, out_c, out_len], &w);
+    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![batch, out_c, out_len], &w)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     w.conv1d(
         in_g.storage(),
@@ -54,7 +61,9 @@ fn test_wgpu_parity_conv1d_forward() {
         1,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &gpu_out_layout,
     )
     .expect("WGPU conv1d dispatch");
@@ -86,13 +95,17 @@ fn test_wgpu_parity_conv2d_forward() {
         .collect();
     let bias: Vec<f32> = (0..out_c).map(|x| x as f32 * 0.2 - 0.1).collect();
 
-    let in_t = Tensor::from_slice(vec![batch, in_c, h, ww], &input);
-    let wt = Tensor::from_slice(vec![out_c, in_c, kh, kw], &weight);
-    let bt = Tensor::from_slice(vec![out_c], &bias);
+    let in_t = Tensor::from_slice(vec![batch, in_c, h, ww], &input)
+        .expect("invariant: test backend operation succeeds");
+    let wt = Tensor::from_slice(vec![out_c, in_c, kh, kw], &weight)
+        .expect("invariant: test backend operation succeeds");
+    let bt =
+        Tensor::from_slice(vec![out_c], &bias).expect("invariant: test backend operation succeeds");
 
     let oh = h - kh + 1;
     let ow = ww - kw + 1;
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, oh, ow]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![batch, out_c, oh, ow])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.conv2d(
         in_t.storage(),
@@ -103,7 +116,9 @@ fn test_wgpu_parity_conv2d_forward() {
         1,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &cpu_out_layout,
     )
     .expect("CPU conv2d dispatch");
@@ -111,7 +126,8 @@ fn test_wgpu_parity_conv2d_forward() {
     let in_g = to_gpu(&in_t);
     let wg = to_gpu(&wt);
     let bg = to_gpu(&bt);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![batch, out_c, oh, ow], &w);
+    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![batch, out_c, oh, ow], &w)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     w.conv2d(
         in_g.storage(),
@@ -122,7 +138,9 @@ fn test_wgpu_parity_conv2d_forward() {
         1,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &gpu_out_layout,
     )
     .expect("WGPU conv2d dispatch");
@@ -145,9 +163,11 @@ fn test_wgpu_parity_max_pool2d() {
     let s = seq();
     let w = wgpu();
     let data: Vec<f32> = (0..2 * 2 * 4 * 4).map(|x| x as f32 * 0.1).collect();
-    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data);
+    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.max_pool2d(
         x.storage(),
@@ -156,13 +176,16 @@ fn test_wgpu_parity_max_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU max_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w);
+    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     w.max_pool2d(
         xg.storage(),
@@ -171,7 +194,9 @@ fn test_wgpu_parity_max_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &gpu_out_layout,
     )
     .expect("invariant: validated WGPU max_pool2d dispatch must succeed");
@@ -188,9 +213,11 @@ fn test_wgpu_parity_avg_pool2d() {
     let s = seq();
     let w = wgpu();
     let data: Vec<f32> = (0..2 * 2 * 4 * 4).map(|x| x as f32 * 0.1).collect();
-    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data);
+    let x = Tensor::from_slice(vec![2, 2, 4, 4], &data)
+        .expect("invariant: test backend operation succeeds");
 
-    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2]);
+    let mut cpu_out = Tensor::<f32, SequentialBackend>::zeros(vec![2, 2, 2, 2])
+        .expect("invariant: test backend operation succeeds");
     let cpu_out_layout = cpu_out.layout().clone();
     s.avg_pool2d(
         x.storage(),
@@ -199,13 +226,16 @@ fn test_wgpu_parity_avg_pool2d() {
         2,
         0,
         1,
-        cpu_out.storage_mut(),
+        cpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &cpu_out_layout,
     )
     .expect("invariant: validated CPU avg_pool2d dispatch must succeed");
 
     let xg = to_gpu(&x);
-    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w);
+    let mut gpu_out = Tensor::<f32, WgpuBackend>::zeros_on(vec![2, 2, 2, 2], &w)
+        .expect("invariant: test backend operation succeeds");
     let gpu_out_layout = gpu_out.layout().clone();
     w.avg_pool2d(
         xg.storage(),
@@ -214,7 +244,9 @@ fn test_wgpu_parity_avg_pool2d() {
         2,
         0,
         1,
-        gpu_out.storage_mut(),
+        gpu_out
+            .storage_mut()
+            .expect("invariant: test backend operation succeeds"),
         &gpu_out_layout,
     )
     .expect("invariant: validated WGPU avg_pool2d dispatch must succeed");

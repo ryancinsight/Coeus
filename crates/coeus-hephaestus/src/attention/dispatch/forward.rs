@@ -65,8 +65,8 @@ where
         plan_attention_forward(&operands, false)
             .map_err(|source| B::attention_dispatch_error(OPERATION, source))?;
     }
-    request.output.make_unique();
-    request.weights.make_unique();
+    request.output.make_unique()?;
+    request.weights.make_unique()?;
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();
     operations
         .attention_forward_into(

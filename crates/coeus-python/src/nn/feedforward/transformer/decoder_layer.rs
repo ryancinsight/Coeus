@@ -426,12 +426,12 @@ impl PyTransformerDecoderLayer {
     }
 
     /// Zero gradients of all parameters.
-    pub fn zero_grad(&self, py: Python<'_>) {
-        self.norm1.bind(py).borrow().zero_grad(py);
-        self.self_attn.bind(py).borrow().zero_grad(py);
-        self.norm2.bind(py).borrow().zero_grad(py);
-        self.cross_attn.bind(py).borrow().zero_grad(py);
-        self.norm3.bind(py).borrow().zero_grad(py);
-        self.ffn.bind(py).borrow().zero_grad(py);
+    pub fn zero_grad(&self, py: Python<'_>) -> PyResult<()> {
+        self.norm1.bind(py).borrow().zero_grad(py)?;
+        self.self_attn.bind(py).borrow().zero_grad(py)?;
+        self.norm2.bind(py).borrow().zero_grad(py)?;
+        self.cross_attn.bind(py).borrow().zero_grad(py)?;
+        self.norm3.bind(py).borrow().zero_grad(py)?;
+        self.ffn.bind(py).borrow().zero_grad(py)
     }
 }

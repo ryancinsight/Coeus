@@ -39,12 +39,21 @@ fn bench_attention_forward(c: &mut Criterion) {
     let mut group = c.benchmark_group("CUDA SDP Attention Forward");
     for &(b, sq, sk, dk, dv) in SHAPES {
         let id = format!("{b}x{sq}x{sk}x{dk}x{dv}");
-        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0));
-        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0));
-        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0));
-        let q_g = q.to_backend_on(&seq, &cuda);
-        let k_g = k.to_backend_on(&seq, &cuda);
-        let v_g = v.to_backend_on(&seq, &cuda);
+        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0))
+            .expect("invariant: test backend operation succeeds");
+        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0))
+            .expect("invariant: test backend operation succeeds");
+        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0))
+            .expect("invariant: test backend operation succeeds");
+        let q_g = q
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let k_g = k
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let v_g = v
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
@@ -93,24 +102,41 @@ fn bench_attention_backward(c: &mut Criterion) {
     let mut group = c.benchmark_group("CUDA SDP Attention Backward");
     for &(b, sq, sk, dk, dv) in SHAPES {
         let id = format!("{b}x{sq}x{sk}x{dk}x{dv}");
-        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0));
-        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0));
-        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0));
-        let go = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dv], &fill(b * sq * dv, 7.0));
+        let q = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dk], &fill(b * sq * dk, 1.0))
+            .expect("invariant: test backend operation succeeds");
+        let k = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dk], &fill(b * sk * dk, 3.0))
+            .expect("invariant: test backend operation succeeds");
+        let v = Tensor::<f32, SequentialBackend>::from_slice([b, sk, dv], &fill(b * sk * dv, 5.0))
+            .expect("invariant: test backend operation succeeds");
+        let go = Tensor::<f32, SequentialBackend>::from_slice([b, sq, dv], &fill(b * sq * dv, 7.0))
+            .expect("invariant: test backend operation succeeds");
         let (_, aw) = scaled_dot_product_attention(&q, &k, &v, None, false, scale, &seq)
             .expect("CPU attention setup must succeed");
 
-        let q_g = q.to_backend_on(&seq, &cuda);
-        let k_g = k.to_backend_on(&seq, &cuda);
-        let v_g = v.to_backend_on(&seq, &cuda);
-        let go_g = go.to_backend_on(&seq, &cuda);
-        let aw_g = aw.to_backend_on(&seq, &cuda);
+        let q_g = q
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let k_g = k
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let v_g = v
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let go_g = go
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let aw_g = aw
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
 
         group.bench_with_input(BenchmarkId::new("Coeus CPU", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, SequentialBackend>::zeros_on([b, sq, dk], &seq);
-                let mut gk = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dk], &seq);
-                let mut gv = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dv], &seq);
+                let mut gq = Tensor::<f32, SequentialBackend>::zeros_on([b, sq, dk], &seq)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gk = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dk], &seq)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gv = Tensor::<f32, SequentialBackend>::zeros_on([b, sk, dv], &seq)
+                    .expect("invariant: test backend operation succeeds");
                 scaled_dot_product_attention_backward(
                     black_box(&go),
                     black_box(&q),
@@ -129,9 +155,12 @@ fn bench_attention_backward(c: &mut Criterion) {
         });
         group.bench_with_input(BenchmarkId::new("Coeus CUDA", &id), &id, |bn, _| {
             bn.iter(|| {
-                let mut gq = Tensor::<f32, CudaBackend>::zeros_on([b, sq, dk], &cuda);
-                let mut gk = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dk], &cuda);
-                let mut gv = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dv], &cuda);
+                let mut gq = Tensor::<f32, CudaBackend>::zeros_on([b, sq, dk], &cuda)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gk = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dk], &cuda)
+                    .expect("invariant: test backend operation succeeds");
+                let mut gv = Tensor::<f32, CudaBackend>::zeros_on([b, sk, dv], &cuda)
+                    .expect("invariant: test backend operation succeeds");
                 scaled_dot_product_attention_backward(
                     black_box(&go_g),
                     black_box(&q_g),

@@ -1,6 +1,6 @@
-use crate::{init::map_initialization_error, tensor::PyTensor};
+use crate::{error::map_backend_error, init::map_initialization_error, tensor::PyTensor};
 use coeus_autograd::Var;
-use coeus_core::MoiraiBackend;
+use coeus_core::{BackendError, MoiraiBackend};
 use coeus_tensor::Tensor;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -20,47 +20,48 @@ fn next_xorshift64(state: &mut u64) -> u64 {
     *state
 }
 
-#[pyfunction]
-#[pyo3(signature = (shape, requires_grad = false))]
-pub fn zeros(shape: Vec<usize>, requires_grad: bool) -> PyTensor {
-    let t = Tensor::<f64, MoiraiBackend>::zeros(shape);
-    PyTensor {
-        inner: Var::new(t, requires_grad),
-    }
+fn create_tensor(
+    tensor: Result<Tensor<f64, MoiraiBackend>, BackendError>,
+    requires_grad: bool,
+) -> PyResult<PyTensor> {
+    let tensor = tensor.map_err(map_backend_error)?;
+    Var::new(tensor, requires_grad)
+        .map(PyTensor::from_var)
+        .map_err(map_backend_error)
 }
 
 #[pyfunction]
 #[pyo3(signature = (shape, requires_grad = false))]
-pub fn ones(shape: Vec<usize>, requires_grad: bool) -> PyTensor {
-    let t = Tensor::<f64, MoiraiBackend>::ones(shape);
-    PyTensor {
-        inner: Var::new(t, requires_grad),
-    }
+pub fn zeros(shape: Vec<usize>, requires_grad: bool) -> PyResult<PyTensor> {
+    create_tensor(Tensor::<f64, MoiraiBackend>::zeros(shape), requires_grad)
+}
+
+#[pyfunction]
+#[pyo3(signature = (shape, requires_grad = false))]
+pub fn ones(shape: Vec<usize>, requires_grad: bool) -> PyResult<PyTensor> {
+    create_tensor(Tensor::<f64, MoiraiBackend>::ones(shape), requires_grad)
 }
 
 #[pyfunction]
 #[pyo3(signature = (shape, value, requires_grad = false))]
-pub fn full(shape: Vec<usize>, value: f64, requires_grad: bool) -> PyTensor {
+pub fn full(shape: Vec<usize>, value: f64, requires_grad: bool) -> PyResult<PyTensor> {
     let backend = MoiraiBackend::new();
-    let t = Tensor::<f64, MoiraiBackend>::full_on(shape, value, &backend);
-    PyTensor {
-        inner: Var::new(t, requires_grad),
-    }
+    create_tensor(
+        Tensor::<f64, MoiraiBackend>::full_on(shape, value, &backend),
+        requires_grad,
+    )
 }
 
 #[pyfunction]
 #[pyo3(signature = (start, end, step = 1.0))]
-pub fn arange(start: f64, end: f64, step: f64) -> PyTensor {
+pub fn arange(start: f64, end: f64, step: f64) -> PyResult<PyTensor> {
     let n = ((end - start) / step).ceil() as usize;
     let data: Vec<f64> = (0..n).map(|i| start + i as f64 * step).collect();
-    let t = Tensor::from_slice(vec![n], &data);
-    PyTensor {
-        inner: Var::new(t, false),
-    }
+    create_tensor(Tensor::from_slice(vec![n], &data), false)
 }
 
 #[pyfunction]
-pub fn linspace(start: f64, end: f64, steps: usize) -> PyTensor {
+pub fn linspace(start: f64, end: f64, steps: usize) -> PyResult<PyTensor> {
     let data: Vec<f64> = if steps <= 1 {
         vec![start]
     } else {
@@ -68,15 +69,12 @@ pub fn linspace(start: f64, end: f64, steps: usize) -> PyTensor {
             .map(|i| start + (end - start) * i as f64 / (steps - 1) as f64)
             .collect()
     };
-    let t = Tensor::from_slice(vec![steps], &data);
-    PyTensor {
-        inner: Var::new(t, false),
-    }
+    create_tensor(Tensor::from_slice(vec![steps], &data), false)
 }
 
 #[pyfunction]
 #[pyo3(signature = (start, end, steps, base = 10.0))]
-pub fn logspace(start: f64, end: f64, steps: usize, base: f64) -> PyTensor {
+pub fn logspace(start: f64, end: f64, steps: usize, base: f64) -> PyResult<PyTensor> {
     let data: Vec<f64> = if steps == 0 {
         vec![]
     } else if steps == 1 {
@@ -89,10 +87,7 @@ pub fn logspace(start: f64, end: f64, steps: usize, base: f64) -> PyTensor {
             })
             .collect()
     };
-    let t = Tensor::from_slice(vec![steps], &data);
-    PyTensor {
-        inner: Var::new(t, false),
-    }
+    create_tensor(Tensor::from_slice(vec![steps], &data), false)
 }
 
 #[pyfunction]
@@ -124,52 +119,45 @@ pub fn geomspace(start: f64, end: f64, steps: usize) -> PyResult<PyTensor> {
             .map(|i| sign * start_abs * ratio.powf(i as f64))
             .collect()
     };
-    let t = Tensor::from_slice(vec![steps], &data);
-    Ok(PyTensor {
-        inner: Var::new(t, false),
-    })
+    create_tensor(Tensor::from_slice(vec![steps], &data), false)
 }
 
 #[pyfunction]
 #[pyo3(signature = (shape, requires_grad = false))]
 pub fn randn(shape: Vec<usize>, requires_grad: bool) -> PyResult<PyTensor> {
     let seed = time_seed(12345, 0x2d35_8b72_a4c9_6e1d);
-    let zeros_t = Tensor::<f64, MoiraiBackend>::zeros(shape);
-    let mut v = Var::new(zeros_t, requires_grad);
+    let zeros_t = Tensor::<f64, MoiraiBackend>::zeros(shape).map_err(map_backend_error)?;
+    let mut v = Var::new(zeros_t, requires_grad).map_err(map_backend_error)?;
     coeus_nn::init::normal_with_seed(&mut v, 0.0, 1.0, seed).map_err(map_initialization_error)?;
     Ok(PyTensor { inner: v })
 }
 
 #[pyfunction]
 #[pyo3(signature = (input, requires_grad = false))]
-pub fn zeros_like(input: &PyTensor, requires_grad: bool) -> PyTensor {
-    PyTensor {
-        inner: Var::new(
-            Tensor::<f64, MoiraiBackend>::zeros(input.inner.tensor.shape().to_vec()),
-            requires_grad,
-        ),
-    }
+pub fn zeros_like(input: &PyTensor, requires_grad: bool) -> PyResult<PyTensor> {
+    create_tensor(
+        Tensor::<f64, MoiraiBackend>::zeros(input.inner.tensor.shape().to_vec()),
+        requires_grad,
+    )
 }
 
 #[pyfunction]
 #[pyo3(signature = (input, requires_grad = false))]
-pub fn ones_like(input: &PyTensor, requires_grad: bool) -> PyTensor {
-    PyTensor {
-        inner: Var::new(
-            Tensor::<f64, MoiraiBackend>::ones(input.inner.tensor.shape().to_vec()),
-            requires_grad,
-        ),
-    }
+pub fn ones_like(input: &PyTensor, requires_grad: bool) -> PyResult<PyTensor> {
+    create_tensor(
+        Tensor::<f64, MoiraiBackend>::ones(input.inner.tensor.shape().to_vec()),
+        requires_grad,
+    )
 }
 
 #[pyfunction]
 #[pyo3(signature = (n, requires_grad = false))]
-pub fn eye(n: usize, requires_grad: bool) -> PyTensor {
+pub fn eye(n: usize, requires_grad: bool) -> PyResult<PyTensor> {
     let backend = MoiraiBackend::new();
-    let t = Tensor::<f64, MoiraiBackend>::eye_on(n, &backend);
-    PyTensor {
-        inner: Var::new(t, requires_grad),
-    }
+    create_tensor(
+        Tensor::<f64, MoiraiBackend>::eye_on(n, &backend),
+        requires_grad,
+    )
 }
 
 /// Uniform random tensor in `[0, 1)`.
@@ -179,8 +167,8 @@ pub fn eye(n: usize, requires_grad: bool) -> PyTensor {
 #[pyo3(signature = (shape, requires_grad = false))]
 pub fn rand(shape: Vec<usize>, requires_grad: bool) -> PyResult<PyTensor> {
     let seed = time_seed(54321, 0x9e37_79b9_7f4a_7c15);
-    let zeros_t = Tensor::<f64, MoiraiBackend>::zeros(shape);
-    let mut v = Var::new(zeros_t, requires_grad);
+    let zeros_t = Tensor::<f64, MoiraiBackend>::zeros(shape).map_err(map_backend_error)?;
+    let mut v = Var::new(zeros_t, requires_grad).map_err(map_backend_error)?;
     coeus_nn::init::uniform_with_seed(&mut v, 0.0, 1.0, seed).map_err(map_initialization_error)?;
     Ok(PyTensor { inner: v })
 }
@@ -206,10 +194,7 @@ pub fn randint(low: i64, high: i64, shape: Vec<usize>, requires_grad: bool) -> P
             v as f64
         })
         .collect();
-    let t = Tensor::from_slice(shape, &data);
-    Ok(PyTensor {
-        inner: Var::new(t, requires_grad),
-    })
+    create_tensor(Tensor::from_slice(shape, &data), requires_grad)
 }
 
 /// Bernoulli random tensor: each element is 1.0 with probability `p`.
@@ -236,8 +221,5 @@ pub fn bernoulli(shape: Vec<usize>, p: f64, requires_grad: bool) -> PyResult<PyT
             }
         })
         .collect();
-    let t = Tensor::from_slice(shape, &data);
-    Ok(PyTensor {
-        inner: Var::new(t, requires_grad),
-    })
+    create_tensor(Tensor::from_slice(shape, &data), requires_grad)
 }

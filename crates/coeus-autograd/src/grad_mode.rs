@@ -37,13 +37,17 @@ thread_local! {
 /// use coeus_core::MoiraiBackend;
 /// use coeus_tensor::Tensor;
 ///
-/// let x = Var::<f32, MoiraiBackend>::new(Tensor::from_slice([2], &[1.0, 2.0]), true);
+/// let x = Var::<f32, MoiraiBackend>::new(
+///     Tensor::from_slice([2], &[1.0, 2.0]).expect("invariant: example shape matches data"),
+///     true,
+/// ).expect("invariant: example gradient buffer allocation succeeds");
 /// assert!(is_grad_enabled());
 ///
 /// {
 ///     let _g = no_grad_guard();
 ///     assert!(!is_grad_enabled());
-///     let y = coeus_autograd::mul(&x, &x);
+///     let y = coeus_autograd::mul(&x, &x)
+///         .expect("invariant: equal-shaped example operands multiply");
 ///     assert!(y.creator.is_none()); // no graph recorded
 ///     assert!(y.grad.is_none());    // no gradient buffer allocated
 /// }

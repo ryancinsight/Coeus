@@ -17,9 +17,12 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
             1.5_f32, 0.5, -0.5, 0.25, -1.0, 2.0, 0.0, 0.75, 3.0, -2.0, 1.0, 0.0,
         ],
         &seq(),
-    );
-    let cpu_logits = Var::new(logits.clone(), true);
-    let wgpu_logits = Var::new(to_gpu(&logits), true);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let cpu_logits =
+        Var::new(logits.clone(), true).expect("invariant: test backend operation succeeds");
+    let wgpu_logits =
+        Var::new(to_gpu(&logits), true).expect("invariant: test backend operation succeeds");
     let targets = [0_usize, 1, 2];
 
     let invalid_target = coeus_nn::cross_entropy_loss(&wgpu_logits, &[0, 1, 4]);
@@ -63,8 +66,12 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
     let backend = super::wgpu();
     let logits_layout = Layout::new([3, 4].into());
     let scalar_layout = Layout::new([1].into());
-    let mut loss = backend.allocate::<f32>(1);
-    let mut probabilities = backend.allocate::<f32>(12);
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut loss =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut probabilities =
+        unsafe { backend.allocate::<f32>(12) }.expect("invariant: test backend operation succeeds");
     let targets = backend
         .prepare_cross_entropy_targets(&targets)
         .expect("WGPU target preparation must succeed");
@@ -120,15 +127,27 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         .expect("direct WGPU forward must succeed");
     let mut parent_loss = [f32::NAN; 1];
     let mut parent_probabilities = [f32::NAN; 12];
-    backend.copy_to_host(&loss_parent, &mut parent_loss);
-    backend.copy_to_host(&probabilities_parent, &mut parent_probabilities);
+    backend
+        .copy_to_host(&loss_parent, &mut parent_loss)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_host(&probabilities_parent, &mut parent_probabilities)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(parent_loss, [0.0]);
     assert_eq!(parent_probabilities, [0.0; 12]);
 
-    let mut output_gradient = backend.allocate::<f32>(1);
-    backend.copy_to_device(&[1.0], &mut output_gradient);
-    let mut logit_gradient = backend.allocate::<f32>(12);
-    backend.copy_to_device(&[0.25; 12], &mut logit_gradient);
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut output_gradient =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[1.0], &mut output_gradient)
+        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
+    let mut logit_gradient =
+        unsafe { backend.allocate::<f32>(12) }.expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[0.25; 12], &mut logit_gradient)
+        .expect("invariant: test backend operation succeeds");
     let gradient_parent = logit_gradient.clone();
     backend
         .cross_entropy_backward_accumulate(
@@ -143,8 +162,12 @@ fn cross_entropy_dispatches_with_wgpu_value_and_gradient_parity() {
         .expect("direct WGPU backward must succeed");
     let mut parent_gradient = [f32::NAN; 12];
     let mut accumulated_gradient = [f32::NAN; 12];
-    backend.copy_to_host(&gradient_parent, &mut parent_gradient);
-    backend.copy_to_host(&logit_gradient, &mut accumulated_gradient);
+    backend
+        .copy_to_host(&gradient_parent, &mut parent_gradient)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_host(&logit_gradient, &mut accumulated_gradient)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(parent_gradient, [0.25; 12]);
     let expected_accumulated = cpu_gradient
         .as_slice()

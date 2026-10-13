@@ -4,7 +4,8 @@ use coeus_core::{
 
 #[test]
 fn cpu_storage_reports_uniqueness_and_detaches_on_mutation() {
-    let original = CpuStorage::from_slice(&[1_i32, 2, 3, 4]);
+    let original =
+        CpuStorage::from_slice(&[1_i32, 2, 3, 4]).expect("CPU storage allocation succeeds");
     assert!(original.is_unique());
 
     let mut shared = original.clone();
@@ -12,7 +13,9 @@ fn cpu_storage_reports_uniqueness_and_detaches_on_mutation() {
     assert!(!shared.is_unique());
     assert_eq!(original.as_slice().as_ptr(), shared.as_slice().as_ptr());
 
-    shared.as_mut_slice()[1] = 20;
+    shared
+        .as_mut_slice()
+        .expect("invariant: COW allocation succeeds")[1] = 20;
 
     assert!(shared.is_unique());
     assert!(original.is_unique());
@@ -23,7 +26,9 @@ fn cpu_storage_reports_uniqueness_and_detaches_on_mutation() {
 
 #[test]
 fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
-    let original = CowStorage::new(CpuStorage::from_slice(&[5_i32, 6, 7]));
+    let original = CowStorage::new(
+        CpuStorage::from_slice(&[5_i32, 6, 7]).expect("CPU storage allocation succeeds"),
+    );
     assert!(original.is_unique());
 
     let mut shared = original.clone();
@@ -31,7 +36,9 @@ fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
     assert!(!shared.is_unique());
     assert_eq!(original.as_slice().as_ptr(), shared.as_slice().as_ptr());
 
-    shared.as_mut_slice()[2] = 70;
+    shared
+        .as_mut_slice()
+        .expect("invariant: COW allocation succeeds")[2] = 70;
 
     assert!(original.is_unique());
     assert!(shared.is_unique());
@@ -41,34 +48,44 @@ fn cow_storage_exposes_cpu_uniqueness_without_unwrapping() {
 
 #[test]
 fn empty_cpu_storage_exposes_valid_zero_length_slices() {
-    let mut storage = CpuStorage::<u64>::new(0);
+    let mut storage = CpuStorage::<u64>::new(0).expect("CPU storage allocation succeeds");
 
     assert_eq!(storage.len(), 0);
     // The element type is spelled out because rkyv 0.8's `rend` adds
     // `PartialEq` impls for the primitive integers, so an untyped empty slice
     // literal no longer resolves to a single candidate.
     assert_eq!(storage.as_slice(), &[] as &[u64]);
-    assert_eq!(storage.as_mut_slice(), &mut [] as &mut [u64]);
+    assert_eq!(
+        storage
+            .as_mut_slice()
+            .expect("invariant: empty storage needs no allocation"),
+        &mut [] as &mut [u64]
+    );
 }
 
 #[test]
 fn cpu_storage_is_initialized_before_readable_slices_exist() {
-    let zeros = CpuStorage::<f32>::new(4);
+    let zeros = CpuStorage::<f32>::new(4).expect("CPU storage allocation succeeds");
     assert_eq!(zeros.as_slice(), &[0.0; 4]);
 
-    let filled = CpuStorage::filled(4, 3_i32);
+    let filled = CpuStorage::filled(4, 3_i32).expect("CPU storage allocation succeeds");
     assert_eq!(filled.as_slice(), &[3; 4]);
 }
 
 #[test]
 fn cloned_storage_retains_its_allocation_after_peer_destruction() {
-    let original = CpuStorage::from_slice(&[2_i32, 3, 5, 7]);
+    let original =
+        CpuStorage::from_slice(&[2_i32, 3, 5, 7]).expect("CPU storage allocation succeeds");
     let mut survivor = original.clone();
     let mut detached = original.clone();
-    detached.as_mut_slice()[2] = 50;
+    detached
+        .as_mut_slice()
+        .expect("invariant: COW allocation succeeds")[2] = 50;
     drop(original);
 
-    survivor.as_mut_slice()[0] = 20;
+    survivor
+        .as_mut_slice()
+        .expect("invariant: COW allocation succeeds")[0] = 20;
     assert_eq!(survivor.as_slice(), &[20, 3, 5, 7]);
     assert_eq!(detached.as_slice(), &[2, 3, 50, 7]);
     drop(detached);

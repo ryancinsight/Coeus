@@ -3,7 +3,8 @@ use crate::HephaestusBackend;
 use coeus_core::{Float, Layout, Scalar};
 use hephaestus_core::AttentionScalar;
 
-impl<P, T> coeus_ops::AttentionOps<T> for HephaestusBackend<P>
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<P, T> coeus_ops::AttentionOps<T> for HephaestusBackend<P>
 where
     P: AttentionProvider<T>,
     T: Scalar + Float + AttentionScalar + coeus_ops::AttentionScalar,

@@ -51,7 +51,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
         // ── dL/dgamma = sum(dy * x_hat, dim=0) [D] ──
         if let Some(Some(ref gw)) = input_grads.get(1) {
             let dg_t = coeus_ops::sum_axis(
-                &coeus_ops::mul(dy, &self.x_hat_clone, &backend),
+                &coeus_ops::mul(dy, &self.x_hat_clone, &backend)?,
                 0,
                 &backend,
             )?;
@@ -62,11 +62,11 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 
         // ── dL/dx ──
         if let Some(Some(ref gx)) = input_grads.first() {
-            let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend); // [N, D]
-            let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend); // [N, D]
+            let mut dy_w = coeus_ops::mul(dy, &self.w_reshaped_captured, &backend)?; // [N, D]
+            let dy_w_xhat = coeus_ops::mul(&dy_w, &self.x_hat_clone, &backend)?; // [N, D]
             let scaled_sum = coeus_ops::mean_axis(&dy_w_xhat, 1, &backend)?; // [N, 1]
 
-            let term_prod = coeus_ops::mul(&self.x_hat_clone, &scaled_sum, &backend); // [N, D]
+            let term_prod = coeus_ops::mul(&self.x_hat_clone, &scaled_sum, &backend)?; // [N, D]
             coeus_ops::sub_assign(&mut dy_w, &term_prod, &backend)?; // [N, D]
 
             let mut dx = dy_w;
@@ -87,7 +87,7 @@ pub fn rmsnorm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> 
     out_tensor: Tensor<T, B>,
     x_hat: Tensor<T, B>,
     rms: Tensor<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
     let requires_grad =
         crate::grad_mode::should_track_var(input) || crate::grad_mode::should_track_var(weight);
@@ -95,7 +95,7 @@ pub fn rmsnorm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> 
         Some(Arc::new(GradBuffer::new(Tensor::zeros_on(
             out_tensor.shape_cloned(),
             &backend,
-        ))))
+        )?)))
     } else {
         None
     };
@@ -121,9 +121,9 @@ pub fn rmsnorm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> 
         None
     };
 
-    Var {
+    Ok(Var {
         tensor: out_tensor,
         grad,
         creator,
-    }
+    })
 }

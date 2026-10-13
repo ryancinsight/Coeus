@@ -12,6 +12,10 @@ use coeus_tensor::Tensor;
 /// Multi-class margin loss (PyTorch `MultiMarginLoss`, `reduction="mean"`).
 /// x: `[N, C]` scores, targets: `[N]` class indices, p >= 1, margin.
 /// Computes `mean_i (1/C) sum_{j != y_i} max(0, margin - x[i,y_i] + x[i,j])^p`.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn multi_margin<
     T: Float + FloatElement + coeus_leto::RealScalar,
@@ -21,7 +25,7 @@ pub fn multi_margin<
     targets: &[usize],
     p: T,
     margin: T,
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -34,6 +38,10 @@ where
 /// `x`: shape `(N, C)` scores, `target`: shape `(N, C)` where
 /// `target[i][j] >= 0` are valid class indices and `-1` means ignore padding.
 /// Computes `mean_i sum_{t: target[i][t] >= 0} sum_{j != t} max(0, 1 - (x[i][t] - x[i][j]))`.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn multi_label_margin_loss<
     T: Float + FloatElement + coeus_leto::RealScalar,
@@ -41,7 +49,7 @@ pub fn multi_label_margin_loss<
 >(
     x: &Var<T, B>,
     target: &[isize],
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -51,6 +59,10 @@ where
 
 /// Soft-margin (logistic) loss. input: `[..]`, target: `[..]` in `{-1, +1}`.
 /// Computes `mean(log(1 + exp(-target * input)))` (PyTorch `SoftMarginLoss`).
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn soft_margin<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -58,7 +70,7 @@ pub fn soft_margin<
 >(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::soft_margin(input, target)
 }
 
@@ -66,6 +78,10 @@ pub fn soft_margin<
 ///
 /// `target` contains `+1` or `-1` labels. Computes
 /// `mean(max(0, -target * (input1 - input2) + margin))`.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn margin_ranking_loss<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -75,7 +91,7 @@ pub fn margin_ranking_loss<
     input2: &Var<T, B>,
     target: &[T],
     margin: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::margin_ranking_loss(input1, input2, target, margin)
 }
 
@@ -85,8 +101,16 @@ pub fn margin_ranking_loss<
 /// for `y_i == -1`, computes `mean(max(0, -x_i))`.
 ///
 /// Composed from `where_cond`, `relu`, `neg`, and `scalar_sub` — no dedicated autograd node.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
-pub fn hinge_embedding_loss<T, B>(x: &Var<T, B>, target: &[T], margin: T) -> Var<T, B>
+pub fn hinge_embedding_loss<T, B>(
+    x: &Var<T, B>,
+    target: &[T],
+    margin: T,
+) -> Result<Var<T, B>, B::Error>
 where
     T: Float + coeus_leto::RealScalar,
     B: ComputeBackend + Default + coeus_ops::BackendOps<T>,
@@ -104,14 +128,16 @@ where
         .iter()
         .map(|&y| if y > zero { T::ONE } else { zero })
         .collect();
-    let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend);
-    let mask_var = Var::new(mask_tensor, false);
+    let mask_tensor = Tensor::from_slice_on(x.tensor.shape(), &mask_data, &backend)?;
+    let mask_var = Var::new(mask_tensor, false)?;
 
     // PyTorch HingeEmbeddingLoss: target = +1 → loss = x (identity, no clamp);
     // target = -1 → loss = max(0, margin - x). `mask` is 1 where target > 0, so
     // `where_cond` selects the identity branch there and the hinge branch (the
     // `-1` case) otherwise.
-    let hinge = coeus_autograd::relu(&coeus_autograd::neg(&coeus_autograd::scalar_sub(x, margin)));
-    let selected = coeus_autograd::where_cond(&mask_var, x, &hinge);
+    let neg = coeus_autograd::scalar_sub(x, margin)?;
+    let neg = coeus_autograd::neg(&neg)?;
+    let hinge = coeus_autograd::relu(&neg)?;
+    let selected = coeus_autograd::where_cond(&mask_var, x, &hinge)?;
     coeus_autograd::mean(&selected)
 }

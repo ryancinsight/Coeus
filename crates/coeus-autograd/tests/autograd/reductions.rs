@@ -12,16 +12,18 @@ fn test_sum_axis_autograd() {
         vec![2, 3],
         &[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32],
         &backend,
-    );
-    let x = Var::new(x_val, true);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = sum_axis(&x, 1);
+    let y = sum_axis(&x, 1).expect("invariant: test operation succeeds");
     assert_eq!(y.tensor.shape(), &[2, 1]);
     let y_slice = y.tensor.as_slice();
     assert_eq!(y_slice[0], 6.0);
     assert_eq!(y_slice[1], 15.0);
 
-    let grad_out = Tensor::from_slice_on(vec![2, 1], &[2.0f32, 3.0f32], &backend);
+    let grad_out = Tensor::from_slice_on(vec![2, 1], &[2.0f32, 3.0f32], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(grad_out)
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -37,16 +39,18 @@ fn test_mean_axis_autograd() {
         vec![2, 3],
         &[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32],
         &backend,
-    );
-    let x = Var::new(x_val, true);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = mean_axis(&x, 1);
+    let y = mean_axis(&x, 1).expect("invariant: test operation succeeds");
     assert_eq!(y.tensor.shape(), &[2, 1]);
     let y_slice = y.tensor.as_slice();
     assert!((y_slice[0] - 2.0).abs() < 1e-5);
     assert!((y_slice[1] - 5.0).abs() < 1e-5);
 
-    let grad_out = Tensor::from_slice_on(vec![2, 1], &[3.0f32, 6.0f32], &backend);
+    let grad_out = Tensor::from_slice_on(vec![2, 1], &[3.0f32, 6.0f32], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(grad_out)
         .expect("invariant: valid autograd fixture completes backward");
 
@@ -59,10 +63,11 @@ fn test_mean_axis_autograd() {
 fn test_max_axis_autograd() {
     // x = [[1, 3, 2], [4, 1, 5]]  max along axis=1 → [[3], [5]]
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![2, 3], &[1.0f64, 3.0, 2.0, 4.0, 1.0, 5.0], &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![2, 3], &[1.0f64, 3.0, 2.0, 4.0, 1.0, 5.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = max_axis(&x, 1);
+    let y = max_axis(&x, 1).expect("invariant: test operation succeeds");
     let y_slice = y.tensor.as_slice();
     assert!(
         (y_slice[0] - 3.0).abs() < 1e-10,
@@ -76,7 +81,8 @@ fn test_max_axis_autograd() {
     );
     assert_eq!(y.tensor.shape(), &[2, 1]);
 
-    let seed = Tensor::from_slice_on(vec![2, 1], &[1.0f64, 1.0], &backend);
+    let seed = Tensor::from_slice_on(vec![2, 1], &[1.0f64, 1.0], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
@@ -92,10 +98,12 @@ fn test_max_axis_autograd() {
 #[test]
 fn test_max_axis_tie_normalisation() {
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![3], &[2.0f64, 2.0, 1.0], &backend);
-    let x = Var::new(x_val, true);
-    let y = max_axis(&x, 0);
-    let seed = Tensor::from_slice_on(vec![1], &[1.0f64], &backend);
+    let x_val = Tensor::from_slice_on(vec![3], &[2.0f64, 2.0, 1.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
+    let y = max_axis(&x, 0).expect("invariant: test operation succeeds");
+    let seed = Tensor::from_slice_on(vec![1], &[1.0f64], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
@@ -108,14 +116,16 @@ fn test_max_axis_tie_normalisation() {
 #[test]
 fn test_min_axis_autograd() {
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![2, 3], &[1.0f64, 3.0, 2.0, 4.0, 1.0, 5.0], &backend);
-    let x = Var::new(x_val, true);
-    let y = min_axis(&x, 1);
+    let x_val = Tensor::from_slice_on(vec![2, 3], &[1.0f64, 3.0, 2.0, 4.0, 1.0, 5.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
+    let y = min_axis(&x, 1).expect("invariant: test operation succeeds");
     let y_slice = y.tensor.as_slice();
     assert!((y_slice[0] - 1.0).abs() < 1e-10);
     assert!((y_slice[1] - 1.0).abs() < 1e-10);
 
-    let seed = Tensor::from_slice_on(vec![2, 1], &[1.0f64, 1.0], &backend);
+    let seed = Tensor::from_slice_on(vec![2, 1], &[1.0f64, 1.0], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
@@ -131,15 +141,17 @@ fn test_min_axis_autograd() {
 #[test]
 fn test_norm_p_autograd() {
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![2], &[2.0f64, -4.0], &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![2], &[2.0f64, -4.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = norm_p(&x, 3.0);
+    let y = norm_p(&x, 3.0).expect("invariant: test operation succeeds");
     let expected_y = 72.0f64.powf(1.0 / 3.0);
     assert_eq!(y.tensor.shape(), &[1]);
     assert!((y.tensor.as_slice()[0] - expected_y).abs() < 1e-10);
 
-    let seed = Tensor::from_slice_on(vec![1], &[1.5f64], &backend);
+    let seed = Tensor::from_slice_on(vec![1], &[1.5f64], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
@@ -157,14 +169,16 @@ fn test_norm_p_autograd() {
 #[test]
 fn test_norm_p_axis_autograd() {
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![2, 2], &[3.0f64, 4.0, 5.0, 12.0], &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![2, 2], &[3.0f64, 4.0, 5.0, 12.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = norm_p_axis(&x, 2.0, 1);
+    let y = norm_p_axis(&x, 2.0, 1).expect("invariant: test operation succeeds");
     assert_eq!(y.tensor.shape(), &[2, 1]);
     assert_eq!(y.tensor.as_slice(), &[5.0, 13.0]);
 
-    let seed = Tensor::from_slice_on(vec![2, 1], &[2.0f64, 3.0], &backend);
+    let seed = Tensor::from_slice_on(vec![2, 1], &[2.0f64, 3.0], &backend)
+        .expect("invariant: test backend operation succeeds");
     y.backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();
@@ -181,14 +195,18 @@ fn test_norm_p_axis_autograd() {
 #[test]
 fn test_norm_p_subunit_exponent_masks_zero_input_gradient() {
     let backend = MoiraiBackend::new();
-    let x_val = Tensor::from_slice_on(vec![2], &[0.0f64, 4.0], &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![2], &[0.0f64, 4.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let y = norm_p(&x, 0.5);
+    let y = norm_p(&x, 0.5).expect("invariant: test operation succeeds");
     assert!((y.tensor.as_slice()[0] - 4.0).abs() < 1e-12);
 
-    y.backward_with_seed(Tensor::from_slice_on(vec![1], &[1.0f64], &backend))
-        .expect("invariant: valid subunit norm backward completes");
+    y.backward_with_seed(
+        Tensor::from_slice_on(vec![1], &[1.0f64], &backend)
+            .expect("invariant: test backend operation succeeds"),
+    )
+    .expect("invariant: valid subunit norm backward completes");
     let gradient = x.grad().expect("gradient is enabled");
     assert_eq!(gradient.as_slice()[0], 0.0);
     assert!((gradient.as_slice()[1] - 1.0).abs() < 1e-12);
@@ -198,10 +216,11 @@ fn test_norm_p_subunit_exponent_masks_zero_input_gradient() {
 fn test_log_sum_exp_autograd() {
     let backend = MoiraiBackend::new();
     let vals = [1.0f64, 2.0, 3.0];
-    let x_val = Tensor::from_slice_on(vec![3], &vals, &backend);
-    let x = Var::new(x_val, true);
+    let x_val = Tensor::from_slice_on(vec![3], &vals, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let x = Var::new(x_val, true).expect("invariant: test backend operation succeeds");
 
-    let lse = log_sum_exp(&x, 0);
+    let lse = log_sum_exp(&x, 0).expect("invariant: test operation succeeds");
     let lse_val = lse.tensor.as_slice()[0];
     let e1 = 1.0f64.exp();
     let e2 = 2.0f64.exp();
@@ -214,7 +233,8 @@ fn test_log_sum_exp_autograd() {
         expected_lse
     );
 
-    let seed = Tensor::from_slice_on(vec![1], &[1.0f64], &backend);
+    let seed = Tensor::from_slice_on(vec![1], &[1.0f64], &backend)
+        .expect("invariant: test backend operation succeeds");
     lse.backward_with_seed(seed)
         .expect("invariant: valid autograd fixture completes backward");
     let gx = x.grad().unwrap();

@@ -33,7 +33,7 @@ pub fn gather<T: Scalar, B: BackendOps<T> + Default>(
     dim: usize,
     index: &Tensor<T, B>,
     _backend: &B,
-) -> Tensor<T, B>
+) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -63,7 +63,7 @@ where
     // Zero-copy fast path: gather with an identity index returns the input.
     // This preserves COW semantics and avoids allocating/initializing output.
     if idx_shape == in_shape {
-        let idx_cont = index.to_contiguous();
+        let idx_cont = index.to_contiguous()?;
         let idx_s = idx_cont.as_slice();
         let mut idx_strides = vec![1usize; ndim];
         for d in (0..ndim - 1).rev() {
@@ -83,8 +83,8 @@ where
         }
     }
 
-    let in_cont = input.to_contiguous();
-    let idx_cont = index.to_contiguous();
+    let in_cont = input.to_contiguous()?;
+    let idx_cont = index.to_contiguous()?;
     let in_s = in_cont.as_slice();
     let idx_s = idx_cont.as_slice();
 
@@ -143,9 +143,11 @@ mod tests {
     #[test]
     fn gather_identity_returns_shared_storage() {
         let b = SequentialBackend::new();
-        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let idx = Tensor::from_slice(vec![2, 3], &[0.0f32, 1.0, 2.0, 0.0, 1.0, 2.0]);
-        let out = gather(&x, 1, &idx, &b);
+        let x = Tensor::from_slice(vec![2, 3], &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("invariant: test backend operation succeeds");
+        let idx = Tensor::from_slice(vec![2, 3], &[0.0f32, 1.0, 2.0, 0.0, 1.0, 2.0])
+            .expect("invariant: test backend operation succeeds");
+        let out = gather(&x, 1, &idx, &b).expect("invariant: test operation succeeds");
         assert_eq!(out.shape(), &[2, 3]);
         assert_eq!(out.as_slice(), x.as_slice());
         assert_eq!(out.as_slice().as_ptr(), x.as_slice().as_ptr());

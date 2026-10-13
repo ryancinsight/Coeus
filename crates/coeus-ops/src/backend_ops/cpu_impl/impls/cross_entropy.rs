@@ -54,7 +54,8 @@ fn cross_entropy_error(source: leto_ops::CrossEntropyError) -> BackendError {
     }
 }
 
-impl<T, B> CrossEntropyOps<T> for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T, B> CrossEntropyOps<T> for B
 where
     T: Scalar + leto_ops::RealScalar + eunomia::RealField,
     B: CpuBackend,
@@ -81,10 +82,10 @@ where
     ) -> Result<(), Self::Error> {
         let logits = to_leto_view::<T, 2>(logits_layout, logits.as_slice())
             .map_err(|source| provider_error("cross_entropy_logits", source))?;
-        let mut loss = to_leto_view_mut::<T, 1>(loss_layout, loss.as_mut_slice())
+        let mut loss = to_leto_view_mut::<T, 1>(loss_layout, loss.as_mut_slice()?)
             .map_err(|source| provider_error("cross_entropy_loss", source))?;
         let mut probabilities =
-            to_leto_view_mut::<T, 2>(probabilities_layout, probabilities.as_mut_slice())
+            to_leto_view_mut::<T, 2>(probabilities_layout, probabilities.as_mut_slice()?)
                 .map_err(|source| provider_error("cross_entropy_probabilities", source))?;
         leto_ops::cross_entropy_forward_into(&logits, targets, &mut loss, &mut probabilities)
             .map_err(cross_entropy_error)
@@ -106,7 +107,7 @@ where
         let probabilities = to_leto_view::<T, 2>(probabilities_layout, probabilities.as_slice())
             .map_err(|source| provider_error("cross_entropy_probabilities", source))?;
         let mut logit_gradient =
-            to_leto_view_mut::<T, 2>(logit_gradient_layout, logit_gradient.as_mut_slice())
+            to_leto_view_mut::<T, 2>(logit_gradient_layout, logit_gradient.as_mut_slice()?)
                 .map_err(|source| provider_error("cross_entropy_logit_gradient", source))?;
         leto_ops::cross_entropy_backward_accumulate(
             &output_gradient,

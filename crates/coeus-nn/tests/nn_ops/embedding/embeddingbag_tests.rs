@@ -3,7 +3,7 @@ use coeus_nn::{EmbeddingBag, EmbeddingBagMode, Module, ModuleError};
 use coeus_tensor::Tensor;
 
 fn seeded_embedding_bag(mode: EmbeddingBagMode) -> EmbeddingBag<f64> {
-    let mut bag = EmbeddingBag::<f64>::new(4, 2, mode);
+    let mut bag = EmbeddingBag::<f64>::new(4, 2, mode).expect("invariant: test operation succeeds");
     bag.weight.tensor = Tensor::from_slice(
         vec![4, 2],
         &[
@@ -12,7 +12,8 @@ fn seeded_embedding_bag(mode: EmbeddingBagMode) -> EmbeddingBag<f64> {
             5.0, 6.0, // row 2
             7.0, 8.0, // row 3
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     bag
 }
 
@@ -82,7 +83,12 @@ fn embeddingbag_sum_backward_accumulates_weight_grads() {
 fn embeddingbag_rejects_invalid_float_indices() {
     let bag = seeded_embedding_bag(EmbeddingBagMode::Sum);
     for invalid in [f64::NAN, f64::INFINITY, -1.0, 1.5, 4.0] {
-        let input = Var::new(Tensor::from_slice([1], &[invalid]), false);
+        let input = Var::new(
+            Tensor::from_slice([1], &[invalid])
+                .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
         let error = bag
             .forward(&input)
             .err()

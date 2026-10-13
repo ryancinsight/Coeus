@@ -72,8 +72,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool2d
             self.dilation,
         )?;
 
-        let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::zeros_on([n, c, h_out, w_out], &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend
             .avg_pool2d(
@@ -98,7 +98,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool2d
             self.stride,
             self.padding,
             self.dilation,
-        ))
+        )?)
     }
 }
 
@@ -177,8 +177,8 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool3d
             self.dilation,
         )?;
 
-        let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend);
-        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout();
+        let mut out_tensor = Tensor::zeros_on([n, c, d_out, h_out, w_out], &backend)?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
 
         backend
             .avg_pool3d(
@@ -203,6 +203,6 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for AvgPool3d
             self.stride,
             self.padding,
             self.dilation,
-        ))
+        )?)
     }
 }

@@ -4,7 +4,8 @@ use crate::backend_ops::ops::{BinaryOp, UnaryOp};
 use crate::backend_ops::traits::{ElementwiseOps, ScalarPowerOps};
 use coeus_core::{CpuAddressableStorageMut, Float, Layout, Scalar};
 
-impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ElementwiseOps<T> for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T: Scalar + leto_ops::Scalar, B: CpuBackend> ElementwiseOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -66,7 +67,9 @@ where
     }
 }
 
-impl<T: Float + leto_ops::Scalar + leto_ops::RealScalar, B: CpuBackend> ScalarPowerOps<T> for B
+// SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
+unsafe impl<T: Float + leto_ops::Scalar + leto_ops::RealScalar, B: CpuBackend> ScalarPowerOps<T>
+    for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

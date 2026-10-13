@@ -16,7 +16,9 @@ fn assert_seeded_parity(
     backend: &CudaBackend,
 ) {
     let mut actual = vec![0.0; cpu.len()];
-    backend.copy_to_host(gpu, &mut actual);
+    backend
+        .copy_to_host(gpu, &mut actual)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(actual, cpu, "{operation} must preserve seeded values");
 }
 

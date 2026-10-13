@@ -13,14 +13,30 @@ type Backend = HephaestusBackend<MetalProvider>;
 fn native_attention_dispatches_and_preserves_provider_errors() {
     let backend = Backend::new();
     let layout = Layout::new([1, 1, 1].into());
-    let mut query = backend.allocate::<f32>(1);
-    let mut key = backend.allocate::<f32>(1);
-    let mut value = backend.allocate::<f32>(1);
-    let mut output = backend.allocate::<f32>(1);
-    let mut weights = backend.allocate::<f32>(1);
-    backend.copy_to_device(&[2.0], &mut query);
-    backend.copy_to_device(&[3.0], &mut key);
-    backend.copy_to_device(&[7.0], &mut value);
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut query =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut key =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut value =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the `sdp_attention` dispatch overwrites every element before the buffer is read.
+    let mut output =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the `sdp_attention` dispatch overwrites every element before the buffer is read.
+    let mut weights =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[2.0], &mut query)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[3.0], &mut key)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&[7.0], &mut value)
+        .expect("invariant: test backend operation succeeds");
 
     backend
         .sdp_attention(
@@ -42,12 +58,18 @@ fn native_attention_dispatches_and_preserves_provider_errors() {
         .expect("Metal provider dispatch");
     let mut actual_output = [0.0];
     let mut actual_weights = [0.0];
-    backend.copy_to_host(&output, &mut actual_output);
-    backend.copy_to_host(&weights, &mut actual_weights);
+    backend
+        .copy_to_host(&output, &mut actual_output)
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_host(&weights, &mut actual_weights)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(actual_output, [7.0]);
     assert_eq!(actual_weights, [1.0]);
 
-    backend.copy_to_device(&[f32::NAN], &mut query);
+    backend
+        .copy_to_device(&[f32::NAN], &mut query)
+        .expect("invariant: test backend operation succeeds");
     let error = backend
         .sdp_attention(
             &query,

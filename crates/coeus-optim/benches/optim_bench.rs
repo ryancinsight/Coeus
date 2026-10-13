@@ -14,18 +14,23 @@ const SIZES: [usize; 5] = [4_096, 16_384, 65_536, 262_144, 1_048_576];
 
 fn make_param(n: usize) -> Var<f32, MoiraiBackend> {
     let data: Vec<f32> = (0..n).map(|i| (i % 7) as f32 * 0.1 - 0.3).collect();
-    Var::new(Tensor::from_slice([n], &data), true)
+    Var::new(
+        Tensor::from_slice([n], &data).expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn grad_of(n: usize) -> Tensor<f32, MoiraiBackend> {
     let g: Vec<f32> = (0..n).map(|i| (i % 5) as f32 * 0.05 - 0.1).collect();
-    Tensor::from_slice([n], &g)
+    Tensor::from_slice([n], &g).expect("invariant: test backend operation succeeds")
 }
 
 fn bench_sgd_step(c: &mut Criterion) {
     let mut group = c.benchmark_group("coeus-optim SGD step (momentum=0.9)");
     for &n in &SIZES {
-        let mut opt = SGD::new(vec![Parameter::new(make_param(n), "weight")], 0.01, 0.9);
+        let mut opt = SGD::new(vec![Parameter::new(make_param(n), "weight")], 0.01, 0.9)
+            .expect("invariant: optimizer state allocation succeeds");
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
@@ -46,7 +51,8 @@ fn bench_adam_step(c: &mut Criterion) {
             0.9,
             0.999,
             1e-8,
-        );
+        )
+        .expect("invariant: optimizer state allocation succeeds");
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {
@@ -68,7 +74,8 @@ fn bench_adamw_step(c: &mut Criterion) {
             0.999,
             1e-8,
             0.01,
-        );
+        )
+        .expect("invariant: optimizer state allocation succeeds");
         opt.params[0].set_grad(grad_of(n));
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| {

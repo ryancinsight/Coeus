@@ -22,7 +22,12 @@ fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend), false)
+    Var::new(
+        Tensor::from_slice_on(shape.to_vec(), vals, backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn check_pool3d<B: BackendOps<f64> + Default>(backend: &B)
@@ -81,9 +86,11 @@ fn moirai_pool3d_match_reference() {
 #[test]
 fn pool3d_rejects_invalid_window_configuration() {
     let input = Var::new(
-        Tensor::<f64, SequentialBackend>::ones([1, 1, 2, 2, 2]),
+        Tensor::<f64, SequentialBackend>::ones([1, 1, 2, 2, 2])
+            .expect("invariant: test backend operation succeeds"),
         false,
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     for error in [
         AvgPool3d::<f64, SequentialBackend>::new(0)
             .forward(&input)

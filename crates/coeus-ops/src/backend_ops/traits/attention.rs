@@ -21,7 +21,16 @@ impl AttentionScalar for f64 {}
 /// universal [`BackendOps`](super::super::BackendOps) surface. This keeps
 /// non-floating scalar kernels available on devices whose attention provider
 /// supports a narrower scalar set.
-pub trait AttentionOps<T: Scalar>: ComputeBackend {
+///
+/// # Safety
+///
+/// On `Ok(())`, `sdp_attention` must write every logical element of both the
+/// output and attention-weight destinations described by their layouts,
+/// without reading their previous contents. Backward accumulation requires
+/// initialized gradient destinations. An error may leave destinations
+/// partially written; callers must discard uninitialized destinations on
+/// error.
+pub unsafe trait AttentionOps<T: Scalar>: ComputeBackend {
     /// Scaled dot-product attention forward.
     ///
     /// # Errors

@@ -21,7 +21,8 @@ fn main() {
 
     // ── 1-D tensor from a known slice ──
     let a: Tensor<f64, MoiraiBackend> =
-        Tensor::from_slice_on(vec![5], &[1.0_f64, 2.0, 3.0, 4.0, 5.0], &backend);
+        Tensor::from_slice_on(vec![5], &[1.0_f64, 2.0, 3.0, 4.0, 5.0], &backend)
+            .expect("invariant: test backend operation succeeds");
     assert_eq!(a.shape(), &[5]);
     println!("a = {:?}", a.as_slice());
 
@@ -35,7 +36,8 @@ fn main() {
 
     // ── 2-D tensor (3 × 2) ──
     let mat: Tensor<f64, MoiraiBackend> =
-        Tensor::from_slice_on(vec![3, 2], &[1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0], &backend);
+        Tensor::from_slice_on(vec![3, 2], &[1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0], &backend)
+            .expect("invariant: test backend operation succeeds");
     assert_eq!(mat.shape(), &[3, 2]);
     let mat_sum = coeus_ops::sum(&mat, &backend).expect("mat sum");
     println!("3×2 matrix sum = {mat_sum}"); // 21.0

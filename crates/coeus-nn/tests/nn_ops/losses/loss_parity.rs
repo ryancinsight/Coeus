@@ -32,7 +32,12 @@ fn v<B: BackendOps<f64> + Default>(shape: &[usize], vals: &[f64], backend: &B) -
 where
     B::DeviceBuffer<f64>: CpuAddressableStorageMut<f64>,
 {
-    Var::new(Tensor::from_slice_on(shape.to_vec(), vals, backend), false)
+    Var::new(
+        Tensor::from_slice_on(shape.to_vec(), vals, backend)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds")
 }
 
 fn check_losses<B: BackendOps<f64> + Default>(backend: &B)
@@ -42,12 +47,12 @@ where
     // MSE identical tensors → 0 exactly.
     let pred = v(&[3], &[1.0, 2.0, 3.0], backend);
     let tgt = v(&[3], &[1.0, 2.0, 3.0], backend);
-    let mse = mse_loss(&pred, &tgt);
+    let mse = mse_loss(&pred, &tgt).expect("invariant: test operation succeeds");
     assert_eq!(mse.tensor.as_slice(), &[0.0_f64], "mse_loss(x,x)=0");
 
     // NLL: log_probs=[[-1,-2,-3]], targets=[0] → -(-1) = 1.0 exactly.
     let lp = v(&[1, 3], &[-1.0, -2.0, -3.0], backend);
-    let nll = nll_loss(&lp, &[0]);
+    let nll = nll_loss(&lp, &[0]).expect("invariant: test operation succeeds");
     assert_eq!(
         nll.tensor.as_slice(),
         &[1.0_f64],
@@ -76,7 +81,7 @@ where
     // L1: pred-target=[3,-1,0.5,0] over shape [2,2] → mean = 4.5/4 = 1.125.
     let l1p = v(&[2, 2], &[3.0, -1.0, 0.5, 4.0], backend);
     let l1t = v(&[2, 2], &[0.0, 0.0, 0.0, 4.0], backend);
-    let l1 = l1_loss(&l1p, &l1t);
+    let l1 = l1_loss(&l1p, &l1t).expect("invariant: test operation succeeds");
     assert_eq!(
         l1.tensor.as_slice(),
         &[1.125_f64],
@@ -86,14 +91,14 @@ where
     // L1 zero error → 0 exactly.
     let l1zp = v(&[2], &[1.0, 2.0], backend);
     let l1zt = v(&[2], &[1.0, 2.0], backend);
-    let l1z = l1_loss(&l1zp, &l1zt);
+    let l1z = l1_loss(&l1zp, &l1zt).expect("invariant: test operation succeeds");
     assert_eq!(l1z.tensor.as_slice(), &[0.0_f64], "l1_loss(x,x)=0");
 
     // BCE: pred=[0.5], target=[0.0], eps=0.
     // loss = -0*log(0.5) - 1*log(1-0.5) = -log(0.5) = log(2).
     let bp = v(&[1], &[0.5], backend);
     let bt = v(&[1], &[0.0], backend);
-    let bce = binary_cross_entropy(&bp, &bt, 0.0_f64);
+    let bce = binary_cross_entropy(&bp, &bt, 0.0_f64).expect("valid binary cross entropy inputs");
     let bce_expected = std::f64::consts::LN_2;
     let bce_val = bce.tensor.as_slice()[0];
     assert!(
@@ -106,7 +111,7 @@ where
     let log_probs = [probs[0].ln(), probs[1].ln()];
     let kl_input = v(&[2], &log_probs, backend);
     let kl_target = v(&[2], &probs, backend);
-    let kl = kl_divergence(&kl_input, &kl_target);
+    let kl = kl_divergence(&kl_input, &kl_target).expect("invariant: test operation succeeds");
     assert!(
         kl.tensor.as_slice()[0].abs() <= 2.0 * f64::EPSILON,
         "kl_divergence(P || P) = 0"
@@ -117,7 +122,8 @@ where
     // mean = (0 + 0 + 0.5 + 1.5) / 4 = 0.5.
     let mr_i1 = v(&[4], &[2.0, 0.0, 1.0, 2.0], backend);
     let mr_i2 = v(&[4], &[1.0, 1.0, 1.0, 1.0], backend);
-    let mr = margin_ranking_loss(&mr_i1, &mr_i2, &[1.0, -1.0, 1.0, -1.0], 0.5);
+    let mr = margin_ranking_loss(&mr_i1, &mr_i2, &[1.0, -1.0, 1.0, -1.0], 0.5)
+        .expect("invariant: test operation succeeds");
     assert_eq!(
         mr.tensor.as_slice(),
         &[0.5_f64],
@@ -127,7 +133,8 @@ where
     // Cosine embedding loss: identical unit vectors, y=1 → loss=0 exactly.
     let x1 = v(&[1, 2], &[1.0, 0.0], backend);
     let x2 = v(&[1, 2], &[1.0, 0.0], backend);
-    let cel = cosine_embedding_loss(&x1, &x2, &[1.0_f64], 0.5_f64);
+    let cel = cosine_embedding_loss(&x1, &x2, &[1.0_f64], 0.5_f64)
+        .expect("invariant: test operation succeeds");
     assert_eq!(
         cel.tensor.as_slice(),
         &[0.0_f64],
@@ -138,7 +145,8 @@ where
     // loss = max(0, cos - margin) = max(0, -1 - 0) = 0 exactly.
     let x3 = v(&[1, 2], &[1.0, 0.0], backend);
     let x4 = v(&[1, 2], &[-1.0, 0.0], backend);
-    let cel2 = cosine_embedding_loss(&x3, &x4, &[-1.0_f64], 0.0_f64);
+    let cel2 = cosine_embedding_loss(&x3, &x4, &[-1.0_f64], 0.0_f64)
+        .expect("invariant: test operation succeeds");
     assert_eq!(
         cel2.tensor.as_slice(),
         &[0.0_f64],
