@@ -16,9 +16,9 @@ fn rotate_half_dispatches_with_rocm_parity() {
     }
     let rocm = Backend::new();
     let layout = Layout::new([2, 4].into());
-    let mut input = rocm
-        .allocate::<f32>(8)
-        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut input =
+        unsafe { rocm.allocate::<f32>(8) }.expect("invariant: test backend operation succeeds");
     rocm.copy_to_device(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &mut input)
         .expect("invariant: test backend operation succeeds");
     let output = rocm

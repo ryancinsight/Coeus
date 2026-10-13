@@ -30,21 +30,21 @@ fn native_attention_dispatches_and_preserves_provider_errors() {
         return;
     };
     let layout = Layout::new([1, 1, 1].into());
-    let mut query = backend
-        .allocate::<f32>(1)
-        .expect("invariant: test backend operation succeeds");
-    let mut key = backend
-        .allocate::<f32>(1)
-        .expect("invariant: test backend operation succeeds");
-    let mut value = backend
-        .allocate::<f32>(1)
-        .expect("invariant: test backend operation succeeds");
-    let mut output = backend
-        .allocate::<f32>(1)
-        .expect("invariant: test backend operation succeeds");
-    let mut weights = backend
-        .allocate::<f32>(1)
-        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut query =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut key =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut value =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the `sdp_attention` dispatch overwrites every element before the buffer is read.
+    let mut output =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the `sdp_attention` dispatch overwrites every element before the buffer is read.
+    let mut weights =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
     backend
         .copy_to_device(&[2.0], &mut query)
         .expect("invariant: test backend operation succeeds");

@@ -14,21 +14,21 @@ fn cross_entropy_dispatches_with_metal_value_and_gradient_contract() {
     let backend = Backend::new();
     let logits_layout = Layout::new([2, 3].into());
     let scalar_layout = Layout::new([1].into());
-    let mut logits = backend
-        .allocate::<f32>(6)
-        .expect("invariant: test backend operation succeeds");
-    let mut loss = backend
-        .allocate::<f32>(1)
-        .expect("invariant: test backend operation succeeds");
-    let mut probabilities = backend
-        .allocate::<f32>(6)
-        .expect("invariant: test backend operation succeeds");
-    let mut output_gradient = backend
-        .allocate::<f32>(1)
-        .expect("invariant: test backend operation succeeds");
-    let mut logit_gradient = backend
-        .allocate::<f32>(6)
-        .expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut logits =
+        unsafe { backend.allocate::<f32>(6) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the `cross_entropy_forward` dispatch overwrites every element before the buffer is read.
+    let mut loss =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the `cross_entropy_forward` dispatch overwrites every element before the buffer is read.
+    let mut probabilities =
+        unsafe { backend.allocate::<f32>(6) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut output_gradient =
+        unsafe { backend.allocate::<f32>(1) }.expect("invariant: test backend operation succeeds");
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut logit_gradient =
+        unsafe { backend.allocate::<f32>(6) }.expect("invariant: test backend operation succeeds");
     backend
         .copy_to_device(&[1.5, 0.5, -0.5, -1.0, 2.0, 0.0], &mut logits)
         .expect("invariant: test backend operation succeeds");

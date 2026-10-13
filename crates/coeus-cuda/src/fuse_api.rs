@@ -52,9 +52,9 @@ pub fn evaluate_fused<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend
             })
         })?;
         let out_layout = Layout::new(out_shape.clone());
-        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
+        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new())?;
 
-        crate::fusion::dispatch_fused(expr, out.storage_mut(), &out_layout)?;
+        crate::fusion::dispatch_fused(expr, out.storage_mut()?, &out_layout)?;
         Ok(out)
     }
 }
@@ -126,9 +126,9 @@ pub fn evaluate_fused_reduce<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, Cuda
         })?;
         *output_axis = 1;
         let out_layout = Layout::new(out_shape.clone());
-        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new());
+        let mut out = Tensor::zeros_on(out_shape, &CudaBackend::new())?;
 
-        crate::fusion::dispatch_fused_reduce(expr, op, axis, out.storage_mut(), &out_layout)?;
+        crate::fusion::dispatch_fused_reduce(expr, op, axis, out.storage_mut()?, &out_layout)?;
         Ok(out)
     }
 }
