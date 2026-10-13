@@ -1,7 +1,7 @@
 mod fixtures;
 
 use super::*;
-use crate::reduction::HephaestusProvider;
+use crate::backend::HephaestusProvider;
 use fixtures::*;
 use hephaestus_core::HephaestusError;
 use std::cell::Cell;
@@ -10,7 +10,7 @@ use std::cell::Cell;
 fn backend_routes_allocation_by_initialization_contract() {
     use coeus_core::ComputeBackend;
 
-    let backend = crate::reduction::HephaestusBackend::<TestProvider>::new();
+    let backend = crate::backend::HephaestusBackend::<TestProvider>::new();
     // SAFETY: the test fills every element before any safe read.
     let mut scratch =
         unsafe { backend.allocate::<u32>(4) }.expect("invariant: test backend allocation succeeds");
@@ -52,7 +52,7 @@ fn backend_storage_operations_report_device_acquisition_failure() {
             if message == "injected unavailable test device"
     ));
 
-    let backend = crate::reduction::HephaestusBackend::<UnavailableProvider>::new();
+    let backend = crate::backend::HephaestusBackend::<UnavailableProvider>::new();
     assert_device_unavailable(
         expect_backend_failure(
             // SAFETY: only the returned error is inspected; an unexpected

@@ -1,7 +1,7 @@
 //! Injectable test device, buffer, and providers for storage tests.
 
 use super::super::*;
-use crate::reduction::HephaestusProvider;
+use crate::backend::HephaestusProvider;
 use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use std::{
     cell::Cell,
