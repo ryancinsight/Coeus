@@ -9,5 +9,6 @@ mod pool;
 mod random_init;
 mod reduction;
 mod rotate_half;
+mod seam;
 mod staggered;
 mod unfold_fold;

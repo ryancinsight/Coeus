@@ -1,35 +1,15 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
-use coeus_core::{BackendError, Layout};
+use crate::backend::WgpuBackend;
+use coeus_core::Layout;
 use coeus_hephaestus::{PreparedStaggeredPair, StaggeredBackend, StaggeredProvider};
 use coeus_ops::{Axis, StaggeredPairOps};
-use hephaestus_core::{ComputeDevice, HephaestusError};
-use hephaestus_wgpu::{WgpuDevice, WgpuStaggered3DOps};
+use hephaestus_wgpu::WgpuStaggered3DOps;
 
 impl StaggeredProvider for WgpuBackend {
     type Operations = WgpuStaggered3DOps;
 }
 
 impl StaggeredBackend for WgpuBackend {
-    type Device = WgpuDevice;
     type Operations = WgpuStaggered3DOps;
-
-    fn staggered_device() -> &'static Self::Device {
-        &get_wgpu_context().hephaestus_device
-    }
-
-    fn staggered_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
-
-    fn staggered_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        WgpuBackendError::Validation(BackendError::Storage { operation, reason })
-    }
-
-    fn staggered_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
-    }
 }
 
 /// The provider states the pair in `f32` — WGSL does not guarantee `f64`

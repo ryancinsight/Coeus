@@ -1,9 +1,9 @@
-use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
+use crate::backend::{CudaBackend, CudaScalar};
 use crate::CudaBackendError;
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
-use hephaestus_core::{ComputeDevice, CudaC, DialectScalar, HephaestusError, PoolingMode};
-use hephaestus_cuda::{CudaDevice, CudaPoolingOps};
+use hephaestus_core::{CudaC, DialectScalar, PoolingMode};
+use hephaestus_cuda::CudaPoolingOps;
 use leto::WindowParameters;
 
 // SAFETY: `CudaPoolingOps` initializes forward outputs and only accumulates
@@ -19,28 +19,7 @@ impl<T> PoolingBackend<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC>,
 {
-    type Device = CudaDevice;
     type Operations = CudaPoolingOps;
-
-    fn pooling_device() -> &'static Self::Device {
-        get_cuda_device()
-    }
-
-    fn pooling_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn pooling_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        CudaBackendError::Validation {
-            source: BackendError::Storage { operation, reason },
-        }
-    }
-
-    fn pooling_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        CudaBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

@@ -1,9 +1,9 @@
-use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
+use crate::backend::{CudaBackend, CudaScalar};
 use crate::CudaBackendError;
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
-use hephaestus_core::{ComputeDevice, CudaC, DialectScalar, HephaestusError};
-use hephaestus_cuda::{CudaDevice, CudaSlidingWindowOps};
+use hephaestus_core::{CudaC, DialectScalar};
+use hephaestus_cuda::CudaSlidingWindowOps;
 use leto::WindowParameters;
 
 // SAFETY: `CudaSlidingWindowOps` initializes unfold outputs and clears fold
@@ -19,28 +19,7 @@ impl<T> UnfoldFoldBackend<T> for CudaBackend
 where
     T: CudaScalar + DialectScalar<CudaC>,
 {
-    type Device = CudaDevice;
     type Operations = CudaSlidingWindowOps;
-
-    fn unfold_fold_device() -> &'static Self::Device {
-        get_cuda_device()
-    }
-
-    fn unfold_fold_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn unfold_fold_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        CudaBackendError::Validation {
-            source: BackendError::Storage { operation, reason },
-        }
-    }
-
-    fn unfold_fold_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        CudaBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

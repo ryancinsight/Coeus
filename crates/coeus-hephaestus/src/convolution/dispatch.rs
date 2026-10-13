@@ -107,7 +107,7 @@ where
     B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    B::convolution_configuration_error(operation, error.to_string())
+    B::configuration_error(operation, error.to_string())
 }
 
 fn bias_layout<B, T>(
@@ -118,7 +118,7 @@ where
     B: ConvolutionBackend<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    LetoLayout::c_contiguous([B::convolution_buffer(storage).len()])
+    LetoLayout::c_contiguous([B::buffer(storage).len()])
         .map_err(|error| configuration::<B, T>(operation, error))
 }
 
@@ -248,13 +248,13 @@ where
         .transpose()?;
     {
         let operands = ConvolutionForwardOperands {
-            input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
-            weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
+            input: StridedView::new(B::buffer(request.input), &input_layout),
+            weight: StridedView::new(B::buffer(request.weight), &weight_layout),
             bias: request
                 .bias
                 .zip(bias_layout.as_ref())
-                .map(|(bias, layout)| StridedView::new(B::convolution_buffer(bias), layout)),
-            output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
+                .map(|(bias, layout)| StridedView::new(B::buffer(bias), layout)),
+            output: StridedView::new(B::buffer(request.output), &output_layout),
         };
         // Shared storage is detached below; preflight validates descriptors before
         // any destination changes. Dispatch then checks the detached buffer aliases.
@@ -278,32 +278,32 @@ where
                 .map(|_| ())
             }
         }
-        .map_err(|source| B::convolution_dispatch_error(operation, source))?;
+        .map_err(|source| B::dispatch_error(operation, source))?;
     }
     request.output.make_unique()?;
     let operands = ConvolutionForwardOperands {
-        input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
-        weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
+        input: StridedView::new(B::buffer(request.input), &input_layout),
+        weight: StridedView::new(B::buffer(request.weight), &weight_layout),
         bias: request
             .bias
             .zip(bias_layout.as_ref())
-            .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
-        output: StridedView::new(B::convolution_buffer(request.output), &output_layout),
+            .map(|(buffer, layout)| StridedView::new(B::buffer(buffer), layout)),
+        output: StridedView::new(B::buffer(request.output), &output_layout),
     };
     let operations = B::Operations::default();
     let result = match kind {
         ConvolutionKind::Regular(parameters) => operations.convolution_forward_into(
-            B::convolution_device(),
+            B::device(),
             operands,
             parameters.map_err(|error| configuration::<B, T>(operation, error))?,
         ),
         ConvolutionKind::Transposed(parameters) => operations.convolution_transposed_forward_into(
-            B::convolution_device(),
+            B::device(),
             operands,
             parameters.map_err(|error| configuration::<B, T>(operation, error))?,
         ),
     };
-    result.map_err(|source| B::convolution_dispatch_error(operation, source))
+    result.map_err(|source| B::dispatch_error(operation, source))
 }
 
 fn backward<B, T, const R: usize, const D: usize>(
@@ -338,34 +338,25 @@ where
         .transpose()?;
     {
         let operands = ConvolutionBackwardOperands {
-            input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
-            weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
-            grad_output: StridedView::new(
-                B::convolution_buffer(request.grad_output),
-                &grad_output_layout,
-            ),
+            input: StridedView::new(B::buffer(request.input), &input_layout),
+            weight: StridedView::new(B::buffer(request.weight), &weight_layout),
+            grad_output: StridedView::new(B::buffer(request.grad_output), &grad_output_layout),
             gradients: ConvolutionGradientViews {
                 input: request
                     .grad_input
                     .as_ref()
                     .zip(grad_input_layout.as_ref())
-                    .map(|(buffer, layout)| {
-                        StridedView::new(B::convolution_buffer(buffer), layout)
-                    }),
+                    .map(|(buffer, layout)| StridedView::new(B::buffer(buffer), layout)),
                 weight: request
                     .grad_weight
                     .as_ref()
                     .zip(grad_weight_layout.as_ref())
-                    .map(|(buffer, layout)| {
-                        StridedView::new(B::convolution_buffer(buffer), layout)
-                    }),
+                    .map(|(buffer, layout)| StridedView::new(B::buffer(buffer), layout)),
                 bias: request
                     .grad_bias
                     .as_ref()
                     .zip(grad_bias_layout.as_ref())
-                    .map(|(buffer, layout)| {
-                        StridedView::new(B::convolution_buffer(buffer), layout)
-                    }),
+                    .map(|(buffer, layout)| StridedView::new(B::buffer(buffer), layout)),
             },
         };
         // Shared storage is detached below; preflight validates descriptors before
@@ -390,7 +381,7 @@ where
                 .map(|_| ())
             }
         }
-        .map_err(|source| B::convolution_dispatch_error(operation, source))?;
+        .map_err(|source| B::dispatch_error(operation, source))?;
     }
     if let Some(buffer) = request.grad_input.as_mut() {
         buffer.make_unique()?;
@@ -402,40 +393,37 @@ where
         buffer.make_unique()?;
     }
     let operands = ConvolutionBackwardOperands {
-        input: StridedView::new(B::convolution_buffer(request.input), &input_layout),
-        weight: StridedView::new(B::convolution_buffer(request.weight), &weight_layout),
-        grad_output: StridedView::new(
-            B::convolution_buffer(request.grad_output),
-            &grad_output_layout,
-        ),
+        input: StridedView::new(B::buffer(request.input), &input_layout),
+        weight: StridedView::new(B::buffer(request.weight), &weight_layout),
+        grad_output: StridedView::new(B::buffer(request.grad_output), &grad_output_layout),
         gradients: ConvolutionGradientViews {
             input: request
                 .grad_input
                 .zip(grad_input_layout.as_ref())
-                .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
+                .map(|(buffer, layout)| StridedView::new(B::buffer(buffer), layout)),
             weight: request
                 .grad_weight
                 .zip(grad_weight_layout.as_ref())
-                .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
+                .map(|(buffer, layout)| StridedView::new(B::buffer(buffer), layout)),
             bias: request
                 .grad_bias
                 .zip(grad_bias_layout.as_ref())
-                .map(|(buffer, layout)| StridedView::new(B::convolution_buffer(buffer), layout)),
+                .map(|(buffer, layout)| StridedView::new(B::buffer(buffer), layout)),
         },
     };
     let operations = B::Operations::default();
     let result = match kind {
         ConvolutionKind::Regular(parameters) => operations.convolution_backward_accumulate(
-            B::convolution_device(),
+            B::device(),
             operands,
             parameters.map_err(|error| configuration::<B, T>(operation, error))?,
         ),
         ConvolutionKind::Transposed(parameters) => operations
             .convolution_transposed_backward_accumulate(
-                B::convolution_device(),
+                B::device(),
                 operands,
                 parameters.map_err(|error| configuration::<B, T>(operation, error))?,
             ),
     };
-    result.map_err(|source| B::convolution_dispatch_error(operation, source))
+    result.map_err(|source| B::dispatch_error(operation, source))
 }

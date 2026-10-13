@@ -38,14 +38,14 @@ where
     pub fn new(order: usize, spacing: [f32; 3]) -> Result<Self, B::Error> {
         const OPERATION: &str = "prepare_staggered_pair";
         if order == 0 || !order.is_multiple_of(2) {
-            return Err(B::staggered_configuration_error(
+            return Err(B::configuration_error(
                 OPERATION,
                 format!("staggered order must be even and non-zero, got {order}"),
             ));
         }
         for (axis, &value) in spacing.iter().enumerate() {
             if !value.is_finite() || value <= 0.0 {
-                return Err(B::staggered_configuration_error(
+                return Err(B::configuration_error(
                     OPERATION,
                     format!(
                         "staggered spacing axis {axis} must be finite and positive, got {value}",
@@ -54,10 +54,10 @@ where
             }
         }
         let taps = staggered_first_derivative_coefficients::<f32>(order / 2)
-            .map_err(|error| B::staggered_configuration_error(OPERATION, error.to_string()))?;
+            .map_err(|error| B::configuration_error(OPERATION, error.to_string()))?;
         let kernel = B::Operations::default()
-            .prepare_staggered_3d(B::staggered_device())
-            .map_err(|source| B::staggered_dispatch_error(OPERATION, source))?;
+            .prepare_staggered_3d(B::device())
+            .map_err(|source| B::dispatch_error(OPERATION, source))?;
         Ok(Self {
             kernel,
             taps,
@@ -89,11 +89,11 @@ where
 {
     for (operand, layout) in [("input", layouts.0), ("output", layouts.1)] {
         ranked_exact::<3>(operation, layout)
-            .map_err(|error| B::staggered_configuration_error(operation, error.to_string()))?;
+            .map_err(|error| B::configuration_error(operation, error.to_string()))?;
         // The provider parameter block carries dimensions only, so it cannot
         // represent an operand's strides or base offset.
         if !layout.is_contiguous() || layout.offset() != 0 {
-            return Err(B::staggered_configuration_error(
+            return Err(B::configuration_error(
                 operation,
                 format!(
                     "staggered {operand} layout must be contiguous with zero offset, got strides {:?} and offset {}",
@@ -104,7 +104,7 @@ where
         }
     }
     if layouts.0.shape() != layouts.1.shape() {
-        return Err(B::staggered_configuration_error(
+        return Err(B::configuration_error(
             operation,
             format!(
                 "staggered input shape {:?} must equal output shape {:?}",
@@ -117,7 +117,7 @@ where
     let mut dims = [0_u32; 3];
     for (slot, &extent) in dims.iter_mut().zip(shape) {
         *slot = u32::try_from(extent).map_err(|error| {
-            B::staggered_configuration_error(
+            B::configuration_error(
                 operation,
                 format!("staggered grid extent {extent} does not fit u32: {error}"),
             )
@@ -131,7 +131,7 @@ where
         pair.taps.taps(),
         pair.spacing,
     )
-    .map_err(|source| B::staggered_dispatch_error(operation, source))
+    .map_err(|source| B::dispatch_error(operation, source))
 }
 
 /// Dispatch the staggered gradient while preserving destination clones.
@@ -155,13 +155,13 @@ where
     output.0.make_unique()?;
     B::Operations::default()
         .staggered_gradient_into(
-            B::staggered_device(),
+            B::device(),
             &pair.kernel,
-            B::staggered_buffer(input.0),
-            B::staggered_buffer(output.0),
+            B::buffer(input.0),
+            B::buffer(output.0),
             &params,
         )
-        .map_err(|source| B::staggered_dispatch_error(OPERATION, source))
+        .map_err(|source| B::dispatch_error(OPERATION, source))
 }
 
 /// Dispatch the staggered divergence while preserving destination clones.
@@ -183,11 +183,11 @@ where
     output.0.make_unique()?;
     B::Operations::default()
         .staggered_divergence_into(
-            B::staggered_device(),
+            B::device(),
             &pair.kernel,
-            B::staggered_buffer(input.0),
-            B::staggered_buffer(output.0),
+            B::buffer(input.0),
+            B::buffer(output.0),
             &params,
         )
-        .map_err(|source| B::staggered_dispatch_error(OPERATION, source))
+        .map_err(|source| B::dispatch_error(OPERATION, source))
 }

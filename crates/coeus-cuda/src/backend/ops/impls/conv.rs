@@ -1,11 +1,11 @@
-use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
-use coeus_core::{BackendError, Float};
+use crate::backend::{CudaBackend, CudaScalar};
+use coeus_core::Float;
 use coeus_hephaestus::{
     convolution_backward, convolution_forward, convolution_transposed_backward,
     convolution_transposed_forward, ConvolutionBackend,
 };
 use coeus_ops::{ConvolutionBackward, ConvolutionForward};
-use hephaestus_core::{ComputeDevice, ConvolutionOps, HephaestusError};
+use hephaestus_core::ConvolutionOps;
 use hephaestus_cuda::{CudaConvolutionOps, CudaDevice};
 
 impl<T> ConvolutionBackend<T> for CudaBackend
@@ -13,28 +13,7 @@ where
     T: CudaScalar,
     CudaConvolutionOps: ConvolutionOps<CudaDevice, T>,
 {
-    type Device = CudaDevice;
     type Operations = CudaConvolutionOps;
-
-    fn convolution_device() -> &'static Self::Device {
-        get_cuda_device()
-    }
-
-    fn convolution_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn convolution_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        crate::CudaBackendError::Validation {
-            source: BackendError::Storage { operation, reason },
-        }
-    }
-
-    fn convolution_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        crate::CudaBackendError::dispatch(operation, source)
-    }
 }
 
 impl<T> coeus_ops::ConvOps<T> for CudaBackend

@@ -1,6 +1,6 @@
-use crate::{HephaestusBackend, HephaestusBackendError, HephaestusProvider};
-use coeus_core::{ComputeBackend, Scalar};
-use hephaestus_core::{ComputeDevice, DenseProductOps, HephaestusError};
+use crate::{HephaestusBackend, HephaestusProvider, HephaestusSeamBackend};
+use coeus_core::Scalar;
+use hephaestus_core::DenseProductOps;
 
 /// Provider-owned scalar dense-product operation marker.
 ///
@@ -24,25 +24,12 @@ where
 /// preserve backend-specific error types at the consumer boundary. A backend
 /// that is not [`HephaestusBackend`] implements this trait directly and reuses
 /// [`crate::matmul`] rather than carrying its own kernel.
-pub trait MatmulBackend<T>: ComputeBackend
+pub trait MatmulBackend<T>: HephaestusSeamBackend
 where
     T: Scalar + leto_ops::Scalar,
 {
-    /// Concrete Hephaestus device selected by this backend.
-    type Device: ComputeDevice + Send + Sync + 'static;
-    /// Monomorphized dense-product operations for the selected device.
+    /// Monomorphized Hephaestus operations for the selected device.
     type Operations: DenseProductOps<Self::Device, T> + Default;
-
-    /// Return the lazily acquired provider device.
-    fn matmul_device() -> &'static Self::Device;
-
-    /// Borrow the provider buffer contained by Coeus storage.
-    fn matmul_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T>;
-
-    /// Map a Hephaestus provider failure into the backend's typed error.
-    fn matmul_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error;
 }
 
 impl<P, T> MatmulBackend<T> for HephaestusBackend<P>
@@ -50,20 +37,5 @@ where
     P: MatmulProvider<T>,
     T: Scalar + leto_ops::Scalar,
 {
-    type Device = P::Device;
     type Operations = P::Operations;
-
-    fn matmul_device() -> &'static Self::Device {
-        P::device()
-    }
-
-    fn matmul_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn matmul_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        P::Error::from(HephaestusBackendError::device(operation, source))
-    }
 }

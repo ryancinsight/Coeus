@@ -1,8 +1,8 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
+use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
-use hephaestus_core::{ComputeDevice, HephaestusError, PoolingMode};
-use hephaestus_wgpu::{WgpuDevice, WgpuPoolingOps, WgpuWindowScalar};
+use hephaestus_core::PoolingMode;
+use hephaestus_wgpu::{WgpuPoolingOps, WgpuWindowScalar};
 use leto::WindowParameters;
 
 // SAFETY: `WgpuPoolingOps` initializes forward outputs and only accumulates
@@ -18,26 +18,7 @@ impl<T> PoolingBackend<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
 {
-    type Device = WgpuDevice;
     type Operations = WgpuPoolingOps;
-
-    fn pooling_device() -> &'static Self::Device {
-        &get_wgpu_context().hephaestus_device
-    }
-
-    fn pooling_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn pooling_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        WgpuBackendError::Validation(BackendError::Storage { operation, reason })
-    }
-
-    fn pooling_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

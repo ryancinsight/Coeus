@@ -1,11 +1,11 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
-use coeus_core::{BackendError, Float};
+use crate::backend::{WgpuBackend, WgpuScalar};
+use coeus_core::Float;
 use coeus_hephaestus::{
     convolution_backward, convolution_forward, convolution_transposed_backward,
     convolution_transposed_forward, ConvolutionBackend,
 };
 use coeus_ops::{ConvolutionBackward, ConvolutionForward};
-use hephaestus_core::{ComputeDevice, ConvolutionOps, HephaestusError};
+use hephaestus_core::ConvolutionOps;
 use hephaestus_wgpu::{DialectScalar, WgpuConvolutionOps, WgpuDevice, Wgsl};
 
 impl<T> ConvolutionBackend<T> for WgpuBackend
@@ -13,26 +13,7 @@ where
     T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
     WgpuConvolutionOps: ConvolutionOps<WgpuDevice, T>,
 {
-    type Device = WgpuDevice;
     type Operations = WgpuConvolutionOps;
-
-    fn convolution_device() -> &'static Self::Device {
-        &get_wgpu_context().hephaestus_device
-    }
-
-    fn convolution_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn convolution_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        WgpuBackendError::Validation(BackendError::Storage { operation, reason })
-    }
-
-    fn convolution_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
-    }
 }
 
 impl<T> coeus_ops::ConvOps<T> for WgpuBackend
