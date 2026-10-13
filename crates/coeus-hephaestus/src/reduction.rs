@@ -31,6 +31,15 @@ pub trait AxisReductionDispatch<D: ComputeDevice, T: eunomia::Pod> {
         axis: usize,
         output: RankedOperand<'_, D::Buffer<T>, 2>,
     ) -> hephaestus_core::Result<()>;
+
+    /// Execute the float-only mean reduction; the caller holds the
+    /// `FloatElement` bound, so the kernel never sees integer division.
+    fn mean(
+        device: &D,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()>;
 }
 
 impl<D, T, R> AxisReductionDispatch<D, T> for R
@@ -72,6 +81,18 @@ where
             ClosedReduction::Min => operations.min_axis_into(device, input, axis, output),
             ClosedReduction::Max => operations.max_axis_into(device, input, axis, output),
         }
+    }
+
+    fn mean(
+        device: &D,
+        input: RankedOperand<'_, D::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, D::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()> {
+        let operations = R::default();
+        let input = StridedView::new(input.buffer, input.layout);
+        let output = StridedView::new(output.buffer, output.layout);
+        operations.mean_axis_into(device, input, axis, output)
     }
 }
 
@@ -143,9 +164,9 @@ pub struct RankedOperand<'a, B, const N: usize> {
 ///
 /// # Safety
 ///
-/// When `reduce` or `scan` returns `Ok(())`, it must initialize every logical
-/// output element and must not read its prior contents. An error may leave a
-/// partially written output; callers must discard it.
+/// When `reduce`, `mean`, or `scan` returns `Ok(())`, it must initialize
+/// every logical output element and must not read its prior contents. An
+/// error may leave a partially written output; callers must discard it.
 pub unsafe trait ReductionProvider<T>: HephaestusProvider
 where
     T: Scalar + leto_ops::Scalar,
@@ -167,6 +188,19 @@ where
         output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
     ) -> hephaestus_core::Result<()> {
         Self::AxisOperations::reduce(device, op, input, axis, output)
+    }
+
+    /// Mean-reduce a rank-2 strided input into a keep-dimension output.
+    ///
+    /// The caller holds the `FloatElement` bound; this seam never sees
+    /// integer element types.
+    fn mean(
+        device: &Self::Device,
+        input: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
+        axis: usize,
+        output: RankedOperand<'_, <Self::Device as ComputeDevice>::Buffer<T>, 2>,
+    ) -> hephaestus_core::Result<()> {
+        Self::AxisOperations::mean(device, input, axis, output)
     }
 
     /// Execute an inclusive prefix or suffix scan over a rank-2 strided input.
@@ -247,7 +281,27 @@ where
     where
         T: FloatElement,
     {
-        self.reduce(ReductionOp::Mean, a, a_layout, axis, c, c_layout)
+        let input_layout = ranked::<2>("reduce_mean", a_layout).map_err(layout_error::<P>)?;
+        let output_layout = ranked::<2>("reduce_mean", c_layout).map_err(layout_error::<P>)?;
+        let provider_axis =
+            ranked_axis::<2>("reduce_mean", a_layout, axis).map_err(layout_error::<P>)?;
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("reduce_mean", source))
+        })?;
+        c.make_unique()?;
+        P::mean(
+            device,
+            RankedOperand {
+                buffer: a.buffer(),
+                layout: &input_layout,
+            },
+            provider_axis,
+            RankedOperand {
+                buffer: c.buffer(),
+                layout: &output_layout,
+            },
+        )
+        .map_err(|source| P::Error::from(HephaestusBackendError::device("reduce_mean", source)))
     }
 
     fn reduce_prod(
