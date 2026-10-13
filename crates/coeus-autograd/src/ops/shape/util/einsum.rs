@@ -8,6 +8,7 @@
 
 use crate::var::Var;
 use coeus_core::Scalar;
+use std::sync::Arc;
 
 /// Why a tracked [`fn@einsum`]/[`fn@einsum3`] call was rejected.
 ///
@@ -15,34 +16,129 @@ use coeus_core::Scalar;
 /// einsum notation typed by the calling code, including across the Python
 /// binding boundary): an unrecognized pattern is a typed error, never a
 /// panic.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, thiserror::Error)]
 #[non_exhaustive]
 pub enum EinsumError {
+    /// The subscript is not valid einsum syntax.
+    #[error("einsum: malformed subscript '{subscript}'")]
+    MalformedSubscript {
+        /// The rejected subscript string.
+        subscript: String,
+    },
+    /// The number of subscript operands differs from the supplied operands.
+    #[error(
+        "einsum: subscript '{subscript}' specifies {specified} operand(s), but {provided} were provided"
+    )]
+    OperandCountMismatch {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Number of operands named by the subscript.
+        specified: usize,
+        /// Number of operands supplied by the caller.
+        provided: usize,
+    },
+    /// An operand rank does not match its subscript.
+    #[error(
+        "einsum: subscript '{subscript}' requires operand {operand} to have rank {expected}, got {actual}"
+    )]
+    RankMismatch {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Zero-based operand position.
+        operand: usize,
+        /// Rank required by the subscript.
+        expected: usize,
+        /// Rank supplied by the caller.
+        actual: usize,
+    },
+    /// Two operands have incompatible contracted dimensions.
+    #[error("einsum: subscript '{subscript}' cannot contract shapes {left:?} and {right:?}")]
+    ShapeMismatch {
+        /// The rejected subscript string.
+        subscript: String,
+        /// Shape of the left operand.
+        left: Vec<usize>,
+        /// Shape of the right operand.
+        right: Vec<usize>,
+    },
     /// The subscript names a pattern this tracked implementation does not
     /// recognize for the given operand count.
+    #[error("einsum: unsupported {operand_count}-operand pattern '{subscript}'")]
     UnsupportedPattern {
         /// The rejected subscript string.
         subscript: String,
         /// Number of operands the subscript was evaluated against.
         operand_count: usize,
     },
+    /// The non-tracked fallback rejected the operation.
+    ///
+    /// Type erasure is confined to this cold error path because the public
+    /// error type spans every statically selected backend error type.
+    #[error("einsum backend operation failed: {source}")]
+    Backend {
+        /// Provider error preserved as the source.
+        #[source]
+        source: Arc<dyn std::error::Error + Send + Sync>,
+    },
 }
 
-impl core::fmt::Display for EinsumError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::UnsupportedPattern {
-                subscript,
-                operand_count,
-            } => write!(
-                f,
-                "einsum: unsupported {operand_count}-operand pattern '{subscript}'"
-            ),
-        }
+fn valid_labels(labels: &str) -> bool {
+    let labels = labels.strip_prefix("...").unwrap_or(labels);
+    !labels.is_empty() && labels.chars().all(|label| label.is_ascii_alphabetic())
+}
+
+fn parse_subscript(subscript: &str) -> Result<(Vec<&str>, &str), EinsumError> {
+    let subscript = subscript.trim();
+    let (lhs, rhs) = subscript.split_once("->").unwrap_or((subscript, ""));
+    let lhs_parts: Vec<&str> = lhs.split(',').map(str::trim).collect();
+    let malformed = subscript.is_empty()
+        || rhs.contains("->")
+        || lhs_parts.iter().any(|labels| !valid_labels(labels))
+        || (!rhs.trim().is_empty() && !valid_labels(rhs.trim()));
+    if malformed {
+        Err(EinsumError::MalformedSubscript {
+            subscript: subscript.to_owned(),
+        })
+    } else {
+        Ok((lhs_parts, rhs.trim()))
     }
 }
 
-impl std::error::Error for EinsumError {}
+fn validate_operands<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+    subscript: &str,
+    labels: &[&str],
+    operands: &[&Var<T, B>],
+) -> Result<(), EinsumError> {
+    let mut extents = Vec::<(char, usize, usize)>::new();
+    for (operand, (labels, var)) in labels.iter().zip(operands).enumerate() {
+        let explicit = labels.strip_prefix("...").unwrap_or(labels);
+        let expected = explicit.chars().count();
+        let actual = var.tensor.ndim();
+        if (!labels.starts_with("...") && actual != expected) || actual < expected {
+            return Err(EinsumError::RankMismatch {
+                subscript: subscript.to_owned(),
+                operand,
+                expected,
+                actual,
+            });
+        }
+        let offset = actual - expected;
+        for (label, &extent) in explicit.chars().zip(&var.tensor.shape()[offset..]) {
+            if let Some(&(_, previous, other)) = extents.iter().find(|(seen, ..)| *seen == label) {
+                if previous != extent {
+                    return Err(EinsumError::ShapeMismatch {
+                        subscript: subscript.to_owned(),
+                        left: operands[other].tensor.shape().to_vec(),
+                        right: var.tensor.shape().to_vec(),
+                    });
+                }
+            } else {
+                extents.push((label, extent, operand));
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Tracked Einstein summation for common ML patterns.
 ///
@@ -58,8 +154,9 @@ impl std::error::Error for EinsumError {}
 ///
 /// # Errors
 ///
-/// Returns [`EinsumError::UnsupportedPattern`] for a single-operand
-/// subscript this implementation does not recognize.
+/// Returns [`EinsumError`] when the subscript is malformed or unsupported,
+/// operand counts, ranks, or shapes do not match, or the fallback backend
+/// rejects the operation.
 #[inline]
 pub fn einsum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
     subscript: &str,
@@ -70,22 +167,15 @@ where
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
 {
     let subscript = subscript.trim();
-    let (lhs_raw, rhs) = if let Some(pos) = subscript.find("->") {
-        (&subscript[..pos], &subscript[pos + 2..])
-    } else {
-        (subscript, "")
-    };
-    let lhs_parts: Vec<&str> = lhs_raw.split(',').map(str::trim).collect();
-
-    assert_eq!(
-        lhs_parts.len(),
-        operands.len(),
-        "einsum: subscript has {} operand(s) but {} Var(s) provided",
-        lhs_parts.len(),
-        operands.len()
-    );
-
-    let rhs = rhs.trim();
+    let (lhs_parts, rhs) = parse_subscript(subscript)?;
+    if lhs_parts.len() != operands.len() {
+        return Err(EinsumError::OperandCountMismatch {
+            subscript: subscript.to_owned(),
+            specified: lhs_parts.len(),
+            provided: operands.len(),
+        });
+    }
+    validate_operands(subscript, &lhs_parts, operands)?;
 
     // ── Single-operand ────────────────────────────────────────────────────
     if operands.len() == 1 {
@@ -102,7 +192,7 @@ where
         if a.tensor.ndim() >= 2 {
             let chars: Vec<char> = lhs.chars().collect();
             let rhs_chars: Vec<char> = rhs.chars().collect();
-            if chars.len() == rhs_chars.len() {
+            if chars.len() >= 2 && chars.len() == rhs_chars.len() {
                 let n = chars.len();
                 let mut expected_rhs = chars.clone();
                 expected_rhs.swap(n - 2, n - 1);
@@ -118,7 +208,11 @@ where
         if lhs == "ii" && rhs.is_empty() {
             assert_eq!(a.tensor.ndim(), 2, "einsum ii->: requires 2-D input");
             let backend = B::default();
-            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend).expect("einsum");
+            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend).map_err(|source| {
+                EinsumError::Backend {
+                    source: Arc::new(source),
+                }
+            })?;
             return Ok(Var::new(t, false));
         }
 
@@ -129,7 +223,12 @@ where
     }
 
     // ── Two-operand ───────────────────────────────────────────────────────
-    assert_eq!(operands.len(), 2);
+    if operands.len() != 2 {
+        return Err(EinsumError::UnsupportedPattern {
+            subscript: subscript.to_owned(),
+            operand_count: operands.len(),
+        });
+    }
     let a = operands[0];
     let b = operands[1];
     let a_lhs = lhs_parts[0];
@@ -214,7 +313,11 @@ where
     let backend = B::default();
     let raw_operands: Vec<&coeus_tensor::Tensor<T, B>> =
         operands.iter().map(|v| &v.tensor).collect();
-    let out = coeus_ops::einsum(subscript, &raw_operands, &backend).expect("einsum");
+    let out = coeus_ops::einsum(subscript, &raw_operands, &backend).map_err(|source| {
+        EinsumError::Backend {
+            source: Arc::new(source),
+        }
+    })?;
     Ok(Var::new(out, false))
 }
 

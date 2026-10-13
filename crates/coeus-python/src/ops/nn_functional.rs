@@ -287,6 +287,12 @@ pub fn softmin(input: &PyTensor, dim: usize, py: Python<'_>) -> PyTensor {
     PyTensor::from_var(inner)
 }
 
+/// Evaluate an Einstein summation expression.
+///
+/// # Errors
+///
+/// Returns `ValueError` for malformed or unsupported subscripts, rank or shape
+/// mismatches, and failures from the selected backend.
 #[pyfunction]
 pub fn einsum(
     subscript: &str,

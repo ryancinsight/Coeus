@@ -220,3 +220,56 @@ fn test_einsum3_matmul_chain_backward() {
         "dC",
     );
 }
+
+#[test]
+fn einsum_rejects_invalid_contracts_without_panicking() {
+    use coeus_autograd::EinsumError;
+    use coeus_core::BackendError;
+
+    let backend = MoiraiBackend::new();
+    let fixture = |shape: &[usize]| {
+        let values = vec![1.0_f32; shape.iter().product()];
+        Var::new(Tensor::from_slice_on(shape, &values, &backend), false)
+    };
+    let matrix = fixture(&[2, 3]);
+    let compatible = fixture(&[3, 2]);
+    let vector = fixture(&[3]);
+    let incompatible = fixture(&[4, 2]);
+
+    assert!(matches!(
+        coeus_autograd::einsum("ij,jk->ik->x", &[&matrix, &compatible]),
+        Err(EinsumError::MalformedSubscript { .. })
+    ));
+    assert!(matches!(
+        coeus_autograd::einsum("ij,jk->ik", &[&matrix]),
+        Err(EinsumError::OperandCountMismatch {
+            specified: 2,
+            provided: 1,
+            ..
+        })
+    ));
+    assert!(matches!(
+        coeus_autograd::einsum("ij,jk->ik", &[&vector, &compatible]),
+        Err(EinsumError::RankMismatch {
+            operand: 0,
+            expected: 2,
+            actual: 1,
+            ..
+        })
+    ));
+    assert!(matches!(
+        coeus_autograd::einsum("ij,jk->ik", &[&matrix, &incompatible]),
+        Err(EinsumError::ShapeMismatch { .. })
+    ));
+
+    let fallback_error = coeus_autograd::einsum("ij,ji->", &[&matrix, &compatible])
+        .err()
+        .expect("invariant: unsupported fallback contraction returns an error");
+    let EinsumError::Backend { source } = fallback_error else {
+        panic!("invariant: fallback failures preserve their provider error");
+    };
+    assert!(matches!(
+        source.as_ref().downcast_ref::<BackendError>(),
+        Some(BackendError::Storage { .. })
+    ));
+}
