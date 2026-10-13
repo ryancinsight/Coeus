@@ -138,7 +138,7 @@ pub fn multi_head_attention_cross<
     }
 
     let d_head = d_model / H;
-    let scale = T::one() / <T as Scalar>::from_f64((d_head as f64).sqrt());
+    let scale = T::ONE / <T as Scalar>::from_f64((d_head as f64).sqrt());
 
     let batch = dimensions.batch;
     let seq_q = dimensions.seq_q;

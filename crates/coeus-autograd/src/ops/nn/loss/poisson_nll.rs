@@ -108,7 +108,7 @@ pub fn poisson_nll<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps
             shape,
             mean_scale: Tensor::full_on(
                 [1],
-                T::one() / <T as coeus_core::FloatElement>::from_f64(n as f64),
+                T::ONE / <T as coeus_core::FloatElement>::from_f64(n as f64),
                 &backend,
             ),
         };

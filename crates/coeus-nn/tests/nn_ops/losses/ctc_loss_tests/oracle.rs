@@ -45,8 +45,8 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
         target_lengths,
         blank,
     } = sequences;
-    let mut loss = T::zero();
-    let mut gradient = vec![T::zero(); log_probs.len()];
+    let mut loss = T::ZERO;
+    let mut gradient = vec![T::ZERO; log_probs.len()];
     let mut target_offset = 0;
     let mut path_count = 0;
     for (sample, (&length, &target_length)) in input_lengths.iter().zip(target_lengths).enumerate()
@@ -55,8 +55,8 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
         target_offset += target_length;
         let paths = classes.pow(u32::try_from(length).expect("invariant: fixture length fits u32"));
         path_count = path_count.max(paths);
-        let mut probability = T::zero();
-        let mut occupancy = vec![T::zero(); length * classes];
+        let mut probability = T::ZERO;
+        let mut occupancy = vec![T::ZERO; length * classes];
         for encoded in 0..paths {
             let mut remainder = encoded;
             let mut path = vec![0; length];
@@ -80,7 +80,7 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
             let weight = path
                 .iter()
                 .enumerate()
-                .fold(T::one(), |product, (time, &symbol)| {
+                .fold(T::ONE, |product, (time, &symbol)| {
                     product * Float::exp(log_probs[(time * batch + sample) * classes + symbol])
                 });
             probability += weight;
@@ -89,7 +89,7 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
             }
         }
         assert!(
-            probability > T::zero(),
+            probability > T::ZERO,
             "fixture has a positive-probability alignment"
         );
         let divisor = count::<T>(batch * target_length.max(1));
@@ -126,9 +126,9 @@ pub(super) fn close<T: BinaryPrecision>(actual: T, expected: T, operations: usiz
     // the count; it is a numerical test model, not a libm accuracy proof.
     let unit = T::EPSILON / count::<T>(2);
     let accumulated = count::<T>(operations) * unit;
-    assert!(accumulated < T::one(), "roundoff model requires k*u < 1");
-    let scale = T::one() + Float::abs(actual) + Float::abs(expected);
-    let bound = accumulated / (T::one() - accumulated) * scale;
+    assert!(accumulated < T::ONE, "roundoff model requires k*u < 1");
+    let scale = T::ONE + Float::abs(actual) + Float::abs(expected);
+    let bound = accumulated / (T::ONE - accumulated) * scale;
     assert!(
         Float::abs(actual - expected) <= bound,
         "actual={actual:?}, expected={expected:?}, bound={bound:?}"

@@ -155,7 +155,7 @@ impl<T: Copy + Send + Sync + 'static> CpuStorage<T> {
     where
         T: crate::Scalar,
     {
-        Self::filled(len, T::zero())
+        Self::filled(len, T::ZERO)
     }
 
     /// Allocate and initialize every element with `value` without first

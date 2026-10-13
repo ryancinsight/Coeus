@@ -342,9 +342,6 @@ pub trait CpuUnaryDispatch: private::Sealed {
 pub trait Scalar:
     NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone
 {
-    /// Additive identity.
-    fn zero() -> Self;
-
     /// Return whether every byte in this value's representation is zero.
     ///
     /// Accelerator fills use this representation-level predicate to select a
@@ -353,12 +350,6 @@ pub trait Scalar:
     fn has_zero_bit_pattern(&self) -> bool {
         bytemuck::bytes_of(self).iter().all(|&byte| byte == 0)
     }
-
-    /// Multiplicative identity.
-    fn one() -> Self;
-
-    /// Convert this scalar to `f64`.
-    fn to_f64(self) -> f64;
 
     /// Construct a scalar from `f64`.
     fn from_f64(v: f64) -> Self;
@@ -446,7 +437,7 @@ pub trait Scalar:
     fn dot_slice(a: &[Self], b: &[Self]) -> Self {
         assert_eq!(a.len(), b.len(), "dot_slice: length mismatch");
 
-        let mut acc = Self::zero();
+        let mut acc = Self::ZERO;
         for (&x, &y) in a.iter().zip(b.iter()) {
             acc += x * y;
         }
@@ -486,7 +477,7 @@ pub trait Scalar:
     /// `hermes_simd::sum`. Summation is associative only approximately in
     /// floating point, so the SIMD result may differ from the sequential fold
     /// within the type's rounding error (differential tests use an epsilon
-    /// bound, not bitwise equality). Empty slice sums to `Self::zero()`.
+    /// bound, not bitwise equality). Empty slice sums to `Self::ZERO`.
     #[inline]
     fn sum_slice(s: &[Self]) -> Self {
         match s.split_first() {
@@ -497,7 +488,7 @@ pub trait Scalar:
                 }
                 acc
             }
-            None => Self::zero(),
+            None => Self::ZERO,
         }
     }
 

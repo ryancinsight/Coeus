@@ -82,7 +82,7 @@ where
 
     let fan = T::from_count(fan_in);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
-    let expected_uniform = coeus_leto::uniform_values(&shape, T::zero() - limit, limit, seed)
+    let expected_uniform = coeus_leto::uniform_values(&shape, T::ZERO - limit, limit, seed)
         .expect("valid direct Leto Kaiming uniform fixture");
     assert_values(
         weight.tensor.as_slice(),
@@ -132,7 +132,7 @@ where
 
     let fan = T::from_count(fan_in + fan_out);
     let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
-    let expected_uniform = coeus_leto::uniform_values(&shape, T::zero() - limit, limit, seed)
+    let expected_uniform = coeus_leto::uniform_values(&shape, T::ZERO - limit, limit, seed)
         .expect("valid direct Leto Xavier uniform fixture");
     assert_values(
         weight.tensor.as_slice(),

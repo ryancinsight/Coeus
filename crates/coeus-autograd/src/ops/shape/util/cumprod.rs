@@ -84,7 +84,7 @@ where
             let outer = numel / (n * dim_stride);
             let inner = dim_stride;
 
-            let mut gi_data = vec![T::zero(); numel];
+            let mut gi_data = vec![T::ZERO; numel];
 
             for outer_idx in 0..outer {
                 for inner_idx in 0..inner {
@@ -97,10 +97,10 @@ where
                     // gradient factors through).
                     let mut z1 = n;
                     let mut z2 = n;
-                    let mut prefix = T::one();
+                    let mut prefix = T::ONE;
                     for i in 0..n {
                         let xi = in_s[at(i)];
-                        if xi == T::zero() {
+                        if xi == T::ZERO {
                             if z1 == n {
                                 z1 = i;
                             } else {
@@ -117,7 +117,7 @@ where
                     // j ≥ z1 is 0, and d out[j]/dx_i for j ≥ z1 (i < z1)
                     // also vanishes only through out, so the truncation is
                     // exactly the j < z1 restriction.
-                    let mut suffix: T = T::zero();
+                    let mut suffix: T = T::ZERO;
                     for i in (0..z1).rev() {
                         let flat = at(i);
                         suffix += go_s[flat] * out_s[flat];
@@ -132,7 +132,7 @@ where
                     // retains the x_{z1} = 0 factor.
                     if z1 < n {
                         let mut acc = prefix; // ∏_{k≤j, k≠z1} x_k at j = z1
-                        let mut grad_z: T = T::zero();
+                        let mut grad_z: T = T::ZERO;
                         for j in z1..z2 {
                             if j > z1 {
                                 acc *= in_s[at(j)];
