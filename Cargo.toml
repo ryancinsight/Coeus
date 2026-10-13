@@ -35,8 +35,8 @@ categories = ["science", "mathematics", "data-structures"]
 # First-party providers remain Git-sourced for standalone and CI resolution.
 # The Atlas stack overlay redirects these exact sources to one local checkout
 # during development, so a worktree never creates a second package identity.
-moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.7.0", features = ["melinoe"] }
-moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.7.0" }
+moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.8.2", features = ["melinoe"] }
+moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.8.2" }
 # Mnemosyne's current default carries the portable WebAssembly backend.
 mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.9.0" }
 hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0.8.0" }
@@ -44,9 +44,9 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0
 eunomia = { git = "https://github.com/ryancinsight/eunomia", version = "0.9.0", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
 # Keep the Leto source aligned with the current Hephaestus provider graph.
-leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.45.0" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.45.0" }
-apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.27.0", default-features = false }
+leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.45.2" }
+leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.45.2" }
+apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.28.0", default-features = false }
 
 # ── Numerical ──
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
@@ -57,11 +57,11 @@ smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 # Accelerator providers remain Git-sourced and lockfile-pinned.
 # Provider-owned fusion is merged; Cargo.lock records the provider revision.
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.1" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.1" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.1", default-features = false }
-hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.1" }
-hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.1" }
+hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.2" }
+hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.2" }
+hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.2", default-features = false }
+hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.2" }
+hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.20.2" }
 themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.11.0" }
 
 # ── Error ──
