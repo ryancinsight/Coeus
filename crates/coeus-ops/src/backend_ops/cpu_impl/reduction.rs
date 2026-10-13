@@ -2,8 +2,7 @@
 //! sum/product scans.
 
 use coeus_core::{
-    BackendError, ClosedReduction, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement,
-    Layout, Scalar,
+    BackendError, ClosedReduction, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar,
 };
 
 use super::error::map_leto_error;
@@ -25,7 +24,6 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-
     let op = ClosedReduction::from_op("reduction", op)?;
     coeus_leto::reduce_into(
         op,
@@ -52,11 +50,11 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::reduce_mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+    coeus_leto::mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("reduction", error))
 }
 
-/// Product along `axis`; needs a `FloatElement` for the multiplication.
+/// Product along `axis` through the closed dispatch; exact in any scalar arithmetic.
 pub(super) fn reduce_prod<T, B>(
     _backend: &B,
     a: &B::DeviceBuffer<T>,
@@ -66,12 +64,19 @@ pub(super) fn reduce_prod<T, B>(
     c_layout: &Layout,
 ) -> Result<(), BackendError>
 where
-    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    T: Scalar + leto_ops::Scalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::reduce_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
-        .map_err(|error| map_leto_error("reduction", error))
+    coeus_leto::reduce_into(
+        ClosedReduction::Prod,
+        a_layout,
+        a.as_slice(),
+        axis,
+        c_layout,
+        c.as_mut_slice()?,
+    )
+    .map_err(|error| map_leto_error("reduction", error))
 }
 
 #[inline]

@@ -73,10 +73,10 @@ fn native_reductions_and_scans_match_leto() {
         assert_eq!(actual_values, expected_values, "ROCm {op:?} parity");
     }
 
-    // Mean and Prod are float-only: both the Leto oracle and the provider
-    // route them through their bounded entry points.
+    // Mean is float-only: both the Leto oracle and the provider route it
+    // through the bounded entry point.
     let mut expected_values = [0.0_f32; 2];
-    coeus_leto::reduce_mean_into(
+    coeus_leto::mean_into(
         &layout,
         &input,
         1,
@@ -106,7 +106,8 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(actual_values, expected_values, "ROCm Mean parity");
 
     let mut expected_values = [0.0_f32; 2];
-    coeus_leto::reduce_prod_into(
+    coeus_leto::reduce_into(
+        ClosedReduction::Prod,
         &layout,
         &input,
         1,
