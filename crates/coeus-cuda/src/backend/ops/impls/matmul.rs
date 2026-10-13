@@ -1,7 +1,7 @@
-use crate::backend::{get_cuda_device, CudaBackend, CudaScalar};
+use crate::backend::{CudaBackend, CudaScalar};
 use coeus_core::Layout;
 use coeus_hephaestus::{matmul, MatmulBackend};
-use hephaestus_core::{ComputeDevice, DenseProductOps, HephaestusError};
+use hephaestus_core::DenseProductOps;
 use hephaestus_cuda::{CudaDenseProductOps, CudaDevice};
 
 impl<T> MatmulBackend<T> for CudaBackend
@@ -9,22 +9,7 @@ where
     T: CudaScalar,
     CudaDenseProductOps: DenseProductOps<CudaDevice, T>,
 {
-    type Device = CudaDevice;
     type Operations = CudaDenseProductOps;
-
-    fn matmul_device() -> &'static Self::Device {
-        get_cuda_device()
-    }
-
-    fn matmul_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn matmul_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        crate::CudaBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

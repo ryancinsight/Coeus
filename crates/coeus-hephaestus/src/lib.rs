@@ -20,6 +20,7 @@ mod pooling;
 mod random_init;
 mod reduction;
 mod rotate_half;
+mod seam;
 mod staggered;
 mod stateful_update;
 mod storage;
@@ -53,6 +54,7 @@ pub use reduction::{
     AxisReductionDispatch, RankedOperand, ReductionProvider, ScanDispatch, ScanOperation,
 };
 pub use rotate_half::{rotate_half, RotateHalfProvider};
+pub use seam::HephaestusSeamBackend;
 pub use staggered::{
     staggered_divergence, staggered_gradient, PreparedStaggeredPair, StaggeredBackend,
     StaggeredProvider,

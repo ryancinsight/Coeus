@@ -37,10 +37,10 @@ where
     c.make_unique()?;
     B::Operations::default()
         .matmul_into(
-            B::matmul_device(),
-            StridedView::new(B::matmul_buffer(a), &lhs),
-            StridedView::new(B::matmul_buffer(b), &rhs),
-            StridedView::new(B::matmul_buffer(c), &out),
+            B::device(),
+            StridedView::new(B::buffer(a), &lhs),
+            StridedView::new(B::buffer(b), &rhs),
+            StridedView::new(B::buffer(c), &out),
         )
-        .map_err(|source| B::matmul_dispatch_error(MATMUL, source))
+        .map_err(|source| B::dispatch_error(MATMUL, source))
 }

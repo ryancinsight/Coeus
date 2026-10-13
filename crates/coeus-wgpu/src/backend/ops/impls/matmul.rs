@@ -1,7 +1,7 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
+use crate::backend::{WgpuBackend, WgpuScalar};
 use coeus_core::Layout;
 use coeus_hephaestus::{matmul, MatmulBackend};
-use hephaestus_core::{ComputeDevice, DenseProductOps, HephaestusError};
+use hephaestus_core::DenseProductOps;
 use hephaestus_wgpu::{DialectScalar, WgpuDenseProductOps, WgpuDevice, Wgsl};
 
 impl<T> MatmulBackend<T> for WgpuBackend
@@ -9,22 +9,7 @@ where
     T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
     WgpuDenseProductOps: DenseProductOps<WgpuDevice, T>,
 {
-    type Device = WgpuDevice;
     type Operations = WgpuDenseProductOps;
-
-    fn matmul_device() -> &'static Self::Device {
-        &get_wgpu_context().hephaestus_device
-    }
-
-    fn matmul_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn matmul_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

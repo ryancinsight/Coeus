@@ -1,8 +1,7 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError, WgpuScalar};
+use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
 use coeus_core::{BackendError, Layout};
 use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
-use hephaestus_core::{ComputeDevice, HephaestusError};
-use hephaestus_wgpu::{WgpuDevice, WgpuSlidingWindowOps, WgpuWindowScalar};
+use hephaestus_wgpu::{WgpuSlidingWindowOps, WgpuWindowScalar};
 use leto::WindowParameters;
 
 // SAFETY: `WgpuSlidingWindowOps` initializes unfold outputs and clears fold
@@ -18,26 +17,7 @@ impl<T> UnfoldFoldBackend<T> for WgpuBackend
 where
     T: WgpuScalar + leto_ops::Scalar + WgpuWindowScalar,
 {
-    type Device = WgpuDevice;
     type Operations = WgpuSlidingWindowOps;
-
-    fn unfold_fold_device() -> &'static Self::Device {
-        &get_wgpu_context().hephaestus_device
-    }
-
-    fn unfold_fold_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<Self::Device as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn unfold_fold_configuration_error(operation: &'static str, reason: String) -> Self::Error {
-        WgpuBackendError::Validation(BackendError::Storage { operation, reason })
-    }
-
-    fn unfold_fold_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        WgpuBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

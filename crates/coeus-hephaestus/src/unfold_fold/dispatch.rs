@@ -18,7 +18,7 @@ where
     T: Scalar + leto_ops::Scalar,
 {
     WindowParameters::new(kernel, stride, padding, dilation)
-        .map_err(|error| B::unfold_fold_configuration_error(operation, error.to_string()))
+        .map_err(|error| B::configuration_error(operation, error.to_string()))
 }
 
 /// Unfold into a destination while preserving its other clones.
@@ -36,12 +36,12 @@ where
     let output_layout = ranked_exact::<3>(operation, output.1)?;
     output.0.make_unique()?;
     let operands = SlidingWindowUnfoldOperands {
-        input: StridedView::new(B::unfold_fold_buffer(input.0), &input_layout),
-        output: StridedView::new(B::unfold_fold_buffer(output.0), &output_layout),
+        input: StridedView::new(B::buffer(input.0), &input_layout),
+        output: StridedView::new(B::buffer(output.0), &output_layout),
     };
     B::Operations::default()
-        .unfold_into(B::unfold_fold_device(), operands, parameters)
-        .map_err(|source| B::unfold_fold_dispatch_error(operation, source))
+        .unfold_into(B::device(), operands, parameters)
+        .map_err(|source| B::dispatch_error(operation, source))
 }
 
 /// Replace the output view with folded overlap sums, preserving other clones.
@@ -60,15 +60,10 @@ where
     let output_layout = ranked_exact::<R>(operation, output.1)?;
     output.0.make_unique()?;
     let operands = SlidingWindowFoldOperands {
-        input: StridedView::new(B::unfold_fold_buffer(input.0), &input_layout),
-        output: StridedView::new(B::unfold_fold_buffer(output.0), &output_layout),
+        input: StridedView::new(B::buffer(input.0), &input_layout),
+        output: StridedView::new(B::buffer(output.0), &output_layout),
     };
     B::Operations::default()
-        .fold_into(
-            B::unfold_fold_device(),
-            operands,
-            output_spatial_shape,
-            parameters,
-        )
-        .map_err(|source| B::unfold_fold_dispatch_error(operation, source))
+        .fold_into(B::device(), operands, output_spatial_shape, parameters)
+        .map_err(|source| B::dispatch_error(operation, source))
 }

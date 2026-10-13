@@ -18,7 +18,7 @@ where
     T: Scalar + leto_ops::Scalar,
 {
     WindowParameters::new(kernel, stride, padding, dilation)
-        .map_err(|error| B::pooling_configuration_error(operation, error.to_string()))
+        .map_err(|error| B::configuration_error(operation, error.to_string()))
 }
 
 /// Dispatch a pooling forward operation while preserving destination clones.
@@ -37,12 +37,12 @@ where
     let output_layout = ranked_exact::<R>(operation, output.1)?;
     output.0.make_unique()?;
     let operands = PoolingForwardOperands {
-        input: StridedView::new(B::pooling_buffer(input.0), &input_layout),
-        output: StridedView::new(B::pooling_buffer(output.0), &output_layout),
+        input: StridedView::new(B::buffer(input.0), &input_layout),
+        output: StridedView::new(B::buffer(output.0), &output_layout),
     };
     B::Operations::default()
-        .pooling_forward_into(B::pooling_device(), operands, parameters, mode)
-        .map_err(|source| B::pooling_dispatch_error(operation, source))
+        .pooling_forward_into(B::device(), operands, parameters, mode)
+        .map_err(|source| B::dispatch_error(operation, source))
 }
 
 /// Accumulate pooling gradients while preserving destination clones.
@@ -65,14 +65,14 @@ where
         .transpose()?;
     let input = input
         .zip(input_layout.as_ref())
-        .map(|((buffer, _), layout)| StridedView::new(B::pooling_buffer(buffer), layout));
+        .map(|((buffer, _), layout)| StridedView::new(B::buffer(buffer), layout));
     grad_input.0.make_unique()?;
     let operands = PoolingBackwardOperands {
         input,
-        grad_output: StridedView::new(B::pooling_buffer(grad_output.0), &grad_output_layout),
-        grad_input: StridedView::new(B::pooling_buffer(grad_input.0), &grad_input_layout),
+        grad_output: StridedView::new(B::buffer(grad_output.0), &grad_output_layout),
+        grad_input: StridedView::new(B::buffer(grad_input.0), &grad_input_layout),
     };
     B::Operations::default()
-        .pooling_backward_accumulate(B::pooling_device(), operands, parameters, mode)
-        .map_err(|source| B::pooling_dispatch_error(operation, source))
+        .pooling_backward_accumulate(B::device(), operands, parameters, mode)
+        .map_err(|source| B::dispatch_error(operation, source))
 }
