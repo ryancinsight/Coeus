@@ -142,9 +142,15 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(actual_values, expected_values, "ROCm Prod parity");
 
     let integers = [1_i32, 2, 4, 5];
-    let mut device_integers = backend.allocate::<i32>(integers.len());
-    backend.copy_to_device(&integers, &mut device_integers);
-    let mut integer_mean = backend.allocate::<i32>(2);
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut device_integers = unsafe { backend.allocate::<i32>(integers.len()) }
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&integers, &mut device_integers)
+        .expect("invariant: test backend operation succeeds");
+    // SAFETY: never read: the mean dispatch rejects before writing and the buffer is dropped unread.
+    let mut integer_mean =
+        unsafe { backend.allocate::<i32>(2) }.expect("invariant: test backend operation succeeds");
     let error = ReductionOps::reduce(
         &backend,
         ReductionOp::Mean,
