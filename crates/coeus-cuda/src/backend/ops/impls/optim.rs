@@ -1,9 +1,7 @@
 use crate::backend::CudaBackend;
-use crate::CudaBackendError;
 use coeus_core::Layout;
 use coeus_hephaestus::{StatefulUpdateBackend, StatefulUpdateProvider};
-use hephaestus_core::{ComputeDevice, HephaestusError};
-use hephaestus_cuda::{CudaDevice, CudaStatefulUpdateOps};
+use hephaestus_cuda::CudaStatefulUpdateOps;
 
 impl StatefulUpdateProvider for CudaBackend {
     type Operations = CudaStatefulUpdateOps;
@@ -11,16 +9,6 @@ impl StatefulUpdateProvider for CudaBackend {
 
 impl StatefulUpdateBackend for CudaBackend {
     type Provider = Self;
-
-    fn stateful_update_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<CudaDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
-
-    fn stateful_update_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        CudaBackendError::dispatch(operation, source)
-    }
 }
 
 impl coeus_ops::OptimizerOps<f32> for CudaBackend {

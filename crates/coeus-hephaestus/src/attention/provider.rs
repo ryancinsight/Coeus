@@ -1,6 +1,6 @@
-use crate::{backend::HephaestusBackend, HephaestusProvider};
+use crate::{backend::HephaestusBackend, HephaestusProvider, HephaestusSeamBackend};
 use coeus_core::{Float, Layout, Scalar};
-use hephaestus_core::{AttentionOps, AttentionScalar, HephaestusError};
+use hephaestus_core::{AttentionOps, AttentionScalar};
 
 /// Provider-owned scalar attention operation marker.
 ///
@@ -21,23 +21,17 @@ where
 
 /// Projects a Coeus backend's storage into one provider-owned attention path.
 ///
-/// Vendor backends implement only buffer projection and typed error mapping;
-/// the default dispatch methods retain layout validation, operand assembly,
-/// and provider invocation as a single monomorphized implementation.
-pub trait AttentionBackend<T>: coeus_core::ComputeBackend
+/// Device access and typed error mapping come from the shared
+/// [`HephaestusSeamBackend`] seam; the default dispatch methods retain layout
+/// validation, operand assembly, and provider invocation as a single
+/// monomorphized implementation.
+pub trait AttentionBackend<T>: HephaestusSeamBackend
 where
     T: Scalar + Float + AttentionScalar,
+    Self: HephaestusSeamBackend<Device = <Self::Provider as HephaestusProvider>::Device>,
 {
     /// Hephaestus provider selected by this Coeus backend.
     type Provider: AttentionProvider<T>;
-
-    #[doc(hidden)]
-    fn attention_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<<Self::Provider as HephaestusProvider>::Device as hephaestus_core::ComputeDevice>::Buffer<T>;
-
-    #[doc(hidden)]
-    fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error;
 
     #[doc(hidden)]
     #[expect(
@@ -132,14 +126,4 @@ where
     T: Scalar + Float + AttentionScalar,
 {
     type Provider = P;
-
-    fn attention_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<P::Device as hephaestus_core::ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        P::Error::from(crate::HephaestusBackendError::device(operation, source))
-    }
 }

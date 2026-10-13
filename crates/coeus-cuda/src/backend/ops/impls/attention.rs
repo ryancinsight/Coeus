@@ -2,7 +2,7 @@ use crate::backend::{get_cuda_device, try_get_cuda_device, CudaBackend, CudaScal
 use crate::CudaBackendError;
 use coeus_core::{Float, Layout};
 use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
-use hephaestus_core::{AttentionOps, AttentionScalar, ComputeDevice, HephaestusError};
+use hephaestus_core::{AttentionOps, AttentionScalar};
 use hephaestus_cuda::{CudaAttentionOps, CudaDevice};
 
 // SAFETY: `HephaestusStorage` retains provider buffers behind `Arc`, and the
@@ -39,16 +39,6 @@ where
     CudaAttentionOps: AttentionOps<CudaDevice, T>,
 {
     type Provider = Self;
-
-    fn attention_buffer(
-        storage: &Self::DeviceBuffer<T>,
-    ) -> &<CudaDevice as ComputeDevice>::Buffer<T> {
-        storage.buffer()
-    }
-
-    fn attention_dispatch_error(operation: &'static str, source: HephaestusError) -> Self::Error {
-        CudaBackendError::dispatch(operation, source)
-    }
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.

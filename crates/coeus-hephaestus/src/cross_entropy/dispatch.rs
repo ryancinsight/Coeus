@@ -58,16 +58,16 @@ pub(super) fn forward<B: CrossEntropyBackend>(
         .cross_entropy_forward_into(
             <B::Provider as crate::HephaestusProvider>::device(),
             CrossEntropyForwardOperands {
-                logits: StridedView::new(B::cross_entropy_buffer(logits), &logits_layout),
+                logits: StridedView::new(B::buffer(logits), &logits_layout),
                 targets: StridedView::new(B::cross_entropy_target_buffer(targets), &target_layout),
-                loss: StridedView::new(B::cross_entropy_buffer(&loss_candidate), &loss_layout),
+                loss: StridedView::new(B::buffer(&loss_candidate), &loss_layout),
                 probabilities: StridedView::new(
-                    B::cross_entropy_buffer(&probabilities_candidate),
+                    B::buffer(&probabilities_candidate),
                     &probabilities_layout,
                 ),
             },
         )
-        .map_err(|source| B::cross_entropy_dispatch_error("cross_entropy_forward", source))?;
+        .map_err(|source| B::dispatch_error("cross_entropy_forward", source))?;
     B::install_cross_entropy_candidate(loss, loss_candidate);
     B::install_cross_entropy_candidate(probabilities, probabilities_candidate);
     Ok(())
@@ -120,21 +120,18 @@ pub(super) fn backward<B: CrossEntropyBackend>(
             <B::Provider as crate::HephaestusProvider>::device(),
             CrossEntropyBackwardOperands {
                 output_gradient: StridedView::new(
-                    B::cross_entropy_buffer(output_gradient),
+                    B::buffer(output_gradient),
                     &output_gradient_layout,
                 ),
-                probabilities: StridedView::new(
-                    B::cross_entropy_buffer(probabilities),
-                    &probabilities_layout,
-                ),
+                probabilities: StridedView::new(B::buffer(probabilities), &probabilities_layout),
                 targets: StridedView::new(B::cross_entropy_target_buffer(targets), &target_layout),
                 logit_gradient: StridedView::new(
-                    B::cross_entropy_buffer(&logit_gradient_candidate),
+                    B::buffer(&logit_gradient_candidate),
                     &logit_gradient_layout,
                 ),
             },
         )
-        .map_err(|source| B::cross_entropy_dispatch_error("cross_entropy_backward", source))?;
+        .map_err(|source| B::dispatch_error("cross_entropy_backward", source))?;
     B::install_cross_entropy_candidate(logit_gradient, logit_gradient_candidate);
     Ok(())
 }

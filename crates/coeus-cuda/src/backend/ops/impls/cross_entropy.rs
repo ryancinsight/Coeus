@@ -1,8 +1,7 @@
 use crate::backend::CudaBackend;
-use crate::CudaBackendError;
 use coeus_core::Layout;
 use coeus_hephaestus::{prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider};
-use hephaestus_core::{ComputeDevice, HephaestusError};
+use hephaestus_core::ComputeDevice;
 use hephaestus_cuda::{CudaCrossEntropyOps, CudaDevice};
 
 // SAFETY: `CudaCrossEntropyOps` initializes both forward outputs and only
@@ -13,12 +12,6 @@ unsafe impl CrossEntropyProvider for CudaBackend {
 
 impl CrossEntropyBackend for CudaBackend {
     type Provider = Self;
-
-    fn cross_entropy_buffer(
-        storage: &Self::DeviceBuffer<f32>,
-    ) -> &<CudaDevice as ComputeDevice>::Buffer<f32> {
-        storage.buffer()
-    }
 
     fn cross_entropy_candidate(
         storage: &Self::DeviceBuffer<f32>,
@@ -39,13 +32,6 @@ impl CrossEntropyBackend for CudaBackend {
         storage: &Self::DeviceBuffer<u32>,
     ) -> &<CudaDevice as ComputeDevice>::Buffer<u32> {
         storage.buffer()
-    }
-
-    fn cross_entropy_dispatch_error(
-        operation: &'static str,
-        source: HephaestusError,
-    ) -> Self::Error {
-        CudaBackendError::dispatch(operation, source)
     }
 }
 
