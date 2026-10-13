@@ -7,6 +7,7 @@
 #![deny(missing_docs)]
 
 mod attention;
+mod backend;
 mod convolution;
 mod cross_entropy;
 mod cross_product;
@@ -25,6 +26,7 @@ mod unfold_fold;
 mod window;
 
 pub use attention::{AttentionBackend, AttentionProvider};
+pub use backend::{HephaestusBackend, HephaestusProvider};
 pub use convolution::{
     regular_backward as convolution_backward, regular_forward as convolution_forward,
     transposed_backward as convolution_transposed_backward,
@@ -45,10 +47,8 @@ pub use error::HephaestusBackendError;
 pub use matmul::{matmul, MatmulBackend, MatmulProvider};
 pub use pooling::{pooling_backward, pooling_forward, PoolingBackend, PoolingProvider};
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};
-pub use reduction::HephaestusBackend;
 pub use reduction::{
-    AxisReductionDispatch, HephaestusProvider, RankedOperand, ReductionProvider, ScanDispatch,
-    ScanOperation,
+    AxisReductionDispatch, RankedOperand, ReductionProvider, ScanDispatch, ScanOperation,
 };
 pub use rotate_half::{rotate_half, RotateHalfProvider};
 pub use staggered::{

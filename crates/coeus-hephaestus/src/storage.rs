@@ -1,5 +1,5 @@
+use crate::backend::HephaestusProvider;
 use crate::error::HephaestusBackendError;
-use crate::reduction::HephaestusProvider;
 use coeus_core::{Scalar, Storage, StorageMut};
 use hephaestus_core::{ComputeDevice, DeviceBuffer, HephaestusError};
 use std::{marker::PhantomData, sync::Arc};
