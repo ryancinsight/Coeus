@@ -1,4 +1,4 @@
-use coeus_core::{ComputeBackend, Layout, ReductionOp};
+use coeus_core::{ClosedReduction, ComputeBackend, Layout, ReductionOp};
 use coeus_hephaestus::HephaestusBackend;
 use coeus_metal::MetalProvider;
 use coeus_ops::ReductionOps;
@@ -33,16 +33,17 @@ fn native_reductions_and_scans_match_leto() {
         .copy_to_device(&input, &mut device_input)
         .expect("invariant: test backend operation succeeds");
 
-    // Sum, Min and Max are defined on any scalar: the shared dispatch is
+    // Sum, Prod, Min and Max are defined on any scalar: the shared dispatch is
     // their contract on both sides.
     for (op, expected) in [
         (ReductionOp::Sum, [6.0_f32, 15.0]),
+        (ReductionOp::Prod, [6.0_f32, 120.0]),
         (ReductionOp::Min, [1.0_f32, 4.0]),
         (ReductionOp::Max, [3.0_f32, 6.0]),
     ] {
         let mut expected_values = [0.0_f32; 2];
         coeus_leto::reduce_into(
-            op,
+            ClosedReduction::from_op("oracle", op).expect("invariant: closed reductions only"),
             &layout,
             &input,
             1,
@@ -72,10 +73,10 @@ fn native_reductions_and_scans_match_leto() {
         assert_eq!(actual_values, expected_values, "Metal {op:?} parity");
     }
 
-    // Mean and Prod are float-only: both the Leto oracle and the provider
-    // route them through their bounded entry points.
+    // Mean is float-only: both the Leto oracle and the provider route it
+    // through the bounded entry point.
     let mut expected_values = [0.0_f32; 2];
-    coeus_leto::reduce_mean_into(
+    coeus_leto::mean_into(
         &layout,
         &input,
         1,
@@ -105,7 +106,8 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(actual_values, expected_values, "Metal Mean parity");
 
     let mut expected_values = [0.0_f32; 2];
-    coeus_leto::reduce_prod_into(
+    coeus_leto::reduce_into(
+        ClosedReduction::Prod,
         &layout,
         &input,
         1,
