@@ -214,8 +214,8 @@ where
         // "ii->" — trace (non-differentiable w.r.t. off-diagonal; forward only)
         if lhs == "ii" && rhs.is_empty() {
             let backend = B::default();
-            let t = coeus_ops::einsum("ii->", &[&a.tensor], &backend)
-                .map_err(EinsumError::backend)?;
+            let t =
+                coeus_ops::einsum("ii->", &[&a.tensor], &backend).map_err(EinsumError::backend)?;
             return Var::new(t, false).map_err(EinsumError::backend);
         }
 
@@ -249,10 +249,8 @@ where
         let n = b.tensor.shape()[0];
         let a_col = crate::ops::unsqueeze(a, 1).map_err(EinsumError::backend)?; // [m, 1]
         let b_row = crate::ops::unsqueeze(b, 0).map_err(EinsumError::backend)?; // [1, n]
-        let a_bcast =
-            crate::ops::broadcast_to(&a_col, vec![m, n]).map_err(EinsumError::backend)?;
-        let b_bcast =
-            crate::ops::broadcast_to(&b_row, vec![m, n]).map_err(EinsumError::backend)?;
+        let a_bcast = crate::ops::broadcast_to(&a_col, vec![m, n]).map_err(EinsumError::backend)?;
+        let b_bcast = crate::ops::broadcast_to(&b_row, vec![m, n]).map_err(EinsumError::backend)?;
         return crate::ops::mul(&a_bcast, &b_bcast).map_err(EinsumError::backend);
     }
 
@@ -313,7 +311,8 @@ where
     let backend = B::default();
     let raw_operands: Vec<&coeus_tensor::Tensor<T, B>> =
         operands.iter().map(|v| &v.tensor).collect();
-    let out = coeus_ops::einsum(subscript, &raw_operands, &backend).map_err(EinsumError::backend)?;
+    let out =
+        coeus_ops::einsum(subscript, &raw_operands, &backend).map_err(EinsumError::backend)?;
     Var::new(out, false).map_err(EinsumError::backend)
 }
 

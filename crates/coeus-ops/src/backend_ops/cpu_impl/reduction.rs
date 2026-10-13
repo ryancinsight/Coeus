@@ -47,7 +47,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::reduce_mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+    coeus_leto::reduce_mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("reduction", error))
 }
 
@@ -65,13 +65,13 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::reduce_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice())
+    coeus_leto::reduce_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("reduction", error))
 }
 
 #[inline]
 pub(super) fn argmax<T, B>(
-    _backend: &B,
+    backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
     axis: usize,
@@ -96,7 +96,7 @@ where
 
 #[inline]
 pub(super) fn argmin<T, B>(
-    _backend: &B,
+    backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
     axis: usize,
@@ -121,7 +121,7 @@ where
 
 #[inline]
 pub(super) fn topk<T, B>(
-    _backend: &B,
+    backend: &B,
     a: &B::DeviceBuffer<T>,
     a_layout: &Layout,
     k: usize,

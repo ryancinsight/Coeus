@@ -6,25 +6,32 @@ use coeus_core::MoiraiBackend;
 
 fn vector(values: &[f64]) -> Tensor<f64, MoiraiBackend> {
     Tensor::from_slice_on([values.len()], values, &MoiraiBackend::new())
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn weights(values: &[f64]) -> Var<f64, MoiraiBackend> {
-    Var::new(vector(values), false)
+    Var::new(vector(values), false).expect("invariant: test backend operation succeeds")
 }
 
 #[test]
 fn accepts_a_correct_gradient() {
     let w = weights(&[1.0, -2.0, 0.5]);
-    gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| sum(&mul(&v[0], &w)))
-        .expect("d/dx sum(w·x) = w is exact");
+    gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| {
+        sum(&mul(&v[0], &w).expect("invariant: test operation succeeds"))
+            .expect("invariant: test operation succeeds")
+    })
+    .expect("d/dx sum(w·x) = w is exact");
 }
 
 #[test]
 fn rejects_a_vacuous_all_zero_comparison() {
     // sum(softmax(x)) is identically 1, so every gradient component is
     // exactly zero and the comparison discriminates nothing.
-    let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| sum(&softmax(&v[0], 0)))
-        .expect_err("a zero-vs-zero comparison must be rejected");
+    let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| {
+        sum(&softmax(&v[0], 0).expect("invariant: test operation succeeds"))
+            .expect("invariant: test operation succeeds")
+    })
+    .expect_err("a zero-vs-zero comparison must be rejected");
     assert!(
         matches!(error, GradcheckError::TriviallyZero { .. }),
         "expected TriviallyZero, got {error:?}"
@@ -34,8 +41,10 @@ fn rejects_a_vacuous_all_zero_comparison() {
 #[test]
 fn rejects_a_non_scalar_loss() {
     let w = weights(&[1.0, -2.0, 0.5]);
-    let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| mul(&v[0], &w))
-        .expect_err("a vector loss must be rejected");
+    let error = gradcheck(&[vector(&[0.5, -1.25, 2.0])], |v| {
+        mul(&v[0], &w).expect("invariant: test operation succeeds")
+    })
+    .expect_err("a vector loss must be rejected");
     assert!(
         matches!(error, GradcheckError::NonScalarLoss { ref shape } if shape == &[3]),
         "expected NonScalarLoss([3]), got {error:?}"
@@ -53,9 +62,12 @@ fn detects_a_wrong_gradient() {
         // call and the perturbed calls disagree, which is exactly the shape
         // of an implementation/derivation divergence.
         if v[0].grad.is_some() {
-            sum(&mul(&v[0], &truthful))
+            sum(&mul(&v[0], &truthful).expect("invariant: test operation succeeds"))
+                .expect("invariant: test operation succeeds")
         } else {
-            sum(&mul(&v[0], &weights(&[1.0, -2.0, 1.5])))
+            sum(&mul(&v[0], &weights(&[1.0, -2.0, 1.5]))
+                .expect("invariant: test operation succeeds"))
+            .expect("invariant: test operation succeeds")
         }
     });
     let error = analytic_only.expect_err("a divergent forward must be detected");

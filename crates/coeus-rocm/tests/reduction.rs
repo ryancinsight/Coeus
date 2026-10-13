@@ -85,7 +85,10 @@ fn native_reductions_and_scans_match_leto() {
     .expect("Leto mean oracle failed");
     assert_eq!(expected_values, [2.0_f32, 5.0], "Leto mean oracle contract");
 
-    let mut actual = backend.allocate::<f32>(2);
+    // SAFETY: immediately overwritten in full by the overwrite-only `reduce_mean`
+    // kernel before any read.
+    let mut actual =
+        unsafe { backend.allocate::<f32>(2) }.expect("invariant: test backend operation succeeds");
     ReductionOps::reduce_mean(
         &backend,
         &device_input,
@@ -96,7 +99,9 @@ fn native_reductions_and_scans_match_leto() {
     )
     .expect("ROCm mean failed");
     let mut actual_values = [0.0_f32; 2];
-    backend.copy_to_host(&actual, &mut actual_values);
+    backend
+        .copy_to_host(&actual, &mut actual_values)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(actual_values, expected_values, "ROCm Mean parity");
 
     let mut expected_values = [0.0_f32; 2];
@@ -114,7 +119,10 @@ fn native_reductions_and_scans_match_leto() {
         "Leto prod oracle contract"
     );
 
-    let mut actual = backend.allocate::<f32>(2);
+    // SAFETY: immediately overwritten in full by the overwrite-only `reduce_prod`
+    // kernel before any read.
+    let mut actual =
+        unsafe { backend.allocate::<f32>(2) }.expect("invariant: test backend operation succeeds");
     ReductionOps::reduce_prod(
         &backend,
         &device_input,
@@ -125,7 +133,9 @@ fn native_reductions_and_scans_match_leto() {
     )
     .expect("ROCm prod failed");
     let mut actual_values = [0.0_f32; 2];
-    backend.copy_to_host(&actual, &mut actual_values);
+    backend
+        .copy_to_host(&actual, &mut actual_values)
+        .expect("invariant: test backend operation succeeds");
     assert_eq!(actual_values, expected_values, "ROCm Prod parity");
 
     let mut expected_scan = [0.0_f32; 6];

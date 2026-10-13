@@ -90,7 +90,6 @@ pub unsafe trait ComputeBackend: Send + Sync + Clone + 'static {
     fn fill_zero<T: Scalar>(&self, dst: &mut Self::DeviceBuffer<T>) -> Result<(), Self::Error> {
         self.fill(dst, T::ZERO)
     }
-    }
 
     /// Copy data from host (CPU) memory to this device buffer.
     ///

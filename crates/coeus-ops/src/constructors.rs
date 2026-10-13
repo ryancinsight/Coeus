@@ -29,7 +29,6 @@ where
 {
     assert!(n > 0, "linspace: n must be > 0");
     Tensor::linspace_on(start, end, n, backend)
-        .expect("invariant: float elements represent every count")
 }
 
 /// `n` values from `base^start` to `base^end` (inclusive) on `backend`.

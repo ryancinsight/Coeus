@@ -79,7 +79,7 @@ where
 ///
 /// # Errors
 ///
-/// Returns [`InterpolationError`] when image or grid shape violates the
+/// Returns [`InterpolationFailure`] when image or grid shape violates the
 /// dimension-generic interpolation contract.
 pub fn linear_interpolation<const D: usize, B, P>(
     image: &Var<f32, B>,

@@ -150,11 +150,7 @@ pub fn cosine_embedding_loss<
         &backend,
     )?;
     let den = coeus_ops::sqrt(&den_sq_safe, &backend)?;
-    let inv_den = coeus_ops::div(
-        &Tensor::full_on([n, 1], T::ONE, &backend)?,
-        &den,
-        &backend,
-    )?;
+    let inv_den = coeus_ops::div(&Tensor::full_on([n, 1], T::ONE, &backend)?, &den, &backend)?;
     let cos = coeus_ops::mul(&dot_col, &inv_den, &backend)?;
     let dot_over_n1sq = coeus_ops::div(&dot_col, &n1_col, &backend)?;
     let dot_over_n2sq = coeus_ops::div(&dot_col, &n2_col, &backend)?;

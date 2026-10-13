@@ -1,6 +1,6 @@
 // ── Embedding lookup operations ──
 
-use coeus_core::{ComputeBackend, Scalar};
+use coeus_core::{ComputeBackend, Scalar, Storage, StorageMut};
 use coeus_tensor::{Tensor, TensorTransferError};
 
 /// Apply embedding lookup: maps integer indices to dense vectors from a weight matrix.
@@ -47,7 +47,7 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     if let (Some(w_slice), Some(idx_slice), Some(out_slice)) = (
         weight.storage().try_as_slice(),
         indices.storage().try_as_slice(),
-        out_tensor.storage_mut().try_as_mut_slice(),
+        out_tensor.storage_mut()?.try_as_mut_slice()?,
     ) {
         let ndim_idx = indices.ndim();
         let indices_shape_ref = indices.shape();
@@ -90,14 +90,18 @@ pub fn embedding<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
         }
     } else {
         let host_backend = coeus_core::MoiraiBackend::new();
-        let w_host = weight.to_backend(&host_backend).map_err(|error| match error {
-            TensorTransferError::Source(source) => source,
-            TensorTransferError::Destination(destination) => B::Error::from(destination),
-        })?;
-        let idx_host = indices.to_backend(&host_backend).map_err(|error| match error {
-            TensorTransferError::Source(source) => source,
-            TensorTransferError::Destination(destination) => B::Error::from(destination),
-        })?;
+        let w_host = weight
+            .to_backend(&host_backend)
+            .map_err(|error| match error {
+                TensorTransferError::Source(source) => source,
+                TensorTransferError::Destination(destination) => B::Error::from(destination),
+            })?;
+        let idx_host = indices
+            .to_backend(&host_backend)
+            .map_err(|error| match error {
+                TensorTransferError::Source(source) => source,
+                TensorTransferError::Destination(destination) => B::Error::from(destination),
+            })?;
         let out_host = embedding(&w_host, &idx_host, &host_backend)?;
         out_tensor = out_host.to_backend(backend).map_err(|error| match error {
             TensorTransferError::Source(source) => B::Error::from(source),
@@ -174,7 +178,7 @@ fn embedding_backward_impl<T: Scalar, I: Scalar, B: ComputeBackend + Default>(
     if let (Some(go_slice), Some(idx_slice), Some(gw_slice)) = (
         grad_out.storage().try_as_slice(),
         indices.storage().try_as_slice(),
-        grad_weight.storage_mut().try_as_mut_slice(),
+        grad_weight.storage_mut()?.try_as_mut_slice()?,
     ) {
         let ndim_idx = indices.ndim();
         let num_indices = indices.numel();

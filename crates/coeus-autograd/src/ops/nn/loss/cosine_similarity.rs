@@ -139,7 +139,6 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
 ///
 /// Panics when the inputs do not share a two-dimensional non-empty shape,
 /// `dim` is not one, or `eps` is not finite and strictly positive.
-#[must_use]
 pub fn cosine_similarity<
     T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + Default,

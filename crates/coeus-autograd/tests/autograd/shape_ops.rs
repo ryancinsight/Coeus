@@ -272,7 +272,12 @@ fn einsum_rejects_invalid_contracts_without_panicking() {
     let backend = MoiraiBackend::new();
     let fixture = |shape: &[usize]| {
         let values = vec![1.0_f32; shape.iter().product()];
-        Var::new(Tensor::from_slice_on(shape, &values, &backend), false)
+        Var::new(
+            Tensor::from_slice_on(shape, &values, &backend)
+                .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds")
     };
     let matrix = fixture(&[2, 3]);
     let compatible = fixture(&[3, 2]);

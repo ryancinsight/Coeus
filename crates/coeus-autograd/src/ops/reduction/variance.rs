@@ -23,7 +23,6 @@ use coeus_core::Float;
 /// # Panics
 /// Panics if `a` is empty, or if `unbiased` and `a` has a single element
 /// (variance denominator would be zero).
-#[must_use]
 #[expect(
     clippy::type_complexity,
     reason = "the established reduction contract returns variance and mean together"
@@ -93,7 +92,6 @@ pub fn std_dev<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> 
 /// # Panics
 /// Panics if `axis` is out of range, or if `unbiased` and the axis extent is
 /// 1 (denominator would be zero).
-#[must_use]
 #[expect(
     clippy::type_complexity,
     reason = "the established axis reduction contract returns variance and mean together"

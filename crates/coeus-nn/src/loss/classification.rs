@@ -72,10 +72,14 @@ where
     }
     let backend = B::default();
     let saved_targets = backend.prepare_cross_entropy_targets(targets)?;
-    let mut output = Tensor::alloc_on([1], &backend);
-    let mut probabilities = Tensor::alloc_on([n, c], &backend);
-    let (output_storage, output_layout) = output.storage_mut_and_layout();
-    let (probability_storage, probability_layout) = probabilities.storage_mut_and_layout();
+    // SAFETY: both allocations are immediately overwritten in full by
+    // `cross_entropy_forward` — an overwrite-only kernel that never reads
+    // previous contents — before any read. On error the `?` below discards
+    // them without exposing uninitialized elements.
+    let mut output = unsafe { Tensor::alloc_on([1], &backend) }?;
+    let mut probabilities = unsafe { Tensor::alloc_on([n, c], &backend) }?;
+    let (output_storage, output_layout) = output.storage_mut_and_layout()?;
+    let (probability_storage, probability_layout) = probabilities.storage_mut_and_layout()?;
     backend.cross_entropy_forward(
         logits.tensor.storage(),
         logits.tensor.layout(),
@@ -86,12 +90,7 @@ where
         probability_layout,
     )?;
 
-    Ok(coeus_autograd::cross_entropy_loss(
-        logits,
-        saved_targets,
-        output,
-        probabilities,
-    ))
+    coeus_autograd::cross_entropy_loss(logits, saved_targets, output, probabilities)
 }
 
 /// Binary Cross-Entropy Loss.
@@ -105,7 +104,7 @@ pub fn binary_cross_entropy<
     pred: &Var<T, B>,
     target: &Var<T, B>,
     eps: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::binary_cross_entropy(pred, target, eps)
 }
 
@@ -119,7 +118,7 @@ pub fn bce_with_logits<
 >(
     logits: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::bce_with_logits(logits, target)
 }
 
@@ -132,7 +131,7 @@ pub fn nll_loss<
 >(
     log_probs: &Var<T, B>,
     targets: &[usize],
-) -> Var<T, B>
+) -> Result<Var<T, B>, B::Error>
 where
     B::DeviceBuffer<T>:
         coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -153,7 +152,7 @@ pub fn multi_label_soft_margin_loss<
 >(
     x: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::bce_with_logits(x, target)
 }
 
@@ -168,6 +167,6 @@ pub fn kl_divergence<
 >(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::kl_divergence(input, target)
 }

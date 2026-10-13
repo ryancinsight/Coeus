@@ -5,6 +5,7 @@ use coeus_core::SequentialBackend;
 
 fn v3() -> Tensor<f64, SequentialBackend> {
     Tensor::from_slice(vec![5], &[1.0f64, -2.0, 3.0, -4.0, 5.0])
+        .expect("invariant: test backend operation succeeds")
 }
 
 fn ref_p(x: &[f64], p: f64) -> f64 {
@@ -16,7 +17,7 @@ fn ref_p(x: &[f64], p: f64) -> f64 {
 fn norm_p_p2_matches_classical_l2() {
     let b = SequentialBackend::new();
     let x = v3();
-    let got = norm_p(&x, 2.0_f64, &b);
+    let got = norm_p(&x, 2.0_f64, &b).expect("invariant: test operation succeeds");
     let want = (55.0_f64).sqrt();
     assert!(
         (got - want).abs() < 1e-12,
@@ -28,7 +29,7 @@ fn norm_p_p2_matches_classical_l2() {
 fn norm_p_p1_matches_manhattan_distance() {
     let b = SequentialBackend::new();
     let x = v3();
-    let got = norm_p(&x, 1.0_f64, &b);
+    let got = norm_p(&x, 1.0_f64, &b).expect("invariant: test operation succeeds");
     let want = 15.0_f64;
     assert!(
         (got - want).abs() < 1e-12,
@@ -40,7 +41,7 @@ fn norm_p_p1_matches_manhattan_distance() {
 fn norm_p_p3_matches_cubic_reference() {
     let b = SequentialBackend::new();
     let x = v3();
-    let got = norm_p(&x, 3.0_f64, &b);
+    let got = norm_p(&x, 3.0_f64, &b).expect("invariant: test operation succeeds");
     let want = ref_p(&[1.0, -2.0, 3.0, -4.0, 5.0], 3.0);
     assert!(
         (got - want).abs() < 1e-10,
@@ -53,7 +54,7 @@ fn norm_p_is_identical_to_norm_at_p2() {
     let b = SequentialBackend::new();
     let x = v3();
     let n = norm(&x, &b).expect("valid norm test input");
-    let n_p = norm_p(&x, 2.0_f64, &b);
+    let n_p = norm_p(&x, 2.0_f64, &b).expect("invariant: test operation succeeds");
     assert_eq!(n.to_bits(), n_p.to_bits());
 }
 
@@ -61,8 +62,9 @@ fn norm_p_is_identical_to_norm_at_p2() {
 #[should_panic(expected = "empty tensor has no norm")]
 fn norm_p_empty_panics() {
     let b = SequentialBackend::new();
-    let x = Tensor::<f64, SequentialBackend>::from_slice(vec![0], &[0.0f64; 0]);
-    let _ = norm_p(&x, 2.0_f64, &b);
+    let x = Tensor::<f64, SequentialBackend>::from_slice(vec![0], &[0.0f64; 0])
+        .expect("invariant: test backend operation succeeds");
+    let _ = norm_p(&x, 2.0_f64, &b).expect("invariant: test operation succeeds");
 }
 
 #[test]
@@ -70,7 +72,7 @@ fn norm_p_empty_panics() {
 fn norm_p_negative_ord_panics() {
     let b = SequentialBackend::new();
     let x = v3();
-    let _ = norm_p(&x, -1.0_f64, &b);
+    let _ = norm_p(&x, -1.0_f64, &b).expect("invariant: test operation succeeds");
 }
 
 #[test]
@@ -78,7 +80,7 @@ fn norm_p_negative_ord_panics() {
 fn norm_p_zero_ord_panics() {
     let b = SequentialBackend::new();
     let x = v3();
-    let _ = norm_p(&x, 0.0_f64, &b);
+    let _ = norm_p(&x, 0.0_f64, &b).expect("invariant: test operation succeeds");
 }
 
 #[test]
@@ -86,7 +88,7 @@ fn norm_p_zero_ord_panics() {
 fn norm_p_infinite_ord_panics() {
     let b = SequentialBackend::new();
     let x = v3();
-    let _ = norm_p(&x, f64::INFINITY, &b);
+    let _ = norm_p(&x, f64::INFINITY, &b).expect("invariant: test operation succeeds");
 }
 
 #[test]
@@ -95,8 +97,9 @@ fn norm_p_axis_axis1_matches_row_references() {
     let x = Tensor::<f64, SequentialBackend>::from_slice(
         vec![2, 3],
         &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
-    );
-    let got = norm_p_axis(&x, 2.0, 1, &b);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let got = norm_p_axis(&x, 2.0, 1, &b).expect("invariant: test operation succeeds");
     let want = [
         (1.0_f64 + 4.0 + 9.0).sqrt(),
         (16.0_f64 + 25.0 + 36.0).sqrt(),
@@ -119,8 +122,9 @@ fn norm_p_axis_axis0_matches_column_references() {
     let x = Tensor::<f64, SequentialBackend>::from_slice(
         vec![2, 3],
         &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
-    );
-    let got = norm_p_axis(&x, 1.0, 0, &b);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let got = norm_p_axis(&x, 1.0, 0, &b).expect("invariant: test operation succeeds");
     let want = [5.0, 7.0, 9.0];
     assert_eq!(got.shape(), &[1, 3]);
     assert_eq!(got.as_slice(), &want);
@@ -130,8 +134,8 @@ fn norm_p_axis_axis0_matches_column_references() {
 fn norm_p_axis_rank1_reduces_to_scalar_tensor() {
     let b = SequentialBackend::new();
     let x = v3();
-    let got = norm_p_axis(&x, 2.0, 0, &b);
-    let n_global = norm_p(&x, 2.0, &b);
+    let got = norm_p_axis(&x, 2.0, 0, &b).expect("invariant: test operation succeeds");
+    let n_global = norm_p(&x, 2.0, &b).expect("invariant: test operation succeeds");
     assert_eq!(got.shape(), &[1]);
     assert_eq!(got.as_slice()[0].to_bits(), n_global.to_bits());
 }
@@ -144,8 +148,9 @@ fn norm_p_axis_3d_axis1_matches_manual_per_slice() {
         &[
             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, -1.0, 2.0, -3.0, 4.0, -5.0, 6.0,
         ],
-    );
-    let got = norm_p_axis(&x, 3.0, 1, &b);
+    )
+    .expect("invariant: test backend operation succeeds");
+    let got = norm_p_axis(&x, 3.0, 1, &b).expect("invariant: test operation succeeds");
     assert_eq!(got.shape(), &[2, 1, 2]);
     let want = [
         (1.0_f64 + 27.0 + 125.0).cbrt(),
@@ -167,14 +172,15 @@ fn norm_p_accepts_zero_copy_strided_views() {
     let x = Tensor::<f64, SequentialBackend>::from_slice(
         vec![2, 3],
         &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let shared = x.clone();
     let transposed = x.permute(&[1, 0]);
-    let got = norm_p(&transposed, 2.0, &b);
+    let got = norm_p(&transposed, 2.0, &b).expect("invariant: test operation succeeds");
     let want = (91.0_f64).sqrt();
     assert!((got - want).abs() < 1e-12);
 
-    let rows = norm_p_axis(&transposed, 2.0, 1, &b);
+    let rows = norm_p_axis(&transposed, 2.0, 1, &b).expect("invariant: test operation succeeds");
     let expected = [17.0_f64.sqrt(), 29.0_f64.sqrt(), 45.0_f64.sqrt()];
     assert_eq!(rows.shape(), &[3, 1]);
     for (&actual, expected) in rows.as_slice().iter().zip(expected) {
@@ -187,16 +193,18 @@ fn norm_p_accepts_zero_copy_strided_views() {
 #[should_panic(expected = "axis 2 out of bounds")]
 fn norm_p_axis_out_of_range_axis_panics() {
     let b = SequentialBackend::new();
-    let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &[1.0; 6]);
-    let _ = norm_p_axis(&x, 2.0, 2, &b);
+    let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 3], &[1.0; 6])
+        .expect("invariant: test backend operation succeeds");
+    let _ = norm_p_axis(&x, 2.0, 2, &b).expect("invariant: test operation succeeds");
 }
 
 #[test]
 #[should_panic(expected = "axis 1 has zero elements")]
 fn norm_p_axis_zero_size_axis_panics() {
     let b = SequentialBackend::new();
-    let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 0, 3], &[]);
-    let _ = norm_p_axis(&x, 2.0, 1, &b);
+    let x = Tensor::<f64, SequentialBackend>::from_slice(vec![2, 0, 3], &[])
+        .expect("invariant: test backend operation succeeds");
+    let _ = norm_p_axis(&x, 2.0, 1, &b).expect("invariant: test operation succeeds");
 }
 
 #[test]
@@ -204,13 +212,14 @@ fn norm_p_axis_zero_size_axis_panics() {
 fn norm_p_axis_non_positive_ord_panics() {
     let b = SequentialBackend::new();
     let x = v3();
-    let _ = norm_p_axis(&x, 0.0, 0, &b);
+    let _ = norm_p_axis(&x, 0.0, 0, &b).expect("invariant: test operation succeeds");
 }
 
-// ── frobenius_norm / frobenius_norm_batched ─────────────────────────────
+// â”€â”€ frobenius_norm / frobenius_norm_batched â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn mat3x3(data: &[f64; 9]) -> Tensor<f64, SequentialBackend> {
     Tensor::<f64, SequentialBackend>::from_slice(vec![3, 3], data)
+        .expect("invariant: test backend operation succeeds")
 }
 
 #[test]
@@ -247,7 +256,8 @@ fn frobenius_norm_batched_3d_returns_per_batch_scalars() {
             0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
             8.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let got =
         frobenius_norm_batched(&stacked, &b).expect("valid batched Frobenius norm test input");
     assert_eq!(got.shape(), &[2]);
@@ -272,7 +282,8 @@ fn frobenius_norm_batched_4d_collapses_last_two_dims() {
             1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
             0.0, 1.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let got = frobenius_norm_batched(&batch, &b).expect("valid batched Frobenius norm test input");
     assert_eq!(got.shape(), &[2, 2]);
     let want = 3.0_f64.sqrt();
@@ -289,7 +300,8 @@ fn frobenius_norm_batched_strided_matches_analytical_reference() {
         &[
             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, -1.0, -2.0, -3.0, -4.0, -5.0, -6.0,
         ],
-    );
+    )
+    .expect("invariant: test backend operation succeeds");
     let strided = source.permute(&[0, 2, 1]);
     let got = frobenius_norm_batched(&strided, &b).expect("valid strided norm input");
 
@@ -324,5 +336,5 @@ fn frobenius_norm_batched_2d_returns_zero_dim_scalar_tensor() {
 fn frobenius_norm_batched_1d_panics() {
     let b = SequentialBackend::new();
     let x = v3();
-    let _ = frobenius_norm_batched(&x, &b);
+    let _ = frobenius_norm_batched(&x, &b).expect("invariant: test operation succeeds");
 }

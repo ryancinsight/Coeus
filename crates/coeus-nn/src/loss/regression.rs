@@ -11,13 +11,17 @@ use coeus_core::Float;
 ///
 /// Computes mean squared error between pred and target.
 /// Returns a scalar Var (shape `[1]`).
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
-    let diff = coeus_autograd::sub(pred, target);
-    let sq = coeus_autograd::mul(&diff, &diff);
+) -> Result<Var<T, B>, B::Error> {
+    let diff = coeus_autograd::sub(pred, target)?;
+    let sq = coeus_autograd::mul(&diff, &diff)?;
     coeus_autograd::mean(&sq)
 }
 
@@ -42,6 +46,10 @@ pub fn huber_loss<
 
 /// L1 (mean absolute error) loss.
 /// pred: `[N]`, target: `[N]`. Computes `mean(|pred - target|)`.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn l1_loss<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -49,7 +57,7 @@ pub fn l1_loss<
 >(
     pred: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::l1_loss(pred, target)
 }
 
@@ -57,6 +65,10 @@ pub fn l1_loss<
 /// input holds `log(λ)`, target the observed counts; both share shape.
 /// Computes `mean(exp(input) - target * input)` (PyTorch
 /// `PoissonNLLLoss(log_input=True, full=False)`).
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn poisson_nll<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -64,7 +76,7 @@ pub fn poisson_nll<
 >(
     input: &Var<T, B>,
     target: &Var<T, B>,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::poisson_nll(input, target)
 }
 
@@ -73,6 +85,10 @@ pub fn poisson_nll<
 /// `mean_i loss_smooth(pred[i] - target[i], beta)` with
 /// `loss_smooth(z, β) = 0.5 z²/β` if `|z| < β`, else `|z| - 0.5 β`.
 /// `pred` and `target` must share shape.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn smooth_l1_loss<
     T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
@@ -81,7 +97,7 @@ pub fn smooth_l1_loss<
     pred: &Var<T, B>,
     target: &Var<T, B>,
     beta: T,
-) -> Var<T, B> {
+) -> Result<Var<T, B>, B::Error> {
     coeus_autograd::smooth_l1_loss(pred, target, beta)
 }
 
@@ -92,6 +108,10 @@ pub fn smooth_l1_loss<
 /// `loss = 0.5 * mean((input - target)^2 / var + log(var))`
 ///
 /// Composed from existing autograd ops. When `full=true`, adds `0.5 * log(2π)`.
+///
+/// # Errors
+///
+/// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn gaussian_nll_loss<
     T: Float + coeus_leto::RealScalar,
@@ -101,19 +121,20 @@ pub fn gaussian_nll_loss<
     target: &Var<T, B>,
     var: &Var<T, B>,
     full: bool,
-) -> Var<T, B> {
-    let diff = coeus_autograd::sub(input, target);
-    let diff_sq = coeus_autograd::mul(&diff, &diff);
-    let var_term = coeus_autograd::div(&diff_sq, var);
-    let log_var = coeus_autograd::log(var);
+) -> Result<Var<T, B>, B::Error> {
+    let diff = coeus_autograd::sub(input, target)?;
+    let diff_sq = coeus_autograd::mul(&diff, &diff)?;
+    let var_term = coeus_autograd::div(&diff_sq, var)?;
+    let log_var = coeus_autograd::log(var)?;
     let loss = coeus_autograd::scalar_mul(
-        &coeus_autograd::add(&var_term, &log_var),
+        &coeus_autograd::add(&var_term, &log_var)?,
         <T as coeus_core::Scalar>::from_f64(0.5),
-    );
+    )?;
     if full {
         let two_pi = <T as coeus_core::Scalar>::from_f64(2.0 * std::f64::consts::PI);
+        let m = coeus_autograd::mean(&loss)?;
         coeus_autograd::scalar_add(
-            &coeus_autograd::mean(&loss),
+            &m,
             <T as coeus_core::Scalar>::from_f64(0.5) * two_pi.log_op(),
         )
     } else {

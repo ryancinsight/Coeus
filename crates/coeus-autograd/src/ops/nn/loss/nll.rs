@@ -93,11 +93,7 @@ where
     } else {
         None
     };
-    let mean_scale = Tensor::full_on(
-        [1],
-        T::ONE / <T as Scalar>::from_f64(n as f64),
-        &backend,
-    )?;
+    let mean_scale = Tensor::full_on([1], T::ONE / <T as Scalar>::from_f64(n as f64), &backend)?;
     let creator = grad.as_ref().cloned().map(|output_grad| {
         let node = NllLossNode {
             output_grad,

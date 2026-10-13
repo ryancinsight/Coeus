@@ -107,7 +107,7 @@ where
     let val_slice = values.as_slice();
     validate_coo_indices::<B>(idx_slice, coo.shape(), nnz, "COO to dense conversion")?;
 
-    for col in 0..nnz {
+    for (col, &val) in val_slice.iter().enumerate() {
         let mut logical_idx = smallvec::SmallVec::<[usize; 4]>::from_elem(0, rank);
         for row in 0..rank {
             let position = row * nnz + col;
@@ -118,7 +118,6 @@ where
                 "COO to dense conversion",
             )?;
         }
-        let val = val_slice[col];
         dense.set(&logical_idx, dense.get(&logical_idx) + val)?;
     }
 

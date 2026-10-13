@@ -324,10 +324,12 @@ fn assert_size_independent(
 fn gather_allocation_count_is_independent_of_output_size() {
     let backend = CountingBackend;
     let build = |s: [usize; 3]| {
-        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend);
+        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend)
+            .expect("invariant: test backend operation succeeds");
         let idx_shape = [s[0], s[1] / 2, s[2]];
         let idx_numel: usize = idx_shape.iter().product();
-        let index = Tensor::from_slice_on(idx_shape.to_vec(), &indices(idx_numel, s[1]), &backend);
+        let index = Tensor::from_slice_on(idx_shape.to_vec(), &indices(idx_numel, s[1]), &backend)
+            .expect("invariant: test backend operation succeeds");
         (input, index)
     };
     let (si, sx) = build([4, 8, 4]);
@@ -347,6 +349,7 @@ fn gather_allocation_count_is_independent_of_output_size() {
                     .expect("invariant: test operation succeeds"),
             )
         },
+        1,
     );
 }
 
@@ -354,9 +357,11 @@ fn gather_allocation_count_is_independent_of_output_size() {
 fn index_select_allocation_count_is_independent_of_output_size() {
     let backend = CountingBackend;
     let build = |s: [usize; 3]| {
-        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend);
+        let input = Tensor::from_slice_on(s.to_vec(), &ramp(s.iter().product()), &backend)
+            .expect("invariant: test backend operation succeeds");
         let take = s[1] / 2;
-        let index = Tensor::from_slice_on(vec![take], &indices(take, s[1]), &backend);
+        let index = Tensor::from_slice_on(vec![take], &indices(take, s[1]), &backend)
+            .expect("invariant: test backend operation succeeds");
         (input, index)
     };
     let (si, sx) = build([4, 8, 4]);
@@ -376,14 +381,17 @@ fn index_select_allocation_count_is_independent_of_output_size() {
                     .expect("invariant: test operation succeeds"),
             )
         },
+        1,
     );
 }
 
 #[test]
 fn repeat_interleave_allocation_count_is_independent_of_output_size() {
     let backend = CountingBackend;
-    let small = Tensor::from_slice_on(vec![4, 8, 4], &ramp(4 * 8 * 4), &backend);
-    let large = Tensor::from_slice_on(vec![16, 32, 16], &ramp(16 * 32 * 16), &backend);
+    let small = Tensor::from_slice_on(vec![4, 8, 4], &ramp(4 * 8 * 4), &backend)
+        .expect("invariant: test backend operation succeeds");
+    let large = Tensor::from_slice_on(vec![16, 32, 16], &ramp(16 * 32 * 16), &backend)
+        .expect("invariant: test backend operation succeeds");
 
     assert_size_independent(
         "repeat_interleave",
@@ -399,6 +407,7 @@ fn repeat_interleave_allocation_count_is_independent_of_output_size() {
                     .expect("invariant: test operation succeeds"),
             )
         },
+        1,
     );
 }
 
@@ -469,7 +478,8 @@ fn topk_allocation_count_is_independent_of_slice_count() {
     // `CpuBackend` for the double, which is more machinery than the property
     // needs -- so the count here is kernel-owned allocations only, and the
     // storage confound this file guards against does not apply until it does.
-    let _oracle_guard = oracle_guard();
+    // (`assert_size_independent` takes the oracle lock itself; holding it here
+    // as well would self-deadlock on the non-reentrant mutex.)
     let small = tensor(&[4, 8, 4], &ramp(4 * 8 * 4));
     let large = tensor(&[16, 8, 16], &ramp(16 * 8 * 16));
 
@@ -485,5 +495,6 @@ fn topk_allocation_count_is_independent_of_slice_count() {
                 coeus_ops::topk(&large, 2, 1, true).expect("invariant: test operation succeeds"),
             )
         },
+        0,
     );
 }
