@@ -60,7 +60,7 @@ where
     where
         T: FloatElement,
     {
-        self.reduce(coeus_ops::ReductionOp::Mean, a, a_layout, axis, c, c_layout)
+        HephaestusBackend::<WgpuBackend>::new().reduce_mean(a, a_layout, axis, c, c_layout)
     }
 
     fn reduce_prod(

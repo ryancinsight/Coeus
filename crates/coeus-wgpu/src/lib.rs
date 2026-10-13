@@ -25,5 +25,5 @@ mod fusion;
 #[cfg(test)]
 mod storage;
 
-pub use api::{add, evaluate_fused, evaluate_fused_reduce, matmul};
+pub use api::{add, evaluate_fused, evaluate_fused_mean, evaluate_fused_reduce, matmul};
 pub use backend::{WgpuBackend, WgpuBackendError, WgpuScalar};

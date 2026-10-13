@@ -1,5 +1,6 @@
-use coeus_core::{ClosedReduction, ComputeBackend, Layout, ReductionOp};
+use coeus_core::{BackendError, ClosedReduction, ComputeBackend, Layout, ReductionOp};
 use coeus_hephaestus::HephaestusBackend;
+use coeus_hephaestus::HephaestusBackendError;
 use coeus_metal::MetalProvider;
 use coeus_ops::ReductionOps;
 
@@ -139,6 +140,34 @@ fn native_reductions_and_scans_match_leto() {
         .copy_to_host(&actual, &mut actual_values)
         .expect("invariant: test backend operation succeeds");
     assert_eq!(actual_values, expected_values, "Metal Prod parity");
+
+    let integers = [1_i32, 2, 4, 5];
+    // SAFETY: the following `copy_to_device` initializes every element before any read.
+    let mut device_integers = unsafe { backend.allocate::<i32>(integers.len()) }
+        .expect("invariant: test backend operation succeeds");
+    backend
+        .copy_to_device(&integers, &mut device_integers)
+        .expect("invariant: test backend operation succeeds");
+    // SAFETY: never read: the mean dispatch rejects before writing and the buffer is dropped unread.
+    let mut integer_mean =
+        unsafe { backend.allocate::<i32>(2) }.expect("invariant: test backend operation succeeds");
+    let error = ReductionOps::reduce(
+        &backend,
+        ReductionOp::Mean,
+        &device_integers,
+        &Layout::new([2, 2].into()),
+        1,
+        &mut integer_mean,
+        &Layout::new([2, 1].into()),
+    )
+    .expect_err("invariant: integer mean is float-only");
+    assert!(matches!(
+        error,
+        HephaestusBackendError::Backend(BackendError::FloatOnlyReduction {
+            operation: "reduce",
+            reduction: ReductionOp::Mean,
+        })
+    ));
 
     let mut expected_scan = [0.0_f32; 6];
     coeus_leto::cumsum_into(&layout, &input, 1, &layout, &mut expected_scan)
