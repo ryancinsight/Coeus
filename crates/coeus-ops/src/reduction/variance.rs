@@ -28,7 +28,7 @@ fn axis_count(shape: &[usize], axis: usize) -> usize {
 /// `unbiased = true` divides by `(N − 1)` (PyTorch/JAX default);
 /// `unbiased = false` divides by `N` (population variance).
 #[inline]
-pub fn var<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn var<T: Float + FloatElement + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
@@ -43,7 +43,7 @@ pub fn var<T: Float + FloatElement, B: BackendOps<T> + Default>(
 /// `unbiased=false` → divide by `N`), matching PyTorch's
 /// `torch.var_mean(input, correction=...)` for flattened input.
 #[inline]
-pub fn var_mean<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn var_mean<T: Float + FloatElement + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
@@ -51,6 +51,14 @@ pub fn var_mean<T: Float + FloatElement, B: BackendOps<T> + Default>(
     let n = a.numel();
     assert!(n > 0, "var_mean: empty tensor has no variance");
 
+    if a.is_contiguous() && a.layout().offset() == 0 {
+        let crossover = backend.host_staging_crossover();
+        if crossover > 0 && n < crossover {
+            return super::staging::staged_scalar(a, backend, |host, seq| {
+                var_mean(host, unbiased, seq)
+            });
+        }
+    }
     let mu = super::mean(a, backend)?;
     let flattened = if a.is_contiguous() && a.layout().offset() == 0 {
         a.reshape([n])
@@ -78,7 +86,7 @@ pub fn var_axis<T: Float + FloatElement, B: BackendOps<T> + Default>(
 
 /// Standard deviation over all elements with optional Bessel correction.
 #[inline]
-pub fn std_dev<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn std_dev<T: Float + FloatElement + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,
@@ -91,7 +99,7 @@ pub fn std_dev<T: Float + FloatElement, B: BackendOps<T> + Default>(
 /// Returns `(std_dev, mean)`. Composed on [`var_mean`] and native `T::sqrt`;
 /// matches `torch.std_mean(input, correction=...)` for flattened input.
 #[inline]
-pub fn std_mean<T: Float + FloatElement, B: BackendOps<T> + Default>(
+pub fn std_mean<T: Float + FloatElement + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     unbiased: bool,
     backend: &B,

@@ -9,6 +9,7 @@ pub(crate) mod linalg;
 pub(crate) mod mean;
 pub(crate) mod norms;
 pub(crate) mod product;
+pub(crate) mod staging;
 pub(crate) mod sum;
 pub(crate) mod topk;
 pub(crate) mod variance;

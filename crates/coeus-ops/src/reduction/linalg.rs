@@ -37,7 +37,7 @@ use coeus_tensor::Tensor;
 /// and reduction on the selected provider; only the one-element result
 /// crosses `B::copy_to_host`, not both full operands.
 #[inline]
-pub fn dot<T: Scalar, B: BackendOps<T> + Default>(
+pub fn dot<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     b: &Tensor<T, B>,
 ) -> Result<T, B::Error> {

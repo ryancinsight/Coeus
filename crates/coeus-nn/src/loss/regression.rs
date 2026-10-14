@@ -16,7 +16,7 @@ use coeus_core::Float;
 ///
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
-pub fn mse_loss<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn mse_loss<T: Float + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     pred: &Var<T, B>,
     target: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error> {

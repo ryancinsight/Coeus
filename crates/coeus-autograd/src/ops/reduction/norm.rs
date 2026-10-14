@@ -62,7 +62,10 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Nor
 /// Forward uses the efficient `mul` + `sum` + `sqrt` backend path (no
 /// host-side fold). Backward: `∂y/∂x_i = x_i / y`.
 #[inline]
-pub fn norm<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn norm<
+    T: Float + coeus_core::FloatElement + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error> {
     let backend = B::default();
