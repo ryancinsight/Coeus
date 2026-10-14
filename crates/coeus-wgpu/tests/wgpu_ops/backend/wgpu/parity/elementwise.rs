@@ -53,11 +53,16 @@ fn parameterized_activations_match_sequential() {
 #[test]
 fn test_wgpu_parity_add() {
     let s = seq();
-    let a = Tensor::from_slice(vec![4, 4], &(0..16).map(|x| x as f32).collect::<Vec<_>>())
-        .expect("invariant: test backend operation succeeds");
+    let a = Tensor::from_slice(
+        vec![4, 4],
+        &(0i16..16).map(|x| f32::from(x)).collect::<Vec<_>>(),
+    )
+    .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
-        &(0..16).map(|x| x as f32 * 0.5 - 4.0).collect::<Vec<_>>(),
+        &(0i16..16)
+            .map(|x| f32::from(x) * 0.5 - 4.0)
+            .collect::<Vec<_>>(),
     )
     .expect("invariant: test backend operation succeeds");
     let cpu = coeus_ops::add(&a, &b, &s).expect("invariant: test operation succeeds");
@@ -71,11 +76,14 @@ fn test_wgpu_parity_add() {
 #[test]
 fn test_wgpu_parity_sub() {
     let s = seq();
-    let a = Tensor::from_slice(vec![4, 4], &(0..16).map(|x| x as f32).collect::<Vec<_>>())
-        .expect("invariant: test backend operation succeeds");
+    let a = Tensor::from_slice(
+        vec![4, 4],
+        &(0i16..16).map(|x| f32::from(x)).collect::<Vec<_>>(),
+    )
+    .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
-        &(0..16).map(|x| x as f32 * 0.5).collect::<Vec<_>>(),
+        &(0i16..16).map(|x| f32::from(x) * 0.5).collect::<Vec<_>>(),
     )
     .expect("invariant: test backend operation succeeds");
     let cpu = coeus_ops::sub(&a, &b, &s).expect("invariant: test operation succeeds");
@@ -91,12 +99,16 @@ fn test_wgpu_parity_mul() {
     let s = seq();
     let a = Tensor::from_slice(
         vec![4, 4],
-        &(0..16).map(|x| x as f32 * 0.1 + 0.5).collect::<Vec<_>>(),
+        &(0i16..16)
+            .map(|x| f32::from(x) * 0.1 + 0.5)
+            .collect::<Vec<_>>(),
     )
     .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
-        &(0..16).map(|x| x as f32 * 0.2 - 1.0).collect::<Vec<_>>(),
+        &(0i16..16)
+            .map(|x| f32::from(x) * 0.2 - 1.0)
+            .collect::<Vec<_>>(),
     )
     .expect("invariant: test backend operation succeeds");
     let cpu = coeus_ops::mul(&a, &b, &s).expect("invariant: test operation succeeds");
@@ -112,12 +124,16 @@ fn test_wgpu_parity_div() {
     let s = seq();
     let a = Tensor::from_slice(
         vec![4, 4],
-        &(0..16).map(|x| (x as f32 + 1.0) * 0.5).collect::<Vec<_>>(),
+        &(0i16..16)
+            .map(|x| (f32::from(x) + 1.0) * 0.5)
+            .collect::<Vec<_>>(),
     )
     .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
-        &(0..16).map(|x| (x as f32 + 1.0) * 0.25).collect::<Vec<_>>(),
+        &(0i16..16)
+            .map(|x| (f32::from(x) + 1.0) * 0.25)
+            .collect::<Vec<_>>(),
     )
     .expect("invariant: test backend operation succeeds");
     let cpu = coeus_ops::div(&a, &b, &s).expect("invariant: test operation succeeds");
@@ -132,7 +148,7 @@ fn test_wgpu_parity_div() {
 fn test_wgpu_assign_compacts_shared_rank_five_view() {
     let s = seq();
     let w = wgpu();
-    let values: Vec<f32> = (0..64).map(|value| value as f32).collect();
+    let values: Vec<f32> = (0i16..64).map(|value| f32::from(value)).collect();
     let base = Tensor::from_slice([2, 2, 2, 2, 4], &values)
         .expect("invariant: test backend operation succeeds");
     let rhs = Tensor::from_slice([1, 1, 1, 1, 2], &[10.0, 20.0])
@@ -242,11 +258,16 @@ fn test_wgpu_partial_update_preserves_parent_and_shared_source() {
 fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
     let s = seq();
     let w = wgpu();
-    let a = Tensor::from_slice(vec![4, 4], &(0..16).map(|x| x as f32).collect::<Vec<_>>())
-        .expect("invariant: test backend operation succeeds");
+    let a = Tensor::from_slice(
+        vec![4, 4],
+        &(0i16..16).map(|x| f32::from(x)).collect::<Vec<_>>(),
+    )
+    .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
-        &(0..16).map(|x| x as f32 * 0.5 - 4.0).collect::<Vec<_>>(),
+        &(0i16..16)
+            .map(|x| f32::from(x) * 0.5 - 4.0)
+            .collect::<Vec<_>>(),
     )
     .expect("invariant: test backend operation succeeds");
     let a_gpu = to_gpu(&a);
@@ -384,8 +405,8 @@ fn test_wgpu_elu_preserves_output_clones() {
 #[test]
 fn test_wgpu_add_preserves_output_clones() {
     let w = wgpu();
-    let a_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.25 - 2.0).collect();
-    let b_data: Vec<f32> = (0..16).map(|x| x as f32 * 0.1 + 0.5).collect();
+    let a_data: Vec<f32> = (0i16..16).map(|x| f32::from(x) * 0.25 - 2.0).collect();
+    let b_data: Vec<f32> = (0i16..16).map(|x| f32::from(x) * 0.1 + 0.5).collect();
     let expected: Vec<_> = a_data.iter().zip(&b_data).map(|(a, b)| a + b).collect();
     let a_gpu = to_gpu(
         &Tensor::from_slice([4, 4], &a_data).expect("invariant: test backend operation succeeds"),
