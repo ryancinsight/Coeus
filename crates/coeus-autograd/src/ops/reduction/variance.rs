@@ -27,7 +27,10 @@ use coeus_core::Float;
     clippy::type_complexity,
     reason = "the established reduction contract returns variance and mean together"
 )]
-pub fn var_mean<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn var_mean<
+    T: Float + coeus_core::FloatElement + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> Result<(Var<T, B>, Var<T, B>), B::Error> {
@@ -54,7 +57,10 @@ pub fn var_mean<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T>
 
 /// Tracked variance over all elements (`torch.var`). See [`var_mean`].
 #[inline]
-pub fn var<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn var<
+    T: Float + coeus_core::FloatElement + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> Result<Var<T, B>, B::Error> {
@@ -67,7 +73,10 @@ pub fn var<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + De
     clippy::type_complexity,
     reason = "the established reduction contract returns standard deviation and mean together"
 )]
-pub fn std_mean<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn std_mean<
+    T: Float + coeus_core::FloatElement + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> Result<(Var<T, B>, Var<T, B>), B::Error> {
@@ -77,7 +86,10 @@ pub fn std_mean<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T>
 
 /// Tracked standard deviation over all elements (`torch.std`).
 #[inline]
-pub fn std_dev<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn std_dev<
+    T: Float + coeus_core::FloatElement + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
     unbiased: bool,
 ) -> Result<Var<T, B>, B::Error> {

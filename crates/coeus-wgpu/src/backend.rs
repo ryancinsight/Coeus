@@ -166,6 +166,17 @@ unsafe impl ComputeBackend for WgpuBackend {
     }
 
     #[inline]
+    fn host_staging_crossover(&self) -> usize {
+        // Measured 2026-10-14 (Ultra 9 285K, RTX 5080, driver 610.60;
+        // `ops_bench -- "Reduction crossover"`, f32 scalar sum, criterion
+        // means): host staging wins at n<=65536 (62-117us vs 90-136us
+        // device) and loses at n>=262144 (323us vs 264us). 65536 is the
+        // largest measured staging win; the interpolated crossover is
+        // ~131072.
+        65_536
+    }
+
+    #[inline]
     unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         // SAFETY: this backend forwards the caller's initialization
         // obligation to the shared provider backend.

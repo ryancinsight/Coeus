@@ -29,8 +29,10 @@ pub struct ProdNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub product_saved: Tensor<T, B>,
 }
 
-impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for ProdNode<T, B>
+impl<
+        T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > BackwardNode<T, B> for ProdNode<T, B>
 {
     fn op_name(&self) -> &'static str {
         "prod"
@@ -101,7 +103,10 @@ fn read_scalar<T: Scalar, B: ComputeBackend>(
 /// # Panics
 /// Panics if `input` is empty.
 #[inline]
-pub fn prod<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn prod<
+    T: coeus_core::FloatElement + Scalar + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     input: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error> {
     assert!(

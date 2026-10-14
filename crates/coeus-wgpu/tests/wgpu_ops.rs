@@ -18,3 +18,6 @@ mod availability;
 mod backend;
 #[path = "wgpu_ops/fusion.rs"]
 mod fusion;
+
+#[path = "wgpu_ops/placement.rs"]
+mod placement;

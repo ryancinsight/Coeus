@@ -4,6 +4,17 @@
 
 ### Changed
 
+- [major] Scalar reductions (`sum`, `mean`, `amax`, `amin`, `prod`, `norm`,
+  `norm_p`, `var_mean`, plus delegating `var`, `std_dev`, `std_mean`,
+  `frobenius_norm`, `frobenius_norm_batched`, `dot`, and the autograd
+  `sum`/`mean`/`prod`/`var`/`einsum` wrappers) require `T: leto_ops::Scalar`
+  (`norm_p` additionally requires `leto_ops::RealScalar`), matching the
+  existing `cumsum`/`cumprod`/`topk` bounds. Host-consumed scalars over
+  contiguous inputs below the backend crossover now download once and
+  reduce on the CPU (`ComputeBackend::host_staging_crossover`, 0 by
+  default; 65,536 for WGPU and 1,048,576 for CUDA, both caller-measured
+  on RTX 5080 hardware). Values are unchanged: staged reductions run the
+  same host kernel as the CPU reference.
 - [major] `Communicator` collectives return `Result<(), Self::Error>`.
   `TcpCommunicator` returns `TcpMeshError` instead of panicking on peer I/O
   failure, and a failed collective poisons all of that rank's links so every
