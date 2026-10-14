@@ -23,6 +23,10 @@
 
 ### Fixed
 
+- [patch] NN-layer finite-difference regressions live in the NN test package,
+  removing the autograd-to-NN versioned dev-dependency cycle. All 15 test
+  bodies, f32/f64 instantiations, fixtures and tolerances are retained.
+
 - [patch] Whole-tensor autograd mean and its gradient use the canonical
   directly rounded reciprocal count. F16 one-hot length 65536 returns exact
   2^-16 (`0x0100`) instead of zero from count overflow. Sum and scaling

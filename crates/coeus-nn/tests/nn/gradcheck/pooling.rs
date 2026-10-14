@@ -1,5 +1,5 @@
 //! Finite-difference checks for max/avg pooling, tested through their
-//! `coeus-nn` `Module` layers (a dev-dependency of this crate) rather than by
+//! `coeus-nn` `Module` layers rather than by
 //! reproducing `checked_out_dim`/backend-call plumbing here: pooling's output
 //! shape depends on kernel/stride/padding/dilation, and duplicating that
 //! arithmetic would put the same computation on both sides of the comparison

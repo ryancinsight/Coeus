@@ -58,3 +58,10 @@ seed 2, untracked values, strided input, empty input, and all 65536 gradients
 of the exact binary16 boundary case. Compile-fail doctests reject integers
 through both `mean` and direct `MeanOp` dispatch. All applicable required and release checks must pass on the final PR head
 before integration and publication. Miri is deferred and unverified.
+
+NN-layer convolution and pooling gradchecks belong to the downstream NN test
+package. Keeping those 15 unchanged dual-scalar cases there removes the
+versioned autograd-to-NN development edge, so autograd can package before NN.
+Each package retains its own executable test fixtures; no cross-package test
+paths or stripped dependencies are used to hide the cycle. The combined test
+inventory remains 688 cases, including the same eight existing skips.

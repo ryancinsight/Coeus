@@ -384,7 +384,6 @@ dependencies = [
  "apollo-fft",
  "coeus-core",
  "coeus-leto",
- "coeus-nn",
  "coeus-ops",
  "coeus-sparse",
  "coeus-tensor",
