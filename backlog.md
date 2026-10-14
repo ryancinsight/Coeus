@@ -19,12 +19,12 @@ verification, tightening, feature}.
 <a id="coeus-half-min-positive-001"></a>
 ## COEUS-HALF-MIN-POSITIVE-001 — Restore the binary16 minimum normal constant
 
-- Status: blocked (trusted local gates pass; prerequisite draft PR access is denied); priority: correctness; [patch]; basis: 93d24974; target: 0.12.2.
+- Status: blocked (trusted local gates pass; draft [#527](https://github.com/ryancinsight/Coeus/pull/527) open; hosted checks/review and publication hold remain); priority: correctness; [patch]; basis: 93d24974; target: 0.12.2.
 - Finding: `Float::MIN_POSITIVE` for F16 is bits `0x0040` (2^-18, subnormal), contradicting the smallest-positive-normal contract and locked Eunomia's `0x0400` (2^-14).
 - Outcome: use provider `F16::MIN_POSITIVE`; exact bits/value/normal-boundary tests pass; Bf16 retains its normal constant.
 - Evidence: native baseline regression fails with 2^-18 versus 2^-14; Bf16 control passes. With the fix, coeus-core native tests 48/48 and doctests 34/34 pass; all-targets Clippy and rustdoc deny warnings; formatting, ADR index and diff hygiene pass. Dependency pins are unchanged.
 - Acceptance checklist: [x] baseline executed; [x] local native tests, Clippy, docs and formatting; [x] trusted full-workspace gate; [ ] hosted required checks; [ ] reviewed integration.
-- Gate status: the unchanged trusted pre-push workspace gate passes for this implementation (recorded in the validation commit's `Verification-Head` trailer), including source identity and native TCP coverage. The connected GitHub integration denies prerequisite draft PR creation with HTTP 403, `Resource not accessible by integration`; creation of this dependent PR is held and has not been attempted. Hosted required checks and reviewed integration remain pending; no alternate PR credential route or gate bypass.
+- Gate status: the unchanged trusted pre-push workspace gate passes for implementation `8cf19ee4f32ecf11c8808d146d604f53ebe0e6b5`, including source identity and native TCP coverage. After the historical connector HTTP 403, the user explicitly authorized the existing `gh` account; draft #527 now targets prerequisite #526 without credential or permission changes. Hosted required checks and reviewed integration remain pending; no gate bypass.
 - Residual: Miri deferred and unverified by request. Main pushes can publish pending crate versions; leave the draft open and do not merge or publish.
 
 <a id="coeus-autograd-mean-contract-001"></a>
