@@ -16,7 +16,7 @@ coeus-core     = { workspace = true }
 coeus-tensor   = { workspace = true }
 coeus-autograd = { workspace = true, default-features = false }
 coeus-ops      = { workspace = true, default-features = false }
-coeus-leto     = { version = "0.12.1", path = "../coeus-leto" }
+coeus-leto     = { version = "0.12.2", path = "../coeus-leto" }
 smallvec       = { workspace = true }
 thiserror      = { workspace = true }
 

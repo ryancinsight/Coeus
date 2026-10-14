@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2] - Unreleased
+
+### Fixed
+
+- [patch] F16 `Float::MIN_POSITIVE` uses Eunomia's named constant, bits
+  `0x0400` (2^-14), the smallest positive normal binary16 value.
+
 ## [0.12.1] - Unreleased
 
 ### Changed
