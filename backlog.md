@@ -16,6 +16,27 @@ verification, tightening, feature}.
 - Gate status: user-approved escalation resolves the initial loopback denial; Python native tests pass 85/85. The unchanged trusted pre-push workspace gate passes for the implementation in [#526](https://github.com/ryancinsight/Coeus/pull/526), recorded by the validation commit's `Verification-Head` trailer (lock/provider identity, credential scan, conformance, workspace Clippy/Nextest/rustdoc and source identity). The earlier connector draft request received HTTP 403, `Resource not accessible by integration`; after explicit user authorization, the existing `gh` account `ryancinsight` created draft #526 without credential or permission changes. Hosted checks and reviewed integration remain pending; no gate bypass.
 - Residual: Miri deferred and unverified; numerical fix branches and their original evidence remain preserved. Main pushes can publish pending package versions, so merges remain held.
 
+<a id="coeus-half-min-positive-001"></a>
+## COEUS-HALF-MIN-POSITIVE-001 — Restore the binary16 minimum normal constant
+
+- Status: blocked (trusted local gates pass; draft [#527](https://github.com/ryancinsight/Coeus/pull/527) open; hosted checks/review and publication hold remain); priority: correctness; [patch]; basis: 93d24974; target: 0.12.2.
+- Finding: `Float::MIN_POSITIVE` for F16 is bits `0x0040` (2^-18, subnormal), contradicting the smallest-positive-normal contract and locked Eunomia's `0x0400` (2^-14).
+- Outcome: use provider `F16::MIN_POSITIVE`; exact bits/value/normal-boundary tests pass; Bf16 retains its normal constant.
+- Evidence: native baseline regression fails with 2^-18 versus 2^-14; Bf16 control passes. With the fix, coeus-core native tests 48/48 and doctests 34/34 pass; all-targets Clippy and rustdoc deny warnings; formatting, ADR index and diff hygiene pass. Dependency pins are unchanged.
+- Acceptance checklist: [x] baseline executed; [x] local native tests, Clippy, docs and formatting; [x] trusted full-workspace gate; [ ] hosted required checks; [ ] reviewed integration.
+- Gate status: the unchanged trusted pre-push workspace gate passes for the implementation in [#527](https://github.com/ryancinsight/Coeus/pull/527), recorded by the validation commit's `Verification-Head` trailer, including source identity and native TCP coverage. After the historical connector HTTP 403, the user explicitly authorized the existing `gh` account; draft #527 now targets prerequisite #526 without credential or permission changes. Hosted required checks and reviewed integration remain pending; no gate bypass.
+- Residual: Miri deferred and unverified by request. Main pushes can publish pending crate versions; leave the draft open and do not merge or publish.
+
+<a id="coeus-autograd-mean-contract-001"></a>
+## COEUS-AUTOGRAD-MEAN-CONTRACT-001 — Enforce floating-point mean and valid count scaling
+
+- Status: todo (baseline reproduced; separate fix pending); priority: correctness; [major] [patch]; basis: 93d24974.
+- Finding: whole-tensor autograd mean admits i32 `[1,2]`, yielding 1 with gradient `[0,0]`; F16 one-hot length 65536 yields bits 0 rather than exact 2^-16 (`0x0100`) because count conversion overflows.
+- Ownership: no open Coeus PR on 2026-10-14; #494 closed unmerged, #523 merged the GPU restriction. Current autograd source contradicts the historical claim that its float bound landed.
+- Outcome: `MeanOp` and `mean` require `FloatElement`; forward and backward use the locked provider's directly rounded reciprocal count with native T arithmetic.
+- Acceptance checklist: [x] integer and F16 baseline executed; [ ] integer compile-fail coverage; [ ] F16 boundary and ordinary float forward/backward; [ ] final-head lint/docs; [ ] hosted required checks; [ ] reviewed integration.
+- Residual: Miri deferred and unverified. Do not resume the separate held task, change coverage/time limits, merge, or publish.
+
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`
 
