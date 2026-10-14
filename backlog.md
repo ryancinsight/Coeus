@@ -8,23 +8,23 @@ verification, tightening, feature}.
 <a id="coeus-python-native-linking-001"></a>
 ## COEUS-PYTHON-NATIVE-LINKING-001 — Separate embedded-test and extension linkage
 
-- Status: todo (local fix and full Python native tests validated; trusted workspace/hosted gates and integration pending); priority: correctness; [patch]; basis: 93d24974; target: 0.12.1.
+- Status: blocked (trusted local gates pass; GitHub integration denies draft PR creation); priority: correctness; [patch]; basis: 93d24974; target: 0.12.1.
 - Finding: workspace PyO3 unconditionally enables `extension-module`, suppressing libpython on Unix and leaving arm64 native binding tests with undefined Python C API symbols.
 - Outcome: native Cargo builds retain default Python linkage; Maturin selects `pyo3/extension-module` from package `pyproject.toml`. CI native shards include Python bindings with CPython 3.13; coverage and time budgets remain intact.
 - Evidence: before, `coeus-python` fails native test linking; after the supported feature split, both native test binaries compile and the approved full Python native run passes 85/85, including all 9 TCP cases, with no Nextest skips. The existing optional PyTorch subprocess case returns when Torch is absent, so PyTorch parity is unverified. Maturin 1.14.1 reads the feature from pyproject, builds an arm64 CPython 3.9 wheel at 0.12.1, and import/mean/backward produce exact 1.5 and `[0.5;4]`; wheel metadata/stub and absence of libpython linkage are checked. All-targets Clippy and rustdoc deny warnings; format, diff hygiene, board schema and tool tests pass (27, one existing Windows-only skip).
-- Acceptance checklist: [x] baseline linker failure; [x] native binding linkage and all Python native tests; [ ] trusted full-workspace gate; [x] wheel build/import; [x] local lint/docs; [ ] hosted checks; [ ] reviewed integration.
-- Gate status: the initial sandbox denial of `127.0.0.1:0` binding is resolved by the user-approved native-gate escalation. The unchanged Python suite passes outside the sandbox. Trusted pre-push workspace checks, hosted checks and reviewed integration remain pending; no gate bypass, coverage deletion or timeout change.
+- Acceptance checklist: [x] baseline linker failure; [x] native binding linkage and all Python native tests; [x] trusted full-workspace gate; [x] wheel build/import; [x] local lint/docs; [ ] hosted checks; [ ] reviewed integration.
+- Gate status: user-approved escalation resolves the initial loopback denial; Python native tests pass 85/85. The unchanged trusted pre-push workspace gate passes for the implementation revision recorded in this validation commit's `Verification-Head` trailer (lock/provider identity, credential scan, conformance, workspace Clippy/Nextest/rustdoc and source identity). Draft PR creation for this branch is denied by the connected GitHub integration: HTTP 403, `Resource not accessible by integration`. No alternate credential route or permission change is attempted; hosted checks and reviewed integration remain pending.
 - Residual: Miri deferred and unverified; numerical fix branches and their original evidence remain preserved. Main pushes can publish pending package versions, so merges remain held.
 
 <a id="coeus-half-min-positive-001"></a>
 ## COEUS-HALF-MIN-POSITIVE-001 — Restore the binary16 minimum normal constant
 
-- Status: todo (local fix validated; trusted workspace/hosted gates and integration pending); priority: correctness; [patch]; basis: 93d24974; target: 0.12.2.
+- Status: blocked (trusted local gates pass; prerequisite draft PR access is denied); priority: correctness; [patch]; basis: 93d24974; target: 0.12.2.
 - Finding: `Float::MIN_POSITIVE` for F16 is bits `0x0040` (2^-18, subnormal), contradicting the smallest-positive-normal contract and locked Eunomia's `0x0400` (2^-14).
 - Outcome: use provider `F16::MIN_POSITIVE`; exact bits/value/normal-boundary tests pass; Bf16 retains its normal constant.
 - Evidence: native baseline regression fails with 2^-18 versus 2^-14; Bf16 control passes. With the fix, coeus-core native tests 48/48 and doctests 34/34 pass; all-targets Clippy and rustdoc deny warnings; formatting, ADR index and diff hygiene pass. Dependency pins are unchanged.
-- Acceptance checklist: [x] baseline executed; [x] local native tests, Clippy, docs and formatting; [ ] hosted required checks; [ ] reviewed integration.
-- Gate status: prerequisite `fix/python-native-linking` repairs native Python linking, and its approved full native run passes 85/85 including TCP. The earlier loopback denial is resolved through the approved escalation. Trusted full-workspace/hosted checks and reviewed integration remain pending; no gate bypass or timeout change.
+- Acceptance checklist: [x] baseline executed; [x] local native tests, Clippy, docs and formatting; [x] trusted full-workspace gate; [ ] hosted required checks; [ ] reviewed integration.
+- Gate status: the unchanged trusted pre-push workspace gate passes for this implementation (recorded in the validation commit's `Verification-Head` trailer), including source identity and native TCP coverage. The connected GitHub integration denies prerequisite draft PR creation with HTTP 403, `Resource not accessible by integration`; creation of this dependent PR is held and has not been attempted. Hosted required checks and reviewed integration remain pending; no alternate PR credential route or gate bypass.
 - Residual: Miri deferred and unverified by request. Main pushes can publish pending crate versions; leave the draft open and do not merge or publish.
 
 <a id="coeus-autograd-mean-contract-001"></a>
