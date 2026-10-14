@@ -118,6 +118,22 @@ pub unsafe trait ComputeBackend: Send + Sync + Clone + 'static {
         src: &Self::DeviceBuffer<T>,
         dst: &mut [T],
     ) -> Result<(), Self::Error>;
+
+    /// Scalar-reduction host-staging crossover in elements.
+    ///
+    /// Host-consumed scalar reductions (`sum`, `mean`, ...) over contiguous
+    /// inputs smaller than this many elements download once and reduce on
+    /// the CPU instead of dispatching a device kernel plus a scalar
+    /// readback. The default 0 disables staging: host backends already
+    /// execute on the CPU. Accelerator backends override with a
+    /// caller-measured crossover, below which the device submit/readback
+    /// floor exceeds one bulk download plus the CPU reduction. Resident
+    /// results consumed by further device ops never stage: pipelined
+    /// dispatch has no host round trip to beat.
+    #[inline]
+    fn host_staging_crossover(&self) -> usize {
+        0
+    }
 }
 
 /// Trait for backend execution engines.

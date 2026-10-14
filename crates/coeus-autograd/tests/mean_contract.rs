@@ -7,7 +7,7 @@ use eunomia::{Bf16, F16};
 
 type B = SequentialBackend;
 
-fn ordinary_case<T: Scalar + FloatElement>()
+fn ordinary_case<T: Scalar + FloatElement + leto_ops::Scalar>()
 where
     B: coeus_ops::BackendOps<T>,
 {

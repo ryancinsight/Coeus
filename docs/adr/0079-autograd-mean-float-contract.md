@@ -19,9 +19,12 @@ still needs its floating-point contract.
 
 ## Decision
 
-Require `T: Scalar + FloatElement` for both the `MeanOp` implementation and
-the public `mean` wrapper, matching `mean_axis` and provider mean. Keep sum
-dispatch and multiplication in `T`. Form the scale with the locked Eunomia
+Require `T: Scalar + FloatElement + leto_ops::Scalar` for both the `MeanOp`
+implementation and the public `mean` wrapper. The floating-point restriction
+matches `mean_axis` and provider mean; the Leto operation bound supports the
+host-staging path of scalar sum introduced by PR #529. `mse_loss` carries
+`Float + FloatElement + leto_ops::Scalar`. Keep sum dispatch and multiplication
+in `T`. Form the scale with the locked Eunomia
 `FloatElement::from_count_reciprocal(numel)` in forward and backward. This
 rounds the integer count's reciprocal directly into the destination format
 and avoids count overflow; no tensor values are widened.
@@ -42,13 +45,16 @@ the reduction contract; this change does not promise widened accumulation.
 
 Integer callers must explicitly choose a floating-point tensor before calling
 mean, or use integer sum if that is the desired operation. Generic callers
-add `FloatElement` to their element bound. This is a breaking public bound;
-the pre-1.0 workspace version advances to 0.13.0, with no release or publish.
+add `FloatElement` and `leto_ops::Scalar` to their element bound. Both traits
+are implemented for the supported f32, f64, F16 and Bf16 types. These changes
+and the staging-related public bounds ship together in pre-1.0 version 0.13.0;
+the intermediate 0.12.1/0.12.2 repair snapshots are not published separately.
+A patch release would not cover these breaking generic-bound changes.
 
 ## Verification
 
 Native regression tests cover f32, f64, F16, and Bf16 forward/backward with
 seed 2, untracked values, strided input, empty input, and all 65536 gradients
 of the exact binary16 boundary case. Compile-fail doctests reject integers
-through both `mean` and direct `MeanOp` dispatch. Required gates remain
-pending until checked on the final PR head. Miri is deferred and unverified.
+through both `mean` and direct `MeanOp` dispatch. All applicable required and release checks must pass on the final PR head
+before integration and publication. Miri is deferred and unverified.

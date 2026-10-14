@@ -20,7 +20,7 @@ use coeus_tensor::Tensor;
 /// assert!((result - 21.0).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
+pub fn sum<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -28,6 +28,10 @@ pub fn sum<T: Scalar, B: BackendOps<T> + Default>(
         return Ok(T::ZERO);
     }
     let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
+        let crossover = backend.host_staging_crossover();
+        if crossover > 0 && a.numel() < crossover {
+            return super::staging::staged_scalar(a, backend, sum);
+        }
         a.reshape([a.numel()])
     } else {
         let contiguous = a.to_contiguous_on(backend)?;
@@ -160,7 +164,7 @@ pub fn min_axis<T: Scalar, B: BackendOps<T> + Default>(
 ///
 /// Equivalent to `torch.amax(input)` with no dim argument.
 #[inline]
-pub fn amax<T: Scalar, B: BackendOps<T> + Default>(
+pub fn amax<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -171,6 +175,10 @@ pub fn amax<T: Scalar, B: BackendOps<T> + Default>(
         }));
     }
     let flat = if a.is_contiguous() && a.layout().offset() == 0 {
+        let crossover = backend.host_staging_crossover();
+        if crossover > 0 && a.numel() < crossover {
+            return super::staging::staged_scalar(a, backend, amax);
+        }
         a.reshape([a.numel()])
     } else {
         a.to_contiguous_on(backend)?.reshape([a.numel()])
@@ -185,7 +193,7 @@ pub fn amax<T: Scalar, B: BackendOps<T> + Default>(
 ///
 /// Equivalent to `torch.amin(input)` with no dim argument.
 #[inline]
-pub fn amin<T: Scalar, B: BackendOps<T> + Default>(
+pub fn amin<T: Scalar + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -196,6 +204,10 @@ pub fn amin<T: Scalar, B: BackendOps<T> + Default>(
         }));
     }
     let flat = if a.is_contiguous() && a.layout().offset() == 0 {
+        let crossover = backend.host_staging_crossover();
+        if crossover > 0 && a.numel() < crossover {
+            return super::staging::staged_scalar(a, backend, amin);
+        }
         a.reshape([a.numel()])
     } else {
         a.to_contiguous_on(backend)?.reshape([a.numel()])

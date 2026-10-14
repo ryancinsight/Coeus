@@ -508,6 +508,7 @@ dependencies = [
  "coeus-tensor",
  "criterion",
  "eunomia",
+ "leto-ops",
  "smallvec",
  "thiserror 2.0.21",
 ]

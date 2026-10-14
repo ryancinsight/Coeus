@@ -9,6 +9,18 @@
   tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
   add the floating-point bound. See [ADR 0079](docs/adr/0079-autograd-mean-float-contract.md#migration).
 
+- [major] Scalar reductions (`sum`, `mean`, `amax`, `amin`, `prod`, `norm`,
+  `norm_p`, `var_mean`, plus delegating `var`, `std_dev`, `std_mean`,
+  `frobenius_norm`, `frobenius_norm_batched`, `dot`, and the autograd
+  `sum`/`mean`/`prod`/`var`/`einsum` wrappers) require `T: leto_ops::Scalar`
+  (`norm_p` additionally requires `leto_ops::RealScalar`), matching the
+  existing `cumsum`/`cumprod`/`topk` bounds. Host-consumed scalars over
+  contiguous inputs below the backend crossover now download once and
+  reduce on the CPU (`ComputeBackend::host_staging_crossover`, 0 by
+  default; 65,536 for WGPU and 1,048,576 for CUDA, both caller-measured
+  on RTX 5080 hardware). Values are unchanged: staged reductions run the
+  same host kernel as the CPU reference.
+
 ### Fixed
 
 - [patch] Whole-tensor autograd mean and its gradient use the canonical
@@ -17,14 +29,15 @@
   remain in the native element type; empty mean retains NaN.
 
 
-## [0.12.2] - Unreleased
-
-### Fixed
-
 - [patch] F16 `Float::MIN_POSITIVE` uses Eunomia's named constant, bits
   `0x0400` (2^-14), the smallest positive normal binary16 value.
 
-## [0.12.1] - Unreleased
+- [patch] Native Python binding tests retain PyO3's Python-library linkage;
+  Maturin wheel builds select `pyo3/extension-module` from `pyproject.toml`.
+  Workspace native CI includes the bindings with CPython 3.13, preserving
+  TCP coverage and existing test/job deadlines.
+
+## [Unreleased]
 
 ### Changed
 
@@ -117,11 +130,6 @@
   wrapper is retained.
 
 ### Fixed
-
-- [patch] Native Python binding tests retain PyO3's Python-library linkage;
-  Maturin wheel builds select `pyo3/extension-module` from `pyproject.toml`.
-  Workspace native CI includes the bindings with CPython 3.13, preserving
-  TCP coverage and existing test/job deadlines.
 
 - [patch] GPU unary activations decode single parameters from their public
   `f64` bit encoding. Staggered preparation rejects invalid spacing before

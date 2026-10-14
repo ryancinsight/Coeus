@@ -9,7 +9,7 @@
 // Machine class: depends on the local GPU/driver and CPU; record the host when
 // committing a baseline. Not run in headless CI.
 
-use coeus_core::SequentialBackend;
+use coeus_core::{ComputeBackend, CpuAddressableStorageMut, SequentialBackend};
 use coeus_cuda::CudaBackend;
 use coeus_ops::conv_transpose2d;
 use coeus_tensor::Tensor;
@@ -125,5 +125,71 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_matmul, bench_conv_transpose2d);
+/// Scalar-sum placement crossover, CUDA counterpart to the WGPU group: the
+/// CUDA submit floor differs from WDDM, so the crossover is measured
+/// separately rather than inherited.
+fn bench_reduction_crossover(c: &mut Criterion) {
+    if !cuda_available() {
+        return;
+    }
+    let seq = SequentialBackend::new();
+    let cuda = CudaBackend::new();
+    let mut group = c.benchmark_group("Reduction crossover (scalar sum f32)");
+    for &n in &[256usize, 1024, 4096, 16384, 65536, 262144, 1048576] {
+        let values = fill(n, 1.0);
+        let a_g = Tensor::<f32, SequentialBackend>::from_slice([n], &values)
+            .expect("invariant: test backend operation succeeds")
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend operation succeeds");
+        let mut staged = Tensor::<f32, SequentialBackend>::zeros([n]).expect("host staging tensor");
+        let gpu = coeus_ops::sum(&a_g, &cuda).expect("gpu sum succeeds");
+        {
+            let dst = staged
+                .storage_mut()
+                .expect("staging storage")
+                .as_mut_slice()
+                .expect("host slice");
+            cuda.copy_to_host(a_g.storage(), dst)
+                .expect("staging download");
+        }
+        let cpu = coeus_ops::sum(&staged, &seq).expect("cpu sum succeeds");
+        assert!(
+            (gpu - cpu).abs() < 1e-4 * n as f32,
+            "placement mismatch at n={n}: gpu={gpu} cpu={cpu}"
+        );
+        let id = format!("n{n}");
+
+        group.bench_with_input(BenchmarkId::new("GPU resident", &id), &id, |bn, _| {
+            bn.iter(|| {
+                black_box(
+                    coeus_ops::sum(black_box(&a_g), &cuda)
+                        .expect("GPU scalar sum benchmark dispatch"),
+                )
+            });
+        });
+        group.bench_with_input(BenchmarkId::new("Host staged", &id), &id, |bn, _| {
+            bn.iter(|| {
+                let dst = staged
+                    .storage_mut()
+                    .expect("staging storage")
+                    .as_mut_slice()
+                    .expect("host slice");
+                cuda.copy_to_host(black_box(a_g.storage()), black_box(dst))
+                    .expect("staging download");
+                black_box(
+                    coeus_ops::sum(black_box(&staged), &seq)
+                        .expect("host staged sum benchmark dispatch"),
+                )
+            });
+        });
+    }
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_matmul,
+    bench_conv_transpose2d,
+    bench_reduction_crossover
+);
 criterion_main!(benches);

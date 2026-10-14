@@ -20,7 +20,7 @@ use coeus_tensor::Tensor;
 /// assert!((result - 3.5).abs() < 1e-5);
 /// ```
 #[inline]
-pub fn mean<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
+pub fn mean<T: Scalar + coeus_core::FloatElement + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
@@ -28,6 +28,10 @@ pub fn mean<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
         return Ok(T::ZERO / <T as coeus_core::FloatElement>::from_f64(0.0));
     }
     let reshaped = if a.is_contiguous() && a.layout().offset() == 0 {
+        let crossover = backend.host_staging_crossover();
+        if crossover > 0 && a.numel() < crossover {
+            return super::staging::staged_scalar(a, backend, mean);
+        }
         a.reshape([a.numel()])
     } else {
         let contiguous = a.to_contiguous_on(backend)?;

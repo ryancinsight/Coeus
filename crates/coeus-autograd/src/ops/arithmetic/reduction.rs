@@ -5,7 +5,9 @@ use coeus_tensor::Tensor;
 
 /// ZST tag for sum reduction autograd.
 pub struct SumOp;
-impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B> for SumOp {
+impl<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
+    for SumOp
+{
     const OP_NAME: &'static str = "sum";
 
     #[inline(always)]
@@ -71,8 +73,10 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 /// let _ = reduction_op::<i32, SequentialBackend, MeanOp>(&input, None);
 /// ```
 pub struct MeanOp;
-impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
-    ReductionAutogradOp<T, B> for MeanOp
+impl<
+        T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > ReductionAutogradOp<T, B> for MeanOp
 {
     const OP_NAME: &'static str = "mean";
 
@@ -142,7 +146,7 @@ impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default
 
 /// Tracked sum reduction of all elements.
 #[inline]
-pub fn sum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn sum<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error> {
     reduction_op::<T, B, SumOp>(a, None)
@@ -166,7 +170,10 @@ pub fn sum<T: Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// let _ = mean(&input);
 /// ```
 #[inline]
-pub fn mean<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
+pub fn mean<
+    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error> {
     reduction_op::<T, B, MeanOp>(a, None)

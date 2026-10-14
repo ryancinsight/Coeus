@@ -73,10 +73,16 @@ pub fn prod_tensor<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Defa
 /// The reduction stays on the selected backend; only the one-element result
 /// crosses the backend boundary.
 #[inline]
-pub fn prod<T: Scalar + coeus_core::FloatElement, B: BackendOps<T> + Default>(
+pub fn prod<T: Scalar + coeus_core::FloatElement + leto_ops::Scalar, B: BackendOps<T> + Default>(
     a: &Tensor<T, B>,
     backend: &B,
 ) -> Result<T, B::Error> {
+    if a.is_contiguous() && a.layout().offset() == 0 {
+        let crossover = backend.host_staging_crossover();
+        if crossover > 0 && a.numel() < crossover {
+            return super::staging::staged_scalar(a, backend, prod);
+        }
+    }
     let reduced = prod_tensor(a, backend)?;
     let mut scalar = [T::ZERO];
     backend.copy_to_host(reduced.storage(), &mut scalar)?;
