@@ -21,6 +21,11 @@ around a [`coeus-tensor`](../coeus-tensor/README.md) `Tensor`.
 FFT nodes depend on `apollo-fft`, which is a hard, non-optional dependency of
 this crate.
 
+Whole-tensor `mean` requires `Scalar + FloatElement`, like provider mean and
+`mean_axis`. Forward and backward use the directly rounded reciprocal count,
+preserving representable half-precision means even when the count overflows
+that format. See [the contract and migration](../../docs/adr/0079-autograd-mean-float-contract.md).
+
 ## Documentation
 
 API docs: <https://docs.rs/coeus-autograd>

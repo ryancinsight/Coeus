@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.13.0] - Unreleased
+
+### Breaking
+
+- [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
+  provider mean and `mean_axis`. Integer callers explicitly choose a floating
+  tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
+  add the floating-point bound. See [ADR 0079](docs/adr/0079-autograd-mean-float-contract.md#migration).
+
+### Fixed
+
+- [patch] Whole-tensor autograd mean and its gradient use the canonical
+  directly rounded reciprocal count. F16 one-hot length 65536 returns exact
+  2^-16 (`0x0100`) instead of zero from count overflow. Sum and scaling
+  remain in the native element type; empty mean retains NaN.
+
+
 ## [0.12.2] - Unreleased
 
 ### Fixed

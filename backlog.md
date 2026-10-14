@@ -30,11 +30,13 @@ verification, tightening, feature}.
 <a id="coeus-autograd-mean-contract-001"></a>
 ## COEUS-AUTOGRAD-MEAN-CONTRACT-001 — Enforce floating-point mean and valid count scaling
 
-- Status: todo (baseline reproduced; separate fix pending); priority: correctness; [major] [patch]; basis: 93d24974.
+- Status: todo (local fix validated; trusted workspace/hosted gates and integration pending); priority: correctness; [major] [patch]; basis: 93d24974; target: 0.13.0.
 - Finding: whole-tensor autograd mean admits i32 `[1,2]`, yielding 1 with gradient `[0,0]`; F16 one-hot length 65536 yields bits 0 rather than exact 2^-16 (`0x0100`) because count conversion overflows.
 - Ownership: no open Coeus PR on 2026-10-14; #494 closed unmerged, #523 merged the GPU restriction. Current autograd source contradicts the historical claim that its float bound landed.
 - Outcome: `MeanOp` and `mean` require `FloatElement`; forward and backward use the locked provider's directly rounded reciprocal count with native T arithmetic.
-- Acceptance checklist: [x] integer and F16 baseline executed; [ ] integer compile-fail coverage; [ ] F16 boundary and ordinary float forward/backward; [ ] final-head lint/docs; [ ] hosted required checks; [ ] reviewed integration.
+- Evidence: baseline mean admits i32 and its gradient is `[0,0]`; the integer compile-fail doctest fails because it compiles. Baseline F16 regression returns bits 0 instead of 256. With the fix, all four focused native regressions pass; autograd/NN native tests pass 680 with 8 existing skips, doctests pass 20 + 8 with 2 existing NN ignores. All-targets Clippy and rustdoc deny warnings; format and diff hygiene pass. `mse_loss` propagates the new bound; migration is [ADR 0079](docs/adr/0079-autograd-mean-float-contract.md#migration).
+- Acceptance checklist: [x] integer and F16 baseline executed; [x] integer compile-fail coverage; [x] F16 boundary and ordinary float forward/backward; [x] local lint/docs; [ ] hosted required checks; [ ] reviewed integration.
+- Gate status: the Python linking prerequisite and approved full Python native run pass (85/85 including all TCP cases). The earlier loopback denial is resolved through the approved escalation. Trusted full-workspace/hosted checks and reviewed integration remain pending; no gate bypass, coverage deletion or timeout change.
 - Residual: Miri deferred and unverified. Do not resume the separate held task, change coverage/time limits, merge, or publish.
 
 <a id="coeus-scalar-vocab"></a>
