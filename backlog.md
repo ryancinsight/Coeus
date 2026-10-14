@@ -30,13 +30,13 @@ verification, tightening, feature}.
 <a id="coeus-autograd-mean-contract-001"></a>
 ## COEUS-AUTOGRAD-MEAN-CONTRACT-001 — Enforce floating-point mean and valid count scaling
 
-- Status: blocked (trusted local gates pass; prerequisite draft PR access is denied); priority: correctness; [major] [patch]; basis: 93d24974; target: 0.13.0.
+- Status: blocked (trusted local gates pass; draft [#528](https://github.com/ryancinsight/Coeus/pull/528) open; hosted checks/review and publication hold remain); priority: correctness; [major] [patch]; basis: 93d24974; target: 0.13.0.
 - Finding: whole-tensor autograd mean admits i32 `[1,2]`, yielding 1 with gradient `[0,0]`; F16 one-hot length 65536 yields bits 0 rather than exact 2^-16 (`0x0100`) because count conversion overflows.
-- Ownership: no open Coeus PR on 2026-10-14; #494 closed unmerged, #523 merged the GPU restriction. Current autograd source contradicts the historical claim that its float bound landed.
+- Ownership: no open Coeus PR before this claim on 2026-10-14; draft #528 now owns this fix. #494 closed unmerged, #523 merged the GPU restriction. Baseline autograd source contradicts the historical claim that its float bound landed.
 - Outcome: `MeanOp` and `mean` require `FloatElement`; forward and backward use the locked provider's directly rounded reciprocal count with native T arithmetic.
 - Evidence: baseline mean admits i32 and its gradient is `[0,0]`; the integer compile-fail doctest fails because it compiles. Baseline F16 regression returns bits 0 instead of 256. With the fix, all four focused native regressions pass; autograd/NN native tests pass 680 with 8 existing skips, doctests pass 20 + 8 with 2 existing NN ignores. All-targets Clippy and rustdoc deny warnings; format and diff hygiene pass. `mse_loss` propagates the new bound; migration is [ADR 0079](docs/adr/0079-autograd-mean-float-contract.md#migration).
 - Acceptance checklist: [x] integer and F16 baseline executed; [x] integer compile-fail coverage; [x] F16 boundary and ordinary float forward/backward; [x] local lint/docs; [x] trusted full-workspace gate; [ ] hosted required checks; [ ] reviewed integration.
-- Gate status: the unchanged trusted pre-push workspace gate passes for this implementation (recorded in the validation commit's `Verification-Head` trailer), including source identity and all native TCP coverage. The connected GitHub integration denies prerequisite draft PR creation with HTTP 403, `Resource not accessible by integration`; creation of this dependent PR is held and has not been attempted. Hosted required checks and reviewed integration remain pending; no alternate PR credential route or gate bypass.
+- Gate status: the unchanged trusted pre-push workspace gate passes for implementation `626f69c3b30379b91fa88156036eb164e29dfd26`, including source identity and all native TCP coverage. After the historical connector HTTP 403, the user explicitly authorized the existing `gh` account; draft #528 now targets #527 without credential or permission changes. Hosted required checks and reviewed integration remain pending; no gate bypass.
 - Residual: Miri deferred and unverified. Do not resume the separate held task, change coverage/time limits, merge, or publish.
 
 <a id="coeus-scalar-vocab"></a>
