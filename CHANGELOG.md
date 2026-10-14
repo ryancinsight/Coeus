@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.12.1] - Unreleased
 
 ### Changed
 
@@ -93,6 +93,11 @@
   wrapper is retained.
 
 ### Fixed
+
+- [patch] Native Python binding tests retain PyO3's Python-library linkage;
+  Maturin wheel builds select `pyo3/extension-module` from `pyproject.toml`.
+  Workspace native CI includes the bindings with CPython 3.13, preserving
+  TCP coverage and existing test/job deadlines.
 
 - [patch] GPU unary activations decode single parameters from their public
   `f64` bit encoding. Staggered preparation rejects invalid spacing before

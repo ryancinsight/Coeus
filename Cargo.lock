@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-autograd"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -397,7 +397,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -411,7 +411,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-cuda"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bytemuck",
  "coeus-autograd",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-dist"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-fft"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "apollo-fft",
  "coeus-autograd",
@@ -459,7 +459,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-hephaestus"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -474,7 +474,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-leto"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-core",
  "leto",
@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-metal"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-core",
  "coeus-hephaestus",
@@ -498,7 +498,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-nn"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-optim"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-python"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-rocm"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-core",
  "coeus-hephaestus",
@@ -580,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-sparse"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "coeus-core",
  "coeus-ops",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -612,7 +612,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-wgpu"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "bytemuck",
  "coeus-autograd",
