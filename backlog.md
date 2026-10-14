@@ -5,6 +5,17 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
+<a id="coeus-release-package-resolution"></a>
+## COEUS-RELEASE-PACKAGE-RESOLUTION — Unblock complete 0.13.0 package verification
+
+- Status: blocked; priority: verification; [patch]; found while validating [PR #528](https://github.com/ryancinsight/Coeus/pull/528).
+- Outcome: every intended 0.13.0 crate passes the unchanged package and release gates before integration/publication.
+- Evidence: the pinned release planner at Atlas `0e074f34` verifies `coeus-core`, `coeus-tensor`, `coeus-leto`, `coeus-ops`, and `coeus-sparse` on the resolved PR #528 tree. It holds the other ten pending crates; a successful partial plan is not complete release validation.
+- Internal blocker: `coeus-autograd` has a versioned `coeus-nn` dev-dependency, while `coeus-nn` depends on `coeus-autograd`. Packaging the pending set cannot resolve `coeus-autograd = ^0.13.0` before either version exists in the registry; native workspace tests do not establish registry package viability.
+- Provider blocker: the locked `hephaestus-core = ^0.20.2` requirement is absent from crates.io (latest observed 0.20.1), holding the accelerator package chain. Do not downgrade the tested provider graph to bypass this wait.
+- Acceptance: resolve the package dependency cycle while retaining its regression coverage, make the intended provider versions available, then run complete package verification and blocking release/API checks on the exact final head. Miri remains deferred and unverified.
+- Next step: decide the package-test dependency layout and coordinate the provider release; keep PR #528 open until the applicable release gates pass.
+
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`
 

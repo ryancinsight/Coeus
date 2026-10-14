@@ -28,7 +28,6 @@
   2^-16 (`0x0100`) instead of zero from count overflow. Sum and scaling
   remain in the native element type; empty mean retains NaN.
 
-
 - [patch] F16 `Float::MIN_POSITIVE` uses Eunomia's named constant, bits
   `0x0400` (2^-14), the smallest positive normal binary16 value.
 
