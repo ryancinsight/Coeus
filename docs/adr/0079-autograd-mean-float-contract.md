@@ -65,3 +65,20 @@ versioned autograd-to-NN development edge, so autograd can package before NN.
 Each package retains its own executable test fixtures; no cross-package test
 paths or stripped dependencies are used to hide the cycle. The combined test
 inventory remains 688 cases, including the same eight existing skips.
+
+## Current provider cohort integration
+
+The correctly versioned current provider contract is Eunomia 0.10, published
+from a231e54d; Aequitas 0.3 and Mnemosyne-memory 0.10 have verified registry
+receipts. The coordinated graph also requires Hermes 0.9, Leto/Leto-ops 0.46,
+Hephaestus 0.22 and Apollo FFT 0.29. Coeus 0.13 remains unpublished, so this
+same minor boundary covers its changed public provider identities and generic
+bounds. Do not issue an intermediate old-provider compatibility release.
+
+PR #532's normally merged default is integrated without file changes because
+its complete implementation already belongs to #528. Separate borrowed-CSR
+PR #533 remains with its owner. Preparing dependency requirements preserves
+every numerical implementation and regression; the old precise lock stays
+until all intended provider defaults resolve. Rerun native, lint, docs, all
+15 standard packages, blocking API and exact-head required CI after that lock
+transition. Metadata/source-only evidence does not establish final acceptance.

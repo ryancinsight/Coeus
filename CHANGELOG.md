@@ -4,6 +4,11 @@
 
 ### Breaking
 
+- [major] Prepare the current public provider cohort on unpublished 0.13.0:
+  Eunomia 0.10, Mnemosyne-memory 0.10, Hermes 0.9, Leto 0.46, Hephaestus 0.22
+  and Apollo FFT 0.29. Precise lock resolution and final release acceptance
+  remain pending upstream default/publication prerequisites.
+
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
   provider mean and `mean_axis`. Integer callers explicitly choose a floating
   tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
