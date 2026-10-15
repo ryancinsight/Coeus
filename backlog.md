@@ -66,9 +66,11 @@ verification, tightening, feature}.
 - Finding: of #530's 304 files, ~200 modified files remain unsampled after slices S1–S3 and the fusion/pool/einsum verdicts.
 - Batch 1 verdicts (2026-10-15, `89cb08b0..16a73a81` vs main `f0d01021`): `dtype/float/cpu_unary.rs` — `ZERO`/`ONE` landed (64 sites, zero `zero()`/`one()` left); its per-site `FloatElement::from_f64` rewrite folds into COEUS-SCALAR-VOCAB (no slice — pre-empts the ADR). `cpu_impl/unfold_fold.rs` + `validation.rs` deletion — unique, filed as COEUS-UNFOLD-LETO-CHAIN. `tests/alloc_budget.rs` attribution machinery — unique, filed as COEUS-ALLOC-ATTRIBUTION. Gradcheck `GradcheckConfig`/tolerance-scale — landed independently (`gradcheck_with`, error/tests split; 431-line file under budget); the sweep's exact 5-way split dropped as stylistic.
 - Next samples by diff size: vendor `pool.rs` ×2 (436/433), vendor `unfold_fold.rs` ×2 (227/224), `coeus-optim/src/least_squares/tests.rs` (211). `coeus-leto/src/dispatch/unfold_fold.rs` (210) folds into COEUS-UNFOLD-LETO-CHAIN.
+- Batch 2 verdicts (2026-10-15): vendor `pool.rs` ×2 and `unfold_fold.rs` ×2 deletions — dropped as superseded (main's concrete vendor spelling won; sweep `pooling/`+`unfold_fold/` bridge logic verified line-identical to main modulo landed renames and fallible `make_unique`). `least_squares/tests.rs` — `ZERO` landed; its `+ FloatElement` bounds fold into COEUS-SCALAR-VOCAB (option-2 direction, no piecemeal port).
+- Next samples: `coeus-wgpu/src/lib.rs` (223), `coeus-wgpu/src/backend/mod.rs` (215), `coeus-cuda/src/backend/provider.rs` (215).
 - Method: per file, extract distinctive added lines and grep current main for them (landed) vs genuine absence (unique); port uniques as slices, record drops with rationale. Never close on resemblance.
 - Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
-- Next step: sample vendor `pool.rs` ×2.
+- Next step: sample `coeus-wgpu/src/lib.rs`.
 
 <a id="coeus-unfold-leto-chain"></a>
 ## COEUS-UNFOLD-LETO-CHAIN — Delegate CPU unfold/fold to leto (contract-gated)
