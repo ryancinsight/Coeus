@@ -72,9 +72,11 @@ verification, tightening, feature}.
 - Next samples: vendor `reduction.rs` ×2 (147/146), `coeus-cuda/src/backend/mod.rs` (133), `backend/error.rs` ×2 (130/125).
 - Batch 5 verdicts (2026-10-15): vendor `reduction.rs` ×2 deletions — dropped as superseded (main's concrete impls carry the same `ReductionProvider` bounds plus later `unsafe` hardening). `coeus-cuda/src/backend/mod.rs` deletion — converged: main independently restructured to `backend.rs`, all 5 public items (`ops`, `CudaScalar`, device fns, `CudaBackend`) verified present. `error.rs` ×2 deletions — dropped (main retains the concrete vendor error types).
 - Next samples: vendor `attention.rs` (124), `coeus-python/src/ops/elementwise.rs` (121), `dtype/complex.rs` (120), vendor `optim.rs`/`optimizer.rs` (117/116).
+- Batch 6 verdicts (2026-10-15): vendor `attention.rs` deletion — dropped as superseded (main retains the 119-line concrete impls). `elementwise.rs` + `tensor/dispatch.rs` — unique, ported re-cut as #545 (sweep predates fallibility; main already owns fallible `unary_dispatch`, so the slice exposes it crate-wide, adds `binary_dispatch`, converts 34 sites; `scalar_*` keep direct construction — the sweep's `from_var` conversion there would change grad-mode semantics). `dtype/complex.rs` vocab migration — folds into COEUS-SCALAR-VOCAB (option-2 direction).
+- Next samples: vendor `optim.rs`/`optimizer.rs` (117/116), vendor `cross_entropy.rs` (114), `dtype/complex.rs` siblings by rank.
 - Method: per file, extract distinctive added lines and grep current main for them (landed) vs genuine absence (unique); port uniques as slices, record drops with rationale. Never close on resemblance.
 - Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
-- Next step: sample vendor `attention.rs`.
+- Next step: sample vendor `optim.rs`/`optimizer.rs`.
 
 <a id="coeus-unfold-leto-chain"></a>
 ## COEUS-UNFOLD-LETO-CHAIN — Delegate CPU unfold/fold to leto (contract-gated)
