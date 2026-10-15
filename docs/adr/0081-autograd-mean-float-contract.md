@@ -86,3 +86,17 @@ transition. Metadata/source-only evidence does not establish final acceptance.
 Moirai #623 separately owns compatible runtime 0.9.3 for its private Mnemosyne
 0.10 edge. Require 0.9.3 after its reviewed publication; no older runtime graph
 or duplicate implementation supplies acceptance. Preserve #622 and Metis #504.
+
+## Current integration evidence
+
+Leto and Leto-ops 0.46 are now published from 8b4ab407 with independently verified
+archive checksums/VCS and reviewed-tree equality. Existing Hephaestus #493 and
+Apollo #672 own the remaining cohort versions and final source refresh. Their
+public version boundaries match this preparation; the Hephaestus candidate's
+six standard packages compile against the real published registry graph. Do
+not duplicate those provider changes or infer final Coeus acceptance from them.
+
+Current main's math and dtype-trait splits are integrated without changing the
+four numerical implementation/regression files or incoming Rust bodies. Rename
+only this ADR to 0081 because newly merged main owns 0079/0080. Preserve that
+ownership and run all final Coeus gates on the eventual actual provider graph.
