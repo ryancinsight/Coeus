@@ -22,7 +22,7 @@ use coeus_tensor::Tensor;
     clippy::type_complexity,
     reason = "the established sort contract returns sorted values and source indices together"
 )]
-pub fn sort<T: Scalar + PartialOrd, B: BackendOps<T> + Default>(
+pub fn sort<T: Scalar + PartialOrd + coeus_core::TryFromCount, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     axis: usize,
     descending: bool,
@@ -75,7 +75,8 @@ where
             for (a, (val, orig_idx)) in pairs.into_iter().enumerate() {
                 let flat = o * (axis_len * inner) + a * inner + i;
                 out_vals[flat] = val;
-                out_idx[flat] = T::from_f64(orig_idx as f64);
+                out_idx[flat] =
+                    T::try_from_count(orig_idx).expect("sort axis positions fit the element type");
             }
         }
     }

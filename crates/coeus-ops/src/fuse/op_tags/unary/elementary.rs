@@ -1,5 +1,5 @@
 use super::UnaryOpTag;
-use coeus_core::{FloatOps, Scalar};
+use coeus_core::{FloatElement, FloatOps, Scalar};
 
 #[derive(Clone, Copy)]
 /// ReLU operation tag.
@@ -80,22 +80,22 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Sign {
 /// Element-wise floor.
 #[derive(Clone, Copy)]
 pub struct Floor;
-impl<T: Scalar + FloatOps> UnaryOpTag<T> for Floor {
+impl<T: Scalar + FloatOps + FloatElement> UnaryOpTag<T> for Floor {
     const WGSL_TEMPLATE: &'static str = "floor(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).floor())
+        <T as FloatElement>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).floor())
     }
 }
 
 /// Element-wise ceil.
 #[derive(Clone, Copy)]
 pub struct Ceil;
-impl<T: Scalar + FloatOps> UnaryOpTag<T> for Ceil {
+impl<T: Scalar + FloatOps + FloatElement> UnaryOpTag<T> for Ceil {
     const WGSL_TEMPLATE: &'static str = "ceil(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).ceil())
+        <T as FloatElement>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).ceil())
     }
 }
 
@@ -105,21 +105,23 @@ impl<T: Scalar + FloatOps> UnaryOpTag<T> for Ceil {
 /// has the same ties-to-even contract.
 #[derive(Clone, Copy)]
 pub struct Round;
-impl<T: Scalar + FloatOps> UnaryOpTag<T> for Round {
+impl<T: Scalar + FloatOps + FloatElement> UnaryOpTag<T> for Round {
     const WGSL_TEMPLATE: &'static str = "round(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).round_ties_even())
+        <T as FloatElement>::from_f64(
+            <T as coeus_core::NumericElement>::to_f64(x).round_ties_even(),
+        )
     }
 }
 
 /// Element-wise truncation toward zero.
 #[derive(Clone, Copy)]
 pub struct Trunc;
-impl<T: Scalar + FloatOps> UnaryOpTag<T> for Trunc {
+impl<T: Scalar + FloatOps + FloatElement> UnaryOpTag<T> for Trunc {
     const WGSL_TEMPLATE: &'static str = "trunc(({}))";
     #[inline(always)]
     fn apply(x: T) -> T {
-        <T as Scalar>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).trunc())
+        <T as FloatElement>::from_f64(<T as coeus_core::NumericElement>::to_f64(x).trunc())
     }
 }

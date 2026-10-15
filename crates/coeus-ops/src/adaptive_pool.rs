@@ -16,7 +16,7 @@
 // The non-contiguous slow-path falls back to `get/set`.
 
 use crate::backend_ops::BackendOps;
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement};
 use coeus_tensor::Tensor;
 
 // ── Region helpers ────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ fn region_end(i: usize, in_size: usize, out_size: usize) -> usize {
 /// # Memory
 /// Output is allocated uninitialized (`alloc_on`); every `[n, c, o]` position
 /// is written by the loop before the function returns.
-pub fn adaptive_avg_pool1d<T: Float, B: BackendOps<T> + Default>(
+pub fn adaptive_avg_pool1d<T: Float + FloatElement, B: BackendOps<T> + Default>(
     input: &Tensor<T, B>,
     output_size: usize,
     backend: &B,
@@ -63,7 +63,7 @@ where
             for oi in 0..output_size {
                 let start = region_start(oi, l, output_size);
                 let end = region_end(oi, l, output_size);
-                let count = T::from_f64((end - start) as f64);
+                let count = T::from_count(end - start);
                 let mut acc = T::ZERO;
                 for li in start..end {
                     acc += input.get(&[ni, ci, li]);
@@ -129,7 +129,7 @@ where
 /// # Memory
 /// Output is `alloc_on` (uninitialized); parallel_for writes every `(oh, ow)`
 /// position — no zero-initialization overhead.
-pub fn adaptive_avg_pool2d<T: Float, B: BackendOps<T> + Default + Backend>(
+pub fn adaptive_avg_pool2d<T: Float + FloatElement, B: BackendOps<T> + Default + Backend>(
     input: &Tensor<T, B>,
     out_h: usize,
     out_w: usize,
@@ -171,7 +171,7 @@ where
             for ow in 0..out_w {
                 let ws = region_start(ow, w, out_w);
                 let we = region_end(ow, w, out_w);
-                let count = T::from_f64(((he - hs) * (we - ws)) as f64);
+                let count = T::from_count((he - hs) * (we - ws));
                 let mut acc = T::ZERO;
                 for hi in hs..he {
                     for wi in ws..we {
