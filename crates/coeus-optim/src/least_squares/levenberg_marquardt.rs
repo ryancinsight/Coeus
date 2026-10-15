@@ -1,6 +1,6 @@
 //! Damped Gauss-Newton (Levenberg-Marquardt) for small dense problems.
 
-use coeus_core::Scalar;
+use coeus_core::{FloatElement, Scalar};
 use leto::{Array1, Array2};
 use leto_ops::{cholesky_solve, RealScalar};
 
@@ -57,9 +57,9 @@ pub enum SolverError {
 /// Composes coeus's element vocabulary with leto's dense-linear-algebra
 /// vocabulary, the same bridge `AttentionScalar` uses in `coeus-leto`: the
 /// solver's arithmetic is coeus's, and the normal-equations solve is leto's.
-pub trait LeastSquaresScalar: Scalar + RealScalar {}
+pub trait LeastSquaresScalar: Scalar + RealScalar + FloatElement {}
 
-impl<T: Scalar + RealScalar> LeastSquaresScalar for T {}
+impl<T: Scalar + RealScalar + FloatElement> LeastSquaresScalar for T {}
 
 /// Damping is abandoned past this factor; beyond it the step is numerically a
 /// zero-length gradient step and further increases cannot recover a solve.
@@ -300,11 +300,11 @@ fn jacobian_transpose_times<T: Scalar>(
     gradient
 }
 
-fn half_sum_of_squares<T: Scalar>(values: &[T]) -> T {
+fn half_sum_of_squares<T: Scalar + FloatElement>(values: &[T]) -> T {
     let sum = values
         .iter()
         .fold(T::ZERO, |accumulator, value| accumulator + *value * *value);
-    sum / T::from_f64(2.0)
+    sum / <T as FloatElement>::from_f64(2.0)
 }
 
 fn euclidean_norm<T: Scalar>(values: &[T]) -> T {
@@ -329,12 +329,12 @@ fn infinity_norm<T: Scalar>(values: &[T]) -> T {
 ///
 /// NaN fails every comparison, and an infinity fails the bound against the
 /// largest finite magnitude the type round-trips.
-fn is_finite<T: Scalar>(value: T) -> bool {
+fn is_finite<T: Scalar + FloatElement>(value: T) -> bool {
     let magnitude = value.abs_val();
-    magnitude >= T::ZERO && magnitude <= T::from_f64(f64::MAX)
+    magnitude >= T::ZERO && magnitude <= <T as FloatElement>::from_f64(f64::MAX)
 }
 
-fn check_finite<T: Scalar>(
+fn check_finite<T: Scalar + FloatElement>(
     values: &[T],
     evaluation: &'static str,
     iteration: usize,
