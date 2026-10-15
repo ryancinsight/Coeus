@@ -54,7 +54,7 @@ fn staged_scalar_fns_agree(n: usize) {
 
 #[test]
 fn crossover_is_measured_constant() {
-    assert_eq!(CudaBackend::new().host_staging_crossover(), 1_048_576);
+    assert_eq!(CudaBackend::new().host_staging_crossover(), 131_072);
 }
 
 #[test]
@@ -65,4 +65,30 @@ fn staged_scalars_match_host_below_crossover() {
     staged_scalar_fns_agree(1);
     staged_scalar_fns_agree(1000);
     staged_scalar_fns_agree(65_535);
+}
+
+#[test]
+fn device_scalars_match_host_above_crossover() {
+    if !device_available() {
+        return;
+    }
+    // Above the crossover the device kernel runs; rounding may differ from
+    // the host kernel, so compare with tolerance instead of bitwise equality.
+    let seq = SequentialBackend::new();
+    let backend = CudaBackend::new();
+    let n = 200_000usize;
+    assert!(n >= backend.host_staging_crossover());
+    let values: Vec<f32> = (0..n).map(|i| (i as f32 * 0.37).sin() + 2.0).collect();
+    let host = Tensor::<f32, SequentialBackend>::from_slice([n], &values)
+        .expect("invariant: test backend operation succeeds");
+    let device = host
+        .to_backend_on(&seq, &backend)
+        .expect("invariant: test backend operation succeeds");
+    let gpu =
+        coeus_ops::sum(&device, &backend).expect("invariant: test backend operation succeeds");
+    let cpu = coeus_ops::sum(&host, &seq).expect("invariant: test backend operation succeeds");
+    assert!(
+        (gpu - cpu).abs() < 1e-3 * n as f32,
+        "resident sum mismatch: gpu={gpu} cpu={cpu}"
+    );
 }
