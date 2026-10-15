@@ -103,7 +103,13 @@ fn invalid_signed_indices_return_typed_errors() {
         let _phase = tracing::info_span!("arrange").entered();
         (tensor(&[1], &[2.0]), tensor(&[1, 1], &[3.0]))
     };
-    for (column, offsets) in [(-1, [0, 1]), (i64::MAX, [0, 1]), (0, [0, -1]), (0, [0, 2])] {
+    for (column, offsets) in [
+        (-1, [0, 1]),
+        (i64::MAX, [0, 1]),
+        (0, [0, -1]),
+        (0, [0, 2]),
+        (0, [0, i64::MAX]),
+    ] {
         let a = {
             let _phase = tracing::info_span!("arrange", column).entered();
             csr([1, 1], &[5.0], &[column], &offsets)
@@ -129,14 +135,32 @@ fn invalid_signed_indices_return_typed_errors() {
                     i64::MAX,
                     _,
                     BackendError::IndexOutOfRange {
-                        position, bound, ..
+                        position,
+                        index,
+                        bound,
+                        ..
                     },
-                ) => assert_eq!((position, bound), (0, 1)),
+                ) => assert_eq!(
+                    (position, index, bound),
+                    (0, usize::try_from(i64::MAX).unwrap_or(usize::MAX), 1)
+                ),
                 (_, -1, BackendError::InvalidNumericInput { reason, .. }) => {
                     assert!(reason.contains("negative CSR row offset"))
                 }
                 (_, 2, BackendError::Storage { reason, .. }) => {
                     assert!(reason.contains("outside 0..=1"))
+                }
+                (_, i64::MAX, BackendError::InvalidNumericInput { reason, .. })
+                    if usize::try_from(i64::MAX).is_err() =>
+                {
+                    // Preserve today's conversion-failure category/message
+                    // on narrower targets, even for this positive offset.
+                    assert!(reason.contains("negative CSR row offset"));
+                }
+                (_, i64::MAX, BackendError::Storage { reason, .. })
+                    if usize::try_from(i64::MAX).is_ok() =>
+                {
+                    assert!(reason.contains("outside 0..=1"));
                 }
                 (_, _, error) => panic!("unexpected rejection: {error:?}"),
             }

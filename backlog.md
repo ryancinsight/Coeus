@@ -27,6 +27,7 @@ verification, tightening, feature}.
 - Provider proposal: Leto ADR 0036 specifies the signed/stored-order borrowed
   product, explicit arithmetic policy and a prevalidated row dispatch scope.
   Architectural sign-off remains pending before implementation work opens.
+  Review: [Leto #362](https://github.com/ryancinsight/leto/pull/362).
 - Additional prerequisite: make `Backend::parallel_for` completion on unwind
   explicit and verify every real backend before erasing scoped lifetimes in
   the generic adapter. This implementor-contract change needs a reviewed ADR

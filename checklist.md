@@ -1,6 +1,7 @@
 # Coeus sparse recovery checklist
 
-Active target: **0.12.1**. Owner: Codex. Base: `cd8e984e0d9c4f3621bd89f7830646de845a22e5`.
+Active target: **0.12.1**. Owner: Codex. Current integration base:
+`dd27214f88a5c23e0e9abc58e014e58b902d67fb` (original audit: `cd8e984e`).
 
 ## Borrowed dispatch recovery [patch]
 
@@ -15,7 +16,7 @@ Active target: **0.12.1**. Owner: Codex. Base: `cd8e984e0d9c4f3621bd89f7830646de
 - [x] [patch] Synchronize evidence and prepare the independent reviewable change.
 
 Local evidence: 293 native tests and 38 doctests pass; strict Clippy and
-formatting pass; three selected Miri cases pass; the locked API comparison
+formatting pass; eight selected Miri cases pass in both borrow models; the locked API comparison
 passes 223 checks (30 tool skips). Fresh Git resolution and attempted 32-bit
 memory checks remain limited by existing provider failures. The bridge is a
 complete compatible increment; the tensor forward migration remains open.
@@ -31,3 +32,10 @@ checklist item opens before its decision and the downstream backend unwind
 contract review. Exact power-of-two fixture corrections retain the 0.12.1
 patch scope; all 293 native tests and five forward-contract Miri cases pass
 under both borrow models. Strict package diagnostics and formatting pass.
+
+Current-main merge `fdd719e4` revalidates 293 native cases, 38 doctests, eight
+Miri cases in both models, strict Clippy and the 223-check API comparison
+with Moirai 0.9.2 and Leto `248fe4f6`. Repeated paired bridge ratios are
+0.718, 0.889, 0.916 and 0.968; the unintegrated serial-provider large SpMV
+still costs 2.008 times current Moirai execution. Detailed revision and
+measurement evidence remains in the sparse recovery record.

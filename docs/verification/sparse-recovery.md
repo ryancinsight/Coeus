@@ -7,7 +7,7 @@ the tensor forward cutover is complete. Preservation draft
 [Coeus #531](https://github.com/ryancinsight/Coeus/pull/531), head
 `4b7d360efdd829538ea68905795c02b7bd4f4252`, remains intact.
 
-The base is Coeus main `cd8e984e0d9c4f3621bd89f7830646de845a22e5`.
+The original audit base is Coeus main `cd8e984e0d9c4f3621bd89f7830646de845a22e5`.
 Its canonical lock selects Leto `30a02d338f2d291dbb5725c366d3571dd68171b8`
 (0.45.2), Hermes `f0138e4e9a521196d8b7c06420663581077488ff`
 (0.8.1), and Moirai `ddde64ef33a2fcd73773e22466fd60c52239f205`
@@ -16,6 +16,11 @@ has the same relevant borrowed-CSR, arithmetic and serial scheduling contracts.
 The rescue cites ADR 0035; no Coeus ADR with that number appears in the
 preserved tree or current main. The decisions below use current executable
 contracts.
+
+The branch subsequently integrates main
+`dd27214f88a5c23e0e9abc58e014e58b902d67fb` without rewriting the rescue history.
+The final section records repeated checks and performance on that provider
+graph; earlier measurements remain historical evidence for the original base.
 
 ## Compatible increment
 
@@ -219,6 +224,7 @@ architectural sign-off before implementation. The generic Coeus adapter also
 needs an explicit `Backend::parallel_for` unwind-completion obligation and a
 reviewed implementor-contract change; the present Safety text states its
 guarantees on normal return. The forward cutover is therefore [arch] work.
+The concrete provider proposal is [Leto draft #362](https://github.com/ryancinsight/leto/pull/362).
 
 Provider Miri characterization exposed an inexact numerical fixture:
 `powi(53)` is not a guaranteed-exact way to construct `2^53` under
@@ -244,3 +250,82 @@ MIRIFLAGS=-Zmiri-strict-provenance cargo +nightly miri nextest run --offline --l
   -p coeus-ops --test ops -E 'test(sparse::forward_contracts::)'
 # Repeat with MIRIFLAGS='-Zmiri-strict-provenance -Zmiri-tree-borrows'.
 ```
+
+## Current-main integration and repeated performance
+
+Main advances during the provider specification to
+`dd27214f88a5c23e0e9abc58e014e58b902d67fb` (Moirai 0.9 migration). Merge
+`fdd719e48f77f9380454c9d9bcf490b7f3d0a88e` integrates it on the independent
+recovery branch. Relevant tensor-forward, scalar, backend and CPU storage
+source contracts remain unchanged. The updated canonical lock selects:
+
+- Leto 0.45.2 at `248fe4f63c674f6fca1f89ac19c1f817e67bc417`.
+- Eunomia 0.9.1 at `0f4898f86856980b1825805e27fa80f587caf821`.
+- Hermes 0.8.2 at `b4d73c94ebce3699d0162ea9196ec6f45fe28af0`.
+- Moirai 0.9.2 at `2b189f0a8aaf4a45aab1f2085c2ec748e483b8b3`.
+
+Every external package entry equals current main's lock. A new main export
+receives only the identical benchmark and its development dependency; all
+**615 production Rust source files** compare by Git blob hash with main.
+The candidate's tensor-forward source remains byte-identical to main.
+
+After integration and the final width-dependent regression assertion,
+**293 native tests pass** with zero skipped (Nextest run
+`b0a44630-9b6e-434f-b1b4-f7ad645ed5bd`), and strict all-target Clippy passes
+for both affected packages. All **38 warning-denied bridge doctests pass**
+again. These results exercise the updated graph; they do not rely on the
+earlier checks against Moirai 0.8.
+
+All **eight selected sparse memory cases pass in each borrow model** with
+strict provenance and isolation: Stacked run
+`d19abf18-318c-4469-9857-5730b065ff30` (12.434 seconds), Tree run
+`2e7d7af9-5960-4ecf-aea8-1eadf9f66525` (18.091 seconds); 285 unrelated tests
+are excluded. This combines the allocator/full-write bridge case, malformed
+CSR/dense output failure atomicity, empty-output bridge coverage and all five
+tensor-forward cases. Neither run receives a Nextest handle marker.
+
+The signed-index test now also checks a positive `i64::MAX` row offset.
+When representable, it exceeds `nnz` and returns `Storage`; on a narrower
+target, conversion fails with the existing `InvalidNumericInput` category
+and its "negative CSR row offset" message. An unrepresentable column returns
+`IndexOutOfRange` with `index = usize::MAX`. These error distinctions remain
+part of the integration contract. The 32-bit branch is not executed here;
+the earlier upstream 32-bit limitations remain explicitly unverified on the
+new graph, rather than silently receiving a green result.
+
+The locked API-only patch comparison repeats against current main: **223
+checks pass, 30 tool checks skip**. It generates baseline/candidate
+`coeus-leto` rustdoc JSON with Rust 1.97.0 and compares those files with
+`cargo semver-checks --release-type patch`. Both use the same current external
+lock. This establishes the reviewed bridge API comparison, not fresh-source
+resolution or registry availability. Formatting and diff checks also pass.
+
+The same 21-pair instrument, unchanged workloads and full dyadic value
+assertions repeat on the same Apple M4 Max host. The main bridge control's
+paired median ratios are **1.002, 0.998, 1.002, 1.000**, in table order.
+The candidate compares its borrowed bridge with the same owned reference:
+
+| Shape / RHS width | Owned reference median (us) | Borrowed median (us) | Paired ratio median [quartiles] |
+| --- | ---: | ---: | --- |
+| 1024 x 1024 / 1 | 9.446 | 6.808 | 0.718 [0.712, 0.724] |
+| 16384 x 16384 / 1 | 271.004 | 241.658 | 0.889 [0.884, 0.908] |
+| 1024 x 1024 / 16 | 28.604 | 26.140 | 0.916 [0.907, 0.921] |
+| 4096 x 4096 / 64 | 564.638 | 538.221 | 0.968 [0.939, 0.984] |
+
+The optimistic forward comparison still starts with native `usize` provider
+indices and includes validation and output allocation. It measures the
+prospective direct serial provider against current Coeus Moirai execution:
+
+| Shape / RHS width | Coeus median (us) | Direct provider median (us) | Paired ratio median [quartiles] |
+| --- | ---: | ---: | --- |
+| 1024 x 1024 / 1 | 6.050 | 7.041 | 1.168 [1.144, 1.195] |
+| 16384 x 16384 / 1 | 119.825 | 240.652 | 2.008 [1.964, 2.088] |
+| 1024 x 1024 / 16 | 354.820 | 32.125 | 0.090 [0.089, 0.091] |
+| 4096 x 4096 / 64 | 1042.539 | 526.525 | 0.494 [0.475, 0.525] |
+
+The host runs unrelated work, and the control measurement overlaps other
+verification. Paired samples and the owned control bound interpretation; no
+quiet-host or universal throughput claim follows. SpMM's fused-rounding
+counterexample remains `-2^-104` versus Coeus +0. Faster SIMD fixture times
+cannot waive that observable contract. The unchanged forward production
+source independently proves this bridge patch removes no backend scheduling.

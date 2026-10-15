@@ -15,6 +15,9 @@
 - [patch] Construct sparse numerical witnesses with exactly representable
   literals and native products instead of unspecified-precision power calls.
   All five tensor-forward contract cases pass strict-provenance Miri.
+- [patch] Pin platform-width-dependent signed-index error categories in the
+  regression suite and revalidate the bridge on current main's Moirai 0.9
+  dependency graph, including repeated value-checked performance comparisons.
 
 ## [Unreleased]
 
