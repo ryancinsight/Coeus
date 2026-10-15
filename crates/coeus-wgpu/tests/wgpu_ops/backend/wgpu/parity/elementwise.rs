@@ -53,11 +53,8 @@ fn parameterized_activations_match_sequential() {
 #[test]
 fn test_wgpu_parity_add() {
     let s = seq();
-    let a = Tensor::from_slice(
-        vec![4, 4],
-        &(0i16..16).map(|x| f32::from(x)).collect::<Vec<_>>(),
-    )
-    .expect("invariant: test backend operation succeeds");
+    let a = Tensor::from_slice(vec![4, 4], &(0i16..16).map(f32::from).collect::<Vec<_>>())
+        .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
         &(0i16..16)
@@ -76,11 +73,8 @@ fn test_wgpu_parity_add() {
 #[test]
 fn test_wgpu_parity_sub() {
     let s = seq();
-    let a = Tensor::from_slice(
-        vec![4, 4],
-        &(0i16..16).map(|x| f32::from(x)).collect::<Vec<_>>(),
-    )
-    .expect("invariant: test backend operation succeeds");
+    let a = Tensor::from_slice(vec![4, 4], &(0i16..16).map(f32::from).collect::<Vec<_>>())
+        .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
         &(0i16..16).map(|x| f32::from(x) * 0.5).collect::<Vec<_>>(),
@@ -148,7 +142,7 @@ fn test_wgpu_parity_div() {
 fn test_wgpu_assign_compacts_shared_rank_five_view() {
     let s = seq();
     let w = wgpu();
-    let values: Vec<f32> = (0i16..64).map(|value| f32::from(value)).collect();
+    let values: Vec<f32> = (0i16..64).map(f32::from).collect();
     let base = Tensor::from_slice([2, 2, 2, 2, 4], &values)
         .expect("invariant: test backend operation succeeds");
     let rhs = Tensor::from_slice([1, 1, 1, 1, 2], &[10.0, 20.0])
@@ -258,11 +252,8 @@ fn test_wgpu_partial_update_preserves_parent_and_shared_source() {
 fn test_wgpu_hephaestus_contiguous_binary_reuses_output_buffer() {
     let s = seq();
     let w = wgpu();
-    let a = Tensor::from_slice(
-        vec![4, 4],
-        &(0i16..16).map(|x| f32::from(x)).collect::<Vec<_>>(),
-    )
-    .expect("invariant: test backend operation succeeds");
+    let a = Tensor::from_slice(vec![4, 4], &(0i16..16).map(f32::from).collect::<Vec<_>>())
+        .expect("invariant: test backend operation succeeds");
     let b = Tensor::from_slice(
         vec![4, 4],
         &(0i16..16)
