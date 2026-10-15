@@ -32,7 +32,9 @@
 
 - [patch] Encode the known vector RHS width with checked fixed metadata in the
   shared provider kernel. Inline the tensor adapter to expose that information
-  to backend callbacks; matrix widths retain their dynamic policy.
+  to backend callbacks; matrix widths retain their dynamic policy. Provider
+  row validation combines representability/ordering checks without changing
+  rejection precedence.
 - [arch] Advance all workspace packages and local dependency bounds together
   to 0.13.0 for the approved sparse execution boundary. No publication or tag
   is part of this development change.

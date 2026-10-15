@@ -7,7 +7,7 @@ regenerates it and independently verifies `metadata --offline --locked`.
 
 | Review | Version / contract | Exact source |
 | --- | --- | --- |
-| [Leto #362](https://github.com/ryancinsight/leto/pull/362) | 0.47.0, signed stored-order views and prepared row tasks | `efa8ba2a4ffa1160b2c4b55257432698f4af0b55` |
+| [Leto #362](https://github.com/ryancinsight/leto/pull/362) | 0.47.0, signed stored-order views and prepared row tasks | `b7670636912f3eb5aee543ac561f32f0a5173b38` |
 | [Hephaestus #497](https://github.com/ryancinsight/hephaestus/pull/497) | 0.22.2, both Leto layers accept `>=0.46.0, <0.48.0` | `e867be0d346064ea5f956a8f78f81c31bff88af4` |
 | [Apollo #674](https://github.com/ryancinsight/apollo/pull/674) | FFT 0.29.2 and affected family patches; same compatible interval | `f8fa292ce86315875adaf2eeb365ef862aba63f4` |
 | [Coeus #533](https://github.com/ryancinsight/Coeus/pull/533) | 0.13.0, accepted backend unwind contract and checked tensor adapter | Review head records the current complete candidate |

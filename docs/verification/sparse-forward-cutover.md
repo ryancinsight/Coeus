@@ -254,3 +254,21 @@ wrong-width rejection, all sixteen scalar families, separate rounding, stored
 order and complete initialization. The coupled consumer passes strict
 all-workspace/all-target Clippy. Full native, docs/API, remaining memory/ARM32
 and same-workload performance gates must repeat for this new source.
+
+
+The complete fixed-width source passes 1272 native cases in an isolated clean
+build (`058412ed`, 2.212 s), 159 doctests, warning-denied docs, strict workspace
+Clippy, both thirteen-case consumer memory models (`e69cdb87`, 107.070 s;
+`bada2318`, 133.231 s), and all three explicit minor API comparisons. Provider
+passes nineteen cases per model and nine ARM32 cases per model, plus both
+strict Clippy modes, 219 feature-disabled native cases and 38 doctests.
+
+The same 21-pair repeat retains a 1.064 large-Moirai SpMV ratio even after
+fixed-width metadata. Row validation still scans offsets twice. The provider
+now fuses representability/ordering into one pass while deferring errors to
+preserve representation, endpoint, monotonicity and column priority. Three
+multiple-fault witnesses first pass on the unchanged validator (`53667e4d`).
+The fused provider passes 1202 native tests, zero skipped (`a90eb162`, 22.152 s)
+and strict Clippy before the downstream lock advances. Arithmetic, width policy
+and backend admission remain unchanged. Complete new-source checks and the
+unchanged performance workloads must repeat before final acceptance.
