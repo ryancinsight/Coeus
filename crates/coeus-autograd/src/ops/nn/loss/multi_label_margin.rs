@@ -183,7 +183,7 @@ where
         &loss_sum,
         &Tensor::full_on(
             [1],
-            T::ONE / <T as Scalar>::from_f64((n * c) as f64),
+            T::ONE / <T as coeus_core::FloatElement>::from_f64((n * c) as f64),
             &backend,
         )?,
         &backend,

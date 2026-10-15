@@ -54,7 +54,7 @@ where
             coeus_ops::add_assign(lock, &d_true, &backend)?;
         }
         if let Some(Some(ref g)) = input_grads.get(2) {
-            let one = Tensor::full_on(self.any_mask.shape(), T::from_f64(1.0), &backend)?;
+            let one = Tensor::full_on(self.any_mask.shape(), T::ONE, &backend)?;
             let inv = coeus_ops::sub(&one, &self.any_mask, &backend)?;
             let d_false = coeus_ops::mul(grad_out, &inv, &backend)?;
             let lock = g.write();
@@ -90,7 +90,7 @@ where
     let mask_neg = coeus_ops::elementwise_unary(&cond_neg, &backend, coeus_ops::UnaryOp::ReluGrad)?;
     let any_mask = coeus_ops::add(&mask_pos, &mask_neg, &backend)?;
 
-    let one = Tensor::full_on(any_mask.shape(), T::from_f64(1.0), &backend)?;
+    let one = Tensor::full_on(any_mask.shape(), T::ONE, &backend)?;
     let inv_mask = coeus_ops::sub(&one, &any_mask, &backend)?;
     let true_part = coeus_ops::mul(&on_true.tensor, &any_mask, &backend)?;
     let false_part = coeus_ops::mul(&on_false.tensor, &inv_mask, &backend)?;

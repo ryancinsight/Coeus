@@ -89,7 +89,7 @@ where
     clippy::type_complexity,
     reason = "the established top-k contract returns tracked values and indices together"
 )]
-pub fn topk<T: Scalar + leto_ops::Scalar, B>(
+pub fn topk<T: Scalar + coeus_core::FloatElement + leto_ops::Scalar, B>(
     input: &Var<T, B>,
     k: usize,
     dim: usize,
@@ -109,7 +109,7 @@ where
         .to_contiguous_on(&backend)?
         .as_slice()
         .iter()
-        .map(|&x| T::from_f64(x as f64))
+        .map(|&x| <T as coeus_core::FloatElement>::from_f64(x as f64))
         .collect();
     let top_indices = Tensor::from_slice_on(idx_i64.shape().to_vec(), &idx_data, &backend)?;
 

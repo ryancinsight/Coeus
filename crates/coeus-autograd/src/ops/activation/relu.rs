@@ -129,15 +129,24 @@ const SELU_SCALE: f64 = 1.050_700_987_355_480_5;
 /// ZST tag for SELU autograd.
 /// Backward: `scale` if `x > 0`, else `scale * alpha * exp(x)`.
 pub struct SeluOp;
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for SeluOp {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
+    UnaryAutogradOp<T, B> for SeluOp
+{
     const OP_NAME: &'static str = "selu";
 
     #[inline(always)]
     fn forward(x: &Tensor<T, B>, backend: &B) -> Result<Tensor<T, B>, B::Error> {
         let cond = coeus_ops::relu(x, backend)?;
-        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend)?;
-        let alpha_scale =
-            Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend)?;
+        let scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::FloatElement>::from_f64(SELU_SCALE),
+            backend,
+        )?;
+        let alpha_scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::FloatElement>::from_f64(SELU_ALPHA * SELU_SCALE),
+            backend,
+        )?;
         let pos = coeus_ops::mul(x, &scale, backend)?;
         let neg_base = coeus_ops::expm1(x, backend)?;
         let neg = coeus_ops::mul(&neg_base, &alpha_scale, backend)?;
@@ -152,9 +161,16 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
         backend: &B,
     ) -> Result<Tensor<T, B>, B::Error> {
         let cond = coeus_ops::relu(x, backend)?;
-        let scale = Tensor::full_on(x.shape(), T::from_f64(SELU_SCALE), backend)?;
-        let alpha_scale =
-            Tensor::full_on(x.shape(), T::from_f64(SELU_ALPHA * SELU_SCALE), backend)?;
+        let scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::FloatElement>::from_f64(SELU_SCALE),
+            backend,
+        )?;
+        let alpha_scale = Tensor::full_on(
+            x.shape(),
+            <T as coeus_core::FloatElement>::from_f64(SELU_ALPHA * SELU_SCALE),
+            backend,
+        )?;
         let neg = coeus_ops::mul(&coeus_ops::exp(x, backend)?, &alpha_scale, backend)?;
         let deriv = coeus_ops::where_cond(&cond, &scale, &neg, backend)?;
         coeus_ops::mul(grad_out, &deriv, backend)
@@ -163,7 +179,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> UnaryAutogradOp<T, B> for 
 
 /// Tracked SELU activation.
 #[inline]
-pub fn selu<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn selu<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error> {
     unary_op::<T, B, SeluOp>(a)
