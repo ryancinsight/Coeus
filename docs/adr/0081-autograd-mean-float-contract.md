@@ -96,12 +96,15 @@ identities independently verify. Apollo #672 is merged at 730f6262, and its
 matches its registry checksum and exact merged source. Preserve those owners'
 work; this Coeus continuation changes no provider branch or publication.
 
-At the refreshed graph, all four mean integration tests, two float-constant
-regressions and both integer compile-fail doctests pass. The complete native suite
-passes 1347 tests with eight existing skips. Strict all-target workspace Clippy,
-warning-denied docs and 161 doctests pass with two existing ignored examples.
-All 15 standard registry-normalized packages compile successfully. Blocking API
-and exact-head hosted checks remain pending.
+At the current graph, all four mean integration tests, two float-constant
+regressions and both integer compile-fail doctests pass. The complete native
+suite passes 1510 tests with WGPU/Metal device presence required and eight
+existing skips. Strict all-target workspace Clippy, warning-denied docs and
+161 doctests pass with two existing ignored examples. All 15 standard packages
+compile and all 15 actual published baseline/current API graph pairs complete.
+Automatic pre-1.0 breaking-version classification skips compatibility rules;
+this does not claim unchanged external-provider APIs. The single remaining
+cast guard conflict and final hosted checks still block integration.
 
 Current main's math and dtype-trait splits are integrated without changing the
 four numerical implementation/regression files. The authorized follow-up changes
@@ -135,7 +138,9 @@ Apollo #671 normally merges/publishes FFT 0.29.1 from its
 [reviewed source](https://github.com/ryancinsight/apollo/commit/f266bb0b319cda8dccde6090936967130f5af7da). Its actual
 archive checksum and clean VCS source independently verify. Require 0.29.1 and
 select that exact source through Cargo; every other precise provider source and
-all 231 registry records stay unchanged. The earlier all-1510 native (required
-WGPU/Metal), all-15 package/API and strict lint/docs evidence precedes this
-refresh, so repeat final checks on the updated graph. The remaining public-const
-narrowing prerequisite is unchanged; held Apollo #655 stays untouched.
+all 231 registry records stay unchanged. The updated graph
+repeats all 1510 native cases with WGPU/Metal device presence required, strict
+lint/docs, 161 doctests and all 15 standard package/API graph checks. The exact
+unchanged cast guard still rejects only the public-const narrowing expression.
+Native const casting itself works on Rust 1.95; the missing permitted provider
+entry point is the prerequisite. Held Apollo #655 stays untouched.
