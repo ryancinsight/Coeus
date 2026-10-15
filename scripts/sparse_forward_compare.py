@@ -39,7 +39,8 @@ def fingerprint(root: Path) -> dict[str, str]:
         package = root / "crates" / name
         for path in sorted((package / "src").rglob("*.rs")) + [package / "Cargo.toml"]:
             result[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
-    for relative in ("Cargo.toml", "crates/coeus-ops/benches/sparse_recovery.rs"):
+    for relative in ("Cargo.toml", "crates/coeus-ops/benches/sparse_recovery.rs",
+                     "scripts/sparse_forward_compare.py"):
         result[relative] = hashlib.sha256((root / relative).read_bytes()).hexdigest()
     return result
 
@@ -94,6 +95,11 @@ def main() -> None:
         (work / "Cargo.toml").write_text(manifest)
         (work / "Cargo.lock").write_bytes(options.review_lock.read_bytes())
         benchmark = (root / "crates/coeus-ops/benches/sparse_recovery.rs").read_text()
+        # The standalone instrument records its original audit base. This
+        # adapter extracts a caller-selected main revision, so label it exactly.
+        original_base = 'base = "33f6f1f0596d3e3d914d11e33b79fe48ba16da4c"'
+        assert benchmark.count(original_base) == 1, "benchmark base metadata changed"
+        benchmark = benchmark.replace(original_base, f'base = "{base}"')
         start = benchmark.index("fn forward_comparison<")
         end = benchmark.index("fn rounding_counterexample", start)
         # Only the comparison adapter changes. The fixture, oracle, workloads,

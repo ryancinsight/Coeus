@@ -26,15 +26,30 @@ verification, tightening, feature}.
   targets FFT 0.29.2, preserving current layout tests. [Leto #362](https://github.com/ryancinsight/leto/pull/362)
   owns the checked signed/stored-order product. Ten review providers resolve
   with zero excess identities, path patches or manifest revision pins.
-- Performance boundary: the final-lock repeat observes 2–8% median SpMV cost;
-  Moirai SpMM takes 9–32% of main time. Preserve that tradeoff with the earlier
-  near-parity results; neither is a universal throughput guarantee.
+- Performance boundary: the final same-workload repeat retains about 2–3% median SpMV
+  overhead in three cases; large sequential SpMV is near parity. Moirai SpMM
+  takes 9–30% of main time. Earlier adverse observations remain revision-scoped;
+  retained parallelism is not a universal throughput guarantee.
 - Next action: inspect final hosted receipts in [Coeus #533](https://github.com/ryancinsight/Coeus/pull/533),
   review the narrow-product cost, then integrate compatible providers under
   separate authorization. Refresh default sources and verify actual registry
   consumers before release. The fresh Coeus consumer still rejects unmerged
   Apollo ^0.29.2. Full ARM32/i686 interpreter runs remain upstream-build-limited;
   Linux Moirai topology remains unavailable under Miri isolation. Keep #531 intact.
+
+<a id="coeus-tcp-half-close-witness"></a>
+## COEUS-TCP-HALF-CLOSE-WITNESS — Classify early macOS socket setup failure [patch]
+
+- Status: reproduction open; priority: verification; owner: unclaimed.
+- Evidence: final sparse native run `1843e0bc` receives NoDelay/EINVAL before
+  the unchanged half-closed-stream test's expected Handshake/BrokenPipe. The
+  test and production TCP sources match main; 64 exact-main repetitions pass,
+  and the unchanged complete candidate passes 1272 cases (`dd7b6c1f`).
+- Acceptance: reproduce the real socket lifecycle failure, distinguish OS
+  setup ordering from the intended handshake witness, and verify a root fix
+  without weakening the expected error or replacing real network execution.
+- Next action: capture a recurrence on macOS with stream state and setup-phase
+  tracing. No TCP source changes belong to the focused sparse recovery.
 
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`

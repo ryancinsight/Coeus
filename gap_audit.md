@@ -4,46 +4,24 @@ Risks nobody is actively fixing. A risk with a planned fix is a backlog item
 instead (see `backlog.md`); a closed risk's residue lives in its ADR or PR,
 not here.
 
-## 2026-10-15 — Known-width adaptation cost [patch]
-
-The pre-specialization source passes every actual hosted gate. Inlining alone
-brings small-vector ratios near parity but leaves a 1.065 large-Moirai ratio.
-Checked fixed-width metadata now removes the runtime width representation for
-vectors through the same provider kernel. Provider native/strict/Stacked checks
-and consumer strict Clippy pass; complete current-source verification and the
-unchanged paired workloads remain the next action.
-
 ## 2026-10-15 — Borrowed CSR source contracts close
 
-The accepted provider seam and Coeus adapter remove copied CSR reconstruction
-and duplicate forward arithmetic while preserving signed-index checks,
-stored order, separate rounding, fallible storage, full initialization,
-exact typed diagnostics and backend dispatch. ADRs 0036/0081 record ownership
-and the approved backend unwind obligation. [The current verification record](docs/verification/sparse-forward-cutover.md)
-separates each exact-source result from the historical bridge audit.
+The accepted provider seam removes CSR copies and duplicated forward math,
+retaining signed portable addressing, typed diagnostics, stored order, separate
+rounding, fallible initialized output and backend row dispatch. Checked fixed
+widths and fused row checks pass the complete final local acceptance scope:
+1272 consumer/1202 provider native cases, strict diagnostics, docs/API, both
+memory models and ten provider ARM32 cases per model. Current evidence lives
+in [the forward record](docs/verification/sparse-forward-cutover.md).
 
-The final current-main graph passes 1272 native cases, strict Clippy, 159
-doctests, warning-denied documentation and three explicit minor API comparisons.
-Provider native/properties, both strict memory models, allocation guards and
-real threshold-crossing callbacks cover the new boundary. Complete Coeus
-current-head hosted receipts remain a pre-integration check in the backlog.
-
-Residuals have a defined next action in
-[COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward):
-
-- Final-lock SpMV medians cost 2–8% more; Moirai SpMM takes 9–32% of main time.
-  Review the narrow cost with all timing runs visible; do not infer universal
-  performance preservation from retained parallel dispatch.
-- Fresh Leto/Hephaestus/Apollo review consumers resolve one source per provider;
-  fresh Coeus still rejects unmerged Apollo ^0.29.2. Default/registry evidence
-  requires provider-first authorized integration, not another local lock seed.
-- Provider-only ARM32 executes eight cases in each strict model. Full Coeus
-  ARM32 stops before tests at Moirai's deque-alignment assertion; i686 stops at
-  Eunomia's binary64 alignment assertion. Neither is a full-consumer pass.
-- Linux's real Moirai topology `opendir` is unsupported under Miri isolation.
-  The full unchanged case executes in both macOS jobs; Linux additionally runs
-  all twelve other cases. Native limits, assertions, isolation and leak checks
-  remain intact.
+Residuals and concrete actions remain in
+[COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward): final tested
+SpMV cost about 2–3% in three cases; provider-first default/registry availability;
+full-consumer ARM32/i686 upstream alignment limits; Linux Moirai topology under
+Miri isolation; final hosted receipts before integration. The unclassified
+macOS socket setup observation has its own
+[reproduction item](backlog.md#coeus-tcp-half-close-witness). No safety rule,
+workload, oracle or native timeout is weakened to close this source increment.
 
 ## CUDA context creation failure remains unclassified
 

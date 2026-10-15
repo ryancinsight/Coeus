@@ -52,8 +52,9 @@
   numerical bits retain their existing behavior. Regression coverage checks
   allocation count, value semantics, failure atomicity and tensor-forward
   compatibility constraints. See the
-  [sparse recovery record](docs/verification/sparse-recovery.md) for the
-  independently measured limits of a general tensor-forward cutover.
+  [initial sparse recovery record](docs/verification/sparse-recovery.md) and
+  [current forward verification](docs/verification/sparse-forward-cutover.md)
+  for revision-scoped correctness, availability and performance evidence.
 - [patch] Construct sparse numerical witnesses with exactly representable
   literals and native products instead of unspecified-precision power calls.
   All five tensor-forward contract cases pass strict-provenance Miri.
