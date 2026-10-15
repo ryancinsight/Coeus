@@ -193,8 +193,11 @@ It compiles registry `coeus-core` 0.12.0, which lacks `ClosedReduction`, the cur
 `StorageMut::Error` seam and the workspace unsafe trait contracts. Reusing old
 internal package versions selects stale registry APIs after path normalization.
 The coherent unpublished 0.13 workspace/internal requirements address that root
-cause. Verify ordinary workspace archives against one staged package graph;
-do not change unsafe implementations to fit the old registry contracts.
+cause. At [the integrated package evidence](https://github.com/ryancinsight/Coeus/pull/528),
+all 15 ordinary workspace package archives compile with clean VCS metadata and
+normalized internal requirements 0.13 against one staged package graph. No unsafe
+implementation changes fit the old registry contracts. The prior 453-error
+packaging failure is reproduced before and absent after this version alignment.
 
 Final factory consumption, complete native/lint/docs/API/package/hosted gates
 remain pending. Miri stays deferred/unverified; CUDA/ROCm hardware and the full
