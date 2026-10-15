@@ -2,8 +2,8 @@
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Layout, Scalar};
 
-use super::error::map_leto_error;
 use super::CpuBackend;
+use crate::backend_ops::error::map_leto_error;
 use crate::backend_ops::ops::{BinaryOp, UnaryOp};
 
 #[inline]

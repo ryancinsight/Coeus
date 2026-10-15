@@ -1,0 +1,96 @@
+name: Sparse memory contracts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/sparse-memory.yml
+      - .config/nextest.toml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/coeus-core/src/backend/**
+      - crates/coeus-core/src/storage/**
+      - crates/coeus-core/src/dtype/**
+      - crates/coeus-core/tests/core_ops/backend/dispatch.rs
+      - crates/coeus-ops/src/sparse/**
+      - crates/coeus-ops/tests/ops/sparse/**
+      - crates/coeus-leto/src/dispatch/sparse.rs
+      - crates/coeus-leto/tests/sparse_allocations.rs
+      - crates/coeus-leto/tests/leto_ops/sparse_contracts.rs
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/sparse-memory.yml
+      - .config/nextest.toml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/coeus-core/src/backend/**
+      - crates/coeus-core/src/storage/**
+      - crates/coeus-core/src/dtype/**
+      - crates/coeus-core/tests/core_ops/backend/dispatch.rs
+      - crates/coeus-ops/src/sparse/**
+      - crates/coeus-ops/tests/ops/sparse/**
+      - crates/coeus-leto/src/dispatch/sparse.rs
+      - crates/coeus-leto/tests/sparse_allocations.rs
+      - crates/coeus-leto/tests/leto_ops/sparse_contracts.rs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sparse-memory-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  memory:
+    name: Sparse memory (${{ matrix.platform }}, ${{ matrix.model }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: macOS backend
+            model: Stacked Borrows
+            flags: -Zmiri-strict-provenance
+          - os: macos-14
+            platform: macOS backend
+            model: Tree Borrows
+            flags: -Zmiri-strict-provenance -Zmiri-tree-borrows
+          - os: ubuntu-24.04
+            platform: Linux kernel
+            model: Stacked Borrows
+            flags: -Zmiri-strict-provenance
+          - os: ubuntu-24.04
+            platform: Linux kernel
+            model: Tree Borrows
+            flags: -Zmiri-strict-provenance -Zmiri-tree-borrows
+    env:
+      MIRIFLAGS: ${{ matrix.flags }}
+      CSR_MEMORY_CASES: test(forward_contracts::) | test(validation_precedence::) | binary(sparse_allocations) | test(malformed_csr_and_dense_shapes_reject_before_writes) | test(zero_dense_columns_and_zero_shared_dimension_are_fully_initialized) | test(public_forward_api_retains_every_scalar_family) | test(callbacks_complete_before_unwind_returns)
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Install the nightly interpreter toolchain
+        run: rustup toolchain install nightly --profile minimal --component miri --component rust-src
+      - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e
+        with:
+          tool: cargo-nextest@0.9.140
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      # The unchanged 4097x257 case runs natively. These deterministic cases
+      # cover address/lifetime, scalar, rejection and initialization boundaries.
+      # Each process asserts callback release before retiring real global workers.
+      - name: Check sparse and backend memory contracts
+        run: |
+          csr_selection="$CSR_MEMORY_CASES"
+          # Linux topology discovery uses opendir, unsupported under isolation.
+          # macOS executes the unchanged real-Moirai case in both models; Linux
+          # additionally checks all twelve other cases. No assertion or workload
+          # changes, and no isolation/leak check is relaxed.
+          if [ "$RUNNER_OS" = Linux ]; then
+            csr_selection="($csr_selection) & !test(moirai_callbacks_complete_before_unwind_returns)"
+          fi
+          cargo +nightly miri nextest run --locked \
+            -p coeus-core -p coeus-leto -p coeus-ops \
+            --profile miri --test-threads 1 --no-fail-fast \
+            -E "$csr_selection"

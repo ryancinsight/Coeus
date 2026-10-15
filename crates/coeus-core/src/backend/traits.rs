@@ -160,6 +160,9 @@ pub unsafe trait ComputeBackend: Send + Sync + Clone + 'static {
 /// If [`Backend::parallel_for`] returns normally, implementations must invoke
 /// the supplied closure exactly once for each index in `[start, end)` and for
 /// no other index. They must not return until every invocation has completed.
+/// If a callback or dispatch panics, any subset may have run, at most once per
+/// index; every admitted invocation must finish before dispatch unwinds.
+/// Workers must not retain or invoke the closure after return or unwind.
 /// CPU kernels rely on these guarantees for disjoint writes into output
 /// storage and use the synchronization guarantee to keep scoped borrows alive
 /// across dispatch.
@@ -168,7 +171,8 @@ pub unsafe trait Backend: ComputeBackend + Default {
     ///
     /// The backend decides whether to parallelize (Moirai) or
     /// run sequentially (SequentialBackend).
-    /// This method returns only after every invocation of `f` has completed.
+    /// This method returns or unwinds only after every admitted invocation of
+    /// `f` has completed, including invocations that themselves unwind.
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)
     where
         F: Fn(usize) + Send + Sync + 'static;

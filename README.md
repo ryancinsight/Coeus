@@ -82,6 +82,13 @@ Refer to the open-work queue and the risk register:
 
 ## Building and Running Tests
 
+The sparse bridge borrows validated `usize` CSR arrays. Tensor `spmv`/`spmm`
+borrow their original checked `i64` arrays through Leto's stored-order view
+and execute its shared row kernel through the selected Coeus backend.
+Typed validation/allocation errors and separate native-precision rounding
+remain part of the contract. See the [forward verification record](docs/verification/sparse-forward-cutover.md)
+and [initial recovery audit](docs/verification/sparse-recovery.md).
+
 Ensure you have the latest Rust toolchain installed.
 
 ### Compile Workspace

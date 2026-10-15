@@ -21,14 +21,13 @@ members = [
 ]
 
 [workspace.package]
-version = "0.12.0"
+version = "0.13.0"
 edition = "2021"
 rust-version = "1.95"
 authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ryancinsight/Coeus.git"
 readme = "README.md"
-keywords = ["tensor", "autodiff", "gpu", "machine-learning", "simd"]
 categories = ["science", "mathematics", "data-structures"]
 
 [workspace.dependencies]
@@ -43,10 +42,13 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0
 # Keep the Eunomia source aligned with the current Hephaestus provider graph.
 eunomia = { git = "https://github.com/ryancinsight/eunomia", version = "0.10.0", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-# Keep the Leto source aligned with the current Hephaestus provider graph.
-leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.46.0" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.46.0" }
-apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.29.0", default-features = false }
+# Approved provider capability: Leto #362. Review locks select exact heads;
+# canonical default sources preserve shared nominal identities (ADR 0029).
+leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.47.0" }
+leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.47.0" }
+# Compatible provider bindings admit both Leto 0.46 and the additive 0.47
+# line. Review locks select their actual independent branch commits.
+apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.29.2", default-features = false }
 
 # ── Numerical ──
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
@@ -57,16 +59,17 @@ smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 # Accelerator providers remain Git-sourced and lockfile-pinned.
 # Provider-owned fusion is merged; Cargo.lock records the provider revision.
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.0" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.0" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.0", default-features = false }
-hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.0" }
-hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.0" }
+hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.2" }
+hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.2" }
+hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.2", default-features = false }
+hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.2" }
+hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.22.2" }
 themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.11.0" }
 
 # ── Error ──
 thiserror = "2"
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }
 
 # ── Benchmarking ──
 criterion = "0.5"
@@ -75,16 +78,16 @@ criterion = "0.5"
 pyo3 = { version = "0.23", features = ["extension-module"] }
 
 # ── Local ──
-coeus-core     = { version = "0.12.0", path = "crates/coeus-core" }
-coeus-tensor   = { version = "0.12.0", path = "crates/coeus-tensor" }
-coeus-ops      = { version = "0.12.0", path = "crates/coeus-ops", default-features = false }
-coeus-hephaestus = { version = "0.12.0", path = "crates/coeus-hephaestus" }
-coeus-autograd = { version = "0.12.0", path = "crates/coeus-autograd", default-features = false }
-coeus-nn       = { version = "0.12.0", path = "crates/coeus-nn", default-features = false }
-coeus-optim    = { version = "0.12.0", path = "crates/coeus-optim", default-features = false }
-coeus-sparse   = { version = "0.12.0", path = "crates/coeus-sparse" }
-coeus-dist     = { version = "0.12.0", path = "crates/coeus-dist", default-features = false }
-coeus-fft      = { version = "0.12.0", path = "crates/coeus-fft" }
+coeus-core     = { version = "0.13.0", path = "crates/coeus-core" }
+coeus-tensor   = { version = "0.13.0", path = "crates/coeus-tensor" }
+coeus-ops      = { version = "0.13.0", path = "crates/coeus-ops", default-features = false }
+coeus-hephaestus = { version = "0.13.0", path = "crates/coeus-hephaestus" }
+coeus-autograd = { version = "0.13.0", path = "crates/coeus-autograd", default-features = false }
+coeus-nn       = { version = "0.13.0", path = "crates/coeus-nn", default-features = false }
+coeus-optim    = { version = "0.13.0", path = "crates/coeus-optim", default-features = false }
+coeus-sparse   = { version = "0.13.0", path = "crates/coeus-sparse" }
+coeus-dist     = { version = "0.13.0", path = "crates/coeus-dist", default-features = false }
+coeus-fft      = { version = "0.13.0", path = "crates/coeus-fft" }
 
 [profile.bench]
 codegen-units = 1

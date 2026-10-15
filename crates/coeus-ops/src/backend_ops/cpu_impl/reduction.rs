@@ -5,8 +5,8 @@ use coeus_core::{
     BackendError, ClosedReduction, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar,
 };
 
-use super::error::map_leto_error;
 use super::CpuBackend;
+use crate::backend_ops::error::map_leto_error;
 use crate::backend_ops::ReductionOp;
 
 #[inline]

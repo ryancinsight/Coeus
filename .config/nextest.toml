@@ -1,6 +1,11 @@
 [profile.default]
 slow-timeout = { period = "30s", terminate-after = 2 }
 
+# Interpreter checks share Leto's bounded memory-contract profile. Native
+# execution retains the strict 60-second termination budget above.
+[profile.miri]
+slow-timeout = { period = "300s", terminate-after = 2 }
+
 [test-groups]
 gpu-tests = { max-threads = 1 }
 tcp-tests = { max-threads = 1 }

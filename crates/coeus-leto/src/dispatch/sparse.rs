@@ -1,6 +1,18 @@
+//! The existing usize-index bridge preserves Leto's canonical-CSR validation
+//! and scalar/SIMD arithmetic, while borrowing all three arrays. Owned and
+//! borrowed entry points execute the same provider kernel, so this change is
+//! bitwise equivalent even when SIMD uses fused multiply-add.
+//!
+//! This descriptor differs from Coeus's signed-index tensor contract: Coeus also
+//! accepts unsorted/duplicate columns and performs separate multiply/add.
+//! Replacing its backend-parallel forward kernels requires resolving those
+//! provider contracts first; see `docs/verification/sparse-recovery.md`.
+
 use leto::{ArrayView1, ArrayView2, Layout as LetoLayout, Result};
 use leto_ops::Scalar as LetoScalar;
-use leto_ops::{spmm_into as leto_sparse_spmm_into, spmv_into as leto_sparse_spmv_into, CsrMatrix};
+use leto_ops::{
+    spmm_view_into as leto_sparse_spmm_into, spmv_view_into as leto_sparse_spmv_into, CsrView,
+};
 
 /// Borrowed CSR matrix descriptor used at the coeus-to-leto dispatch boundary.
 ///
@@ -66,8 +78,8 @@ impl<'a, T> CsrDispatch<'a, T> {
 }
 
 /// Sparse matrix-vector product: `y = A x`, routed through leto-ops sparse
-/// kernels after rebuilding leto's validated CSR representation from coeus's
-/// borrowed CSR slices.
+/// kernels through a validated borrowed view. All three CSR arrays remain
+/// borrowed; construction performs no allocation or index reinterpretation.
 ///
 /// # Examples
 ///
@@ -87,20 +99,14 @@ impl<'a, T> CsrDispatch<'a, T> {
 /// ```
 pub fn spmv_into<T: LetoScalar>(a: CsrDispatch<'_, T>, x: &[T], y_out: &mut [T]) -> Result<()> {
     let ncols = a.ncols;
-    let a = CsrMatrix::from_parts(
-        a.values.to_vec(),
-        a.col_indices.to_vec(),
-        a.row_ptr.to_vec(),
-        a.nrows,
-        ncols,
-    )?;
+    let a = CsrView::from_slices(a.values, a.col_indices, a.row_ptr, a.nrows, ncols)?;
     let x_view = ArrayView1::try_new(LetoLayout::c_contiguous([ncols])?, x)?;
     leto_sparse_spmv_into(&a, &x_view, y_out)
 }
 
 /// Sparse-dense matrix multiply: `C = A B`, routed through leto-ops sparse
-/// kernels after rebuilding leto's validated CSR representation from coeus's
-/// borrowed CSR slices.
+/// kernels through a validated borrowed view. Stored-entry accumulation order
+/// and Leto's scalar/SIMD policy are identical to the owned-matrix entry point.
 ///
 /// # Examples
 ///
@@ -125,13 +131,7 @@ pub fn spmm_into<T: LetoScalar>(
     c_out: &mut [T],
 ) -> Result<()> {
     let ncols = a.ncols;
-    let a = CsrMatrix::from_parts(
-        a.values.to_vec(),
-        a.col_indices.to_vec(),
-        a.row_ptr.to_vec(),
-        a.nrows,
-        ncols,
-    )?;
+    let a = CsrView::from_slices(a.values, a.col_indices, a.row_ptr, a.nrows, ncols)?;
     let b_view = ArrayView2::try_new(LetoLayout::c_contiguous([ncols, b_cols])?, b)?;
     leto_sparse_spmm_into(&a, &b_view, c_out)
 }

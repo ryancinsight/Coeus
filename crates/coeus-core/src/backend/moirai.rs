@@ -135,7 +135,10 @@ unsafe impl ComputeBackend for MoiraiBackend {
     }
 }
 
-// SAFETY: `for_each_index_with` joins all policy tasks before returning.
+// SAFETY: `for_each_index_with` joins all policy tasks before returning. Its
+// scoped data-parallel implementation catches callback panics, drains admitted
+// work, then propagates the failure; no callback survives unwind. The real
+// threshold-crossing panic regression lives in tests/core_ops/backend/dispatch.rs.
 unsafe impl Backend for MoiraiBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)

@@ -4,6 +4,25 @@ Risks nobody is actively fixing. A risk with a planned fix is a backlog item
 instead (see `backlog.md`); a closed risk's residue lives in its ADR or PR,
 not here.
 
+## 2026-10-15 — Borrowed CSR source contracts close
+
+The accepted provider seam removes CSR copies and duplicated forward math,
+retaining signed portable addressing, typed diagnostics, stored order, separate
+rounding, fallible initialized output and backend row dispatch. Checked fixed
+widths and fused row checks pass the complete final local acceptance scope:
+1272 consumer/1202 provider native cases, strict diagnostics, docs/API, both
+memory models and ten provider ARM32 cases per model. Current evidence lives
+in [the forward record](docs/verification/sparse-forward-cutover.md).
+
+Residuals and concrete actions remain in
+[COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward): final tested
+SpMV cost about 2–3% in three cases; provider-first default/registry availability;
+full-consumer ARM32/i686 upstream alignment limits; Linux Moirai topology under
+Miri isolation; final hosted receipts before integration. The unclassified
+macOS socket setup observation has its own
+[reproduction item](backlog.md#coeus-tcp-half-close-witness). No safety rule,
+workload, oracle or native timeout is weakened to close this source increment.
+
 ## CUDA context creation failure remains unclassified
 
 Consumer run `87532469-ce04-4b9a-8225-f53e7ea000a2` fails in `cuCtxCreate_v2`

@@ -94,7 +94,8 @@ unsafe impl ComputeBackend for CudaBackend {
     }
 }
 
-// SAFETY: the feature-disabled backend delegates to synchronous CPU dispatch.
+// SAFETY: SequentialBackend executes callbacks inline and retains no pending
+// invocation on either normal return or unwind; this delegation adds no task.
 unsafe impl Backend for CudaBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, operation: F)

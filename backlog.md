@@ -5,6 +5,52 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
+<a id="coeus-sparse-view-forward"></a>
+## COEUS-SPARSE-VIEW-FORWARD — Review the recovered tensor cutover
+
+- Status: source complete / review; target: 0.13.0; priority: verification; [arch].
+- Outcome: one provider-owned CSR forward implementation preserves accepted
+  inputs, typed errors, native-precision stored-order accumulation, complete
+  output initialization and backend row dispatch, without copies or fallback math.
+- Decisions: Ryan Clanton approves Leto ADR 0036 on 2026-10-15; Coeus ADR 0081
+  records the backend completion-on-return/unwind clarification and Breaking
+  migration for unsafe implementors.
+- Evidence: [current forward record](docs/verification/sparse-forward-cutover.md)
+  maps exact sources to 1272 native passes, strict diagnostics, 159 doctests,
+  explicit minor API comparisons, both strict memory models, provider ARM32
+  execution, complete value/initialization regressions and paired performance.
+  [The initial audit](docs/verification/sparse-recovery.md) remains historical.
+- Current base: `f0d01021`; S2/S3, CUDA crossover and all 231 registry records
+  remain intact. Compatible [Hephaestus #497](https://github.com/ryancinsight/hephaestus/pull/497)
+  targets 0.22.2, preserving concurrent CUDA fixes; [Apollo #674](https://github.com/ryancinsight/apollo/pull/674)
+  targets FFT 0.29.2, preserving current layout tests. [Leto #362](https://github.com/ryancinsight/leto/pull/362)
+  owns the checked signed/stored-order product. Ten review providers resolve
+  with zero excess identities, path patches or manifest revision pins.
+- Performance boundary: the final same-workload repeat retains about 2–3% median SpMV
+  overhead in three cases; large sequential SpMV is near parity. Moirai SpMM
+  takes 9–30% of main time. Earlier adverse observations remain revision-scoped;
+  retained parallelism is not a universal throughput guarantee.
+- Next action: inspect final hosted receipts in [Coeus #533](https://github.com/ryancinsight/Coeus/pull/533),
+  review the narrow-product cost, then integrate compatible providers under
+  separate authorization. Refresh default sources and verify actual registry
+  consumers before release. The fresh Coeus consumer still rejects unmerged
+  Apollo ^0.29.2. Full ARM32/i686 interpreter runs remain upstream-build-limited;
+  Linux Moirai topology remains unavailable under Miri isolation. Keep #531 intact.
+
+<a id="coeus-tcp-half-close-witness"></a>
+## COEUS-TCP-HALF-CLOSE-WITNESS — Classify early macOS socket setup failure [patch]
+
+- Status: reproduction open; priority: verification; owner: unclaimed.
+- Evidence: final sparse native run `1843e0bc` receives NoDelay/EINVAL before
+  the unchanged half-closed-stream test's expected Handshake/BrokenPipe. The
+  test and production TCP sources match main; 64 exact-main repetitions pass,
+  and the unchanged complete candidate passes 1272 cases (`dd7b6c1f`).
+- Acceptance: reproduce the real socket lifecycle failure, distinguish OS
+  setup ordering from the intended handshake witness, and verify a root fix
+  without weakening the expected error or replacing real network execution.
+- Next action: capture a recurrence on macOS with stream state and setup-phase
+  tracing. No TCP source changes belong to the focused sparse recovery.
+
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`
 

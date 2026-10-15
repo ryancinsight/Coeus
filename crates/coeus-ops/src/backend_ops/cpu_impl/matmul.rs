@@ -2,8 +2,8 @@
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 
-use super::error::map_leto_error;
 use super::CpuBackend;
+use crate::backend_ops::error::map_leto_error;
 
 #[inline]
 pub(super) fn matmul<T, B>(

@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.13.0] - Unreleased
+
+### Breaking
+
+- [arch] `Backend::parallel_for` explicitly joins every admitted callback
+  before either return or unwind. Unsafe implementors must also prevent any
+  callback from running after propagation and preserve at-most-once admission
+  when a panic interrupts the full range. Method signatures stay unchanged;
+  external implementations must audit their cancellation/join path before
+  using 0.13.0. See ADR 0081 and the real Sequential/Moirai panic regressions.
+- [minor] Align direct consumers with Eunomia 0.10, Hermes 0.9,
+  Mnemosyne-memory 0.10, Leto/Leto-ops 0.47, Hephaestus 0.22.2 and
+  Apollo FFT 0.29.2. These pre-1.0 provider types must share one source
+  identity; update downstream requirements together with Coeus 0.13.
+
+### Added
+
+- [patch] Native completion-on-unwind tests cover both real CPU backends,
+  crossing Moirai's 4096-row admission threshold and checking all admitted
+  invocations finish before the caller regains control.
+- [patch] Cover all sixteen existing scalar families, threshold-crossing
+  4097-row products with 257 RHS columns, exact multiple-fault error priority
+  and callback capture release. Compare against byte-identical main kernels
+  with a reproducible paired instrument.
+- [patch] Add strict-provenance memory CI for both borrow models, and compare
+  committed API graphs through the shared locked-source verifier. ROCm's full
+  comparison and version guard execute in its existing Linux SDK lane.
+
+### Changed
+
+- [patch] Encode the known vector RHS width with checked fixed metadata in the
+  shared provider kernel. Inline the tensor adapter to expose that information
+  to backend callbacks; matrix widths retain their dynamic policy. Provider
+  row validation combines representability/ordering checks without changing
+  rejection precedence.
+- [arch] Advance all workspace packages and local dependency bounds together
+  to 0.13.0 for the approved sparse execution boundary. No publication or tag
+  is part of this development change.
+- [arch] Route tensor SpMV/SpMM through Leto's checked signed stored-order
+  view and provider-owned row recurrence, retaining Backend row dispatch.
+  Reuse successful structure validation; preserve original diagnostic priority
+  on rejection. Keep fallible allocation/mutable access, logical offsets,
+  complete initialization and separate native-precision multiplication/addition.
+
+### Fixed
+
+- [patch] `coeus-leto` sparse dispatch borrows Leto's validated CSR view
+  instead of copying values, column indices and row pointers into an owned
+  matrix. Public signatures, typed errors, canonical-CSR acceptance and
+  numerical bits retain their existing behavior. Regression coverage checks
+  allocation count, value semantics, failure atomicity and tensor-forward
+  compatibility constraints. See the
+  [initial sparse recovery record](docs/verification/sparse-recovery.md) and
+  [current forward verification](docs/verification/sparse-forward-cutover.md)
+  for revision-scoped correctness, availability and performance evidence.
+- [patch] Construct sparse numerical witnesses with exactly representable
+  literals and native products instead of unspecified-precision power calls.
+  All five tensor-forward contract cases pass strict-provenance Miri.
+- [patch] Pin platform-width-dependent signed-index error categories in the
+  regression suite and revalidate the bridge on current main's Moirai 0.9
+  dependency graph, including repeated value-checked performance comparisons.
+
 ## [Unreleased]
 
 ### Changed
