@@ -14,6 +14,9 @@ pub mod trait_def;
 /// Interface-segregated sub-traits and the `BackendOps` super-trait.
 pub mod traits;
 
+/// `leto::LetoError` → [`BackendError`](coeus_core::BackendError) mapping shared by
+/// every in-crate caller that delegates a kernel to leto (CPU impls, sparse ops).
+pub(crate) use cpu_impl::error::map_leto_error;
 pub use cpu_impl::CpuBackend;
 /// Host-memory cross-product fold shared by every backend without an
 /// on-device seam (`CrossOps` implementors outside this crate use it

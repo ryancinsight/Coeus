@@ -78,6 +78,25 @@ where
     assert_eq!(yi.as_slice(), x.as_slice(), "spmv identity");
 }
 
+// SPMV_OFFSET
+
+fn check_spmv_offset<B>(backend: &B)
+where
+    B: coeus_ops::BackendOps<f64> + coeus_core::Backend + Default,
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
+    B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
+{
+    // Same x = [1, 2, 3] as check_spmv, but as a contiguous slice at nonzero
+    // offset: the leto view delegation must carry the dense offset across.
+    let a = make_csr(backend);
+    let wide = t(&[5], &[9.0, 1.0, 2.0, 3.0, 9.0], backend);
+    let x = wide.slice(&[(1, 4)]);
+    assert_eq!(x.shape(), &[3], "offset spmv input shape");
+    assert_eq!(x.layout().offset(), 1, "offset spmv input offset");
+    let y = coeus_ops::spmv(&a, &x, backend).expect("invariant: test operation succeeds");
+    assert_eq!(y.as_slice(), &[5.0_f64, 6.0, 13.0], "spmv offset");
+}
+
 // SPMM
 
 fn check_spmm<B>(backend: &B)
@@ -96,6 +115,29 @@ where
     let c = coeus_ops::spmm(&a, &b, backend).expect("invariant: test operation succeeds");
     assert_eq!(c.shape(), &[3, 2], "spmm shape");
     assert_eq!(c.as_slice(), &[3.0_f64, 0.0, 0.0, 3.0, 5.0, 0.0], "spmm");
+}
+
+// SPMM_OFFSET
+
+fn check_spmm_offset<B>(backend: &B)
+where
+    B: coeus_ops::BackendOps<f64> + coeus_core::Backend + Default,
+    B::DeviceBuffer<f64>: CpuAddressableStorage<f64> + CpuAddressableStorageMut<f64>,
+    B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
+{
+    // Same B = [[1,0],[0,1],[1,0]] as check_spmm, but as rows 1..4 of a
+    // [4, 2] matrix: a contiguous slice at nonzero offset.
+    let a = make_csr(backend);
+    let big = t(&[4, 2], &[9.0, 9.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0], backend);
+    let b = big.slice(&[(1, 4), (0, 2)]);
+    assert_eq!(b.shape(), &[3, 2], "offset spmm input shape");
+    assert_eq!(b.layout().offset(), 2, "offset spmm input offset");
+    let c = coeus_ops::spmm(&a, &b, backend).expect("invariant: test operation succeeds");
+    assert_eq!(
+        c.as_slice(),
+        &[3.0_f64, 0.0, 0.0, 3.0, 5.0, 0.0],
+        "spmm offset"
+    );
 }
 
 // SPMM_BACKWARD_VALUES
@@ -183,7 +225,9 @@ where
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
 {
     check_spmv(backend);
+    check_spmv_offset(backend);
     check_spmm(backend);
+    check_spmm_offset(backend);
     check_spmm_backward_values(backend);
     check_spmm_backward_dense(backend);
 }

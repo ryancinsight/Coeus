@@ -1,18 +1,60 @@
+use crate::backend_ops::map_leto_error;
 use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{Backend, BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
+use leto::{ArrayView1, ArrayView2, Layout as LetoLayout};
+use leto_ops::{spmm_view_into, spmv_view_into, CsrView};
 
 use super::validation::{
     csr_index, validate_csr, validate_csr_components, validate_csr_parts, validate_read,
 };
 
+/// Convert validated CSR `i64` indices to the `usize` slices leto's view
+/// kernels borrow.
+///
+/// `validate_csr` has already proven every index non-negative and in bounds,
+/// so this conversion carries a typed error for the seam rather than a panic.
+fn csr_indices_as_usize(
+    operation: &'static str,
+    col_indices: &[i64],
+    row_offsets: &[i64],
+) -> Result<(Vec<usize>, Vec<usize>), BackendError> {
+    let convert = |reason: &'static str, values: &[i64]| {
+        values
+            .iter()
+            .map(|value| {
+                usize::try_from(*value).map_err(|_| BackendError::Overflow { operation, reason })
+            })
+            .collect::<Result<Vec<usize>, BackendError>>()
+    };
+    let cols = convert("CSR column index exceeds usize", col_indices)?;
+    let rows = convert("CSR row offset exceeds usize", row_offsets)?;
+    Ok((cols, rows))
+}
+
+/// Convert a coeus dense stride to the `isize` stride leto layouts carry.
+///
+/// Coeus strides are non-negative by construction; the fallible conversion
+/// keeps the seam total with a typed error.
+fn dense_stride_as_isize(operation: &'static str, stride: usize) -> Result<isize, BackendError> {
+    isize::try_from(stride).map_err(|_| BackendError::Overflow {
+        operation,
+        reason: "dense stride exceeds isize",
+    })
+}
+
 /// Sparse Matrix-Vector multiplication (SpMV): y = A x
 ///
 /// Computes multiplication of a sparse CSR matrix `A` and a dense vector `x`.
 /// Returns a dense vector `y`.
+///
+/// The kernel is leto's: this function validates the coeus-side operands,
+/// borrows them as leto views (values and the dense vector in place; only the
+/// `i64`→`usize` index buffers are allocated), and delegates to leto-ops'
+/// `spmv_view_into`. Nothing is reimplemented here.
 #[inline]
-pub fn spmv<T: Scalar, B: Backend>(
+pub fn spmv<T: Scalar + leto_ops::Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     x: &Tensor<T, B>,
     backend: &B,
@@ -21,45 +63,41 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
-    validate_csr(a, "sparse matrix-vector multiplication")?;
-    validate_read(
-        x,
-        "sparse matrix-vector multiplication",
-        Some(&[a.shape()[1]]),
-    )?;
+    const OPERATION: &str = "sparse matrix-vector multiplication";
+    validate_csr(a, OPERATION)?;
+    validate_read(x, OPERATION, Some(&[a.shape()[1]]))?;
     let rows = a.shape()[0];
+    let cols = a.shape()[1];
 
-    // alloc_on: every row r writes y[r] = sum via y_ptr.write — no zero-init needed.
+    // alloc_on: the delegated kernel writes every y[r] exactly once — no zero-init needed.
     // SAFETY: `validate_csr` proves every CSR read is within initialized,
-    // contiguous storage, and this kernel writes each output row exactly once.
+    // contiguous storage, and leto's kernel writes each output row once.
     let mut y = unsafe { Tensor::<T, B>::alloc_on([rows], backend)? };
 
-    let val_slice = a.values().as_slice();
-    let col_slice = a.col_indices().as_slice();
-    let row_slice = a.row_offsets().as_slice();
+    let (col_indices, row_offsets) = csr_indices_as_usize(
+        OPERATION,
+        a.col_indices().as_slice(),
+        a.row_offsets().as_slice(),
+    )?;
+    let view = CsrView::from_slices(
+        a.values().as_slice(),
+        &col_indices,
+        &row_offsets,
+        rows,
+        cols,
+    )
+    .map_err(|error| map_leto_error(OPERATION, error))?;
 
-    let val_ptr = Ptr(val_slice.as_ptr());
-    let col_ptr = Ptr(col_slice.as_ptr());
-    let row_ptr = Ptr(row_slice.as_ptr());
-    let y_ptr = MutPtr(y.as_mut_slice()?.as_mut_ptr());
-
-    let x_slice = x.storage().as_slice();
-    let x_ptr = Ptr(x_slice.as_ptr());
-    let x_stride = x.layout().strides()[0];
-    let x_offset = x.layout().offset();
-
-    backend.parallel_for(0, rows, move |r| unsafe {
-        let start = csr_index(row_ptr.read(r));
-        let end = csr_index(row_ptr.read(r + 1));
-        let mut sum = T::ZERO;
-        for i in start..end {
-            let col = csr_index(col_ptr.read(i));
-            let val = val_ptr.read(i);
-            let xv = x_ptr.read(x_offset + col * x_stride);
-            sum += val * xv;
-        }
-        y_ptr.write(r, sum);
-    });
+    let x_layout = LetoLayout::try_new(
+        [cols],
+        [dense_stride_as_isize(OPERATION, x.layout().strides()[0])?],
+        x.layout().offset(),
+    )
+    .map_err(|error| map_leto_error(OPERATION, error))?;
+    let x_view = ArrayView1::try_new(x_layout, x.storage().as_slice())
+        .map_err(|error| map_leto_error(OPERATION, error))?;
+    spmv_view_into(&view, &x_view, y.as_mut_slice()?)
+        .map_err(|error| map_leto_error(OPERATION, error))?;
 
     Ok(y)
 }
@@ -68,8 +106,14 @@ where
 ///
 /// Multiplies a sparse CSR matrix `A` [M, K] by a dense matrix `B` [K, N].
 /// Returns a dense matrix `C` [M, N].
+///
+/// The kernel is leto's: this function validates the coeus-side operands,
+/// borrows them as leto views (values and the dense matrix in place, including
+/// nonzero-offset contiguous slices; only the `i64`→`usize` index buffers are
+/// allocated), and delegates to leto-ops' `spmm_view_into`. Nothing is
+/// reimplemented here.
 #[inline]
-pub fn spmm<T: Scalar, B: Backend>(
+pub fn spmm<T: Scalar + leto_ops::Scalar, B: Backend>(
     a: &CsrTensor<T, B>,
     b: &Tensor<T, B>,
     backend: &B,
@@ -78,10 +122,11 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
-    validate_csr(a, "sparse-dense matrix multiplication")?;
+    const OPERATION: &str = "sparse-dense matrix multiplication";
+    validate_csr(a, OPERATION)?;
     if b.ndim() != 2 {
         return Err(coeus_core::BackendError::UnsupportedRank {
-            operation: "sparse-dense matrix multiplication",
+            operation: OPERATION,
             rank: b.ndim(),
             max_rank: 2,
         }
@@ -90,52 +135,35 @@ where
     let m = a.shape()[0];
     let k = a.shape()[1];
     let n = b.shape()[1];
-    validate_read(b, "sparse-dense matrix multiplication", Some(&[k, n]))?;
+    validate_read(b, OPERATION, Some(&[k, n]))?;
 
-    // alloc_on: parallel_for over rows writes every c[r,j] for j in 0..n — no zero-init needed.
+    // alloc_on: the delegated kernel writes every c[r,j] exactly once — no zero-init needed.
     // SAFETY: `validate_csr` and `validate_read` prove all inputs are valid;
     // each row/column pair is written exactly once before success.
     let mut c = unsafe { Tensor::<T, B>::alloc_on([m, n], backend)? };
 
-    let val_slice = a.values().as_slice();
-    let col_slice = a.col_indices().as_slice();
-    let row_slice = a.row_offsets().as_slice();
+    let (col_indices, row_offsets) = csr_indices_as_usize(
+        OPERATION,
+        a.col_indices().as_slice(),
+        a.row_offsets().as_slice(),
+    )?;
+    let view = CsrView::from_slices(a.values().as_slice(), &col_indices, &row_offsets, m, k)
+        .map_err(|error| map_leto_error(OPERATION, error))?;
 
-    let val_ptr = Ptr(val_slice.as_ptr());
-    let col_ptr = Ptr(col_slice.as_ptr());
-    let row_ptr = Ptr(row_slice.as_ptr());
-    let c_ptr = MutPtr(c.as_mut_slice()?.as_mut_ptr());
-
-    let b_slice = b.storage().as_slice();
-    let b_ptr = Ptr(b_slice.as_ptr());
-    let b_stride_row = b.layout().strides()[0];
-    let b_stride_col = b.layout().strides()[1];
-    let b_offset = b.layout().offset();
-
-    let c_stride_row = c.layout().strides()[0];
-    let c_stride_col = c.layout().strides()[1];
-    let c_offset = c.layout().offset();
-
-    backend.parallel_for(0, m, move |r| unsafe {
-        let start = csr_index(row_ptr.read(r));
-        let end = csr_index(row_ptr.read(r + 1));
-        let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(T::ZERO, n);
-        for i in start..end {
-            let col = csr_index(col_ptr.read(i));
-            let val = val_ptr.read(i);
-            let b_col_offset = b_offset + col * b_stride_row;
-            for j in 0..n {
-                let bv = b_ptr.read(b_col_offset + j * b_stride_col);
-                row_accumulator[j] += val * bv;
-            }
-        }
-        for j in 0..n {
-            c_ptr.write(
-                c_offset + r * c_stride_row + j * c_stride_col,
-                row_accumulator[j],
-            );
-        }
-    });
+    let b_strides = b.layout().strides();
+    let b_layout = LetoLayout::try_new(
+        [k, n],
+        [
+            dense_stride_as_isize(OPERATION, b_strides[0])?,
+            dense_stride_as_isize(OPERATION, b_strides[1])?,
+        ],
+        b.layout().offset(),
+    )
+    .map_err(|error| map_leto_error(OPERATION, error))?;
+    let b_view = ArrayView2::try_new(b_layout, b.storage().as_slice())
+        .map_err(|error| map_leto_error(OPERATION, error))?;
+    spmm_view_into(&view, &b_view, c.as_mut_slice()?)
+        .map_err(|error| map_leto_error(OPERATION, error))?;
 
     Ok(c)
 }

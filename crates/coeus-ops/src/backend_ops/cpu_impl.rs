@@ -9,7 +9,7 @@ use coeus_core::{Backend, BackendError};
 mod convolution;
 mod cross;
 mod elementwise;
-mod error;
+pub(crate) mod error;
 mod finite_difference;
 mod impls;
 mod matmul;
