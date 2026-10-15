@@ -4,15 +4,15 @@
 
 ### Breaking
 
-- [major] Prepare the current public provider cohort on unpublished 0.13.0:
+- [major] Advance the public provider cohort on unpublished 0.13.0:
   Eunomia 0.10, Mnemosyne-memory 0.10, Hermes 0.9, Leto 0.46, Hephaestus 0.22
-  and Apollo FFT 0.29. Precise lock resolution and final release acceptance
-  remain pending upstream default/publication prerequisites.
+  and Apollo FFT 0.29. The Cargo-managed lock selects their integrated defaults;
+  final native, API, package and hosted acceptance remain release gates.
 
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
   provider mean and `mean_axis`. Integer callers explicitly choose a floating
   tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
-  add the floating-point bound. See [ADR 0079](docs/adr/0081-autograd-mean-float-contract.md#migration).
+  add the floating-point bound. See [ADR 0081](docs/adr/0081-autograd-mean-float-contract.md#migration).
 
 - [major] Scalar reductions (`sum`, `mean`, `amax`, `amin`, `prod`, `norm`,
   `norm_p`, `var_mean`, plus delegating `var`, `std_dev`, `std_mean`,

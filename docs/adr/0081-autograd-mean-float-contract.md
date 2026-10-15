@@ -77,11 +77,11 @@ bounds. Do not issue an intermediate old-provider compatibility release.
 
 PR #532's normally merged default is integrated without file changes because
 its complete implementation already belongs to #528. Separate borrowed-CSR
-PR #533 remains with its owner. Preparing dependency requirements preserves
-every numerical implementation and regression; the old precise lock stays
-until all intended provider defaults resolve. Rerun native, lint, docs, all
-15 standard packages, blocking API and exact-head required CI after that lock
-transition. Metadata/source-only evidence does not establish final acceptance.
+PR #533 remains with its owner. The Cargo-managed lock now selects the integrated provider defaults and
+preserves all 231 registry records and every numerical implementation/regression.
+Run native, lint, docs, all 15 standard packages, blocking API and exact-head
+required CI on this graph. Metadata/source-only evidence does not establish
+final acceptance.
 
 Moirai #623 separately owns compatible runtime 0.9.3 for its private Mnemosyne
 0.10 edge. Require 0.9.3 after its reviewed publication; no older runtime graph
@@ -89,12 +89,15 @@ or duplicate implementation supplies acceptance. Preserve #622 and Metis #504.
 
 ## Current integration evidence
 
-Leto and Leto-ops 0.46 are now published from 8b4ab407 with independently verified
-archive checksums/VCS and reviewed-tree equality. Existing Hephaestus #493 and
-Apollo #672 own the remaining cohort versions and final source refresh. Their
-public version boundaries match this preparation; the Hephaestus candidate's
-six standard packages compile against the real published registry graph. Do
-not duplicate those provider changes or infer final Coeus acceptance from them.
+Leto and Leto-ops 0.46 are published from 8b4ab407. Hephaestus #493 is
+merged/published at 672c5abc; all six actual archive checksums and source
+identities independently verify. Apollo #672 is merged at 730f6262, and its
+21-package automatic publisher remains in progress. Preserve those owners'
+work; this Coeus continuation changes no provider branch or publication.
+
+At the refreshed graph, all four mean integration tests, two float-constant
+regressions and both integer compile-fail doctests pass. Complete final native,
+lint/docs, standard packaging, blocking API and hosted checks remain pending.
 
 Current main's math and dtype-trait splits are integrated without changing the
 four numerical implementation/regression files or incoming Rust bodies. Rename
