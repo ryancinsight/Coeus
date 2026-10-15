@@ -70,9 +70,11 @@ verification, tightening, feature}.
 - Batch 3 verdicts (2026-10-15): `coeus-wgpu/src/lib.rs` rewrite, `backend/mod.rs` deletion, `coeus-cuda/src/backend/provider.rs` addition — all dropped as the superseded backend rewrite (re-export/doc-only or generic-spelling provider wiring; bundles, bounds, and `CudaScalar` f32/f64/F16/Bf16/i32 coverage verified identical to main's concrete impls).
 - Batch 4 verdicts (2026-10-15): autograd `einsum.rs` typed variants — landed in substance (all four concepts present; `ShapeMismatch`/`Backend` cover the sweep's `DimMismatch`/`ForwardFailed`). `coeus-wgpu/src/backend/provider.rs`, `coeus-cuda/src/lib.rs` — dropped (same superseded class; re-export/wiring only). `shape_ops.rs` rejection tests — substance landed in the combined test; the 3 extra cases (empty subscript, unsupported arity, dot length) ported as #542 adapted to main variants.
 - Next samples: vendor `reduction.rs` ×2 (147/146), `coeus-cuda/src/backend/mod.rs` (133), `backend/error.rs` ×2 (130/125).
+- Batch 5 verdicts (2026-10-15): vendor `reduction.rs` ×2 deletions — dropped as superseded (main's concrete impls carry the same `ReductionProvider` bounds plus later `unsafe` hardening). `coeus-cuda/src/backend/mod.rs` deletion — converged: main independently restructured to `backend.rs`, all 5 public items (`ops`, `CudaScalar`, device fns, `CudaBackend`) verified present. `error.rs` ×2 deletions — dropped (main retains the concrete vendor error types).
+- Next samples: vendor `attention.rs` (124), `coeus-python/src/ops/elementwise.rs` (121), `dtype/complex.rs` (120), vendor `optim.rs`/`optimizer.rs` (117/116).
 - Method: per file, extract distinctive added lines and grep current main for them (landed) vs genuine absence (unique); port uniques as slices, record drops with rationale. Never close on resemblance.
 - Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
-- Next step: sample vendor `reduction.rs` ×2.
+- Next step: sample vendor `attention.rs`.
 
 <a id="coeus-unfold-leto-chain"></a>
 ## COEUS-UNFOLD-LETO-CHAIN — Delegate CPU unfold/fold to leto (contract-gated)
