@@ -1,5 +1,5 @@
 use coeus_autograd::Var;
-use coeus_core::{Float, Layout, Scalar};
+use coeus_core::{Float, Layout};
 use coeus_ops::RandomInitOps;
 use coeus_tensor::Tensor;
 
@@ -23,11 +23,11 @@ fn validate_layout<E: std::error::Error + 'static>(
     }
 }
 
-fn finite<T: Float, E: std::error::Error + 'static>(
+fn finite<T: Float + coeus_core::FloatElement, E: std::error::Error + 'static>(
     parameter: &'static str,
     value: f64,
 ) -> std::result::Result<T, InitializationError<E>> {
-    let converted = <T as Scalar>::from_f64(value);
+    let converted = coeus_core::FloatElement::from_f64(value);
     if value.is_finite() && <T as Float>::is_finite(converted) {
         Ok(converted)
     } else {
@@ -46,7 +46,7 @@ fn uniform_typed_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let layout = dense_layout(weight);
@@ -86,7 +86,7 @@ fn normal_typed_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let layout = dense_layout(weight);
@@ -132,7 +132,7 @@ pub fn uniform_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let low_t = finite::<T, B::Error>("low", low)?;
@@ -150,7 +150,7 @@ where
 /// Returns the same failures as [`uniform_with_seed`].
 pub fn uniform<T, B>(weight: &mut Var<T, B>, low: f64, high: f64) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     uniform_with_seed(weight, low, high, 42)
@@ -170,7 +170,7 @@ pub fn normal_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let mean_t = finite::<T, B::Error>("mean", mean)?;
@@ -188,7 +188,7 @@ where
 /// Returns the same failures as [`normal_with_seed`].
 pub fn normal<T, B>(weight: &mut Var<T, B>, mean: f64, std_dev: f64) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     normal_with_seed(weight, mean, std_dev, 42)
@@ -241,12 +241,12 @@ pub fn xavier_uniform_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
     let fan = T::from_count(fan);
-    let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
+    let limit = (<T as coeus_core::FloatElement>::from_f64(6.0) / fan).sqrt_val();
     uniform_typed_with_seed(weight, T::ZERO - limit, limit, seed)
 }
 
@@ -257,7 +257,7 @@ where
 /// Returns the same failures as [`xavier_uniform_with_seed`].
 pub fn xavier_uniform<T, B>(weight: &mut Var<T, B>, fan_in: usize, fan_out: usize) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     xavier_uniform_with_seed(weight, fan_in, fan_out, 42)
@@ -276,12 +276,12 @@ pub fn xavier_normal_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = xavier_fan::<B::Error>(fan_in, fan_out)?;
     let fan = T::from_count(fan);
-    let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
+    let std_dev = (<T as coeus_core::FloatElement>::from_f64(2.0) / fan).sqrt_val();
     normal_typed_with_seed(weight, T::ZERO, std_dev, seed)
 }
 
@@ -292,7 +292,7 @@ where
 /// Returns the same failures as [`xavier_normal_with_seed`].
 pub fn xavier_normal<T, B>(weight: &mut Var<T, B>, fan_in: usize, fan_out: usize) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     xavier_normal_with_seed(weight, fan_in, fan_out, 42)
@@ -310,12 +310,12 @@ pub fn kaiming_uniform_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = positive_fan::<B::Error>(fan_in)?;
     let fan = T::from_count(fan);
-    let limit = (<T as Scalar>::from_f64(6.0) / fan).sqrt_val();
+    let limit = (<T as coeus_core::FloatElement>::from_f64(6.0) / fan).sqrt_val();
     uniform_typed_with_seed(weight, T::ZERO - limit, limit, seed)
 }
 
@@ -326,7 +326,7 @@ where
 /// Returns the same failures as [`kaiming_uniform_with_seed`].
 pub fn kaiming_uniform<T, B>(weight: &mut Var<T, B>, fan_in: usize) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     kaiming_uniform_with_seed(weight, fan_in, 42)
@@ -344,12 +344,12 @@ pub fn kaiming_normal_with_seed<T, B>(
     seed: u64,
 ) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     let fan = positive_fan::<B::Error>(fan_in)?;
     let fan = T::from_count(fan);
-    let std_dev = (<T as Scalar>::from_f64(2.0) / fan).sqrt_val();
+    let std_dev = (<T as coeus_core::FloatElement>::from_f64(2.0) / fan).sqrt_val();
     normal_typed_with_seed(weight, T::ZERO, std_dev, seed)
 }
 
@@ -360,7 +360,7 @@ where
 /// Returns the same failures as [`kaiming_normal_with_seed`].
 pub fn kaiming_normal<T, B>(weight: &mut Var<T, B>, fan_in: usize) -> InitResult<B>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     kaiming_normal_with_seed(weight, fan_in, 42)

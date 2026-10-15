@@ -51,7 +51,7 @@ impl AlphaDropout {
 }
 
 fn alpha_dropout_with_mask<
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -98,7 +98,7 @@ fn alpha_dropout_with_mask<
     let keep_probability = 1.0 - p;
     let scale = 1.0 / (keep_probability * (1.0 + p * alpha_prime * alpha_prime)).sqrt();
     let shift = -scale * p * alpha_prime;
-    let saturation = <T as coeus_core::Scalar>::from_f64(alpha_prime);
+    let saturation = <T as coeus_core::FloatElement>::from_f64(alpha_prime);
     let backend = B::default();
     let keep_tensor = Tensor::from_slice_on(shape.clone(), &keep, &backend)?;
     let saturation_data = keep
@@ -118,13 +118,15 @@ fn alpha_dropout_with_mask<
     )?;
     let selected = coeus_autograd::add(&coeus_autograd::mul(input, &keep_var)?, &saturation_var)?;
     Ok(coeus_autograd::scalar_add(
-        &coeus_autograd::scalar_mul(&selected, <T as coeus_core::Scalar>::from_f64(scale))?,
-        <T as coeus_core::Scalar>::from_f64(shift),
+        &coeus_autograd::scalar_mul(&selected, <T as coeus_core::FloatElement>::from_f64(scale))?,
+        <T as coeus_core::FloatElement>::from_f64(shift),
     )?)
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for AlphaDropout
+impl<
+        T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for AlphaDropout
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
@@ -182,8 +184,10 @@ impl FeatureAlphaDropout {
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for FeatureAlphaDropout
+impl<
+        T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for FeatureAlphaDropout
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
@@ -232,8 +236,10 @@ impl GaussianNoise {
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GaussianNoise
+impl<
+        T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > Module<T, B> for GaussianNoise
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
@@ -261,10 +267,11 @@ impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
             let u1 = rng.next_unit().max(1e-10);
             let u2 = rng.next_unit();
             let r = (-2.0 * u1.ln()).sqrt() * std;
-            noise[i] =
-                <T as coeus_core::Scalar>::from_f64(r * (2.0 * std::f64::consts::PI * u2).cos());
+            noise[i] = <T as coeus_core::FloatElement>::from_f64(
+                r * (2.0 * std::f64::consts::PI * u2).cos(),
+            );
             if i + 1 < numel {
-                noise[i + 1] = <T as coeus_core::Scalar>::from_f64(
+                noise[i + 1] = <T as coeus_core::FloatElement>::from_f64(
                     r * (2.0 * std::f64::consts::PI * u2).sin(),
                 );
             }
@@ -324,7 +331,7 @@ impl LocalResponseNorm {
 }
 
 impl<
-        T: Float + std::ops::Neg<Output = T> + coeus_leto::RealScalar,
+        T: Float + coeus_core::FloatElement + std::ops::Neg<Output = T> + coeus_leto::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for LocalResponseNorm
 where
@@ -386,10 +393,13 @@ where
         // denom = (k + (alpha / size) * windowed)^beta;  y = x / denom.
         let scaled = coeus_autograd::scalar_mul(
             &windowed,
-            <T as coeus_core::Scalar>::from_f64(self.alpha / self.size as f64),
+            <T as coeus_core::FloatElement>::from_f64(self.alpha / self.size as f64),
         )?;
         let denom = coeus_autograd::pow(
-            &coeus_autograd::scalar_add(&scaled, <T as coeus_core::Scalar>::from_f64(self.k))?,
+            &coeus_autograd::scalar_add(
+                &scaled,
+                <T as coeus_core::FloatElement>::from_f64(self.k),
+            )?,
             self.beta,
         )?;
         let y3 = coeus_autograd::div(&x3, &denom)?;
