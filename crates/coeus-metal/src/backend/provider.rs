@@ -3,13 +3,14 @@ use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
     CrossEntropyProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
     ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
-    RotateHalfProvider, ScalarPowerProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    RotateHalfProvider, ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider,
+    UnfoldFoldProvider,
 };
 use hephaestus_core::{PoolingOps, SlidingWindowOps};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
     MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
-    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps,
+    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps, MetalStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -123,6 +124,10 @@ impl ParameterizedElementwiseProvider for MetalProvider {
 
 impl StatefulUpdateProvider for MetalProvider {
     type Operations = hephaestus_metal::MetalStatefulUpdateOps;
+}
+
+impl StaggeredProvider for MetalProvider {
+    type Operations = MetalStaggered3DOps;
 }
 
 // SAFETY: `MetalPoolingOps` initializes forward outputs and only accumulates
