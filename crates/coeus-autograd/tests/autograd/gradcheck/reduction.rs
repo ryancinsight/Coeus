@@ -112,7 +112,7 @@ fn norm_p_four_case<T: GradcheckScalar>() {
     // simplifies away.
     let x = tensor::<T>(&SHAPE, 0.29);
     gradcheck(&[x], |v| {
-        norm_p(&v[0], <T as coeus_core::Scalar>::from_f64(4.0))
+        norm_p(&v[0], <T as coeus_core::FloatElement>::from_f64(4.0))
             .expect("invariant: test operation succeeds")
     })
     .expect("norm_p p=4 backward must match central differences");
@@ -132,7 +132,7 @@ fn norm_p_axis_case<T: GradcheckScalar>() {
     let w = weighting::<T>(&[3, 1]);
     gradcheck(&[x], |v| {
         weighted(
-            &norm_p_axis(&v[0], <T as coeus_core::Scalar>::from_f64(3.0), 1)
+            &norm_p_axis(&v[0], <T as coeus_core::FloatElement>::from_f64(3.0), 1)
                 .expect("invariant: test operation succeeds"),
             &w,
         )

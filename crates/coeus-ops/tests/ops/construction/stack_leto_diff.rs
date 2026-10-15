@@ -12,7 +12,7 @@ use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -29,17 +29,17 @@ fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let first_data: Vec<T> = [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let second_data: Vec<T> = [7.0, 10.0, 8.0, 11.0, 9.0, 12.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let first = tensor_from_slice::<T, B>(&[3, 2], &first_data, backend).transpose();
     let second = tensor_from_slice::<T, B>(&[3, 2], &second_data, backend).transpose();
@@ -48,19 +48,19 @@ where
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
     ]
     .into_iter()
-    .map(T::from_f64)
+    .map(<T as coeus_core::FloatElement>::from_f64)
     .collect();
     let axis1_expected: Vec<T> = [
         1.0, 2.0, 3.0, 7.0, 8.0, 9.0, 4.0, 5.0, 6.0, 10.0, 11.0, 12.0,
     ]
     .into_iter()
-    .map(T::from_f64)
+    .map(<T as coeus_core::FloatElement>::from_f64)
     .collect();
     let axis2_expected: Vec<T> = [
         1.0, 7.0, 2.0, 8.0, 3.0, 9.0, 4.0, 10.0, 5.0, 11.0, 6.0, 12.0,
     ]
     .into_iter()
-    .map(T::from_f64)
+    .map(<T as coeus_core::FloatElement>::from_f64)
     .collect();
 
     let axis0 =

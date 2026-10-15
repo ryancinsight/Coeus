@@ -13,7 +13,7 @@ use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -30,22 +30,22 @@ fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let data: Vec<T> = [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let tensor = tensor_from_slice::<T, B>(&[3, 2], &data, backend);
     let transposed = tensor.transpose();
-    let fill = T::from_f64(-1.0);
+    let fill = <T as coeus_core::FloatElement>::from_f64(-1.0);
     let expected: Vec<T> = [
         -1.0, -1.0, -1.0, -1.0, 1.0, 2.0, 3.0, -1.0, 4.0, 5.0, 6.0, -1.0,
     ]
     .into_iter()
-    .map(T::from_f64)
+    .map(<T as coeus_core::FloatElement>::from_f64)
     .collect();
 
     let padded = coeus_ops::pad(&transposed, &[(1, 0), (0, 1)], fill)

@@ -8,7 +8,7 @@ mod layouts;
 mod oracle;
 
 use coeus_autograd::{ctc_loss, log_softmax, Var};
-use coeus_core::{BackendError, Float, MoiraiBackend, Scalar, SequentialBackend};
+use coeus_core::{BackendError, Float, MoiraiBackend, SequentialBackend};
 use coeus_nn::ctc_loss as nn_ctc_loss;
 use coeus_ops::{BackendOps, CtcBatch, CtcOps};
 use coeus_tensor::Tensor;
@@ -24,10 +24,10 @@ fn variable<T: Float, B: BackendOps<T> + Default>(values: &[T], shape: [usize; 3
     .expect("invariant: test backend operation succeeds")
 }
 
-fn probability_logs<T: Float>(values: &[f64]) -> Vec<T> {
+fn probability_logs<T: Float + coeus_core::FloatElement>(values: &[f64]) -> Vec<T> {
     values
         .iter()
-        .map(|&value| Float::ln(<T as Scalar>::from_f64(value)))
+        .map(|&value| Float::ln(<T as coeus_core::FloatElement>::from_f64(value)))
         .collect()
 }
 
@@ -51,7 +51,7 @@ fn alignment_case<T, B>(
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
     let logs = probability_logs::<T>(probabilities);
-    let seed = <T as Scalar>::from_f64(2.5);
+    let seed = <T as coeus_core::FloatElement>::from_f64(2.5);
     let expected = enumerate(
         &logs,
         shape,
@@ -104,7 +104,7 @@ where
     B: BackendOps<T> + CtcOps<T> + Default,
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
-    let half = <T as Scalar>::from_f64(0.5);
+    let half = <T as coeus_core::FloatElement>::from_f64(0.5);
     let log_half = Float::ln(half);
     let input = variable::<T, B>(&[log_half, log_half], [1, 1, 2]);
     let loss = ctc_loss(&input, &[], &[1], &[0], 0)
@@ -129,7 +129,7 @@ where
     // One frame forces the target symbol. Independent log inputs may be zero
     // without normalization; posterior [0,1,0] and dyadic seed are exact.
     let input = variable::<T, B>(&[T::ZERO; 3], [1, 1, 3]);
-    let initial = <T as Scalar>::from_f64(0.75);
+    let initial = <T as coeus_core::FloatElement>::from_f64(0.75);
     input.set_grad(
         Tensor::from_slice([1, 1, 3], &[initial; 3])
             .expect("invariant: test backend operation succeeds"),
@@ -137,13 +137,17 @@ where
     let loss = ctc_loss(&input, &[1], &[1], &[1], 0)
         .expect("invariant: a one-frame target has one alignment");
     assert_eq!(loss.tensor.as_slice(), &[T::ZERO]);
-    seeded_backward(&loss, <T as Scalar>::from_f64(2.5));
+    seeded_backward(&loss, <T as coeus_core::FloatElement>::from_f64(2.5));
     assert_eq!(
         input
             .grad()
             .expect("invariant: seeded leaf gradient exists")
             .as_slice(),
-        &[initial, <T as Scalar>::from_f64(-1.75), initial]
+        &[
+            initial,
+            <T as coeus_core::FloatElement>::from_f64(-1.75),
+            initial
+        ]
     );
 }
 
@@ -154,7 +158,7 @@ where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
     let shape = [2, 1, 3];
-    let logits = [0., 1., -1., 1., 0., -1.].map(<T as Scalar>::from_f64);
+    let logits = [0., 1., -1., 1., 0., -1.].map(<T as coeus_core::FloatElement>::from_f64);
     let mut logs = Vec::new();
     let mut probabilities = Vec::new();
     for row in logits.chunks_exact(3) {
@@ -169,7 +173,7 @@ where
             logs.push(Float::ln(probability));
         }
     }
-    let seed = <T as Scalar>::from_f64(-1.5);
+    let seed = <T as coeus_core::FloatElement>::from_f64(-1.5);
     let mut expected = enumerate(
         &logs,
         shape,

@@ -18,7 +18,13 @@ fn layout(shape: &[usize]) -> Layout {
     Layout::new(Shape::from(shape.to_vec()))
 }
 
-fn matmul_reference<T: Scalar>(a: &[T], m: usize, k: usize, b: &[T], n: usize) -> Vec<T> {
+fn matmul_reference<T: Scalar + coeus_core::FloatElement>(
+    a: &[T],
+    m: usize,
+    k: usize,
+    b: &[T],
+    n: usize,
+) -> Vec<T> {
     let mut out = vec![T::ZERO; m * n];
     for row in 0..m {
         for col in 0..n {
@@ -41,7 +47,7 @@ fn device_matmul<T, B>(
     c_layout: &Layout,
 ) -> Vec<T>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -81,17 +87,17 @@ where
 
 fn check_contiguous_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let a: Vec<T> = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let b: Vec<T> = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let expected = matmul_reference(&a, 2, 3, &b, 2);
 
@@ -109,21 +115,21 @@ where
 
 fn check_transposed_input_matmul<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let a_storage: Vec<T> = [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let a_logical: Vec<T> = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let b: Vec<T> = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
         .into_iter()
-        .map(T::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let a_transposed_layout = Layout::from_shape_strides(
         Shape::from(vec![2usize, 3]),

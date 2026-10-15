@@ -55,7 +55,7 @@ fn sdp_attention_case<
     let k = tensor::<T>(&[BATCH, SEQ, HEAD_DIM], 0.43);
     let v = tensor::<T>(&[BATCH, SEQ, HEAD_DIM], 0.71);
     let w = weighting::<T>(&[BATCH, SEQ, HEAD_DIM]);
-    let scale = <T as coeus_core::Scalar>::from_f64(SCALE);
+    let scale = <T as coeus_core::FloatElement>::from_f64(SCALE);
 
     gradcheck(&[q, k, v], |vars| {
         let (output, _weights) =
@@ -85,7 +85,7 @@ fn causal_sdp_attention_case<
     let k = tensor::<T>(&[BATCH, SEQ, HEAD_DIM], 0.61);
     let v = tensor::<T>(&[BATCH, SEQ, HEAD_DIM], 0.13);
     let w = weighting::<T>(&[BATCH, SEQ, HEAD_DIM]);
-    let scale = <T as coeus_core::Scalar>::from_f64(SCALE);
+    let scale = <T as coeus_core::FloatElement>::from_f64(SCALE);
 
     gradcheck(&[q, k, v], |vars| {
         let (output, _weights) = sdp_attention::<T, MoiraiBackend, CausalMask>(
@@ -180,7 +180,7 @@ fn masked_softmax_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[2, 5], 0.79);
     let mask_values: Vec<T> = [1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let mask = Tensor::<T, MoiraiBackend>::from_slice_on([2, 5], &mask_values, &backend)
         .expect("invariant: test backend operation succeeds");
@@ -212,7 +212,7 @@ fn sdp_attention_wide_values_case<
     let k = Sampler::signed(0.47).tensor::<T>(&[BATCH, SEQ, HEAD_DIM]);
     let v = Sampler::signed(0.89).tensor::<T>(&[BATCH, SEQ, HEAD_DIM]);
     let w = weighting::<T>(&[BATCH, SEQ, HEAD_DIM]);
-    let scale = <T as coeus_core::Scalar>::from_f64(SCALE);
+    let scale = <T as coeus_core::FloatElement>::from_f64(SCALE);
 
     gradcheck(&[q, k, v], |vars| {
         let (output, _weights) =

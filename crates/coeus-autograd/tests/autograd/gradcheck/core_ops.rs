@@ -104,7 +104,7 @@ fn layernorm_case<T: GradcheckScalar>() {
             coeus_ops::mean_axis(&centered_squared, 1, &backend).expect("row variance");
         let epsilon = Tensor::<T, MoiraiBackend>::full_on(
             [1],
-            <T as coeus_core::Scalar>::from_f64(EPS),
+            <T as coeus_core::FloatElement>::from_f64(EPS),
             &backend,
         )
         .expect("invariant: test backend operation succeeds");
@@ -132,7 +132,7 @@ fn layernorm_case<T: GradcheckScalar>() {
             istdev,
             Tensor::<T, MoiraiBackend>::full_on(
                 [1],
-                <T as coeus_core::Scalar>::from_f64(WIDTH as f64),
+                <T as coeus_core::FloatElement>::from_f64(WIDTH as f64),
                 &backend,
             )
             .expect("invariant: test backend operation succeeds"),
@@ -158,7 +158,7 @@ fn gather_repeated_indices_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[2, 4], 0.23);
     let index_values: Vec<T> = [1.0, 1.0, 2.0, 3.0, 0.0, 3.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let index = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on([2, 3], &index_values, &backend)
@@ -192,7 +192,7 @@ fn gather_unselected_columns_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[2, 4], 0.37);
     let index_values: Vec<T> = [0.0, 1.0, 3.0, 0.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let index = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on([2, 2], &index_values, &backend)
@@ -221,7 +221,7 @@ fn gather_unselected_columns_case<T: GradcheckScalar>() {
     .expect("invariant: valid autograd fixture completes backward");
     let grad = tracked.grad().expect("input must receive a gradient");
     let slice = grad.as_slice();
-    let zero = <T as coeus_core::Scalar>::from_f64(0.0);
+    let zero = <T as coeus_core::FloatElement>::from_f64(0.0);
     assert_eq!(slice[2], zero, "row 0 column 2 was never selected");
     assert_eq!(slice[6], zero, "row 1 column 2 was never selected");
 }
