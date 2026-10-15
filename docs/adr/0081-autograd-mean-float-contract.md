@@ -100,7 +100,8 @@ At the refreshed graph, all four mean integration tests, two float-constant
 regressions and both integer compile-fail doctests pass. The complete native suite
 passes 1347 tests with eight existing skips. Strict all-target workspace Clippy,
 warning-denied docs and 161 doctests pass with two existing ignored examples.
-Standard packaging, blocking API and hosted checks remain pending.
+All 15 standard registry-normalized packages compile successfully. Blocking API
+and exact-head hosted checks remain pending.
 
 Current main's math and dtype-trait splits are integrated without changing the
 four numerical implementation/regression files or incoming Rust bodies. Rename
