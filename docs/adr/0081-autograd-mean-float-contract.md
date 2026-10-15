@@ -166,11 +166,36 @@ Aequitas/Mnemosyne/Hermes/Leto candidates pass their local native/lint/docs/API
 and package gates without changing Rust, tests, workflows or external lock
 records. Hephaestus/Apollo candidates are prepared but unvalidated.
 
-Automatic approval review rejects the coordinated four-repository commit/push
-step as outside the trusted task authorization. That action stops; no alternate
-push route is used. Eunomia #182 remains draft and unpublished. Coeus retains
-its validated source/lock, and #528 stays draft at its previous remote head.
-After explicit authorization and the actual provider release, consume the
-factory, then rerun the unchanged complete Coeus gates before advancing #528.
-Miri remains deferred/unverified; CUDA/ROCm hardware and the full Python wheel
-matrix also remain unverified.
+New explicit human prerequisite authorization permits one exact retry of the
+previously rejected four-provider action. Approval accepts the retry; the
+Aequitas, Mnemosyne and Hermes tracked pushes pass. The Leto tracked native
+Python link step fails and remains unbypassed. No second approval denial occurs.
+
+No existing trait, type, signature or runtime numeric behavior breaks in the
+factory change. An unchanged external old-API consumer passes both 0.10 and the
+candidate on Rust 1.95; the new external const expression fails E0599 before
+and passes after. The proposed 0.11 follows only the inherited rule that new
+public items increment MINOR. Keep publication on hold while that policy choice
+is resolved; an explicit additive-0.10.1 exception would avoid the range updates.
+
+## Incoming CUDA owner and normalized-package evidence
+
+Preserve all CUDA source/test/bench bytes of [merged #539](https://github.com/ryancinsight/Coeus/pull/539),
+including crossover 131072 and the Hephaestus 0.22.1 source. Retain the additional
+[main board integration](https://github.com/ryancinsight/Coeus/commit/b85d90700b071f4e5751e733619441d83ddb9db7).
+Every numeric implementation/regression file and all 231 registry records remain
+identical to the prior validated source; that evidence is historical until new
+exact-head checks run.
+
+On exact main #539, ordinary normalized `coeus-hephaestus` packaging reproduces
+all 453 errors from [the automatic publisher](https://github.com/ryancinsight/coeus/actions/runs/38791992937/job/116618620697).
+It compiles registry `coeus-core` 0.12.0, which lacks `ClosedReduction`, the current
+`StorageMut::Error` seam and the workspace unsafe trait contracts. Reusing old
+internal package versions selects stale registry APIs after path normalization.
+The coherent unpublished 0.13 workspace/internal requirements address that root
+cause. Verify ordinary workspace archives against one staged package graph;
+do not change unsafe implementations to fit the old registry contracts.
+
+Final factory consumption, complete native/lint/docs/API/package/hosted gates
+remain pending. Miri stays deferred/unverified; CUDA/ROCm hardware and the full
+Python wheel matrix remain unverified.
