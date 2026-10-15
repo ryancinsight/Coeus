@@ -210,3 +210,37 @@ All external locked package versions and source revisions remain identical
 to main. No registry publication, release tag or complete tensor-forward
 migration is claimed. Remaining work is provider contract support, dependency
 graph co-evolution and rerunning cross-architecture gates once providers compile.
+
+## Provider specification follow-up (2026-10-15)
+
+Leto ADR 0036 proposes checked signed/stored-order borrowing, an explicit
+separate-rounding strategy and a validated row dispatch scope. It requires
+architectural sign-off before implementation. The generic Coeus adapter also
+needs an explicit `Backend::parallel_for` unwind-completion obligation and a
+reviewed implementor-contract change; the present Safety text states its
+guarantees on normal return. The forward cutover is therefore [arch] work.
+
+Provider Miri characterization exposed an inexact numerical fixture:
+`powi(53)` is not a guaranteed-exact way to construct `2^53` under
+[Rust's documented precision contract](https://doc.rust-lang.org/std/primitive.f64.html#method.powi).
+The forward tests now use the exact binary64 literal `9_007_199_254_740_992.0`
+and the exact native product `-(EPSILON * EPSILON)` for `-2^-104`.
+No input domain, assertion or tolerance changes. Production Rust and external
+dependency locks remain identical to the recovered bridge commit
+`35e452686785cb409dd648c0565b3f9600e5de8d`.
+
+After this fixture correction, all **293 native tests pass** again and all
+**five tensor-forward contract cases pass strict-provenance aarch64 Miri in
+both borrow models** (Stacked run `a0ab5695-46f3-4176-9309-ec966d080333`, Tree
+run `db9028ea-8606-4b5d-abf5-2ad9bd1dd907`; 94 unrelated tests excluded in each).
+Isolation remains enabled. The pre-existing nightly Cargo warning about
+`workspace.package.keywords` remains visible. This adds memory evidence for
+the existing Coeus forward contracts, not for an unimplemented provider API.
+
+```sh
+MIRIFLAGS=-Zmiri-strict-provenance cargo +nightly miri nextest run --offline --locked \
+  --manifest-path "$COEUS/Cargo.toml" --target-dir "$ATLAS/target" \
+  --config-file "$COEUS/.config/nextest.toml" \
+  -p coeus-ops --test ops -E 'test(sparse::forward_contracts::)'
+# Repeat with MIRIFLAGS='-Zmiri-strict-provenance -Zmiri-tree-borrows'.
+```

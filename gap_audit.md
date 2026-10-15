@@ -9,6 +9,10 @@ and scheduling gaps have an explicit provider-first action in
 [COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward).
 The [verification record](docs/verification/sparse-recovery.md) distinguishes
 the compatible bridge recovery from the unresolved tensor forward cutover.
+Leto ADR 0036 now specifies that provider seam; sign-off and explicit backend
+completion on unwind remain prerequisites. Exact numerical fixtures use
+representable literals/native products rather than unspecified-precision
+power calls; five tensor-forward contract cases now also pass Miri.
 
 ## 2026-10-15: fresh Git resolution exceeds current provider version bounds
 

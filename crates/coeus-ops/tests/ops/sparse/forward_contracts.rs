@@ -5,6 +5,9 @@ use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
 use tracing_subscriber::fmt::format::FmtSpan;
 
+// Exactly 2^53; powi's unspecified precision cannot define a bitwise oracle.
+const MAGNITUDE: f64 = 9_007_199_254_740_992.0;
+
 fn trace() -> tracing::subscriber::DefaultGuard {
     tracing::subscriber::set_default(
         tracing_subscriber::fmt()
@@ -42,7 +45,7 @@ fn stored_order_and_duplicate_columns_remain_observable() {
         // ((2^53 + 1) - 2^53) rounds to 0; coalescing column 1 changes it to 1.
         let a = csr(
             [2, 2],
-            &[2.0_f64.powi(53), 1.0, -2.0_f64.powi(53)],
+            &[MAGNITUDE, 1.0, -MAGNITUDE],
             &[1, 0, 1],
             &[0, 3, 3],
         );
@@ -59,14 +62,9 @@ fn stored_order_and_duplicate_columns_remain_observable() {
     assert_eq!(y.as_slice(), &[0.0, 0.0]);
     assert_eq!(c.as_slice(), &[0.0; 4]);
     assert!(y.as_slice().iter().all(|value| value.to_bits() == 0));
-    let error = leto_ops::CsrView::from_slices(
-        &[2.0_f64.powi(53), 1.0, -2.0_f64.powi(53)],
-        &[1, 0, 1],
-        &[0, 3, 3],
-        2,
-        2,
-    )
-    .expect_err("current Leto requires strictly increasing row columns");
+    let error =
+        leto_ops::CsrView::from_slices(&[MAGNITUDE, 1.0, -MAGNITUDE], &[1, 0, 1], &[0, 3, 3], 2, 2)
+            .expect_err("current Leto requires strictly increasing row columns");
     assert!(
         matches!(error, leto::LetoError::StorageError { reason } if reason.contains("strictly increasing"))
     );
@@ -93,7 +91,7 @@ fn matrix_product_keeps_separate_product_and_sum_rounding() {
     assert!(c.as_slice().iter().all(|value| value.to_bits() == 0));
     assert_eq!(
         (1.0 + f64::EPSILON).mul_add(1.0 - f64::EPSILON, -1.0),
-        -2.0_f64.powi(-104)
+        -(f64::EPSILON * f64::EPSILON)
     );
 }
 

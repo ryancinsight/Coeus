@@ -12,6 +12,9 @@
   compatibility constraints. See the
   [sparse recovery record](docs/verification/sparse-recovery.md) for the
   independently measured limits of a general tensor-forward cutover.
+- [patch] Construct sparse numerical witnesses with exactly representable
+  literals and native products instead of unspecified-precision power calls.
+  All five tensor-forward contract cases pass strict-provenance Miri.
 
 ## [Unreleased]
 

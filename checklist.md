@@ -20,8 +20,14 @@ passes 223 checks (30 tool skips). Fresh Git resolution and attempted 32-bit
 memory checks remain limited by existing provider failures. The bridge is a
 complete compatible increment; the tensor forward migration remains open.
 
-## General forward cutover [minor]
+## General forward cutover [arch]
 
-- [ ] [minor] Obtain provider support for the contracts in
+- [ ] [arch] Obtain ADR sign-off and provider support for the contracts in
       [COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward).
       The 0.12.1 bridge recovery does not close this item.
+
+Provider specification: Leto ADR 0036 is proposed. No forward implementation
+checklist item opens before its decision and the downstream backend unwind
+contract review. Exact power-of-two fixture corrections retain the 0.12.1
+patch scope; all 293 native tests and five forward-contract Miri cases pass
+under both borrow models. Strict package diagnostics and formatting pass.
