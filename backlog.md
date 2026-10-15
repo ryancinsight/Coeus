@@ -13,6 +13,7 @@ verification, tightening, feature}.
 - Also: the `from_f64(n as f64)` count conversions COEUS-COUNT-CONV-001 left move to `from_count`/`try_from_count`.
 - Gap (decision first, as an ADR): `FloatElement::from_f64` exists for floats only and `Float` does not imply it — a `Float: FloatElement` supertrait makes every `x.exp()`/`x.floor()` on `T: Float` ambiguous (`Float` redeclares ~25 `FloatElement` methods) and per-site `+ FloatElement` bounds are viral; `Complex<T>` has neither `FloatElement` nor `CastFrom<f64>`; 17 src and ~130 test sites are `T: Scalar`-only and run at integers (`v as Self`, which `CastFrom<f64>` reproduces exactly). ~390 call sites.
 - Options: (1, recommended) `Scalar: CastFrom<f64>` with `CastFrom<f64> for Complex<T>` added upstream in eunomia, every site `<T as CastFrom<f64>>::cast_from(v)`; (2) per-site `+ FloatElement`, narrowing int-capable generics to floats.
+- 2026-10-15: option (1) is dead — eunomia 0.10 retired `CastFrom`/`CastTo` (eunomia ADR 0007; replacement map points `f64`-into-float at `FloatElement::from_f64`, i.e. option (2)). The ADR must now decide option (2) vs a new spelling, including the `Complex<T>` gap (`Complex` has no `FloatElement`).
 - Acceptance: `from_f64` absent from `Scalar`; values unchanged; coeus gate green.
 
 <a id="coeus-rescue-queue"></a>
@@ -62,10 +63,34 @@ verification, tightening, feature}.
 ## COEUS-SWEEP-RESIDUAL-SAMPLING — Sample the unsampled #530 remainder
 
 - Status: todo; priority: verification; [patch].
-- Finding: of #530's 304 files, ~200 modified files remain unsampled after slices S1–S3 and the fusion/pool/einsum/gradcheck verdicts. Next-highest-signal files: `dtype/float/cpu_unary.rs` (143+/127-), `cpu_impl/unfold_fold.rs` (77+/216-) + `unfold_fold/validation.rs` deletion, `tests/alloc_budget.rs` (219+/17-), gradcheck `GradcheckConfig` design (tolerance-scale tuning + restructure of 405-line `gradcheck.rs`).
+- Finding: of #530's 304 files, ~200 modified files remain unsampled after slices S1–S3 and the fusion/pool/einsum verdicts.
+- Batch 1 verdicts (2026-10-15, `89cb08b0..16a73a81` vs main `f0d01021`): `dtype/float/cpu_unary.rs` — `ZERO`/`ONE` landed (64 sites, zero `zero()`/`one()` left); its per-site `FloatElement::from_f64` rewrite folds into COEUS-SCALAR-VOCAB (no slice — pre-empts the ADR). `cpu_impl/unfold_fold.rs` + `validation.rs` deletion — unique, filed as COEUS-UNFOLD-LETO-CHAIN. `tests/alloc_budget.rs` attribution machinery — unique, filed as COEUS-ALLOC-ATTRIBUTION. Gradcheck `GradcheckConfig`/tolerance-scale — landed independently (`gradcheck_with`, error/tests split; 431-line file under budget); the sweep's exact 5-way split dropped as stylistic.
+- Next samples by diff size: vendor `pool.rs` ×2 (436/433), vendor `unfold_fold.rs` ×2 (227/224), `coeus-optim/src/least_squares/tests.rs` (211). `coeus-leto/src/dispatch/unfold_fold.rs` (210) folds into COEUS-UNFOLD-LETO-CHAIN.
+- Batch 2 verdicts (2026-10-15): vendor `pool.rs` ×2 and `unfold_fold.rs` ×2 deletions — dropped as superseded (main's concrete vendor spelling won; sweep `pooling/`+`unfold_fold/` bridge logic verified line-identical to main modulo landed renames and fallible `make_unique`). `least_squares/tests.rs` — `ZERO` landed; its `+ FloatElement` bounds fold into COEUS-SCALAR-VOCAB (option-2 direction, no piecemeal port).
+- Next samples: `coeus-wgpu/src/lib.rs` (223), `coeus-wgpu/src/backend/mod.rs` (215), `coeus-cuda/src/backend/provider.rs` (215).
 - Method: per file, extract distinctive added lines and grep current main for them (landed) vs genuine absence (unique); port uniques as slices, record drops with rationale. Never close on resemblance.
 - Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
-- Next step: sample `cpu_unary.rs`.
+- Next step: sample `coeus-wgpu/src/lib.rs`.
+
+<a id="coeus-unfold-leto-chain"></a>
+## COEUS-UNFOLD-LETO-CHAIN — Delegate CPU unfold/fold to leto (contract-gated)
+
+- Status: todo; priority: architecture; [minor].
+- Finding: main's `cpu_impl/unfold_fold.rs` (294 lines) + `unfold_fold/validation.rs` are hand-rolled PyTorch-convention kernels. The sweep rewrites all four kernels onto `coeus_leto::unfold_into` over leto-ops sliding-window seams and deletes local validation. `leto_ops::unfold_into`/`fold_into` exist at the leto 0.46 pin; `coeus-leto` has no unfold dispatch yet.
+- Contract gate (prove before porting): window-geometry/dilation/padding parity and fold overlap-accumulation identity between leto's `WindowParameters` contract and current CPU behavior, including empty-output; plus the `T: leto_ops::Scalar` bound ripple audit across callers (SemVer).
+- Scope: forward (1D/2D unfold) + fold + validation + differential tests with exact values; vendor `unfold_fold.rs` files stay (separate backends, sampled separately).
+- Acceptance: epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
+- Next step: write the contract comparison (leto pin's sliding-window params vs current semantics).
+
+<a id="coeus-alloc-attribution"></a>
+## COEUS-ALLOC-ATTRIBUTION — Allocation-site attribution for the alloc budget
+
+- Status: todo; priority: verification; [patch].
+- Finding: the sweep adds `COEUS_ALLOC_ATTRIBUTION=1` site attribution to `coeus-ops/tests/alloc_budget.rs` (+219: sequence/size/raw-IP log via `backtrace::trace`, guard-skipped recording, offline `addr2line` resolution) to diagnose a `scatter_add` budget mismatch that flaked on hosted CI without reproducing locally. Not on main; no `backtrace` dev-dep; no recent main-CI failure signal.
+- Reproduce first: the item ports nothing until the mismatch is observed on a hosted lane (re-run history or a deliberate attribution-enabled run); a gone flake drops the machinery with rationale instead of landing 219 diagnostic lines plus a dependency for it.
+- Scope: attribution port adapted to current `alloc_budget.rs` (500 lines, diverged since the sweep base) + `backtrace` dev-dep, or a drop record.
+- Acceptance: either the mismatch reproduces under attribution and the site is identified, or the flake is proven gone and the drop is recorded; gates green either way.
+- Next step: survey hosted `alloc_budget` history for the `scatter_add` mismatch.
 
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
