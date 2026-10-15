@@ -202,3 +202,22 @@ packaging failure is reproduced before and absent after this version alignment.
 Final factory consumption, complete native/lint/docs/API/package/hosted gates
 remain pending. Miri stays deferred/unverified; CUDA/ROCm hardware and the full
 Python wheel matrix remain unverified.
+
+
+## Independent validation before the version decision
+
+The main #539/#540 integration passes all 1510 native cases with required
+WGPU/Metal device presence and the same eight existing skips. Strict all-target
+workspace Clippy, warning-denied docs, formatting and ADR indexing pass.
+All 166 full-workspace doctests pass, including the five WGPU examples omitted
+from the earlier command, with two existing ignored examples. All 15 actual
+published baseline/current API graph pairs complete under the automatic
+pre-1.0 version classification; compatibility skips remain explicit. Every
+original published baseline lock is preserved.
+
+The earlier 15 ordinary package archives use identical Rust, manifests, lock
+and workflow bytes. These checks validate the independently integrated graph
+before the actual factory/version release. Repeat applicable exact-final-head
+gates after consuming that provider. Ryan's explicit version-policy answer
+remains pending; elapsed time is not approval. No provider merge/publication
+or Miri/hardware/wheel-matrix acceptance follows from this independent run.
