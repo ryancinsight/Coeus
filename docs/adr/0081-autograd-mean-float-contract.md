@@ -144,3 +144,33 @@ lint/docs, 161 doctests and all 15 standard package/API graph checks. The exact
 unchanged cast guard still rejects only the public-const narrowing expression.
 Native const casting itself works on Rust 1.95; the missing permitted provider
 entry point is the prerequisite. Held Apollo #655 stays untouched.
+
+
+## Const factory prerequisite status
+
+[Eunomia #182](https://github.com/ryancinsight/eunomia/pull/182) implements
+`pub const fn F32::from_float(f64) -> F32` in its existing sanctioned conversion
+module; the primitive and wrapper runtime factories delegate to the same native
+operation. All binary64 inputs remain admitted. Both signs, subnormal/normal
+boundaries, midpoint ties, overflow and NaNs receive analytic const tests and
+a 49,152-case const/runtime differential grid. Its exact draft head passes
+hosted required CI, MSRV and the blocking validation-only package/release gate.
+Local 220 native and 215 NumPy tests pass, zero skips; NumPy 2.5.1 uses local
+Python 3.14, while the passing hosted NumPy job uses Python 3.13.
+
+The public addition requires Eunomia 0.11 under repository version policy;
+unchanged derive stays 0.10. The real canonical Coeus resolver rejects this
+candidate because existing Hermes still requires `^0.10`. Compatible provider
+ranges must precede the automatic default publisher merge. Four isolated
+Aequitas/Mnemosyne/Hermes/Leto candidates pass their local native/lint/docs/API
+and package gates without changing Rust, tests, workflows or external lock
+records. Hephaestus/Apollo candidates are prepared but unvalidated.
+
+Automatic approval review rejects the coordinated four-repository commit/push
+step as outside the trusted task authorization. That action stops; no alternate
+push route is used. Eunomia #182 remains draft and unpublished. Coeus retains
+its validated source/lock, and #528 stays draft at its previous remote head.
+After explicit authorization and the actual provider release, consume the
+factory, then rerun the unchanged complete Coeus gates before advancing #528.
+Miri remains deferred/unverified; CUDA/ROCm hardware and the full Python wheel
+matrix also remain unverified.
