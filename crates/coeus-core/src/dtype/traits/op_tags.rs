@@ -167,9 +167,10 @@ impl CpuUnaryOp {
     /// Decode the low and high halves of a packed activation parameter pair.
     #[must_use]
     pub const fn decode_parameter_pair(bits: u64) -> [f32; 2] {
+        let bytes = bits.to_le_bytes();
         [
-            f32::from_bits(bits as u32),
-            f32::from_bits((bits >> 32) as u32),
+            f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+            f32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]),
         ]
     }
 
