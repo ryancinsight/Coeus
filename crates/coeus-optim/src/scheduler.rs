@@ -190,7 +190,7 @@ where
 
 impl<T, B, O, S> LrScheduler<T, B, O, S>
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default,
     O: Optimizer<T, B>,
     S: SchedulerStrategy,
@@ -220,7 +220,8 @@ where
     #[inline]
     pub fn step(&mut self) -> Result<(), B::Error> {
         let new_lr = self.strategy.lr(self.base_lr, self.step);
-        self.optimizer.set_lr(T::from_f64(new_lr));
+        self.optimizer
+            .set_lr(<T as coeus_core::FloatElement>::from_f64(new_lr));
         self.optimizer.step()?;
         self.step += 1;
         Ok(())

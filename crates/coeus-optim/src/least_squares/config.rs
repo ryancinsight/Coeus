@@ -1,6 +1,6 @@
 //! Solver configuration and termination vocabulary.
 
-use coeus_core::Scalar;
+use coeus_core::{FloatElement, Scalar};
 
 /// Why the solver stopped.
 ///
@@ -63,7 +63,7 @@ pub struct LevenbergMarquardtConfig<T> {
     pub damping_decrease: T,
 }
 
-impl<T: Scalar> LevenbergMarquardtConfig<T> {
+impl<T: Scalar + FloatElement> LevenbergMarquardtConfig<T> {
     /// Machine epsilon of `T`, obtained through the scalar's own round-trip.
     ///
     /// `Scalar` exposes no epsilon associated constant, so this derives it by
@@ -71,7 +71,7 @@ impl<T: Scalar> LevenbergMarquardtConfig<T> {
     /// evaluated once per construction, not per iteration.
     fn epsilon() -> T {
         let mut epsilon = T::ONE;
-        let two = T::from_f64(2.0);
+        let two = <T as FloatElement>::from_f64(2.0);
         while T::ONE + epsilon / two > T::ONE {
             epsilon = epsilon / two;
         }
@@ -79,7 +79,7 @@ impl<T: Scalar> LevenbergMarquardtConfig<T> {
     }
 }
 
-impl<T: Scalar> Default for LevenbergMarquardtConfig<T> {
+impl<T: Scalar + FloatElement> Default for LevenbergMarquardtConfig<T> {
     fn default() -> Self {
         let sqrt_epsilon = Self::epsilon().sqrt_val();
         Self {
@@ -90,9 +90,9 @@ impl<T: Scalar> Default for LevenbergMarquardtConfig<T> {
             // single-digit iterations; the cap is a runaway guard, not a budget
             // callers are expected to tune.
             max_iterations: 100,
-            initial_damping: T::from_f64(1e-3),
-            damping_increase: T::from_f64(10.0),
-            damping_decrease: T::from_f64(10.0),
+            initial_damping: <T as FloatElement>::from_f64(1e-3),
+            damping_increase: <T as FloatElement>::from_f64(10.0),
+            damping_decrease: <T as FloatElement>::from_f64(10.0),
         }
     }
 }
