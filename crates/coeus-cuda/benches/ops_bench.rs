@@ -128,6 +128,10 @@ fn bench_conv_transpose2d(c: &mut Criterion) {
 /// Scalar-sum placement crossover, CUDA counterpart to the WGPU group: the
 /// CUDA submit floor differs from WDDM, so the crossover is measured
 /// separately rather than inherited.
+///
+/// The GPU arm routes through `host_staging_crossover`, so re-measuring the
+/// threshold itself requires forcing the constant to zero first; otherwise
+/// sizes below the current threshold benchmark the staged path twice.
 fn bench_reduction_crossover(c: &mut Criterion) {
     if !cuda_available() {
         return;

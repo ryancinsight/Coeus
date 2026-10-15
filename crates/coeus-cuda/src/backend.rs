@@ -71,14 +71,13 @@ unsafe impl ComputeBackend for CudaBackend {
 
     #[inline]
     fn host_staging_crossover(&self) -> usize {
-        // Measured 2026-10-14 (Ultra 9 285K, RTX 5080, driver 610.60;
+        // Measured 2026-10-15 (Ultra 9 285K, RTX 5080, driver 610.60;
         // `ops_bench -- "Reduction crossover"`, f32 scalar sum, criterion
-        // means): host staging wins at every measured size to n=1048576
-        // (90-639us vs 96us-13.5ms device). The device path itself is
-        // suspect there (13.5ms at 1M elements is ~300MB/s on a ~1TB/s
-        // part); that kernel-side anomaly is tracked separately and this
-        // threshold stages only the measured-winning range.
-        1_048_576
+        // means, hephaestus with the scalar axis fast-path): host staging
+        // wins at n<=65536 (~91-99us vs ~108-136us device) and the device
+        // wins at n>=262144 (~117-119us vs ~525-590us staged). 131072 is
+        // the 2^17 midpoint of the measured bracket.
+        131_072
     }
 
     #[inline]
