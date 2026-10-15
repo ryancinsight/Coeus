@@ -39,8 +39,6 @@
   on rejection. Keep fallible allocation/mutable access, logical offsets,
   complete initialization and separate native-precision multiplication/addition.
 
-## [0.12.1] - Unreleased
-
 ### Fixed
 
 - [patch] `coeus-leto` sparse dispatch borrows Leto's validated CSR view

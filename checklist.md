@@ -21,7 +21,7 @@ passes 223 checks (30 tool skips). Fresh Git resolution and attempted 32-bit
 memory checks remain limited by existing provider failures. The bridge is a
 complete compatible increment; the tensor forward migration remains open.
 
-## General forward cutover [arch] — Execution
+## General forward cutover [arch] — Closure / review
 
 - [x] [arch] Ryan Clanton approves Leto ADR 0036 and its downstream backend
       safety clarification on 2026-10-15; ADR 0081 records the consumer slice.
@@ -35,11 +35,19 @@ complete compatible increment; the tensor forward migration remains open.
       deliver compatible Hephaestus #497 and Apollo #674 independently.
 - [x] [arch] Complete scalar/layout/initialization regressions, both memory
       models, complete native/strict/doc gates and current-main performance.
-- [ ] [patch] Record final exact-head API/hosted checks and fresh review-source
-      consumers; retain default/registry availability as provider-first gates.
+- [x] [patch] Record exact current-main native/strict/doc/API and paired timing
+      evidence, fresh review-source consumers and successful hosted memory scopes.
+- [ ] [patch] Before separately authorized integration, inspect all final hosted
+      receipts and the measured narrow-product cost; refresh defaults/registry
+      consumers in provider order.
 
-The provider implementation and backend-contract commit are independently
-reviewable. The 0.12.1 bridge evidence below remains historical; it does not
+The source increment is independently reviewable against main `f0d01021`.
+Final local acceptance: 1272 native passes (`b08e612b`, eight existing ignored),
+strict all-target/workspace Clippy, 159 doctests (two existing ignored),
+warning-denied docs, and three explicit minor API comparisons (196 checks each,
+57 tool skips each). The final timing repeat records 2–8% median SpMV overhead
+and Moirai SpMM ratios 0.09–0.32. Hosted/availability limits remain explicit in
+the linked record and PR checks. The 0.12.1 bridge evidence below remains historical; it does not
 certify the 0.13.0 forward cutover. Preservation #531 stays intact.
 
 Current-main merge `fdd719e4` revalidates 293 native cases, 38 doctests, eight

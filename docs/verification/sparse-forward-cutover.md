@@ -63,8 +63,12 @@ native properties use 256 generated stored-order cases with shrinking.
 The full applicable Coeus native suite passes 1272 tests (`42193f0a`,
 5.302 s), with eight existing ignored cases. Strict all-workspace/all-target
 Clippy and warning-denied workspace Rustdoc pass. Doctests pass 159 cases with
-two existing ignored examples. The merged current-main candidate repeats 1272 native passes
-(`94738d0e`, 7.152 s), strict Clippy, 159 doctests and warning-denied Rustdoc.
+two existing ignored examples. The first merged candidate repeats 1272 native passes (`94738d0e`, 7.152 s).
+The final `f0d01021`/Hephaestus 0.22.2 review graph passes 1272 native cases
+(`b08e612b`, 6.042 s; eight existing ignored), strict all-workspace/all-target
+Clippy, 159 doctests (two existing ignored) and warning-denied workspace
+Rustdoc. Compilation takes 5m45s after current-main's registry updates and
+shared-target lock contention; actual test execution stays within native limits.
 
 The merged candidate passes all thirteen selected Coeus memory cases in both
 strict-provenance models, with isolation and arithmetic-error modeling enabled:
@@ -88,7 +92,7 @@ No assertion, workload, native limit, isolation or leak check is relaxed.
 The installer explicitly selects nightly because the pinned release-specific
 Rust action otherwise installs stable even when given a nightly input.
 
-## Final paired performance against current main
+## Paired performance against current main
 
 `scripts/sparse_forward_compare.py` extracts all five original sparse/pointer
 files byte-for-byte from the main revision into a real reference crate. Both
@@ -105,7 +109,7 @@ Native disassembly shows repeated destination loads/stores for partial sums.
 One local accumulator removes those writes without cloning the CSR traversal;
 reusing checked validation removes the second successful index scan.
 
-The final run uses the current complete review lock and no concurrent owned
+The first complete-graph run uses the review lock and no concurrent owned
 heavy verification. It compares candidate/main time. Quartiles crossing 1
 show uncertainty around parity; they do not establish a universal
 non-regression bound. The host runs other work. All outputs pass exact value
@@ -120,23 +124,50 @@ changes in response to the measurements.
 | 4096x4096 / 64 | 0.076 [0.075,0.077] | 0.182 [0.177,0.188] |
 | 4097x4096 / 257 | 0.207 [0.205,0.210] | 0.291 [0.284,0.298] |
 
-The large SpMV medians are 160.493/163.655 us sequential and 122.505/119.766 us
-Moirai (main/candidate). The paired-ratio median need not equal the ratio of
-those separate medians. Backend execution retains its observed speedup and
-its call path. SpMM improves with separate rounding; the legacy SIMD entry
-point's exact `-2^-104` versus +0 counterexample is not used as a replacement.
+That earlier run uses source fingerprint
+`ece0fe1ad50e727327f0eaa8d0a3adaaaebfb9a20dd5b20eec51c28d4d41c6c5`.
+Its paired SpMV medians lie near parity and Moirai SpMM ratios span 0.09–0.29.
 
-Candidate source fingerprint (sorted JSON of every CPU source/manifest and the
-instrument): `ece0fe1ad50e727327f0eaa8d0a3adaaaebfb9a20dd5b20eec51c28d4d41c6c5`. The instrument checks that fingerprint before and
-after measurement; both implementations' full computed outputs pass.
+The final-lock repeat preserves current main `f0d01021`, all 231 of its registry
+records and the new compatible Hephaestus source. No owned heavy check overlaps
+measurement. The same 21-pair workloads and complete exact-value oracles run
+again, with no tolerance or input changes:
+
+| Shape / RHS | Sequential ratio median [Q1,Q3] | Moirai ratio median [Q1,Q3] |
+| --- | --- | --- |
+| 1024x1024 / 1 | 1.078 [1.047,1.105] | 1.061 [1.012,1.086] |
+| 16384x16384 / 1 | 1.019 [0.990,1.040] | 1.076 [0.999,1.141] |
+| 1024x1024 / 16 | 0.094 [0.094,0.095] | 0.093 [0.093,0.094] |
+| 4096x4096 / 64 | 0.074 [0.074,0.075] | 0.178 [0.171,0.199] |
+| 4097x4096 / 257 | 0.207 [0.206,0.209] | 0.321 [0.305,0.326] |
+
+This repeat observes 2–8% median SpMV overhead; the small-vector quartiles
+exceed 1. That cost remains a review tradeoff, not a passing universal
+non-regression claim. Large-vector quartiles cross 1. The selected backend's
+row dispatch is retained; large SpMV main/candidate medians are
+179.805/180.503 us sequential and 131.306/152.299 us Moirai. The paired-ratio
+median need not equal the ratio of those separate medians. Both paths retain
+an observed Moirai speedup. Measured Moirai SpMM takes 9–32% of main time.
+Earlier-run near-parity results remain visible rather than substituting for
+this final adverse observation. Host activity prevents a quiet-machine claim.
+
+Final candidate source fingerprint (sorted JSON of every CPU source/manifest
+and the instrument): `4c354cacd84687b6fa265a0a4104204cd18343526e6827d4584619e33e828a9d`.
+The instrument checks source identity before/after and consumes all results.
+Separate native rounding remains exact: the legacy SIMD `-2^-104` versus +0
+counterexample prevents using its FMA behavior to hide this cost.
 
 
 ## Exact source compatibility and downstream availability
 
 Explicit prebuilt-Rustdoc comparisons use actual committed base/head locks;
 Coeus core, Leto bridge and operations each pass 196 API checks with 57 tool
-checks skipped, comparing `33f6f1f0` with `d9ee1c90` under an explicit minor
-compatibility requirement. The later CPU source/API remains unchanged.
+checks skipped, first comparing `33f6f1f0` with `d9ee1c90`. The final repeat
+compares `f0d01021` with `aa7edbec`, enables all features, includes private/hidden
+items in complete Rustdoc JSON, and again passes all 196 checks for each
+package under an explicit minor compatibility requirement. The approved
+unsafe implementor-contract clarification remains documented in Breaking;
+unchanged signatures alone do not establish that semantic obligation.
 The old hosted informational job fails dependency resolution, yet stays green:
 it discards both revision locks, rejecting candidate Apollo ^0.29.2 and base
 Eunomia ^0.9 before comparison. That green job is not API acceptance evidence.
@@ -151,7 +182,7 @@ Apollo FFT 0.29.2 (`f8fa292c`) resolve 7/7/9 canonical providers, respectively,
 with zero excess identities. A real fresh Leto binary aliases the original
 signed arrays and computes `[98,0]` and `[140,166,200,0,0,0]`, including an empty
 row, then rejects a negative column. These are executed outputs, not only
-metadata success. Fresh Coeus ops/autograd 0.13 at `4c2a29c5` fails before
+metadata success. Fresh Coeus ops/autograd 0.13 at `aa7edbec` fails before
 compilation because default Apollo still exposes only 0.29.1. No default-source
 or registry availability follows from the passing complete review lock.
 
@@ -162,6 +193,10 @@ compatibility #497 therefore preserves both current CUDA fixes and targets
 0.22.2. The current Coeus lock selects that exact review source while retaining
 one identity for each of ten providers. Current-head hosted checks are separate
 from the earlier recorded runs and must be inspected before integration.
+The final runtime sources match `aa7edbec`; subsequent record updates change
+no Rust, manifest, lock, benchmark, workflow or profile bytes. Selected current
+memory jobs and available real Metal checks pass while the remaining hosted
+jobs queue. The PR check list is the authoritative completion receipt.
 
 ## Reproduction and limits
 

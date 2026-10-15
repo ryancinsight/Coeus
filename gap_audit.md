@@ -4,62 +4,37 @@ Risks nobody is actively fixing. A risk with a planned fix is a backlog item
 instead (see `backlog.md`); a closed risk's residue lives in its ADR or PR,
 not here.
 
-Sparse recovery audit (2026-10-15): the signed-index, stored-order, rounding
-and scheduling gaps have an explicit provider-first action in
-[COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward).
-The [verification record](docs/verification/sparse-recovery.md) distinguishes
-the compatible bridge recovery from the unresolved tensor forward cutover.
-Accepted Leto ADR 0036 implements that provider seam; ADR 0081 records the
-approved backend completion-on-unwind contract. Exact numerical fixtures use
-representable literals/native products rather than unspecified-precision
-power calls; five tensor-forward contract cases now also pass Miri.
+## 2026-10-15 — Borrowed CSR source contracts close
 
-## 2026-10-15 — Approved provider and backend execution boundary
+The accepted provider seam and Coeus adapter remove copied CSR reconstruction
+and duplicate forward arithmetic while preserving signed-index checks,
+stored order, separate rounding, fallible storage, full initialization,
+exact typed diagnostics and backend dispatch. ADRs 0036/0081 record ownership
+and the approved backend unwind obligation. [The current verification record](docs/verification/sparse-forward-cutover.md)
+separates each exact-source result from the historical bridge audit.
 
-- ADR 0036 is approved by Ryan Clanton in the task conversation; consumer ADR
-  0081 records the unchanged-signature, tightened unwind obligation for unsafe
-  backend implementations. The workspace target becomes 0.13.0.
-- Real Sequential/Moirai panic regressions pass on the existing graph (Moirai
-  crosses 4096 rows). Audit finds only inline CUDA delegations beyond those
-  two CPU implementations; the existing test counter also executes inline.
-- Leto main advances to the Eunomia 0.10 cohort during implementation. Follow
-  the active provider dependency owners before the consumer graph is refreshed.
-- Next: verified provider binding, full integration and performance gates.
+The final current-main graph passes 1272 native cases, strict Clippy, 159
+doctests, warning-denied documentation and three explicit minor API comparisons.
+Provider native/properties, both strict memory models, allocation guards and
+real threshold-crossing callbacks cover the new boundary. Complete Coeus
+current-head hosted receipts remain a pre-integration check in the backlog.
 
-## 2026-10-15 — Recovered forward path and coherent review graph
+Residuals have a defined next action in
+[COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward):
 
-- The provider owns checked signed decoding, stored-order arithmetic and row
-  writes. Coeus reuses the checked descriptor and retains fallible tensor
-  storage/allocation, original rejection diagnostics and backend scheduling.
-- 151 real CPU integration cases pass. Single-column local accumulation and
-  removal of duplicate validation resolve the measured multi-fold SpMV loss;
-  paired medians now lie near parity and SpMM improves on all measured widths.
-- Hephaestus #497 and Apollo #674 add compatible 0.46/0.47 intervals. Cargo
-  regenerates/validates the complete review lock with ten canonical provider
-  identities and no excess source, path patch or manifest revision pin.
-- Remaining: exact candidate full native, strict/API/memory/hosted evidence
-  and provider-first default/registry availability. See the current
-  [forward record](docs/verification/sparse-forward-cutover.md).
-
-## 2026-10-15: fresh Git resolution exceeds current provider version bounds
-
-An unlocked external consumer of main `cd8e984e` fails before compilation:
-Coeus requests Eunomia `^0.9.0`, while its default Git branch provides 0.10.0.
-The canonical lock still builds, and this recovery retains every external
-locked source/version. Impact: fresh consumers and the normal source-based
-SemVer build cannot resolve; no release-readiness claim follows from locked
-tests or the API-only comparison. Owner: provider dependency co-evolution.
-Re-open trigger: version bounds/source identities advance together, followed
-by a fresh consumer without local path/patch overrides.
-
-## 2026-10-15: 32-bit memory checks stop in locked provider assertions
-
-i686 Miri fails Eunomia's `align_of::<F64>() == 8` assertion (target alignment
-is 4); ARMv7 Miri fails Moirai's Chase–Lev deque alignment >=64 assertion.
-Both fail before Coeus compilation. Impact: neither run provides 32-bit
-memory-safety evidence; the borrowed `usize` descriptor adds no index cast.
-Owner: respective providers. Re-open trigger: a compatible provider graph
-compiles on those targets and the selected Miri checks execute.
+- Final-lock SpMV medians cost 2–8% more; Moirai SpMM takes 9–32% of main time.
+  Review the narrow cost with all timing runs visible; do not infer universal
+  performance preservation from retained parallel dispatch.
+- Fresh Leto/Hephaestus/Apollo review consumers resolve one source per provider;
+  fresh Coeus still rejects unmerged Apollo ^0.29.2. Default/registry evidence
+  requires provider-first authorized integration, not another local lock seed.
+- Provider-only ARM32 executes eight cases in each strict model. Full Coeus
+  ARM32 stops before tests at Moirai's deque-alignment assertion; i686 stops at
+  Eunomia's binary64 alignment assertion. Neither is a full-consumer pass.
+- Linux's real Moirai topology `opendir` is unsupported under Miri isolation.
+  The full unchanged case executes in both macOS jobs; Linux additionally runs
+  all twelve other cases. Native limits, assertions, isolation and leak checks
+  remain intact.
 
 ## CUDA context creation failure remains unclassified
 

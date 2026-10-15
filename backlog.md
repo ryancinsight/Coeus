@@ -6,33 +6,35 @@ restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
 <a id="coeus-sparse-view-forward"></a>
-## COEUS-SPARSE-VIEW-FORWARD — Verify the recovered tensor cutover
+## COEUS-SPARSE-VIEW-FORWARD — Review the recovered tensor cutover
 
-- Status: closure; target: 0.13.0; priority: verification; [arch].
-- Outcome: one provider-owned CSR forward implementation preserves current
-  Coeus accepted inputs, typed errors, native-precision accumulation and backend
-  row scheduling. No consumer-local fallback or duplicate algorithm.
-- Evidence: [current forward verification](docs/verification/sparse-forward-cutover.md)
-  and [initial audit](docs/verification/sparse-recovery.md). The checked signed
-  stored-order provider and explicit separate-rounding policy are implemented;
-  both tensor products dispatch its shared row task through the real backend.
-- Acceptance: the new forward contract tests pass on the real provider path;
-  negative/platform-overflow indices retain typed errors; layout rejection,
-  contiguous offsets and all empty shapes retain behavior; every output is
-  initialized; counterbalanced measurements show the scheduling impact.
-- Provider proposal: Leto ADR 0036 specifies the signed/stored-order borrowed
-  product, explicit arithmetic policy and a prevalidated row dispatch scope.
-  Ryan Clanton approves ADR 0036 on 2026-10-15. ADR 0081 records the
-  downstream clarification and 0.13.0 Breaking migration.
-  Review: [Leto #362](https://github.com/ryancinsight/leto/pull/362).
-- Backend completion on return/unwind is documented and characterized on real
-  implementations. All 151 component integration cases pass. Paired SpMV
-  medians lie near parity; SpMM improves across the measured widths.
-- Compatible bindings: Hephaestus #497 and Apollo #674 retain 0.46 and admit
-  the additive 0.47 line. The real full review graph resolves ten providers
-  with zero excess identities, without path patches or manifest revision pins.
-- Next step: finish full native/strict/API/memory and exact-head hosted gates,
-  then record the provider-first availability boundary. Keep #531 intact.
+- Status: source complete / review; target: 0.13.0; priority: verification; [arch].
+- Outcome: one provider-owned CSR forward implementation preserves accepted
+  inputs, typed errors, native-precision stored-order accumulation, complete
+  output initialization and backend row dispatch, without copies or fallback math.
+- Decisions: Ryan Clanton approves Leto ADR 0036 on 2026-10-15; Coeus ADR 0081
+  records the backend completion-on-return/unwind clarification and Breaking
+  migration for unsafe implementors.
+- Evidence: [current forward record](docs/verification/sparse-forward-cutover.md)
+  maps exact sources to 1272 native passes, strict diagnostics, 159 doctests,
+  explicit minor API comparisons, both strict memory models, provider ARM32
+  execution, complete value/initialization regressions and paired performance.
+  [The initial audit](docs/verification/sparse-recovery.md) remains historical.
+- Current base: `f0d01021`; S2/S3, CUDA crossover and all 231 registry records
+  remain intact. Compatible [Hephaestus #497](https://github.com/ryancinsight/hephaestus/pull/497)
+  targets 0.22.2, preserving concurrent CUDA fixes; [Apollo #674](https://github.com/ryancinsight/apollo/pull/674)
+  targets FFT 0.29.2, preserving current layout tests. [Leto #362](https://github.com/ryancinsight/leto/pull/362)
+  owns the checked signed/stored-order product. Ten review providers resolve
+  with zero excess identities, path patches or manifest revision pins.
+- Performance boundary: the final-lock repeat observes 2–8% median SpMV cost;
+  Moirai SpMM takes 9–32% of main time. Preserve that tradeoff with the earlier
+  near-parity results; neither is a universal throughput guarantee.
+- Next action: inspect final hosted receipts in [Coeus #533](https://github.com/ryancinsight/Coeus/pull/533),
+  review the narrow-product cost, then integrate compatible providers under
+  separate authorization. Refresh default sources and verify actual registry
+  consumers before release. The fresh Coeus consumer still rejects unmerged
+  Apollo ^0.29.2. Full ARM32/i686 interpreter runs remain upstream-build-limited;
+  Linux Moirai topology remains unavailable under Miri isolation. Keep #531 intact.
 
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`
