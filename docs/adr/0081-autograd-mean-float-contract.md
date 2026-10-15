@@ -107,3 +107,14 @@ Current main's math and dtype-trait splits are integrated without changing the
 four numerical implementation/regression files or incoming Rust bodies. Rename
 only this ADR to 0081 because newly merged main owns 0079/0080. Preserve that
 ownership and run all final Coeus gates on the eventual actual provider graph.
+
+## Remaining integration gate
+
+The tracked hook completes its full workspace lint/native/docs sequence, then
+rejects four `as` expressions carried by the already merged math/trait file
+splits. The final narrowing is inside the public const parameter decoder;
+Eunomia's non-const trait conversion does not preserve that API. Record
+COEUS-LANDED-CAST-GATE in the existing backlog and preserve the incoming code.
+No hook, baseline, coverage or deadline is weakened. The current-provider
+source remains local until that gate is resolved and final hosted/API checks
+run; this is not a publication or completed-release claim.
