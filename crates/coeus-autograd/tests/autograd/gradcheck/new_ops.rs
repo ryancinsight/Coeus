@@ -255,7 +255,7 @@ fn linear_interpolation_case() {
     let w = weighting::<f32>(&[1, 1, 2, 1]);
 
     gradcheck(&[image], |v| {
-        let sampled = linear_interpolation::<2, _, _>(
+        let sampled = linear_interpolation::<f32, 2, _, _>(
             &v[0],
             &Var::new(grid.clone(), false).expect("invariant: test backend operation succeeds"),
             Replicate,
