@@ -72,7 +72,7 @@ pub enum GradientSyncError<B, C> {
 /// Returns [`GradientSyncError::Communicator`] when the all-reduce fails and
 /// [`GradientSyncError::Backend`] when gradient scaling cannot be applied.
 pub fn synchronize_gradients<
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend + coeus_ops::BackendOps<T> + Default,
     C: Communicator,
 >(
@@ -84,7 +84,7 @@ pub fn synchronize_gradients<
         return Ok(());
     }
     let backend = B::default();
-    let scale_val = T::from_f64(1.0 / size as f64);
+    let scale_val = <T as coeus_core::FloatElement>::from_f64(1.0 / size as f64);
     let scale_tensor =
         Tensor::full_on([1], scale_val, &backend).map_err(GradientSyncError::Backend)?;
 
