@@ -64,7 +64,7 @@ fn target_below<T: GradcheckScalar>(
         .as_slice()
         .iter()
         .zip(residuals)
-        .map(|(&p, &r)| p - <T as coeus_core::Scalar>::from_f64(r))
+        .map(|(&p, &r)| p - <T as coeus_core::FloatElement>::from_f64(r))
         .collect();
     Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on(
@@ -108,7 +108,7 @@ fn smooth_l1_loss_case<T: GradcheckScalar>() {
         smooth_l1_loss(
             &v[0],
             &target,
-            <T as coeus_core::Scalar>::from_f64(SMOOTH_L1_BETA),
+            <T as coeus_core::FloatElement>::from_f64(SMOOTH_L1_BETA),
         )
         .expect("invariant: test operation succeeds")
     })
@@ -132,7 +132,7 @@ fn huber_loss_case<T: GradcheckScalar>() {
         huber_loss(
             &v[0],
             &target,
-            <T as coeus_core::Scalar>::from_f64(HUBER_DELTA),
+            <T as coeus_core::FloatElement>::from_f64(HUBER_DELTA),
         )
         .expect("huber_loss shapes agree")
     })
@@ -153,8 +153,12 @@ fn binary_cross_entropy_case<T: GradcheckScalar>() {
     let target = Sampler::probability(0.73).constant::<T>(&PAIR_SHAPE);
 
     gradcheck(&[pred], |v| {
-        binary_cross_entropy(&v[0], &target, <T as coeus_core::Scalar>::from_f64(1e-12))
-            .expect("invariant: test operation succeeds")
+        binary_cross_entropy(
+            &v[0],
+            &target,
+            <T as coeus_core::FloatElement>::from_f64(1e-12),
+        )
+        .expect("invariant: test operation succeeds")
     })
     .expect("binary_cross_entropy backward must match central differences");
 }
@@ -179,7 +183,7 @@ fn bce_with_logits_case<T: GradcheckScalar>() {
     // d/dz mean(softplus(z) - z·y) = (sigmoid(z) - y)/N.
     let logit_values: Vec<T> = LOGITS
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let logits = Tensor::<T, MoiraiBackend>::from_slice_on(
         PAIR_SHAPE.to_vec(),
@@ -250,7 +254,7 @@ fn soft_margin_case<T: GradcheckScalar>() {
     let input = tensor::<T>(&PAIR_SHAPE, 0.47);
     let sign_values: Vec<T> = SIGNS
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let labels = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on(
@@ -348,13 +352,13 @@ fn margin_ranking_loss_case<T: GradcheckScalar>() {
         .as_slice()
         .iter()
         .zip(&RANKING_GAPS)
-        .map(|(&bv, &gap)| bv + <T as coeus_core::Scalar>::from_f64(gap))
+        .map(|(&bv, &gap)| bv + <T as coeus_core::FloatElement>::from_f64(gap))
         .collect();
     let a = Tensor::<T, MoiraiBackend>::from_slice_on([4], &a_values, &backend)
         .expect("invariant: test backend operation succeeds");
     let labels: Vec<T> = RANKING_LABELS
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
 
     gradcheck(&[a, b], |v| {
@@ -362,7 +366,7 @@ fn margin_ranking_loss_case<T: GradcheckScalar>() {
             &v[0],
             &v[1],
             &labels,
-            <T as coeus_core::Scalar>::from_f64(RANKING_MARGIN),
+            <T as coeus_core::FloatElement>::from_f64(RANKING_MARGIN),
         )
         .expect("invariant: test operation succeeds")
     })
@@ -399,7 +403,7 @@ fn multi_margin_case<T: GradcheckScalar>() {
     // the comments at those two sites.
     let score_values: Vec<T> = MULTI_MARGIN_SCORES
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let scores =
         Tensor::<T, MoiraiBackend>::from_slice_on([2, 3], &score_values, &MoiraiBackend::new())
@@ -410,8 +414,8 @@ fn multi_margin_case<T: GradcheckScalar>() {
         multi_margin(
             &v[0],
             &targets,
-            <T as coeus_core::Scalar>::from_f64(1.0),
-            <T as coeus_core::Scalar>::from_f64(0.5),
+            <T as coeus_core::FloatElement>::from_f64(1.0),
+            <T as coeus_core::FloatElement>::from_f64(0.5),
         )
         .expect("invariant: test operation succeeds")
     })
@@ -450,7 +454,7 @@ fn multi_label_margin_case<T: GradcheckScalar>() {
     // covers the batch dimension this op's other tests do not.
     let score_values: Vec<T> = MULTI_LABEL_SCORES
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let scores =
         Tensor::<T, MoiraiBackend>::from_slice_on([2, 4], &score_values, &MoiraiBackend::new())
@@ -480,8 +484,13 @@ fn cosine_similarity_case<T: GradcheckScalar>() {
 
     gradcheck(&[x1, x2], |v| {
         weighted(
-            &cosine_similarity(&v[0], &v[1], 1, <T as coeus_core::Scalar>::from_f64(1e-8))
-                .expect("invariant: test operation succeeds"),
+            &cosine_similarity(
+                &v[0],
+                &v[1],
+                1,
+                <T as coeus_core::FloatElement>::from_f64(1e-8),
+            )
+            .expect("invariant: test operation succeeds"),
             &w,
         )
     })
@@ -503,7 +512,7 @@ fn cosine_embedding_loss_case<T: GradcheckScalar>() {
     let x2 = Sampler::new(0.79, -1.6, -0.3).tensor::<T>(&[3, 4]);
     let labels: Vec<T> = [1.0, -1.0, 1.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
 
     gradcheck(&[x1, x2], |v| {
@@ -511,7 +520,7 @@ fn cosine_embedding_loss_case<T: GradcheckScalar>() {
             &v[0],
             &v[1],
             &labels,
-            <T as coeus_core::Scalar>::from_f64(-0.5),
+            <T as coeus_core::FloatElement>::from_f64(-0.5),
         )
         .expect("invariant: test operation succeeds")
     })
@@ -539,8 +548,8 @@ fn pairwise_distance_case<T: GradcheckScalar>() {
             &pairwise_distance(
                 &v[0],
                 &v[1],
-                <T as coeus_core::Scalar>::from_f64(2.0),
-                <T as coeus_core::Scalar>::from_f64(1e-6),
+                <T as coeus_core::FloatElement>::from_f64(2.0),
+                <T as coeus_core::FloatElement>::from_f64(1e-6),
             )
             .expect("invariant: test operation succeeds"),
             &w,
@@ -568,8 +577,8 @@ fn pairwise_distance_p_three_case<T: GradcheckScalar>() {
             &pairwise_distance(
                 &v[0],
                 &v[1],
-                <T as coeus_core::Scalar>::from_f64(3.0),
-                <T as coeus_core::Scalar>::from_f64(1e-6),
+                <T as coeus_core::FloatElement>::from_f64(3.0),
+                <T as coeus_core::FloatElement>::from_f64(1e-6),
             )
             .expect("invariant: test operation succeeds"),
             &w,

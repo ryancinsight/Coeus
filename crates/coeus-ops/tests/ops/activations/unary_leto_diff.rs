@@ -50,7 +50,7 @@ const OPS: &[CpuUnaryOp] = &[
 
 fn device_unary<T, B>(backend: &B, op: CpuUnaryOp, input: &[T]) -> Vec<T>
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -77,17 +77,20 @@ where
     output
 }
 
-fn inputs_for<T: Scalar>(op: CpuUnaryOp) -> Vec<T> {
+fn inputs_for<T: Scalar + coeus_core::FloatElement>(op: CpuUnaryOp) -> Vec<T> {
     let values: &[f64] = match op {
         CpuUnaryOp::Log | CpuUnaryOp::Sqrt | CpuUnaryOp::Lgamma => &[0.25, 1.0, 4.0, 16.0],
         _ => &[-2.0, -0.5, 0.0, 0.5, 2.0],
     };
-    values.iter().map(|&value| T::from_f64(value)).collect()
+    values
+        .iter()
+        .map(|&value| <T as coeus_core::FloatElement>::from_f64(value))
+        .collect()
 }
 
 fn check_unary<T, B>(backend: &B)
 where
-    T: Scalar + leto_ops::Scalar,
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {

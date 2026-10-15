@@ -67,7 +67,7 @@ fn index_put_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[4], 0.17);
     let index_values: Vec<T> = [1.0, 2.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let indices = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on([2], &index_values, &backend)
@@ -125,7 +125,7 @@ where
     let backend = MoiraiBackend::new();
     let a_data: Vec<T> = [1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 4.0, 0.0, 5.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let a_dense = Tensor::<T, MoiraiBackend>::from_slice_on(vec![3, 4], &a_data, &backend)
         .expect("invariant: test backend operation succeeds");
@@ -167,7 +167,7 @@ where
     let backend = MoiraiBackend::new();
     let a_data: Vec<T> = [1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 4.0, 0.0, 5.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let a_dense = Tensor::<T, MoiraiBackend>::from_slice_on(vec![3, 4], &a_data, &backend)
         .expect("invariant: test backend operation succeeds");
