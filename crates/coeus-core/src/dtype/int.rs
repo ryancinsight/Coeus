@@ -2,7 +2,7 @@
 // Scalar + Int for i8, i16, i32, i64, u8, u16, u32, u64.
 
 use super::traits::{private, Int, Scalar};
-use eunomia::NumericElement;
+use eunomia::{convert::IntegerTarget, NumericElement};
 
 macro_rules! impl_scalar_int_signed {
     ($t:ty) => {
@@ -14,7 +14,7 @@ macro_rules! impl_scalar_int_signed {
             }
             #[inline(always)]
             fn sqrt_val(self) -> Self {
-                (<Self as NumericElement>::to_f64(self).sqrt()) as Self
+                Self::from_truncated(<Self as NumericElement>::to_f64(self).sqrt())
             }
             #[inline(always)]
             fn abs_val(self) -> Self {
@@ -76,7 +76,7 @@ macro_rules! impl_scalar_int_unsigned {
             }
             #[inline(always)]
             fn sqrt_val(self) -> Self {
-                (<Self as NumericElement>::to_f64(self).sqrt()) as Self
+                Self::from_truncated(<Self as NumericElement>::to_f64(self).sqrt())
             }
             #[inline(always)]
             fn abs_val(self) -> Self {
