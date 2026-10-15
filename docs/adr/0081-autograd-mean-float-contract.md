@@ -128,3 +128,14 @@ restrict inputs, duplicate its kernel locally or weaken the unchanged guard.
 COEUS-LANDED-CAST-GATE records the domains, diagnostics and evaluated options.
 Fresh source acceptance and final hosted/API checks remain required. Miri stays
 deferred and unverified.
+
+## Current FFT correctness patch
+
+Apollo #671 normally merges/publishes FFT 0.29.1 from its
+[reviewed source](https://github.com/ryancinsight/apollo/commit/f266bb0b319cda8dccde6090936967130f5af7da). Its actual
+archive checksum and clean VCS source independently verify. Require 0.29.1 and
+select that exact source through Cargo; every other precise provider source and
+all 231 registry records stay unchanged. The earlier all-1510 native (required
+WGPU/Metal), all-15 package/API and strict lint/docs evidence precedes this
+refresh, so repeat final checks on the updated graph. The remaining public-const
+narrowing prerequisite is unchanged; held Apollo #655 stays untouched.

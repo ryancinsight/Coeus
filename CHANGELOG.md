@@ -6,7 +6,7 @@
 
 - [major] Advance the public provider cohort on unpublished 0.13.0:
   Eunomia 0.10, Mnemosyne-memory 0.10, Hermes 0.9, Leto 0.46, Hephaestus 0.22
-  and Apollo FFT 0.29. The Cargo-managed lock selects their integrated defaults;
+  and Apollo FFT 0.29.1. The Cargo-managed lock selects their integrated defaults;
   final native, API, package and hosted acceptance remain release gates.
 
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
