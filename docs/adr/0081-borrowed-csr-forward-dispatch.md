@@ -5,7 +5,7 @@
 Status: Accepted
 
 Date: 2026-10-15. Owner: Codex `/root`. Classification: [arch].
-Target: 0.13.0. Board: `COEUS-SPARSE-BORROWED-RECOVERY`.
+Target: 0.13.0. Board: `COEUS-SPARSE-VIEW-FORWARD`.
 
 ## Context
 
@@ -73,3 +73,11 @@ stored-order regressions, strict diagnostics, API/fresh-consumer checks and
 paired performance against the recorded main revision, including RHS width
 beyond 256. Until these gates finish, #533 remains a draft. Main merges can
 trigger publication; no merge or release is authorized by this implementation.
+
+
+The known vector RHS width selects checked FixedWidth<1> metadata; a matrix
+retains the dynamic default. Width construction proves the same supplied
+column count, so the original checked count/disjointness argument applies.
+The representation policy carries no width storage for a fixed shape and
+changes neither arithmetic nor backend admission. This addresses measured
+callback adaptation cost without another sparse kernel.

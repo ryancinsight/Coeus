@@ -4,6 +4,15 @@ Risks nobody is actively fixing. A risk with a planned fix is a backlog item
 instead (see `backlog.md`); a closed risk's residue lives in its ADR or PR,
 not here.
 
+## 2026-10-15 — Known-width adaptation cost [patch]
+
+The pre-specialization source passes every actual hosted gate. Inlining alone
+brings small-vector ratios near parity but leaves a 1.065 large-Moirai ratio.
+Checked fixed-width metadata now removes the runtime width representation for
+vectors through the same provider kernel. Provider native/strict/Stacked checks
+and consumer strict Clippy pass; complete current-source verification and the
+unchanged paired workloads remain the next action.
+
 ## 2026-10-15 — Borrowed CSR source contracts close
 
 The accepted provider seam and Coeus adapter remove copied CSR reconstruction

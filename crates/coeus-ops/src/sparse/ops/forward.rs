@@ -3,7 +3,9 @@
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
-use leto_ops::{CsrProduct, CsrView, ScalarStrategy, StoredOrder};
+use leto_ops::{
+    CsrProduct, CsrView, DynamicWidth, FixedWidth, ProductWidth, ScalarStrategy, StoredOrder,
+};
 
 use super::super::validation::{validate_csr, validate_read};
 use crate::backend_ops::error::map_leto_error;
@@ -26,7 +28,7 @@ where
     // SAFETY: fallible mutable access initializes CPU storage before creating
     // &mut [T]. The bound provider overwrites every output row before success.
     let mut output = unsafe { Tensor::<T, B>::alloc_on([a.shape()[0]], backend)? };
-    multiply_into(
+    multiply_into::<T, B, FixedWidth<1>>(
         view,
         x.as_slice(),
         1,
@@ -66,7 +68,7 @@ where
     // writes every row, including empty rows. alloc_on retains its original
     // checked count/allocation errors before provider preparation.
     let mut output = unsafe { Tensor::<T, B>::alloc_on([rows, width], backend)? };
-    multiply_into(
+    multiply_into::<T, B, DynamicWidth>(
         view,
         b.as_slice(),
         width,
@@ -77,8 +79,9 @@ where
     Ok(output)
 }
 
-#[inline]
-fn multiply_into<T: Scalar, B: Backend>(
+// Expose the checked fixed vector width to backend callback specialization.
+#[inline(always)]
+fn multiply_into<T: Scalar, B: Backend, W: ProductWidth>(
     view: CsrView<'_, T, i64, StoredOrder>,
     dense: &[T],
     width: usize,
@@ -86,7 +89,7 @@ fn multiply_into<T: Scalar, B: Backend>(
     backend: &B,
     operation: &'static str,
 ) -> Result<(), B::Error> {
-    let product = CsrProduct::<_, _, _, ScalarStrategy>::prepare(view, dense, width)
+    let product = CsrProduct::<_, _, _, ScalarStrategy, W>::prepare(view, dense, width)
         .map_err(|error| map_leto_error(operation, error))?;
     let bound = product
         .bind_output(output)

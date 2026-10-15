@@ -226,3 +226,31 @@ i686 execution result follows.
 Unseeded default-source and registry availability require the independent
 provider reviews to integrate first. No release or main merge is part of
 this independently reviewable recovery.
+
+
+## Known-width optimization in verification
+
+All actual hosted checks pass at `679ecd69`, including fourteen executed API
+comparisons (thirteen portable packages plus ROCm in its real Linux SDK), all
+native shards, both macOS thirteen-case memory jobs and both Linux twelve-case
+jobs. Hardware-required NVIDIA/AMD and configured release/informational checks
+remain explicit skips. Runs: [CI](https://github.com/ryancinsight/Coeus/actions/runs/38795704058),
+[backend](https://github.com/ryancinsight/Coeus/actions/runs/38795707006),
+[memory](https://github.com/ryancinsight/Coeus/actions/runs/38795703407).
+Those receipts apply to the recorded pre-specialization source.
+
+Assembly still exposes a shared dynamic-width adapter. An unchanged-workload
+inlining experiment brings small-vector medians to 1.002/1.006 but leaves
+large-vector medians 1.034/1.065 (sequential/Moirai). The provider now encodes
+DynamicWidth as usize and checked FixedWidth<N> as unit. The vector adapter
+selects FixedWidth<1>, while matrices keep DynamicWidth. The checked width law
+preserves every prior pointer bound, scalar operation and dispatch obligation;
+there is no duplicate recurrence or unchecked dimension assumption.
+
+New provider runtime `efa8ba2a` passes 1201 native tests, zero skipped, strict
+Clippy in both feature modes and nineteen strict Stacked-Borrows cases. Its
+new contract first fails on the prior API with E0432, then tests widths 0/1/3,
+wrong-width rejection, all sixteen scalar families, separate rounding, stored
+order and complete initialization. The coupled consumer passes strict
+all-workspace/all-target Clippy. Full native, docs/API, remaining memory/ARM32
+and same-workload performance gates must repeat for this new source.

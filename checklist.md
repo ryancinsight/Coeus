@@ -56,3 +56,11 @@ with Moirai 0.9.2 and Leto `248fe4f6`. Repeated paired bridge ratios are
 0.718, 0.889, 0.916 and 0.968; the unintegrated serial-provider large SpMV
 still costs 2.008 times current Moirai execution. Detailed revision and
 measurement evidence remains in the sparse recovery record.
+
+
+## Known-width callback specialization [patch] — Closure optimization
+
+- [x] Preserve one provider recurrence and select checked FixedWidth<1> for vectors.
+- [x] Keep dynamic matrix widths, scalar bounds, validation and backend dispatch.
+- [x] Bind provider `efa8ba2a` and pass all-workspace/all-target strict Clippy.
+- [ ] Repeat the complete current-head native/doc/API/memory/ARM32/performance gates.

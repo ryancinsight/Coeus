@@ -48,3 +48,11 @@ outside this forward cutover.
 
 The verification record maps the exact branch/base pair to native, property,
 borrow-model, architecture, allocation, API and paired performance evidence.
+
+
+Vector adaptation selects the provider's checked FixedWidth<1>; matrices retain
+DynamicWidth. The sealed width law `get(checked(n)?) == n` preserves the same
+checked products and row bounds. Fixed metadata stores unit, exposing the
+known width to backend callback monomorphization without another recurrence.
+The adapter is inlined so this checked shape information reaches that callback.
+No new scalar constraint, unsafe shape assumption or arithmetic policy occurs.
