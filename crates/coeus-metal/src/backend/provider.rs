@@ -1,12 +1,12 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
-    CrossEntropyProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
-    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
-    RotateHalfProvider, ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider,
-    UnfoldFoldProvider,
+    CrossEntropyProvider, CrossProductProvider, ElementwiseProvider, HephaestusProvider,
+    HostCrossProductOps, MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider,
+    RandomInitProvider, ReductionProvider, RotateHalfProvider, ScalarPowerProvider,
+    StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
 };
-use hephaestus_core::{PoolingOps, SlidingWindowOps};
+use hephaestus_core::{CrossProductOps, PoolingOps, SlidingWindowOps};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
     MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
@@ -148,4 +148,12 @@ where
     MetalSlidingWindowOps: SlidingWindowOps<MetalDevice, T>,
 {
     type Operations = MetalSlidingWindowOps;
+}
+
+impl<T> CrossProductProvider<T> for MetalProvider
+where
+    T: Scalar,
+    HostCrossProductOps: CrossProductOps<MetalDevice, T>,
+{
+    type Operations = HostCrossProductOps;
 }

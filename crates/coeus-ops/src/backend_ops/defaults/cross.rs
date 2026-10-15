@@ -2,11 +2,12 @@
 //
 // Pure host-memory math shared by every backend without an on-device
 // cross-product seam: `CpuBackend` reads/writes its addressable storage
-// directly; `CudaBackend` and `HephaestusBackend<RocmProvider/MetalProvider>`
-// copy through host memory first via `ComputeBackend::copy_to_host` /
-// `copy_to_device`, since hephaestus has no `CrossProductOps` for those
-// vendors yet (ADR 0077). `WgpuBackend` uses this same function only for the
-// non-contiguous / non-last-axis layouts its on-device seam cannot express.
+// directly; `CudaBackend` and the non-conforming layouts of
+// `HephaestusBackend<RocmProvider/MetalProvider>` copy through host memory
+// first via `ComputeBackend::copy_to_host` / `copy_to_device`. Conforming
+// layouts on the latter two reach this same fold through their
+// `HostCrossProductOps` seam bundle (ADR 0077); `WgpuBackend` uses this
+// function only for the layouts its on-device seam cannot express.
 
 use coeus_core::{Layout, Scalar};
 
