@@ -74,9 +74,12 @@ verification, tightening, feature}.
 - Next samples: vendor `attention.rs` (124), `coeus-python/src/ops/elementwise.rs` (121), `dtype/complex.rs` (120), vendor `optim.rs`/`optimizer.rs` (117/116).
 - Batch 6 verdicts (2026-10-15): vendor `attention.rs` deletion — dropped as superseded (main retains the 119-line concrete impls). `elementwise.rs` + `tensor/dispatch.rs` — unique, ported re-cut as #545 (sweep predates fallibility; main already owns fallible `unary_dispatch`, so the slice exposes it crate-wide, adds `binary_dispatch`, converts 34 sites; `scalar_*` keep direct construction — the sweep's `from_var` conversion there would change grad-mode semantics). `dtype/complex.rs` vocab migration — folds into COEUS-SCALAR-VOCAB (option-2 direction).
 - Next samples: vendor `optim.rs`/`optimizer.rs` (117/116), vendor `cross_entropy.rs` (114), `dtype/complex.rs` siblings by rank.
+- Batch 7 verdicts (2026-10-15): vendor `optim.rs`/`optimizer.rs`/`cross_entropy.rs` deletions — dropped as superseded (main retains all three with concrete provider+backend+ops impls).
+- Batch 8 verdicts (2026-10-15): wgpu `cross_entropy.rs`/`attention.rs` deletions and `device_outputs.rs` ×2 rewrites — dropped (superseded spelling; no new tests). `dtype/traits/float.rs` — converged with S3 (identical modulo a module-doc line). `cross_product/host_fallback.rs` restructure — dropped (lateral move of landed ADR-0077 logic; references `validate_cross_product_lengths`, absent from hephaestus 0.22). `interpolation.rs` f32→`T` genericization — unique, ported as #547 with an f64 second-instantiation test.
+- Next samples: `conv.rs` ×2 (104/102), `elementwise.rs` ×2 (96/90), `backend_stub.rs` (95).
 - Method: per file, extract distinctive added lines and grep current main for them (landed) vs genuine absence (unique); port uniques as slices, record drops with rationale. Never close on resemblance.
 - Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
-- Next step: sample vendor `optim.rs`/`optimizer.rs`.
+- Next step: sample vendor `conv.rs` ×2.
 
 <a id="coeus-unfold-leto-chain"></a>
 ## COEUS-UNFOLD-LETO-CHAIN — Delegate CPU unfold/fold to leto (contract-gated)
