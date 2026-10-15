@@ -1,5 +1,5 @@
 use super::availability::device_available;
-use coeus_core::{ComputeBackend, SequentialBackend};
+use coeus_core::{ComputeBackend, FloatElement, SequentialBackend};
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
 
@@ -7,7 +7,9 @@ fn staged_scalar_fns_agree(n: usize) {
     assert!(n < WgpuBackend::new().host_staging_crossover());
     let seq = SequentialBackend::new();
     let backend = WgpuBackend::new();
-    let values: Vec<f32> = (0..n).map(|i| (i as f32 * 0.37).sin() + 2.0).collect();
+    let values: Vec<f32> = (0..n)
+        .map(|i| (f32::from_count(i) * 0.37).sin() + 2.0)
+        .collect();
     let host = Tensor::<f32, SequentialBackend>::from_slice([n], &values).unwrap();
     let device = host.to_backend_on(&seq, &backend).unwrap();
 
@@ -74,13 +76,15 @@ fn device_scalars_match_host_above_crossover() {
     let backend = WgpuBackend::new();
     let n = 100_000usize;
     assert!(n >= backend.host_staging_crossover());
-    let values: Vec<f32> = (0..n).map(|i| (i as f32 * 0.37).sin() + 2.0).collect();
+    let values: Vec<f32> = (0..n)
+        .map(|i| (f32::from_count(i) * 0.37).sin() + 2.0)
+        .collect();
     let host = Tensor::<f32, SequentialBackend>::from_slice([n], &values).unwrap();
     let device = host.to_backend_on(&seq, &backend).unwrap();
     let gpu = coeus_ops::sum(&device, &backend).unwrap();
     let cpu = coeus_ops::sum(&host, &seq).unwrap();
     assert!(
-        (gpu - cpu).abs() < 1e-3 * n as f32,
+        (gpu - cpu).abs() < 1e-3 * f32::from_count(n),
         "resident sum mismatch: gpu={gpu} cpu={cpu}"
     );
 }

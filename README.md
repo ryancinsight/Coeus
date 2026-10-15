@@ -100,6 +100,10 @@ Run doctests separately because nextest does not execute them:
 cargo test --doc --workspace
 ```
 
+Native Python binding tests embed Python and link its library. Maturin wheel
+builds select `pyo3/extension-module` through the package's `pyproject.toml`.
+See [Python build and test configuration](crates/coeus-python/README.md#native-binding-tests-and-wheel-builds).
+
 ## Python Releases
 
 GitHub Releases tagged `coeus-python-v<version>` build locked CPython 3.9–3.13

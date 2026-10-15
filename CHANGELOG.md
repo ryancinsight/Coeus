@@ -1,8 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [0.13.0] - Unreleased
 
-### Changed
+### Breaking
+
+- [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
+  provider mean and `mean_axis`. Integer callers explicitly choose a floating
+  tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
+  add the floating-point bound. See [ADR 0079](docs/adr/0079-autograd-mean-float-contract.md#migration).
 
 - [major] Scalar reductions (`sum`, `mean`, `amax`, `amin`, `prod`, `norm`,
   `norm_p`, `var_mean`, plus delegating `var`, `std_dev`, `std_mean`,
@@ -15,6 +20,30 @@
   default; 65,536 for WGPU and 1,048,576 for CUDA, both caller-measured
   on RTX 5080 hardware). Values are unchanged: staged reductions run the
   same host kernel as the CPU reference.
+
+### Fixed
+
+- [patch] NN-layer finite-difference regressions live in the NN test package,
+  removing the autograd-to-NN versioned dev-dependency cycle. All 15 test
+  bodies, f32/f64 instantiations, fixtures and tolerances are retained.
+
+- [patch] Whole-tensor autograd mean and its gradient use the canonical
+  directly rounded reciprocal count. F16 one-hot length 65536 returns exact
+  2^-16 (`0x0100`) instead of zero from count overflow. Sum and scaling
+  remain in the native element type; empty mean retains NaN.
+
+- [patch] F16 `Float::MIN_POSITIVE` uses Eunomia's named constant, bits
+  `0x0400` (2^-14), the smallest positive normal binary16 value.
+
+- [patch] Native Python binding tests retain PyO3's Python-library linkage;
+  Maturin wheel builds select `pyo3/extension-module` from `pyproject.toml`.
+  Workspace native CI includes the bindings with CPython 3.13, preserving
+  TCP coverage and existing test/job deadlines.
+
+## [Unreleased]
+
+### Changed
+
 - [major] `Communicator` collectives return `Result<(), Self::Error>`.
   `TcpCommunicator` returns `TcpMeshError` instead of panicking on peer I/O
   failure, and a failed collective poisons all of that rank's links so every

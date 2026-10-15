@@ -54,6 +54,9 @@ Issues = "https://github.com/ryancinsight/Coeus/issues"
 
 [tool.maturin]
 module-name = "pycoeus"
+# Wheel builds resolve Python symbols from their interpreter; native Rust
+# binding tests embed Python and retain PyO3's default libpython linkage.
+features = ["pyo3/extension-module"]
 # The stub is not a PEP 561 inline-stub distribution — a single top-level
 # extension module has no package directory to hold `py.typed` — but shipping
 # it still gives editors that read a root-level stub the full surface.
