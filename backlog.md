@@ -14,6 +14,7 @@ verification, tightening, feature}.
 - Gap (decision first, as an ADR): `FloatElement::from_f64` exists for floats only and `Float` does not imply it — a `Float: FloatElement` supertrait makes every `x.exp()`/`x.floor()` on `T: Float` ambiguous (`Float` redeclares ~25 `FloatElement` methods) and per-site `+ FloatElement` bounds are viral; `Complex<T>` has neither `FloatElement` nor `CastFrom<f64>`; 17 src and ~130 test sites are `T: Scalar`-only and run at integers (`v as Self`, which `CastFrom<f64>` reproduces exactly). ~390 call sites.
 - Options: (1, recommended) `Scalar: CastFrom<f64>` with `CastFrom<f64> for Complex<T>` added upstream in eunomia, every site `<T as CastFrom<f64>>::cast_from(v)`; (2) per-site `+ FloatElement`, narrowing int-capable generics to floats.
 - 2026-10-15: option (1) is dead — eunomia 0.10 retired `CastFrom`/`CastTo` (eunomia ADR 0007; replacement map points `f64`-into-float at `FloatElement::from_f64`, i.e. option (2)). The ADR must now decide option (2) vs a new spelling, including the `Complex<T>` gap (`Complex` has no `FloatElement`).
+- 2026-10-15 resolution: option (2) confirmed by the sweep's executed design (`16a73a81`): `Scalar::from_f64` deletes; float sites become `<T as eunomia::FloatElement>::from_f64` (declared upstream with round-to-nearest-even semantics); int sites become `IntegerTarget::from_truncated` (ported as #549, in CI). The `Complex` gap is closed without a new spelling — `Complex<T>` calls `FloatElement::from_f64` on its component `T`, never on itself (sweep `dtype/complex.rs`). Remaining: ~184 float call sites outside the def files, mechanical per-crate ports; still needs the ADR to record the decision.
 - Acceptance: `from_f64` absent from `Scalar`; values unchanged; coeus gate green.
 
 <a id="coeus-rescue-queue"></a>
@@ -56,6 +57,7 @@ verification, tightening, feature}.
 - Status: todo; priority: tightening; [patch].
 - Finding: main's `shape/einsum.rs` (467 lines) rejects bad subscripts with generic `Storage`/`ShapeMismatch`. The sweep adds 4 dedicated variants (`EinsumOperandCount`/`EinsumRank`/`EinsumDim`/`EinsumUnsupportedPattern`, +264 lines in `einsum.rs` plus `BackendError` variants): untrusted-subscript rejection becomes typed and diagnosable, never a panic.
 - Scope: `BackendError` variants + einsum.rs rework adapted to current main (RealScalar bounds landed since) + one test per variant asserting the exact variant.
+- 2026-10-15: reference text confirmed at sweep `16a73a81` (`backend/error.rs` variants + 182 added lines in `shape/util/einsum.rs`): `EinsumOperandCount{subscript,subscript_operands,provided}`, `EinsumRank{subscript,operand,expected,actual}`, `EinsumDim`, `EinsumUnsupportedPattern`, each with a `#[error]` diagnostic string.
 - Acceptance: all four rejections produce their dedicated variant; existing einsum behavior/tests unchanged; gates green.
 - Next step: port the variant set onto current `BackendError`.
 
@@ -77,9 +79,15 @@ verification, tightening, feature}.
 - Batch 7 verdicts (2026-10-15): vendor `optim.rs`/`optimizer.rs`/`cross_entropy.rs` deletions — dropped as superseded (main retains all three with concrete provider+backend+ops impls).
 - Batch 8 verdicts (2026-10-15): wgpu `cross_entropy.rs`/`attention.rs` deletions and `device_outputs.rs` ×2 rewrites — dropped (superseded spelling; no new tests). `dtype/traits/float.rs` — converged with S3 (identical modulo a module-doc line). `cross_product/host_fallback.rs` restructure — dropped (lateral move of landed ADR-0077 logic; references `validate_cross_product_lengths`, absent from hephaestus 0.22). `interpolation.rs` f32→`T` genericization — unique, ported as #547 with an f64 second-instantiation test.
 - Next samples: `conv.rs` ×2 (104/102), `elementwise.rs` ×2 (96/90), `backend_stub.rs` (95).
+- Batch 9 verdicts (2026-10-15): vendor `conv.rs` ×2 deletions — dropped as superseded (main retains live const-generic forward/backward/transposed impls). `conv.rs` test — dropped (provider-rename only). ADRs 0079/0080 — landed (blob-identical: `95852799`/`288e6dad`). `dtype/traits/float.rs` — converged (same `Float` surface, doc-only drift). `gradcheck/mod.rs` — content landed inline in `gradcheck.rs`; exact 3-way split dropped as stylistic. `gradcheck/error.rs` — converged (2 doc lines).
+- Batch 10 verdicts (2026-10-15): `gradcheck/precision.rs` — content landed inline (`narrow`/`machine_epsilon` with the same eunomia-dev-dep rationale); its `FloatElement` retarget folds into COEUS-SCALAR-VOCAB. `new_ops.rs` — unique, filed as COEUS-GRADCHECK-EMBEDDING (`embedding_case<T: GradcheckScalar>`) and COEUS-GRADCHECK-INTERP-DUAL (generic interpolation case; also the unmet acceptance tail of the interpolation item #547 otherwise closed). `losses.rs` — `cross_entropy_loss` import is #550's ground (in CI); its `FloatElement` retargets fold into COEUS-SCALAR-VOCAB. `float_ops.rs` — converged (25/25 members). `abs.rs` — converged (same `AbsOp` shape, main fallible). `dtype/int.rs` — int half ported as #549 (in CI). `random.rs`/`regularization.rs` — `from_f64`→`FloatElement` + `ZERO`/`ONE`, fold into COEUS-SCALAR-VOCAB.
+- Batch 11 verdicts (2026-10-15): `host_fallback.rs` — RE-VERDICT unique, filed as COEUS-CROSS-HOST-SEAM: batch 8's drop rationale is disproven (`validate_cross_product_lengths` + `CrossProductOps` shipped in `crate-hephaestus-core-v0.22.0`, hence in the pinned 0.22.1). `device_outputs.rs`/`fusion.rs`/staggered-test/`unavailable.rs`/`state_updates.rs`/`pool1d.rs`/conv-transpose-test/pooling-test — dropped (sweep `HephaestusBackend<WgpuProvider>`/`CudaProvider` spelling; main has no `*Provider` structs, keeps concrete `WgpuBackend`/`CudaBackend`; unavailable coverage equivalent).
+- Batch 12 verdicts (2026-10-15): vendor `elementwise.rs` ×2, `backend_stub.rs`, `staggered.rs`, `cross.rs`, `matmul.rs` ×2 whole-file deletions — dropped as superseded (main's copies live: `CudaScalar`+metadata stub, real `matmul`/`convolution` impls, all `mod`-referenced). `cpu_impl/pool.rs` — main already fallible (`?` propagates); sweep tail-call is stylistic. `elementary.rs` — `ZERO`/`ONE` landed. `neg.rs` — converged (main fallible). `ctc_loss_tests.rs`/`init_leto_diff.rs` — `FloatElement` retargets fold into COEUS-SCALAR-VOCAB. `levenberg_marquardt.rs` — `ZERO` landed; `+ FloatElement` on `is_finite`/`check_finite` is a no-op (`abs_val`/`from_f64` are declared on `Scalar` itself).
+- Batch 13 verdicts (2026-10-15): `unfold_fold/validation.rs` `require_signed_coordinates` deletion — reference design for COEUS-UNFOLD-LETO-CHAIN (sweep `cpu_impl/unfold_fold.rs` delegates all four kernels to `coeus_leto::unfold_into`/`fold_into` with `map_leto_error`). `tensor/dispatch.rs` — converged with #545 (same GIL-release+`from_var` semantics; sweep free fns vs #545 `PyTensor` methods). Ops `linear_interpolation.rs` test + autograd `interpolation.rs` + ops `interpolation.rs` — covered by #547 (superset: sweep returbofish only, #547 adds the f64 instantiation). `backend/error.rs` einsum variants — reference design for COEUS-EINSUM-TYPED-ERRORS.
+- Next samples by diff size: ranks 92+ (`ctc_loss_tests/layouts.rs`, vendor `random_init.rs` ×2, `op_tags/unary/activation.rs`, `constructors.rs`, metal/rocm `staggered.rs` — all ≤34 lines).
 - Method: per file, extract distinctive added lines and grep current main for them (landed) vs genuine absence (unique); port uniques as slices, record drops with rationale. Never close on resemblance.
 - Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
-- Next step: sample vendor `conv.rs` ×2.
+- Next step: sample rank 92+ files (≤34 lines each).
 
 <a id="coeus-unfold-leto-chain"></a>
 ## COEUS-UNFOLD-LETO-CHAIN — Delegate CPU unfold/fold to leto (contract-gated)
@@ -89,7 +97,36 @@ verification, tightening, feature}.
 - Contract gate (prove before porting): window-geometry/dilation/padding parity and fold overlap-accumulation identity between leto's `WindowParameters` contract and current CPU behavior, including empty-output; plus the `T: leto_ops::Scalar` bound ripple audit across callers (SemVer).
 - Scope: forward (1D/2D unfold) + fold + validation + differential tests with exact values; vendor `unfold_fold.rs` files stay (separate backends, sampled separately).
 - Acceptance: epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
+- 2026-10-15: reference design recovered — sweep `16a73a81:crates/coeus-ops/src/backend_ops/cpu_impl/unfold_fold.rs` delegates all four kernels to `coeus_leto::unfold_into`/`fold_into` (thin adapters over layouts+slices, `map_leto_error` mapping) and deletes `cpu_impl/unfold_fold/validation.rs` + shared `require_signed_coordinates`. Port = adapt that file to main's fallible context + prove the contract gate above against leto 0.46 (the sweep predates the pin).
 - Next step: write the contract comparison (leto pin's sliding-window params vs current semantics).
+
+<a id="coeus-cross-host-seam"></a>
+## COEUS-CROSS-HOST-SEAM — Host cross product over the hephaestus seam
+
+- Status: todo; priority: architecture; [minor].
+- Finding: main's `coeus-hephaestus/src/cross_product/host_fallback.rs` is a blanket `impl<P, T> CrossOps<T> for HephaestusBackend<P>`. The sweep restructures it onto the hephaestus seam: a `cross_host_fallback<B, T>` free fn (same `coeus_ops::cross_fold` via copy round-trip) plus `HostCrossProductOps: hephaestus_core::CrossProductOps` using `validate_cross_product_lengths`, with a narrowed blanket impl. Batch 8 dropped this as "absent from hephaestus 0.22" — disproven: both items shipped in `crate-hephaestus-core-v0.22.0`, inside the pinned 0.22.1.
+- Design note: default to the sweep's coeus-side placement; moving the host impl upstream (hephaestus owns the trait) is a follow-up, not part of this port.
+- Scope: port adapted to main's fallible context + a shapes/layouts test proving the host path matches the on-device seam where one exists.
+- Acceptance: providers without on-device cross route through the seam impl; no behavior change on providers with one; gates green.
+- Next step: port `HostCrossProductOps` + `cross_host_fallback` onto `coeus-hephaestus`.
+
+<a id="coeus-gradcheck-embedding"></a>
+## COEUS-GRADCHECK-EMBEDDING — Finite-difference gradcheck for embedding
+
+- Status: todo; priority: verification; [patch].
+- Finding: sweep `16a73a81` adds `embedding_case<T: GradcheckScalar>` + `embedding_backward_matches_finite_differences` (f64+f32) to `new_ops.rs`; main's file has no embedding coverage.
+- Scope: one generic case fn + dual instantiation, following the module's `weighted` pattern.
+- Acceptance: embedding backward matches central differences at f64 and f32; gates green.
+- Next step: port the two fns onto current `new_ops.rs`.
+
+<a id="coeus-gradcheck-interp-dual"></a>
+## COEUS-GRADCHECK-INTERP-DUAL — Dual-precision gradcheck for linear_interpolation
+
+- Status: todo; priority: verification; [patch].
+- Finding: #547 generalized the op over `T` with an f64 ops-level test but left `new_ops.rs::linear_interpolation_case` non-generic (f32-only) with its pinned-signature doc note — the unmet acceptance tail of COEUS-AUTOGRAD-LINEAR-INTERPOLATION-GENERIC-SCALAR, which otherwise closed with #547. The sweep generalizes the case fn to `<T: GradcheckScalar>`.
+- Scope: generic case fn + f64/f32 instantiation + doc-note update.
+- Acceptance: interpolation backward matches central differences at both precisions; the stale f32-pinned note is gone; gates green.
+- Next step: generalize the case fn per the sweep text.
 
 <a id="coeus-alloc-attribution"></a>
 ## COEUS-ALLOC-ATTRIBUTION — Allocation-site attribution for the alloc budget
@@ -400,12 +437,3 @@ verification, tightening, feature}.
 - Acceptance: every listed op has a generic FD check instantiated at both types; all 11 existing files are dual-instantiated; a check that fails at `f32` under gradcheck's own derived `ε^(2/3)` bound is root-caused, never given a widened tolerance.
 - Next step: convert `activation.rs` next (largest remaining, ~50 tests) then `losses`/`reduction`/`shape`, each its own PR; then the remaining missing-coverage ops as dependency-ordered per-family PRs.
 
-<a id="coeus-autograd-linear-interpolation-generic-scalar"></a>
-## COEUS-AUTOGRAD-LINEAR-INTERPOLATION-GENERIC-SCALAR — Generalize linear_interpolation over T: Float
-
-- Status: todo; priority: tightening; [patch]; owner: unclaimed.
-- Outcome: `linear_interpolation`/`linear_interpolation_backward` in `coeus-autograd` and `coeus-ops` take `Var<T, B>`/`Tensor<T, B>` for `T: Float` instead of being pinned to `f32` end-to-end, matching the variation-first-authorship standard every other autograd op in this crate already follows.
-- Scope: `crates/coeus-ops/src/interpolation.rs::linear_interpolation`/`linear_interpolation_backward` and `crates/coeus-autograd/src/ops/interpolation.rs::linear_interpolation` hardcode `f32` in every signature (`image: &Var<f32, B>`, `grid: &Var<f32, B>`); `BoundaryPolicy::neighbours` also hardcodes `f32` coordinates. Found while adding this op's finite-difference gradcheck coverage (`COEUS-GRADCHECK-DUAL-COVERAGE`): the check could only be written at `f32`, the sole instantiation that compiles, rather than choosing `f32` as one of two.
-- Acceptance: `linear_interpolation` is generic over `T: Float` (or the minimal bound the interpolation math needs); existing `f32` callers and tests are unaffected; `crates/coeus-autograd/tests/autograd/gradcheck/new_ops.rs::linear_interpolation_backward_matches_finite_differences` extends to a generic `<T: GradcheckScalar>` case function instantiated at both `f64` and `f32`, following this module's established pattern.
-- Non-goal: changing `BoundaryPolicy`'s trait shape beyond making its coordinate type generic; adding new boundary policies.
-- Next step: generalize `BoundaryPolicy::neighbours`'s coordinate parameter over `T: Float` first (the narrowest dependency), then the two `linear_interpolation` call chains, then extend the gradcheck.
