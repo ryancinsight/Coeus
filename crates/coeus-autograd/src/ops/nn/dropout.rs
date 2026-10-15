@@ -86,7 +86,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B> for Dro
 }
 
 /// Tracked Dropout.
-pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
+pub fn dropout<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     p: f64,
     is_training: bool,
@@ -107,7 +107,7 @@ pub fn dropout<T: Float, B: coeus_ops::BackendOps<T> + Default>(
             if r < p {
                 T::ZERO
             } else {
-                T::from_f64(scale)
+                <T as coeus_core::FloatElement>::from_f64(scale)
             }
         })
         .collect();

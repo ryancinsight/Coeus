@@ -33,7 +33,7 @@ use std::sync::Arc;
 ///     c: T,
 /// }
 ///
-/// impl<T: Scalar, B: ComputeBackend + Default> BackwardNode<T, B>
+/// impl<T: Scalar + coeus_core::FloatElement, B: ComputeBackend + Default> BackwardNode<T, B>
 ///     for ScaleNode<T, B>
 /// where
 ///     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + coeus_core::CpuAddressableStorageMut<T>,
@@ -53,9 +53,9 @@ use std::sync::Arc;
 ///             let gx_s = gx.as_mut_slice()?;
 ///             for i in 0..gx_s.len() {
 ///                 // Real accumulation: grad_x[i] += c * grad_out[i]
-///                 let c_val = T::from_f64(<T as coeus_core::NumericElement>::to_f64(self.c));
-///                 let go_val = T::from_f64(<T as coeus_core::NumericElement>::to_f64(go[i]));
-///                 let acc = T::from_f64(<T as coeus_core::NumericElement>::to_f64(gx_s[i]) + <T as coeus_core::NumericElement>::to_f64(c_val) * <T as coeus_core::NumericElement>::to_f64(go_val));
+///                 let c_val = <T as coeus_core::FloatElement>::from_f64(<T as coeus_core::NumericElement>::to_f64(self.c));
+///                 let go_val = <T as coeus_core::FloatElement>::from_f64(<T as coeus_core::NumericElement>::to_f64(go[i]));
+///                 let acc = <T as coeus_core::FloatElement>::from_f64(<T as coeus_core::NumericElement>::to_f64(gx_s[i]) + <T as coeus_core::NumericElement>::to_f64(c_val) * <T as coeus_core::NumericElement>::to_f64(go_val));
 ///                 gx_s[i] = acc;
 ///             }
 ///         }

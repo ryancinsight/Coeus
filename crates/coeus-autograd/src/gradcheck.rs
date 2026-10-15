@@ -91,8 +91,8 @@ use crate::var::Var;
 ///
 /// The counterpart of widening through `NumericElement::to_f64`.
 #[inline]
-fn narrow<T: Scalar>(value: f64) -> T {
-    <T as Scalar>::from_f64(value)
+fn narrow<T: Scalar + coeus_core::FloatElement>(value: f64) -> T {
+    <T as coeus_core::FloatElement>::from_f64(value)
 }
 
 /// Machine epsilon of `T`: the gap between `1` and the next representable
@@ -110,7 +110,7 @@ fn narrow<T: Scalar>(value: f64) -> T {
 /// the loop stops many orders of magnitude above them, so the returned value is
 /// the exact representable epsilon — not an approximation of it. It converges
 /// in one iteration per mantissa bit (53 for `f64`, 11 for `F16`).
-fn machine_epsilon<T: Float>() -> f64 {
+fn machine_epsilon<T: Float + coeus_core::FloatElement>() -> f64 {
     let one = T::ONE;
     let mut epsilon = T::ONE;
     loop {
@@ -204,7 +204,7 @@ impl Default for GradcheckConfig {
 /// ```
 pub fn gradcheck<T, B, F>(inputs: &[Tensor<T, B>], loss_fn: F) -> Result<(), GradcheckError>
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     F: Fn(&[Var<T, B>]) -> Var<T, B>,
@@ -223,7 +223,7 @@ pub fn gradcheck_with<T, B, F>(
     config: GradcheckConfig,
 ) -> Result<(), GradcheckError>
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     F: Fn(&[Var<T, B>]) -> Var<T, B>,
@@ -370,7 +370,7 @@ struct Perturbed {
 /// forbid.
 struct Perturber<'a, T, B, F>
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + Default,
 {
     /// All inputs; every index other than `input_index` passes through intact.
@@ -389,7 +389,7 @@ where
 
 impl<T, B, F> Perturber<'_, T, B, F>
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     F: Fn(&[Var<T, B>]) -> Var<T, B>,
