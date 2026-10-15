@@ -4,6 +4,32 @@ Risks nobody is actively fixing. A risk with a planned fix is a backlog item
 instead (see `backlog.md`); a closed risk's residue lives in its ADR or PR,
 not here.
 
+Sparse recovery audit (2026-10-15): the signed-index, stored-order, rounding
+and scheduling gaps have an explicit provider-first action in
+[COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward).
+The [verification record](docs/verification/sparse-recovery.md) distinguishes
+the compatible bridge recovery from the unresolved tensor forward cutover.
+
+## 2026-10-15: fresh Git resolution exceeds current provider version bounds
+
+An unlocked external consumer of main `cd8e984e` fails before compilation:
+Coeus requests Eunomia `^0.9.0`, while its default Git branch provides 0.10.0.
+The canonical lock still builds, and this recovery retains every external
+locked source/version. Impact: fresh consumers and the normal source-based
+SemVer build cannot resolve; no release-readiness claim follows from locked
+tests or the API-only comparison. Owner: provider dependency co-evolution.
+Re-open trigger: version bounds/source identities advance together, followed
+by a fresh consumer without local path/patch overrides.
+
+## 2026-10-15: 32-bit memory checks stop in locked provider assertions
+
+i686 Miri fails Eunomia's `align_of::<F64>() == 8` assertion (target alignment
+is 4); ARMv7 Miri fails Moirai's Chase–Lev deque alignment >=64 assertion.
+Both fail before Coeus compilation. Impact: neither run provides 32-bit
+memory-safety evidence; the borrowed `usize` descriptor adds no index cast.
+Owner: respective providers. Re-open trigger: a compatible provider graph
+compiles on those targets and the selected Miri checks execute.
+
 ## CUDA context creation failure remains unclassified
 
 Consumer run `87532469-ce04-4b9a-8225-f53e7ea000a2` fails in `cuCtxCreate_v2`

@@ -82,6 +82,12 @@ Refer to the open-work queue and the risk register:
 
 ## Building and Running Tests
 
+The `coeus-leto` sparse dispatch bridge borrows validated `usize` CSR arrays
+without reconstructing an owned sparse matrix. Tensor `spmv`/`spmm` retain
+their current checked, backend-parallel implementation until Leto supports
+their signed-index, stored-order and rounding contracts. See the
+[sparse recovery audit](docs/verification/sparse-recovery.md).
+
 Ensure you have the latest Rust toolchain installed.
 
 ### Compile Workspace

@@ -5,6 +5,28 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
+<a id="coeus-sparse-view-forward"></a>
+## COEUS-SPARSE-VIEW-FORWARD — Resolve provider contracts before tensor cutover
+
+- Status: todo; priority: correctness; [minor].
+- Outcome: one provider-owned CSR forward implementation preserves current
+  Coeus accepted inputs, typed errors, native-precision accumulation and backend
+  row scheduling. No consumer-local fallback or duplicate algorithm.
+- Evidence: [sparse recovery audit](docs/verification/sparse-recovery.md).
+  Leto's borrowed CSR uses `usize` and strictly increasing row columns;
+  Coeus uses checked `i64` and accepts stored-order duplicates. Leto SpMM's
+  SIMD policy can fuse multiply/add, whereas Coeus performs separate rounding.
+- Needs: provider-owned signed/portable borrowed indexing, stored-order CSR
+  validation, explicit non-fused accumulation and a row-partition interface
+  that retains Coeus backend execution. Audit scalar bounds before changing
+  public tensor or autograd contracts.
+- Acceptance: the new forward contract tests pass on the real provider path;
+  negative/platform-overflow indices retain typed errors; layout rejection,
+  contiguous offsets and all empty shapes retain behavior; every output is
+  initialized; counterbalanced measurements show the scheduling impact.
+- Next step: specify these additive provider capabilities in Leto before
+  migrating Coeus. Keep preservation draft #531 intact.
+
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`
 

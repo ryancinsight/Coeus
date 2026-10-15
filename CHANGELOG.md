@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.1] - Unreleased
+
+### Fixed
+
+- [patch] `coeus-leto` sparse dispatch borrows Leto's validated CSR view
+  instead of copying values, column indices and row pointers into an owned
+  matrix. Public signatures, typed errors, canonical-CSR acceptance and
+  numerical bits retain their existing behavior. Regression coverage checks
+  allocation count, value semantics, failure atomicity and tensor-forward
+  compatibility constraints. See the
+  [sparse recovery record](docs/verification/sparse-recovery.md) for the
+  independently measured limits of a general tensor-forward cutover.
+
 ## [Unreleased]
 
 ### Changed
