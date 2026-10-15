@@ -25,7 +25,7 @@ Whole-tensor `mean` requires `Scalar + FloatElement + leto_ops::Scalar`. Its
 floating-point restriction matches provider mean and `mean_axis`; the Leto
 operation bound supports host staging for scalar sum. Forward and backward use the directly rounded reciprocal count,
 preserving representable half-precision means even when the count overflows
-that format. See [the contract and migration](../../docs/adr/0079-autograd-mean-float-contract.md).
+that format. See [the contract and migration](../../docs/adr/0081-autograd-mean-float-contract.md).
 
 ## Documentation
 

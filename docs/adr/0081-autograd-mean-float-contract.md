@@ -1,4 +1,4 @@
-# ADR 0079: Floating-point autograd mean contract
+# ADR 0081: Floating-point autograd mean contract
 
 Status: Accepted  \
 Date: 2026-10-14  \
