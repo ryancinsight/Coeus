@@ -15,21 +15,22 @@ where
         .expect("invariant: test backend operation succeeds");
     let grid = Tensor::from_slice_on([1, 3, 1, 1, 1], &[0.5, 0.5, 0.5], &backend)
         .expect("invariant: test backend operation succeeds");
-    let output = linear_interpolation::<3, _, _>(&image, &grid, Replicate)
+    let output = linear_interpolation::<f32, 3, _, _>(&image, &grid, Replicate)
         .expect("valid three-dimensional contract");
     assert_eq!(output.shape(), &[1, 1, 1, 1, 1]);
     assert_eq!(output.as_slice(), &[3.5]);
 
     let upstream = Tensor::from_slice_on([1, 1, 1, 1, 1], &[1.0], &backend)
         .expect("invariant: test backend operation succeeds");
-    let gradients = linear_interpolation_backward::<3, _, _>(&image, &grid, &upstream, Replicate)
-        .expect("valid three-dimensional backward contract");
+    let gradients =
+        linear_interpolation_backward::<f32, 3, _, _>(&image, &grid, &upstream, Replicate)
+            .expect("valid three-dimensional backward contract");
     assert_eq!(gradients.image.as_slice(), &[0.125; 8]);
     assert_eq!(gradients.grid.as_slice(), &[4.0, 2.0, 1.0]);
 
     let border_grid = Tensor::from_slice_on([1, 3, 1, 1, 1], &[-1.0, 2.5, 2.5], &backend)
         .expect("invariant: test backend operation succeeds");
-    let border = linear_interpolation::<3, _, _>(&image, &border_grid, Replicate)
+    let border = linear_interpolation::<f32, 3, _, _>(&image, &border_grid, Replicate)
         .expect("replicated border");
     assert_eq!(border.as_slice(), &[3.0]);
 }
@@ -45,15 +46,16 @@ where
         .expect("invariant: test backend operation succeeds");
     let grid = Tensor::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend)
         .expect("invariant: test backend operation succeeds");
-    let output = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
+    let output = linear_interpolation::<f32, 2, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     assert_eq!(output.shape(), &[1, 1, 1, 1]);
     assert_eq!(output.as_slice(), &[1.25]);
 
     let upstream = Tensor::from_slice_on([1, 1, 1, 1], &[1.0], &backend)
         .expect("invariant: test backend operation succeeds");
-    let gradients = linear_interpolation_backward::<2, _, _>(&image, &grid, &upstream, Replicate)
-        .expect("valid two-dimensional backward contract");
+    let gradients =
+        linear_interpolation_backward::<f32, 2, _, _>(&image, &grid, &upstream, Replicate)
+            .expect("valid two-dimensional backward contract");
     assert_eq!(
         gradients.image.as_slice(),
         &[0.1875, 0.5625, 0.0625, 0.1875]
@@ -72,7 +74,7 @@ where
         .expect("invariant: test backend operation succeeds");
     let malformed = Tensor::from_slice_on([1, 3, 1, 1], &[0.; 3], &backend)
         .expect("invariant: test backend operation succeeds");
-    match linear_interpolation::<2, _, _>(&image, &malformed, Replicate) {
+    match linear_interpolation::<f32, 2, _, _>(&image, &malformed, Replicate) {
         Err(coeus_ops::interpolation::InterpolationFailure::Contract(
             InterpolationError::GridChannels {
                 expected: 2,
@@ -86,7 +88,12 @@ where
         .expect("invariant: test backend operation succeeds");
     let malformed_gradient = Tensor::from_slice_on([1, 1], &[1.0], &backend)
         .expect("invariant: test backend operation succeeds");
-    match linear_interpolation_backward::<2, _, _>(&image, &grid, &malformed_gradient, Replicate) {
+    match linear_interpolation_backward::<f32, 2, _, _>(
+        &image,
+        &grid,
+        &malformed_gradient,
+        Replicate,
+    ) {
         Err(coeus_ops::interpolation::InterpolationFailure::Contract(
             InterpolationError::GradientShape { expected, actual },
         )) => {
@@ -98,7 +105,7 @@ where
     }
     let non_finite = Tensor::from_slice_on([1, 2, 1, 1], &[f32::NAN, 0.0], &backend)
         .expect("invariant: test backend operation succeeds");
-    match linear_interpolation::<2, _, _>(&image, &non_finite, Replicate) {
+    match linear_interpolation::<f32, 2, _, _>(&image, &non_finite, Replicate) {
         Err(coeus_ops::interpolation::InterpolationFailure::Contract(
             InterpolationError::NonFiniteCoordinate { axis: 0, point: 0 },
         )) => {}
@@ -143,8 +150,9 @@ fn coordinate_gradients_match_central_differences_in_each_dimension() {
         .expect("invariant: test backend operation succeeds");
     let upstream = Tensor::from_slice_on([1, 1, 1, 1], &[1.0], &backend)
         .expect("invariant: test backend operation succeeds");
-    let analytical = linear_interpolation_backward::<2, _, _>(&image, &grid, &upstream, Replicate)
-        .expect("valid two-dimensional backward contract");
+    let analytical =
+        linear_interpolation_backward::<f32, 2, _, _>(&image, &grid, &upstream, Replicate)
+            .expect("valid two-dimensional backward contract");
     for axis in 0..2 {
         let mut lower = coordinates;
         let mut upper = coordinates;
@@ -154,10 +162,10 @@ fn coordinate_gradients_match_central_differences_in_each_dimension() {
             .expect("invariant: test backend operation succeeds");
         let upper_grid = Tensor::from_slice_on([1, 2, 1, 1], &upper, &backend)
             .expect("invariant: test backend operation succeeds");
-        let lower_value = linear_interpolation::<2, _, _>(&image, &lower_grid, Replicate)
+        let lower_value = linear_interpolation::<f32, 2, _, _>(&image, &lower_grid, Replicate)
             .expect("lower perturbation")
             .as_slice()[0];
-        let upper_value = linear_interpolation::<2, _, _>(&image, &upper_grid, Replicate)
+        let upper_value = linear_interpolation::<f32, 2, _, _>(&image, &upper_grid, Replicate)
             .expect("upper perturbation")
             .as_slice()[0];
         let numerical = (upper_value - lower_value) / (2.0 * step);
@@ -171,8 +179,9 @@ fn coordinate_gradients_match_central_differences_in_each_dimension() {
         .expect("invariant: test backend operation succeeds");
     let upstream = Tensor::from_slice_on([1, 1, 1, 1, 1], &[1.0], &backend)
         .expect("invariant: test backend operation succeeds");
-    let analytical = linear_interpolation_backward::<3, _, _>(&image, &grid, &upstream, Replicate)
-        .expect("valid three-dimensional backward contract");
+    let analytical =
+        linear_interpolation_backward::<f32, 3, _, _>(&image, &grid, &upstream, Replicate)
+            .expect("valid three-dimensional backward contract");
     for axis in 0..3 {
         let mut lower = coordinates;
         let mut upper = coordinates;
@@ -182,13 +191,40 @@ fn coordinate_gradients_match_central_differences_in_each_dimension() {
             .expect("invariant: test backend operation succeeds");
         let upper_grid = Tensor::from_slice_on([1, 3, 1, 1, 1], &upper, &backend)
             .expect("invariant: test backend operation succeeds");
-        let lower_value = linear_interpolation::<3, _, _>(&image, &lower_grid, Replicate)
+        let lower_value = linear_interpolation::<f32, 3, _, _>(&image, &lower_grid, Replicate)
             .expect("lower perturbation")
             .as_slice()[0];
-        let upper_value = linear_interpolation::<3, _, _>(&image, &upper_grid, Replicate)
+        let upper_value = linear_interpolation::<f32, 3, _, _>(&image, &upper_grid, Replicate)
             .expect("upper perturbation")
             .as_slice()[0];
         let numerical = (upper_value - lower_value) / (2.0 * step);
         assert!((analytical.grid.as_slice()[axis] - numerical).abs() <= bound);
     }
+}
+
+#[test]
+fn generic_instantiation_matches_at_f64() {
+    // Second monomorphization of the `T: Float + FloatElement` port: the
+    // same 2-D case as `verify_two_dimensions`, exactly representable in
+    // both precisions, so equality is exact rather than epsilon-based.
+    let backend = SequentialBackend;
+    let image = Tensor::<f64, _>::from_slice_on([1, 1, 2, 2], &[0., 1., 2., 3.], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let grid = Tensor::<f64, _>::from_slice_on([1, 2, 1, 1], &[0.25, 0.75], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let output = linear_interpolation::<f64, 2, _, _>(&image, &grid, Replicate)
+        .expect("valid two-dimensional contract");
+    assert_eq!(output.shape(), &[1, 1, 1, 1]);
+    assert_eq!(output.as_slice(), &[1.25]);
+
+    let upstream = Tensor::<f64, _>::from_slice_on([1, 1, 1, 1], &[1.0], &backend)
+        .expect("invariant: test backend operation succeeds");
+    let gradients =
+        linear_interpolation_backward::<f64, 2, _, _>(&image, &grid, &upstream, Replicate)
+            .expect("valid two-dimensional backward contract");
+    assert_eq!(
+        gradients.image.as_slice(),
+        &[0.1875, 0.5625, 0.0625, 0.1875]
+    );
+    assert_eq!(gradients.grid.as_slice(), &[2.0, 1.0]);
 }
