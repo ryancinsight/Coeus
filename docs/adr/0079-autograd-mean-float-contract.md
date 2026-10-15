@@ -82,3 +82,7 @@ every numerical implementation and regression; the old precise lock stays
 until all intended provider defaults resolve. Rerun native, lint, docs, all
 15 standard packages, blocking API and exact-head required CI after that lock
 transition. Metadata/source-only evidence does not establish final acceptance.
+
+Moirai #623 separately owns compatible runtime 0.9.3 for its private Mnemosyne
+0.10 edge. Require 0.9.3 after its reviewed publication; no older runtime graph
+or duplicate implementation supplies acceptance. Preserve #622 and Metis #504.

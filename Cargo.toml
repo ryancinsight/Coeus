@@ -35,7 +35,7 @@ categories = ["science", "mathematics", "data-structures"]
 # First-party providers remain Git-sourced for standalone and CI resolution.
 # The Atlas stack overlay redirects these exact sources to one local checkout
 # during development, so a worktree never creates a second package identity.
-moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.9.2", features = ["melinoe"] }
+moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.9.3", features = ["melinoe"] }
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.9.2" }
 # Mnemosyne's current default carries the portable WebAssembly backend.
 mnemosyne = { package = "mnemosyne-memory", git = "https://github.com/ryancinsight/Mnemosyne.git", version = "0.10.0" }
