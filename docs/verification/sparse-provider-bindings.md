@@ -2,7 +2,7 @@
 
 Accepted Leto ADR 0036 adds the checked borrowed-CSR capability in 0.47.
 Canonical default Git sources remain unpinned in manifests. The review lock
-selects the actual independently published branch commits below; Cargo
+selects the actual independently pushed review commits below; Cargo
 regenerates it and independently verifies `metadata --offline --locked`.
 
 | Review | Version / contract | Exact source |
@@ -14,7 +14,9 @@ regenerates it and independently verifies `metadata --offline --locked`.
 
 The compatibility patches preserve the merged 0.46 cohort, all 1337/1064
 Hephaestus/Apollo Rust files and every external locked package (228/245).
-Their committed locks follow merged defaults, so they can be reviewed before
+Hephaestus preserves current CUDA fixes at `b03e9176` and targets 0.22.2
+because concurrent publication consumes 0.22.1. Apollo preserves FFT layout
+recovery at `f266bb0b`. Their committed locks follow merged defaults, so they can be reviewed before
 Leto 0.47 integration. They add no conversion layer, source pin or path patch.
 Existing 0.22/0.29 consumer constraints accept the new compatible patches.
 

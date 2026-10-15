@@ -1,7 +1,7 @@
 # Coeus sparse recovery checklist
 
 Active target: **0.13.0**. Owner: Codex. Current integration base:
-`33f6f1f0596d3e3d914d11e33b79fe48ba16da4c` (original audit: `cd8e984e`).
+`f0d01021fdad36ddb1303d811cd51a4ceedb6979` (original audit: `cd8e984e`).
 
 ## Borrowed dispatch recovery [patch]
 

@@ -41,15 +41,14 @@ env:
   RUST_TOOLCHAIN: 1.97.0
 
 jobs:
-  # Public-surface compatibility, informational on pull requests: the
-  # detected change class is visible while the change is still in
-  # review. The blocking comparison runs on release.
-  # Atlas ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28.
+  # Compare each committed source with its own lock. Fresh default/registry
+  # availability is a separate provider-first gate. The SDK-specific ROCm
+  # comparison and version guard run in backend-parity.yml.
   semver:
     name: SemVer gate
     uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@7a5a1036973b81dee0e20321942ce0c7e2bf9f9b
     with:
-      package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-hephaestus,coeus-leto,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-rocm,coeus-sparse,coeus-tensor,coeus-wgpu
+      package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-hephaestus,coeus-leto,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-sparse,coeus-tensor,coeus-wgpu
       rust-toolchain: 1.97.0
       dependency-contract: locked
       atlas-ref: 7a5a1036973b81dee0e20321942ce0c7e2bf9f9b

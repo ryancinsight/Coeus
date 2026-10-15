@@ -24,6 +24,9 @@
   4097-row products with 257 RHS columns, exact multiple-fault error priority
   and callback capture release. Compare against byte-identical main kernels
   with a reproducible paired instrument.
+- [patch] Add strict-provenance memory CI for both borrow models, and compare
+  committed API graphs through the shared locked-source verifier. ROCm's full
+  comparison and version guard execute in its existing Linux SDK lane.
 
 ### Changed
 
