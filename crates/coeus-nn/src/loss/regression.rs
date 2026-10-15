@@ -114,7 +114,7 @@ pub fn smooth_l1_loss<
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn gaussian_nll_loss<
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -128,14 +128,14 @@ pub fn gaussian_nll_loss<
     let log_var = coeus_autograd::log(var)?;
     let loss = coeus_autograd::scalar_mul(
         &coeus_autograd::add(&var_term, &log_var)?,
-        <T as coeus_core::Scalar>::from_f64(0.5),
+        <T as coeus_core::FloatElement>::from_f64(0.5),
     )?;
     if full {
-        let two_pi = <T as coeus_core::Scalar>::from_f64(2.0 * std::f64::consts::PI);
+        let two_pi = <T as coeus_core::FloatElement>::from_f64(2.0 * std::f64::consts::PI);
         let m = coeus_autograd::mean(&loss)?;
         coeus_autograd::scalar_add(
             &m,
-            <T as coeus_core::Scalar>::from_f64(0.5) * two_pi.log_op(),
+            <T as coeus_core::FloatElement>::from_f64(0.5) * two_pi.log_op(),
         )
     } else {
         coeus_autograd::mean(&loss)
