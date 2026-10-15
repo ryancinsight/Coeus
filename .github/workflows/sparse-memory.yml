@@ -43,19 +43,32 @@ concurrency:
 
 jobs:
   memory:
-    name: Sparse memory (${{ matrix.model }})
-    runs-on: ubuntu-24.04
+    name: Sparse memory (${{ matrix.platform }}, ${{ matrix.model }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - model: Stacked Borrows
+          - os: macos-14
+            platform: macOS backend
+            model: Stacked Borrows
             flags: -Zmiri-strict-provenance
-          - model: Tree Borrows
+          - os: macos-14
+            platform: macOS backend
+            model: Tree Borrows
+            flags: -Zmiri-strict-provenance -Zmiri-tree-borrows
+          - os: ubuntu-24.04
+            platform: Linux kernel
+            model: Stacked Borrows
+            flags: -Zmiri-strict-provenance
+          - os: ubuntu-24.04
+            platform: Linux kernel
+            model: Tree Borrows
             flags: -Zmiri-strict-provenance -Zmiri-tree-borrows
     env:
       MIRIFLAGS: ${{ matrix.flags }}
+      CSR_MEMORY_CASES: test(forward_contracts::) | test(validation_precedence::) | binary(sparse_allocations) | test(malformed_csr_and_dense_shapes_reject_before_writes) | test(zero_dense_columns_and_zero_shared_dimension_are_fully_initialized) | test(public_forward_api_retains_every_scalar_family) | test(callbacks_complete_before_unwind_returns)
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - name: Install the nightly interpreter toolchain
@@ -69,7 +82,15 @@ jobs:
       # Each process asserts callback release before retiring real global workers.
       - name: Check sparse and backend memory contracts
         run: |
+          csr_selection="$CSR_MEMORY_CASES"
+          # Linux topology discovery uses opendir, unsupported under isolation.
+          # macOS executes the unchanged real-Moirai case in both models; Linux
+          # additionally checks all twelve other cases. No assertion or workload
+          # changes, and no isolation/leak check is relaxed.
+          if [ "$RUNNER_OS" = Linux ]; then
+            csr_selection="($csr_selection) & !test(moirai_callbacks_complete_before_unwind_returns)"
+          fi
           cargo +nightly miri nextest run --locked \
             -p coeus-core -p coeus-leto -p coeus-ops \
-            --profile miri --test-threads 1 \
-            -E 'test(forward_contracts::) | test(validation_precedence::) | binary(sparse_allocations) | test(malformed_csr_and_dense_shapes_reject_before_writes) | test(zero_dense_columns_and_zero_shared_dimension_are_fully_initialized) | test(public_forward_api_retains_every_scalar_family) | test(callbacks_complete_before_unwind_returns)'
+            --profile miri --test-threads 1 --no-fail-fast \
+            -E "$csr_selection"
