@@ -167,7 +167,8 @@ unsafe impl ComputeBackend for CudaBackend {
     }
 }
 
-// SAFETY: CPU fallback dispatch joins every invocation before returning.
+// SAFETY: SequentialBackend executes callbacks inline and retains no pending
+// invocation on either normal return or unwind; this delegation adds no task.
 unsafe impl Backend for CudaBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)

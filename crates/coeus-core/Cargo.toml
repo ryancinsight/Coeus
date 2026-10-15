@@ -23,5 +23,9 @@ bytemuck   = { workspace = true }
 smallvec   = { workspace = true }
 thiserror  = { workspace = true }
 
+[dev-dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
 [lints]
 workspace = true

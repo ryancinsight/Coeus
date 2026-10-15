@@ -8,7 +8,7 @@ verification, tightening, feature}.
 <a id="coeus-sparse-view-forward"></a>
 ## COEUS-SPARSE-VIEW-FORWARD — Resolve provider contracts before tensor cutover
 
-- Status: design proposed; priority: correctness; [arch].
+- Status: execution; target: 0.13.0; priority: correctness; [arch].
 - Outcome: one provider-owned CSR forward implementation preserves current
   Coeus accepted inputs, typed errors, native-precision accumulation and backend
   row scheduling. No consumer-local fallback or duplicate algorithm.
@@ -26,14 +26,15 @@ verification, tightening, feature}.
   initialized; counterbalanced measurements show the scheduling impact.
 - Provider proposal: Leto ADR 0036 specifies the signed/stored-order borrowed
   product, explicit arithmetic policy and a prevalidated row dispatch scope.
-  Architectural sign-off remains pending before implementation work opens.
+  Ryan Clanton approves ADR 0036 on 2026-10-15. ADR 0081 records the
+  downstream clarification and 0.13.0 Breaking migration.
   Review: [Leto #362](https://github.com/ryancinsight/leto/pull/362).
 - Additional prerequisite: make `Backend::parallel_for` completion on unwind
   explicit and verify every real backend before erasing scoped lifetimes in
   the generic adapter. This implementor-contract change needs a reviewed ADR
   and Breaking note even without a method-signature change.
-- Next step: obtain the provider ADR decision, then implement provider-first
-  and review the downstream safety-contract change. Keep #531 intact.
+- Next step: integrate the tested provider, verify the full forward product and
+  compare performance with current main. Keep #531 intact.
 
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`

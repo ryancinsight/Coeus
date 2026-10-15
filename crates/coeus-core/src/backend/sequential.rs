@@ -105,7 +105,8 @@ unsafe impl ComputeBackend for SequentialBackend {
     }
 }
 
-// SAFETY: the loop invokes every closure call inline before returning.
+// SAFETY: every call runs inline. Normal return visits every index once;
+// unwind stops the loop with no outstanding invocation or retained callback.
 unsafe impl Backend for SequentialBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)

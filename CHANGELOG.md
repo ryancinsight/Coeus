@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.13.0] - Unreleased
+
+### Breaking
+
+- [arch] `Backend::parallel_for` explicitly joins every admitted callback
+  before either return or unwind. Unsafe implementors must also prevent any
+  callback from running after propagation and preserve at-most-once admission
+  when a panic interrupts the full range. Method signatures stay unchanged;
+  external implementations must audit their cancellation/join path before
+  using 0.13.0. See ADR 0081 and the real Sequential/Moirai panic regressions.
+
+### Added
+
+- [patch] Native completion-on-unwind tests cover both real CPU backends,
+  crossing Moirai's 4096-row admission threshold and checking all admitted
+  invocations finish before the caller regains control.
+
+### Changed
+
+- [arch] Advance all workspace packages and local dependency bounds together
+  to 0.13.0 for the approved sparse execution boundary. No publication or tag
+  is part of this development change.
+
 ## [0.12.1] - Unreleased
 
 ### Fixed

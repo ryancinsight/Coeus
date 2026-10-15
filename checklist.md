@@ -1,7 +1,7 @@
 # Coeus sparse recovery checklist
 
-Active target: **0.12.1**. Owner: Codex. Current integration base:
-`dd27214f88a5c23e0e9abc58e014e58b902d67fb` (original audit: `cd8e984e`).
+Active target: **0.13.0**. Owner: Codex. Current integration base:
+`f9ebef3462a8c1704d0a4c7daf1770aeb1c04527` (original audit: `cd8e984e`).
 
 ## Borrowed dispatch recovery [patch]
 
@@ -21,17 +21,20 @@ passes 223 checks (30 tool skips). Fresh Git resolution and attempted 32-bit
 memory checks remain limited by existing provider failures. The bridge is a
 complete compatible increment; the tensor forward migration remains open.
 
-## General forward cutover [arch]
+## General forward cutover [arch] — Execution
 
-- [ ] [arch] Obtain ADR sign-off and provider support for the contracts in
-      [COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward).
-      The 0.12.1 bridge recovery does not close this item.
+- [x] [arch] Ryan Clanton approves Leto ADR 0036 and its downstream backend
+      safety clarification on 2026-10-15; ADR 0081 records the consumer slice.
+- [x] [arch] Audit real backend implementations and execute threshold-crossing
+      panic-completion regressions before using lifetime-erased provider tasks.
+- [ ] [arch] Bind the verified provider capability and remove the two tensor
+      forward loops while preserving existing typed validation/allocation errors.
+- [ ] [arch] Complete scalar/layout/initialization regressions, both memory
+      models, exact-main performance, API compatibility and consumer resolution.
 
-Provider specification: Leto ADR 0036 is proposed. No forward implementation
-checklist item opens before its decision and the downstream backend unwind
-contract review. Exact power-of-two fixture corrections retain the 0.12.1
-patch scope; all 293 native tests and five forward-contract Miri cases pass
-under both borrow models. Strict package diagnostics and formatting pass.
+The provider implementation and backend-contract commit are independently
+reviewable. The 0.12.1 bridge evidence below remains historical; it does not
+certify the 0.13.0 forward cutover. Preservation #531 stays intact.
 
 Current-main merge `fdd719e4` revalidates 293 native cases, 38 doctests, eight
 Miri cases in both models, strict Clippy and the 223-check API comparison

@@ -4,6 +4,8 @@
 //! replaces the previous flat target-per-file topology. Library unit modules
 //! remain in `src` and are intentionally outside this integration harness.
 
+#[path = "core_ops/backend/dispatch.rs"]
+mod dispatch;
 #[path = "core_ops/policy.rs"]
 mod policy;
 #[path = "core_ops/scalars.rs"]

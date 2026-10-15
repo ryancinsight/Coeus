@@ -14,6 +14,18 @@ completion on unwind remain prerequisites. Exact numerical fixtures use
 representable literals/native products rather than unspecified-precision
 power calls; five tensor-forward contract cases now also pass Miri.
 
+## 2026-10-15 — Approved provider and backend execution boundary
+
+- ADR 0036 is approved by Ryan Clanton in the task conversation; consumer ADR
+  0081 records the unchanged-signature, tightened unwind obligation for unsafe
+  backend implementations. The workspace target becomes 0.13.0.
+- Real Sequential/Moirai panic regressions pass on the existing graph (Moirai
+  crosses 4096 rows). Audit finds only inline CUDA delegations beyond those
+  two CPU implementations; the existing test counter also executes inline.
+- Leto main advances to the Eunomia 0.10 cohort during implementation. Follow
+  the active provider dependency owners before the consumer graph is refreshed.
+- Next: verified provider binding, full integration and performance gates.
+
 ## 2026-10-15: fresh Git resolution exceeds current provider version bounds
 
 An unlocked external consumer of main `cd8e984e` fails before compilation:

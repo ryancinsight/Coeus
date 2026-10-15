@@ -329,3 +329,25 @@ quiet-host or universal throughput claim follows. SpMM's fused-rounding
 counterexample remains `-2^-104` versus Coeus +0. Faster SIMD fixture times
 cannot waive that observable contract. The unchanged forward production
 source independently proves this bridge patch removes no backend scheduling.
+
+
+## Approved backend safety clarification — 2026-10-15
+
+Ryan Clanton approves Leto ADR 0036 and the documented downstream safety
+clarification. Coeus ADR 0081 records the consumer decision; target 0.13.0
+includes its Breaking migration. Main `f9ebef3462a8c1704d0a4c7daf1770aeb1c04527`
+adds ADRs 0079/0080 only; merging it leaves sparse production source unchanged.
+The first real-backend panic regression run passes both cases (Nextest
+`dc92a3c6-15c7-49d5-87b7-7dd425ccad26`), with a 4097-row range crossing the
+actual Moirai threshold. Each admitted callback completes its unwind guard
+before control returns; visits remain at most once. This is characterization
+of the real execution guarantee, not a claim that the forward adapter is done.
+
+Deployment inventory: Leto GitHub Pages uses legacy main/root publication;
+Coeus Pages uses a workflow. Both main-push release workflows can publish
+pending package versions. Draft-branch pushes invoke CI; no main merge,
+workflow publication dispatch, tag or registry release is part of this task.
+
+The versioned backend-contract candidate passes all 48 core native tests (zero
+skipped), Nextest `70b928b2-c1ee-419c-97d9-81ede2881007`, and strict all-target
+`coeus-core` Clippy, with `--offline --locked` and Rust 1.97.0.
