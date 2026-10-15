@@ -92,12 +92,15 @@ or duplicate implementation supplies acceptance. Preserve #622 and Metis #504.
 Leto and Leto-ops 0.46 are published from 8b4ab407. Hephaestus #493 is
 merged/published at 672c5abc; all six actual archive checksums and source
 identities independently verify. Apollo #672 is merged at 730f6262, and its
-21-package automatic publisher remains in progress. Preserve those owners'
+21-package automatic publisher succeeds; every actual archive independently
+matches its registry checksum and exact merged source. Preserve those owners'
 work; this Coeus continuation changes no provider branch or publication.
 
 At the refreshed graph, all four mean integration tests, two float-constant
-regressions and both integer compile-fail doctests pass. Complete final native,
-lint/docs, standard packaging, blocking API and hosted checks remain pending.
+regressions and both integer compile-fail doctests pass. The complete native suite
+passes 1347 tests with eight existing skips. Strict all-target workspace Clippy,
+warning-denied docs and 161 doctests pass with two existing ignored examples.
+Standard packaging, blocking API and hosted checks remain pending.
 
 Current main's math and dtype-trait splits are integrated without changing the
 four numerical implementation/regression files or incoming Rust bodies. Rename
