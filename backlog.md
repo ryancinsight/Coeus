@@ -23,9 +23,49 @@ verification, tightening, feature}.
 - Scope: head refs of the PRs below; no board or code change until a PR is claimed.
 - PRs (draft parking records, unclaimed; head ref is the only durable copy):
   - `ryancinsight/coeus#469` (`rescue/audit-coeus-20260928`): 2 audit commits (module-root splits, crate-level allow removal, RNG unit fix); 68 files, +2309/-2430, code across `coeus-ops`, `coeus-nn`, `coeus-autograd`, `coeus-python` and 7 other crates.
+  - `ryancinsight/coeus#530` (`rescue/coeus-green-sweep-20261012`, base `89cb08b0`): 304 files, +6689/-9415; unmergeable whole (3 add/add, 41 deletions vs landed work, 210 files also touched by main). Slices landed: ADRs 0079/0080 (#535), activation `math/` split (#536), dtype `traits/` split (#537). Drops with rationale: cuda/wgpu backend rewrite (superseded — main's concrete `CudaBackend` won), book hunks (stale API spelling), `coeus-leto` pooling dispatch as a single file (callers live in the pool-chain item below), `FusionProvider` transplant (typed for the `HephaestusBackend<P>` spelling vendors don't use; see fusion item). Residual sampling: COEUS-SWEEP-RESIDUAL-SAMPLING.
+  - `ryancinsight/coeus#531` (`fix/coeus-s4b-sparse-wiring`): PRESERVATION DRAFT, do not close (peer #533 declares it intact). Sound part (allocation-free borrowed dispatch) recovered by peer-live #533. Forward spmv/spmm cutover proven unsound: Coeus accepts unsorted/duplicate CSR columns (stored-order accumulation), leto's `CsrView::from_slices` requires strictly increasing columns; leto kernels are serial vs `parallel_for` and use SIMD axpy (FMA) vs separate mul/add. Own takeover #534 closed with the proof.
 - Acceptance: no open `rescue/` PR for this repository remains unaccounted for; a port's resolved diff against `main` is either integrated and verified by the committed gate or empty (landed-work proof), never closed on resemblance.
 - Needs: none.
 - Next step: `git diff $(git merge-base origin/main <head>) <head>` per PR, port onto a fresh branch from `main`, run the package gates.
+
+<a id="coeus-fusion-unification"></a>
+## COEUS-FUSION-UNIFICATION — One generic dispatch for vendor fusion
+
+- Status: todo; priority: architecture; [arch] — ADR first.
+- Finding: `crates/coeus-cuda/src/fusion.rs` (163 lines) and `crates/coeus-wgpu/src/fusion.rs` (160 lines) are ~65% identical (54+/57- diff): same `ExpressionAdapter`, same `provider_layout`, same empty-axis semantics, differing only in dialect/bundle/backend/error (`CudaC`/`CudaFusionOps`/`CudaBackend`/`CudaBackendError` vs WGPU counterparts).
+- Non-solution: transplanting the sweep's `FusionProvider` (`rescue/coeus-green-sweep-20261012:crates/coeus-hephaestus/src/fusion/`) lands dead code — its dispatch is typed over `Tensor<T, HephaestusBackend<P>>`, a spelling main's vendors don't use (concrete `CudaBackend`/`WgpuBackend` with own error types). Reuse its adapter/layout logic, not its tensor spelling.
+- Outcome: one generic dispatch (generic over the vendor backend, monomorphized per vendor) serves both vendors; the duplicated ~110 lines delete; vendor public API and `jit` tests unchanged and green.
+- Acceptance: ADR selects the generic spelling; both `fusion.rs` files thin to bundle+entry wiring; no parallel fusion paths remain.
+- Next step: draft the ADR.
+
+<a id="coeus-pool-leto-chain"></a>
+## COEUS-POOL-LETO-CHAIN — Delegate CPU pooling to leto (contract-gated)
+
+- Status: todo; priority: architecture; [minor].
+- Finding: main's `cpu_impl/pool/` (`avg.rs`, `max.rs`, `pool1d.rs`, `validation.rs`) is hand-rolled with no leto delegation. The sweep rewrites all three kernels onto `coeus_leto::pooling_forward_into`/`pooling_backward_into` (`crates/coeus-leto/src/dispatch/pooling.rs`, 259 lines) over `leto_ops::pooling_forward_into` — following main's established cpu_impl→coeus_leto dispatch pattern (8 call sites).
+- Contract gate (prove before porting): padding/dilation/ceil-mode/`count_include_pad`/divisor-override parity between leto's pooling contract and current CPU behavior, including empty-output and backward identities; plus the `T: leto_ops::Scalar` bound ripple audit across callers (SemVer).
+- Scope: forward + backward + validation + differential tests with exact values; vendor `pool.rs` files stay (separate backends, out of scope).
+- Acceptance: bitwise-or-epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
+- Next step: write the contract comparison (leto pin's pooling params vs current semantics).
+
+<a id="coeus-einsum-typed-errors"></a>
+## COEUS-EINSUM-TYPED-ERRORS — Dedicated einsum rejection variants
+
+- Status: todo; priority: tightening; [patch].
+- Finding: main's `shape/einsum.rs` (467 lines) rejects bad subscripts with generic `Storage`/`ShapeMismatch`. The sweep adds 4 dedicated variants (`EinsumOperandCount`/`EinsumRank`/`EinsumDim`/`EinsumUnsupportedPattern`, +264 lines in `einsum.rs` plus `BackendError` variants): untrusted-subscript rejection becomes typed and diagnosable, never a panic.
+- Scope: `BackendError` variants + einsum.rs rework adapted to current main (RealScalar bounds landed since) + one test per variant asserting the exact variant.
+- Acceptance: all four rejections produce their dedicated variant; existing einsum behavior/tests unchanged; gates green.
+- Next step: port the variant set onto current `BackendError`.
+
+<a id="coeus-sweep-residual-sampling"></a>
+## COEUS-SWEEP-RESIDUAL-SAMPLING — Sample the unsampled #530 remainder
+
+- Status: todo; priority: verification; [patch].
+- Finding: of #530's 304 files, ~200 modified files remain unsampled after slices S1–S3 and the fusion/pool/einsum/gradcheck verdicts. Next-highest-signal files: `dtype/float/cpu_unary.rs` (143+/127-), `cpu_impl/unfold_fold.rs` (77+/216-) + `unfold_fold/validation.rs` deletion, `tests/alloc_budget.rs` (219+/17-), gradcheck `GradcheckConfig` design (tolerance-scale tuning + restructure of 405-line `gradcheck.rs`).
+- Method: per file, extract distinctive added lines and grep current main for them (landed) vs genuine absence (unique); port uniques as slices, record drops with rationale. Never close on resemblance.
+- Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
+- Next step: sample `cpu_unary.rs`.
 
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
