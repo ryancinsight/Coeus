@@ -58,10 +58,8 @@ jobs:
       MIRIFLAGS: ${{ matrix.flags }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-      - uses: dtolnay/rust-toolchain@889fac408b4da0905346410f253f0c55fbcb6613
-        with:
-          toolchain: nightly
-          components: miri, rust-src
+      - name: Install the nightly interpreter toolchain
+        run: rustup toolchain install nightly --profile minimal --component miri --component rust-src
       - uses: taiki-e/install-action@ea4c0b50b0d394ee91c5bb68a6a295b0556feb8e
         with:
           tool: cargo-nextest@0.9.140
