@@ -1,6 +1,9 @@
 use coeus_core::{Backend, BackendError, CpuAddressableStorage, Scalar, Storage};
 use coeus_sparse::{CooTensor, CsrTensor};
 use coeus_tensor::Tensor;
+use leto_ops::{CsrView, StoredOrder};
+
+use crate::backend_ops::error::map_leto_error;
 
 fn error<B: Backend>(error: BackendError) -> B::Error {
     error.into()
@@ -123,25 +126,67 @@ where
     Ok(())
 }
 
-pub(crate) fn validate_csr<T: Scalar, B: Backend>(
-    csr: &CsrTensor<T, B>,
+/// Check tensor metadata before borrowing a provider-validated CSR descriptor.
+///
+/// Stored-order provider validation accepts exactly the old index domain:
+/// representable columns below k; representable offsets starting at zero,
+/// ending at nnz and monotone. The endpoints and monotonicity imply every
+/// offset lies in 0..=nnz. On rejection only, the original validator preserves
+/// column-first error precedence and every existing backend diagnostic.
+pub(crate) fn validate_csr<'a, T: Scalar, B: Backend>(
+    csr: &'a CsrTensor<T, B>,
     operation: &'static str,
-) -> Result<(), B::Error>
+) -> Result<CsrView<'a, T, i64, StoredOrder>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
 {
-    validate_csr_components(
+    validate_csr_storage(
         csr.values(),
         csr.col_indices(),
         csr.row_offsets(),
         csr.shape(),
         operation,
+    )?;
+    CsrView::builder(
+        csr.values().as_slice(),
+        csr.col_indices().as_slice(),
+        csr.row_offsets().as_slice(),
+        csr.shape()[0],
+        csr.shape()[1],
     )
-    .map(|_| ())
+    .with_order::<StoredOrder>()
+    .build()
+    .or_else(|provider_error| {
+        validate_csr_parts(
+            csr.col_indices(),
+            csr.row_offsets(),
+            csr.shape()[1],
+            operation,
+        )?;
+        // A future provider invariant may be stricter; propagate it rather
+        // than bypass checked construction or assume it cannot fail.
+        Err(error::<B>(map_leto_error(operation, provider_error)))
+    })
 }
 
 pub(crate) fn validate_csr_components<T: Scalar, B: Backend>(
+    values: &Tensor<T, B>,
+    col_indices: &Tensor<i64, B>,
+    row_offsets: &Tensor<i64, B>,
+    shape: &[usize],
+    operation: &'static str,
+) -> Result<usize, B::Error>
+where
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
+{
+    let nnz = validate_csr_storage(values, col_indices, row_offsets, shape, operation)?;
+    validate_csr_parts(col_indices, row_offsets, shape[1], operation)?;
+    Ok(nnz)
+}
+
+fn validate_csr_storage<T: Scalar, B: Backend>(
     values: &Tensor<T, B>,
     col_indices: &Tensor<i64, B>,
     row_offsets: &Tensor<i64, B>,
@@ -169,7 +214,6 @@ where
         }
     }
     let rows = shape[0];
-    let cols = shape[1];
     let nnz = values.shape()[0];
     validate_tensor(values, operation, Some(&[nnz]), true, true)?;
     validate_tensor(col_indices, operation, Some(&[nnz]), true, true)?;
@@ -186,7 +230,6 @@ where
         true,
     )?;
 
-    validate_csr_parts(col_indices, row_offsets, cols, operation)?;
     Ok(nnz)
 }
 

@@ -4,7 +4,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut
 use leto::{ConvolutionParameters, TransposedConvolutionParameters};
 use leto_ops::Scalar as LetoScalar;
 
-use super::error::map_leto_error;
+use crate::backend_ops::error::map_leto_error;
 use coeus_leto::{
     convolution_backward_accumulate, convolution_forward_into,
     convolution_transposed_backward_accumulate, convolution_transposed_forward_into,

@@ -6,20 +6,16 @@ restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
 <a id="coeus-sparse-view-forward"></a>
-## COEUS-SPARSE-VIEW-FORWARD — Resolve provider contracts before tensor cutover
+## COEUS-SPARSE-VIEW-FORWARD — Verify the recovered tensor cutover
 
-- Status: execution; target: 0.13.0; priority: correctness; [arch].
+- Status: closure; target: 0.13.0; priority: verification; [arch].
 - Outcome: one provider-owned CSR forward implementation preserves current
   Coeus accepted inputs, typed errors, native-precision accumulation and backend
   row scheduling. No consumer-local fallback or duplicate algorithm.
-- Evidence: [sparse recovery audit](docs/verification/sparse-recovery.md).
-  Leto's borrowed CSR uses `usize` and strictly increasing row columns;
-  Coeus uses checked `i64` and accepts stored-order duplicates. Leto SpMM's
-  SIMD policy can fuse multiply/add, whereas Coeus performs separate rounding.
-- Needs: provider-owned signed/portable borrowed indexing, stored-order CSR
-  validation, explicit non-fused accumulation and a row-partition interface
-  that retains Coeus backend execution. Audit scalar bounds before changing
-  public tensor or autograd contracts.
+- Evidence: [current forward verification](docs/verification/sparse-forward-cutover.md)
+  and [initial audit](docs/verification/sparse-recovery.md). The checked signed
+  stored-order provider and explicit separate-rounding policy are implemented;
+  both tensor products dispatch its shared row task through the real backend.
 - Acceptance: the new forward contract tests pass on the real provider path;
   negative/platform-overflow indices retain typed errors; layout rejection,
   contiguous offsets and all empty shapes retain behavior; every output is
@@ -29,12 +25,14 @@ verification, tightening, feature}.
   Ryan Clanton approves ADR 0036 on 2026-10-15. ADR 0081 records the
   downstream clarification and 0.13.0 Breaking migration.
   Review: [Leto #362](https://github.com/ryancinsight/leto/pull/362).
-- Additional prerequisite: make `Backend::parallel_for` completion on unwind
-  explicit and verify every real backend before erasing scoped lifetimes in
-  the generic adapter. This implementor-contract change needs a reviewed ADR
-  and Breaking note even without a method-signature change.
-- Next step: integrate the tested provider, verify the full forward product and
-  compare performance with current main. Keep #531 intact.
+- Backend completion on return/unwind is documented and characterized on real
+  implementations. All 151 component integration cases pass. Paired SpMV
+  medians lie near parity; SpMM improves across the measured widths.
+- Compatible bindings: Hephaestus #497 and Apollo #674 retain 0.46 and admit
+  the additive 0.47 line. The real full review graph resolves ten providers
+  with zero excess identities, without path patches or manifest revision pins.
+- Next step: finish full native/strict/API/memory and exact-head hosted gates,
+  then record the provider-first availability boundary. Keep #531 intact.
 
 <a id="coeus-scalar-vocab"></a>
 ## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`

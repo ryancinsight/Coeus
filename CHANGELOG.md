@@ -10,18 +10,31 @@
   when a panic interrupts the full range. Method signatures stay unchanged;
   external implementations must audit their cancellation/join path before
   using 0.13.0. See ADR 0081 and the real Sequential/Moirai panic regressions.
+- [minor] Align direct consumers with Eunomia 0.10, Hermes 0.9,
+  Mnemosyne-memory 0.10, Leto/Leto-ops 0.47, Hephaestus 0.22.1 and
+  Apollo FFT 0.29.1. These pre-1.0 provider types must share one source
+  identity; update downstream requirements together with Coeus 0.13.
 
 ### Added
 
 - [patch] Native completion-on-unwind tests cover both real CPU backends,
   crossing Moirai's 4096-row admission threshold and checking all admitted
   invocations finish before the caller regains control.
+- [patch] Cover all sixteen existing scalar families, threshold-crossing
+  4097-row products with 257 RHS columns, exact multiple-fault error priority
+  and callback capture release. Compare against byte-identical main kernels
+  with a reproducible paired instrument.
 
 ### Changed
 
 - [arch] Advance all workspace packages and local dependency bounds together
   to 0.13.0 for the approved sparse execution boundary. No publication or tag
   is part of this development change.
+- [arch] Route tensor SpMV/SpMM through Leto's checked signed stored-order
+  view and provider-owned row recurrence, retaining Backend row dispatch.
+  Reuse successful structure validation; preserve original diagnostic priority
+  on rejection. Keep fallible allocation/mutable access, logical offsets,
+  complete initialization and separate native-precision multiplication/addition.
 
 ## [0.12.1] - Unreleased
 

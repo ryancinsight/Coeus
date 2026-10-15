@@ -27,8 +27,12 @@ complete compatible increment; the tensor forward migration remains open.
       safety clarification on 2026-10-15; ADR 0081 records the consumer slice.
 - [x] [arch] Audit real backend implementations and execute threshold-crossing
       panic-completion regressions before using lifetime-erased provider tasks.
-- [ ] [arch] Bind the verified provider capability and remove the two tensor
+- [x] [arch] Bind the verified provider capability and remove the two tensor
       forward loops while preserving existing typed validation/allocation errors.
+- [x] [patch] Verify all scalar families, wide output and multiple-fault
+      precedence; measure the checked adapter against byte-identical main code.
+- [x] [patch] Resolve the actual provider review graph with one source each;
+      deliver compatible Hephaestus #497 and Apollo #674 independently.
 - [ ] [arch] Complete scalar/layout/initialization regressions, both memory
       models, exact-main performance, API compatibility and consumer resolution.
 

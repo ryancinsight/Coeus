@@ -325,7 +325,7 @@ fn frobenius_norm_batched_2d_returns_zero_dim_scalar_tensor() {
     let b = SequentialBackend::new();
     let a = mat3x3(&[3.0, 0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 5.0]);
     let got = frobenius_norm_batched(&a, &b).expect("valid batched Frobenius norm test input");
-    assert_eq!(got.shape(), &[]);
+    assert_eq!(got.shape(), &[] as &[usize]);
     let want = 50.0_f64.sqrt();
     let v = got.as_slice()[0];
     assert!((v - want).abs() < 1e-12, "got {v}, want {want}");

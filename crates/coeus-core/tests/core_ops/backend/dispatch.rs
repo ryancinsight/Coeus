@@ -70,6 +70,21 @@ fn panic_completion<B: Backend>(backend: B) {
     assert!(visits.iter().all(|count| count.load(Ordering::SeqCst) <= 1));
     assert_eq!(visits[3].load(Ordering::SeqCst), 1);
     assert_eq!(finished.load(Ordering::SeqCst), admitted);
+    assert_eq!(
+        Arc::strong_count(&visits),
+        1,
+        "backend retains no callback capture"
+    );
+    assert_eq!(
+        Arc::strong_count(&active),
+        1,
+        "backend retains no active-work capture"
+    );
+    assert_eq!(
+        Arc::strong_count(&finished),
+        1,
+        "backend retains no completion capture"
+    );
 }
 
 #[test]
@@ -80,4 +95,10 @@ fn sequential_callbacks_complete_before_unwind_returns() {
 #[test]
 fn moirai_callbacks_complete_before_unwind_returns() {
     panic_completion(MoiraiBackend::new());
+    // Nextest gives Miri an isolated test process. Retire its real global
+    // workers only after the callback/completion/capture assertions: doing
+    // this earlier could hide a callback that outlives parallel_for. Native
+    // libtest can share the runtime with other cases and must keep it usable.
+    #[cfg(miri)]
+    moirai::global().shutdown();
 }

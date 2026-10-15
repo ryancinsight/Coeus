@@ -15,7 +15,7 @@ use coeus_core::{BackendError, Layout};
 use leto::{ArrayView3, ArrayViewMut3, Layout as LetoLayout};
 use leto_ops::{Axis, FiniteDifference3D, FiniteDifference3DScheme, StaggeredLeapfrog3D};
 
-use super::error::map_leto_error;
+use crate::backend_ops::error::map_leto_error;
 
 /// Scalars a CPU finite-difference kernel accepts: Coeus's element vocabulary
 /// intersected with the real-field arithmetic the stencils execute in.

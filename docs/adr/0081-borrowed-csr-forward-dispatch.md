@@ -21,12 +21,19 @@ it does not reopen the original preservation draft.
 ## Decision
 
 Coeus validates CSR storage/structure and dense shape/layout in the existing
-order, prepares a checked signed `StoredOrder` provider product with
-`ScalarStrategy`, allocates through fallible `Tensor::alloc_on`, obtains the
-fallible initialized mutable slice, and binds it exclusively. The adapter
+order, allocates through fallible `Tensor::alloc_on`, obtains the fallible
+initialized mutable slice, and prepares/binds a checked signed `StoredOrder`
+provider product with `ScalarStrategy`. The adapter
 dispatches provider row tasks through the caller's `Backend::parallel_for`.
 The provider owns address decoding, arithmetic and complete row writes.
 Coeus owns tensor errors, storage, logical offsets and backend selection.
+
+The checked view supplies structure validation once on valid inputs. Endpoint
+and monotonicity constraints prove the same bounded-offset domain as the
+original validator. Rejected construction invokes the original index checker
+to retain exact error precedence/messages, then propagates any additional
+provider error. This removes the measured duplicate scan without weakening
+checked construction or retaining another arithmetic kernel.
 
 Clarify the unsafe backend obligation on both return and unwind. Success
 visits every in-range index exactly once. Panic permits a subset, at most

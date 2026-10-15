@@ -2,8 +2,9 @@
 
 ## Scope and revisions
 
-This patch recovers the allocation-free `coeus-leto` bridge. It does not claim
-the tensor forward cutover is complete. Preservation draft
+The initial 0.12.1 increment recovers the allocation-free `coeus-leto` bridge.
+The current 0.13.0 tensor cutover has a separate authoritative
+[verification record](sparse-forward-cutover.md). Preservation draft
 [Coeus #531](https://github.com/ryancinsight/Coeus/pull/531), head
 `4b7d360efdd829538ea68905795c02b7bd4f4252`, remains intact.
 
@@ -351,3 +352,11 @@ workflow publication dispatch, tag or registry release is part of this task.
 The versioned backend-contract candidate passes all 48 core native tests (zero
 skipped), Nextest `70b928b2-c1ee-419c-97d9-81ede2881007`, and strict all-target
 `coeus-core` Clippy, with `--offline --locked` and Rust 1.97.0.
+
+
+## Current forward increment
+
+The signed stored-order provider, checked tensor adapter, coherent review
+bindings and current verification/performance evidence live in
+[sparse-forward-cutover.md](sparse-forward-cutover.md). Earlier results in
+this file remain historical evidence for the compatible unsigned bridge.

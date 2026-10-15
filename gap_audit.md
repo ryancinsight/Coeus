@@ -9,8 +9,8 @@ and scheduling gaps have an explicit provider-first action in
 [COEUS-SPARSE-VIEW-FORWARD](backlog.md#coeus-sparse-view-forward).
 The [verification record](docs/verification/sparse-recovery.md) distinguishes
 the compatible bridge recovery from the unresolved tensor forward cutover.
-Leto ADR 0036 now specifies that provider seam; sign-off and explicit backend
-completion on unwind remain prerequisites. Exact numerical fixtures use
+Accepted Leto ADR 0036 implements that provider seam; ADR 0081 records the
+approved backend completion-on-unwind contract. Exact numerical fixtures use
 representable literals/native products rather than unspecified-precision
 power calls; five tensor-forward contract cases now also pass Miri.
 
@@ -25,6 +25,21 @@ power calls; five tensor-forward contract cases now also pass Miri.
 - Leto main advances to the Eunomia 0.10 cohort during implementation. Follow
   the active provider dependency owners before the consumer graph is refreshed.
 - Next: verified provider binding, full integration and performance gates.
+
+## 2026-10-15 — Recovered forward path and coherent review graph
+
+- The provider owns checked signed decoding, stored-order arithmetic and row
+  writes. Coeus reuses the checked descriptor and retains fallible tensor
+  storage/allocation, original rejection diagnostics and backend scheduling.
+- 151 real CPU integration cases pass. Single-column local accumulation and
+  removal of duplicate validation resolve the measured multi-fold SpMV loss;
+  paired medians now lie near parity and SpMM improves on all measured widths.
+- Hephaestus #497 and Apollo #674 add compatible 0.46/0.47 intervals. Cargo
+  regenerates/validates the complete review lock with ten canonical provider
+  identities and no excess source, path patch or manifest revision pin.
+- Remaining: exact candidate full native, strict/API/memory/hosted evidence
+  and provider-first default/registry availability. See the current
+  [forward record](docs/verification/sparse-forward-cutover.md).
 
 ## 2026-10-15: fresh Git resolution exceeds current provider version bounds
 

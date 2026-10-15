@@ -1,5 +1,5 @@
 use super::super::CpuBackend;
-use crate::backend_ops::cpu_impl::error::map_leto_error;
+use crate::backend_ops::error::map_leto_error;
 use crate::backend_ops::traits::{
     OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation,
 };

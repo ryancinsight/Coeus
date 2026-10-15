@@ -1,144 +1,11 @@
 use crate::ptr::{MutPtr, Ptr};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
-use coeus_sparse::CsrTensor;
 use coeus_tensor::Tensor;
 
-use super::validation::{
-    csr_index, validate_csr, validate_csr_components, validate_csr_parts, validate_read,
-};
+use super::validation::{csr_index, validate_csr_components, validate_csr_parts, validate_read};
 
-/// Sparse Matrix-Vector multiplication (SpMV): y = A x
-///
-/// Computes multiplication of a sparse CSR matrix `A` and a dense vector `x`.
-/// Returns a dense vector `y`.
-#[inline]
-pub fn spmv<T: Scalar, B: Backend>(
-    a: &CsrTensor<T, B>,
-    x: &Tensor<T, B>,
-    backend: &B,
-) -> Result<Tensor<T, B>, B::Error>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
-    B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
-{
-    validate_csr(a, "sparse matrix-vector multiplication")?;
-    validate_read(
-        x,
-        "sparse matrix-vector multiplication",
-        Some(&[a.shape()[1]]),
-    )?;
-    let rows = a.shape()[0];
-
-    // alloc_on: every row r writes y[r] = sum via y_ptr.write — no zero-init needed.
-    // SAFETY: `validate_csr` proves every CSR read is within initialized,
-    // contiguous storage, and this kernel writes each output row exactly once.
-    let mut y = unsafe { Tensor::<T, B>::alloc_on([rows], backend)? };
-
-    let val_slice = a.values().as_slice();
-    let col_slice = a.col_indices().as_slice();
-    let row_slice = a.row_offsets().as_slice();
-
-    let val_ptr = Ptr(val_slice.as_ptr());
-    let col_ptr = Ptr(col_slice.as_ptr());
-    let row_ptr = Ptr(row_slice.as_ptr());
-    let y_ptr = MutPtr(y.as_mut_slice()?.as_mut_ptr());
-
-    let x_slice = x.storage().as_slice();
-    let x_ptr = Ptr(x_slice.as_ptr());
-    let x_stride = x.layout().strides()[0];
-    let x_offset = x.layout().offset();
-
-    backend.parallel_for(0, rows, move |r| unsafe {
-        let start = csr_index(row_ptr.read(r));
-        let end = csr_index(row_ptr.read(r + 1));
-        let mut sum = T::ZERO;
-        for i in start..end {
-            let col = csr_index(col_ptr.read(i));
-            let val = val_ptr.read(i);
-            let xv = x_ptr.read(x_offset + col * x_stride);
-            sum += val * xv;
-        }
-        y_ptr.write(r, sum);
-    });
-
-    Ok(y)
-}
-
-/// Sparse-Dense Matrix multiplication (SpMM): C = A B
-///
-/// Multiplies a sparse CSR matrix `A` [M, K] by a dense matrix `B` [K, N].
-/// Returns a dense matrix `C` [M, N].
-#[inline]
-pub fn spmm<T: Scalar, B: Backend>(
-    a: &CsrTensor<T, B>,
-    b: &Tensor<T, B>,
-    backend: &B,
-) -> Result<Tensor<T, B>, B::Error>
-where
-    B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
-    B::DeviceBuffer<i64>: CpuAddressableStorage<i64>,
-{
-    validate_csr(a, "sparse-dense matrix multiplication")?;
-    if b.ndim() != 2 {
-        return Err(coeus_core::BackendError::UnsupportedRank {
-            operation: "sparse-dense matrix multiplication",
-            rank: b.ndim(),
-            max_rank: 2,
-        }
-        .into());
-    }
-    let m = a.shape()[0];
-    let k = a.shape()[1];
-    let n = b.shape()[1];
-    validate_read(b, "sparse-dense matrix multiplication", Some(&[k, n]))?;
-
-    // alloc_on: parallel_for over rows writes every c[r,j] for j in 0..n — no zero-init needed.
-    // SAFETY: `validate_csr` and `validate_read` prove all inputs are valid;
-    // each row/column pair is written exactly once before success.
-    let mut c = unsafe { Tensor::<T, B>::alloc_on([m, n], backend)? };
-
-    let val_slice = a.values().as_slice();
-    let col_slice = a.col_indices().as_slice();
-    let row_slice = a.row_offsets().as_slice();
-
-    let val_ptr = Ptr(val_slice.as_ptr());
-    let col_ptr = Ptr(col_slice.as_ptr());
-    let row_ptr = Ptr(row_slice.as_ptr());
-    let c_ptr = MutPtr(c.as_mut_slice()?.as_mut_ptr());
-
-    let b_slice = b.storage().as_slice();
-    let b_ptr = Ptr(b_slice.as_ptr());
-    let b_stride_row = b.layout().strides()[0];
-    let b_stride_col = b.layout().strides()[1];
-    let b_offset = b.layout().offset();
-
-    let c_stride_row = c.layout().strides()[0];
-    let c_stride_col = c.layout().strides()[1];
-    let c_offset = c.layout().offset();
-
-    backend.parallel_for(0, m, move |r| unsafe {
-        let start = csr_index(row_ptr.read(r));
-        let end = csr_index(row_ptr.read(r + 1));
-        let mut row_accumulator = smallvec::SmallVec::<[T; 256]>::from_elem(T::ZERO, n);
-        for i in start..end {
-            let col = csr_index(col_ptr.read(i));
-            let val = val_ptr.read(i);
-            let b_col_offset = b_offset + col * b_stride_row;
-            for j in 0..n {
-                let bv = b_ptr.read(b_col_offset + j * b_stride_col);
-                row_accumulator[j] += val * bv;
-            }
-        }
-        for j in 0..n {
-            c_ptr.write(
-                c_offset + r * c_stride_row + j * c_stride_col,
-                row_accumulator[j],
-            );
-        }
-    });
-
-    Ok(c)
-}
+mod forward;
+pub use forward::{spmm, spmv};
 
 /// Sparse-Dense Matrix multiplication values backward pass.
 /// Computes the gradient with respect to sparse matrix A values.
@@ -372,6 +239,7 @@ where
 mod tests {
     use super::*;
     use coeus_core::{BackendError, SequentialBackend, Shape};
+    use coeus_sparse::CsrTensor;
 
     fn csr(
         values: &[f32],

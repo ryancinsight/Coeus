@@ -1,4 +1,5 @@
-use super::super::{error::map_leto_error, CpuBackend};
+use super::super::CpuBackend;
+use crate::backend_ops::error::map_leto_error;
 use crate::{CtcBatch, CtcOps};
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
 use coeus_leto::{to_leto_view, to_leto_view_mut};
