@@ -1,7 +1,7 @@
 # Borrowed CSR tensor forward cutover
 
 Target: Coeus 0.13.0; accepted ADR 0081 and Leto ADR 0036. Base:
-`f9ebef3462a8c1704d0a4c7daf1770aeb1c04527`. Provider and binding sources:
+`33f6f1f0596d3e3d914d11e33b79fe48ba16da4c`. Provider and binding sources:
 [review graph](sparse-provider-bindings.md). Original preservation draft
 [#531](https://github.com/ryancinsight/Coeus/pull/531), head
 `4b7d360efdd829538ea68905795c02b7bd4f4252`, remains intact.
@@ -63,33 +63,43 @@ native properties use 256 generated stored-order cases with shrinking.
 The full applicable Coeus native suite passes 1272 tests (`42193f0a`,
 5.302 s), with eight existing ignored cases. Strict all-workspace/all-target
 Clippy and warning-denied workspace Rustdoc pass. Doctests pass 159 cases with
-two existing ignored examples. These results precede the new main refactors;
-the merged candidate repeats its affected gates.
+two existing ignored examples. The merged current-main candidate repeats 1272 native passes
+(`94738d0e`, 7.152 s), strict Clippy, 159 doctests and warning-denied Rustdoc.
 
-Stacked Borrows passes ten forward/layout/rejection/allocation cases
-(`27fcbfe3`, 78.738 s) and the sixteen-family scalar witness (`dbb5d730`,
-27.190 s). The first real-Moirai interpreter case passes every callback and
-capture assertion but fails process exit because global workers remain live.
-Its isolated Miri process now calls the actual shared runtime's shutdown only
-after those assertions. No callback check, workload or leak detection changes.
-The corrected lifecycle and Tree Borrows gates remain in progress.
+The merged candidate passes all thirteen selected Coeus memory cases in both
+strict-provenance models, with isolation and arithmetic-error modeling enabled:
 
-## Performance method and checkpoint
+| Group | Stacked run / elapsed | Tree run / elapsed |
+| --- | --- | --- |
+| Ten forward/layout/rejection/allocation cases | `b3ce81fb`, 74.414 s | `4d053bae`, 68.011 s |
+| All sixteen scalar families | `a12924c0`, 27.363 s | `68f57c39`, 35.663 s |
+| Two real backend unwind/capture cases | `6fc0f450`, 24.597 s | `6a581b5d`, 31.938 s |
+
+The first Moirai interpreter run passes every callback/capture assertion but
+fails process exit because idle global workers remain live. The isolated Miri
+process now calls the real shared runtime's shutdown only after all those
+assertions. Both models then pass without disabling leak checks or isolation.
+A focused CI matrix retains the same thirteen cases and native limits.
+
+## Final paired performance against current main
 
 `scripts/sparse_forward_compare.py` extracts all five original sparse/pointer
 files byte-for-byte from the main revision into a real reference crate. Both
 paths use the same actual current CPU storage, backend and numeric graph.
 The instrument retains all fixtures, exact oracles, result consumption,
 calibration of at least 20 ms per side and 21 alternating-order sample pairs.
-A separate exported-main control preserves all 615 production Rust files and
-every external locked package. Cross-run absolute times are not paired.
+The initial exported-main control at `f9ebef34` preserves all 615 production
+Rust files and every external locked package. The five reference files remain
+byte-identical at current main `33f6f1f0`; incoming changes partition unrelated
+traits/autograd modules. Cross-run absolute times are not paired.
 
 The first dynamic-width/twice-validated adapter regresses SpMV by 2–4 times.
 Native disassembly shows repeated destination loads/stores for partial sums.
 One local accumulator removes those writes without cloning the CSR traversal;
 reusing checked validation removes the second successful index scan.
 
-The resulting checkpoint compares candidate/main time. Quartiles crossing 1
+The final run uses the current complete review lock and no concurrent owned
+heavy verification. It compares candidate/main time. Quartiles crossing 1
 show uncertainty around parity; they do not establish a universal
 non-regression bound. The host runs other work. All outputs pass exact value
 checks before and after timing. No workload, scalar, tolerance or assertion
@@ -97,17 +107,22 @@ changes in response to the measurements.
 
 | Shape / RHS | Sequential ratio median [Q1,Q3] | Moirai ratio median [Q1,Q3] |
 | --- | --- | --- |
-| 1024x1024 / 1 | 0.974 [0.934,1.019] | 1.013 [0.976,1.033] |
-| 16384x16384 / 1 | 0.986 [0.958,1.032] | 1.016 [0.975,1.097] |
-| 1024x1024 / 16 | 0.094 [0.094,0.095] | 0.094 [0.093,0.094] |
-| 4096x4096 / 64 | 0.076 [0.075,0.077] | 0.185 [0.178,0.195] |
-| 4097x4096 / 257 | 0.211 [0.209,0.212] | 0.297 [0.288,0.324] |
+| 1024x1024 / 1 | 0.929 [0.883,0.976] | 1.028 [0.974,1.044] |
+| 16384x16384 / 1 | 1.028 [0.956,1.049] | 1.022 [0.945,1.081] |
+| 1024x1024 / 16 | 0.094 [0.093,0.095] | 0.092 [0.090,0.093] |
+| 4096x4096 / 64 | 0.076 [0.075,0.077] | 0.182 [0.177,0.188] |
+| 4097x4096 / 257 | 0.207 [0.205,0.210] | 0.291 [0.284,0.298] |
 
-The large SpMV medians are 183.202/180.201 us sequential and 125.688/125.238 us
-Moirai (main/candidate). This retains the observed backend speedup as well as
-the backend call itself. SpMM improves while keeping separate rounding; the
-legacy SIMD entry point's exact `-2^-104` versus +0 counterexample remains
-observable and is not used as a compatible replacement.
+The large SpMV medians are 160.493/163.655 us sequential and 122.505/119.766 us
+Moirai (main/candidate). The paired-ratio median need not equal the ratio of
+those separate medians. Backend execution retains its observed speedup and
+its call path. SpMM improves with separate rounding; the legacy SIMD entry
+point's exact `-2^-104` versus +0 counterexample is not used as a replacement.
+
+Candidate source fingerprint (sorted JSON of every CPU source/manifest and the
+instrument): `ece0fe1ad50e727327f0eaa8d0a3adaaaebfb9a20dd5b20eec51c28d4d41c6c5`. The instrument checks that fingerprint before and
+after measurement; both implementations' full computed outputs pass.
+
 
 ## Reproduction and limits
 
@@ -119,11 +134,16 @@ workspace targets; docs deny warnings. Installed supported Python 3.9 selects
 the unchanged PyO3 0.23 ABI instead of the host's unsupported 3.14 default.
 Miri retains isolation, strict provenance and default arithmetic-error modeling;
 its separate bounded interpreter profile leaves native limits unchanged.
+The unused workspace keyword field is removed; all sixteen packages retain
+identical actual keyword metadata, and nightly no longer emits that warning.
 
 The 4097x257 execution runs natively; interpreter cases target the proven
-address/lifetime, scalar, rejection and empty-output boundaries. Provider
-32-bit ARM executes checked representability; i686 still fails the upstream
-binary64 alignment assertion before tests. No i686 execution result follows.
+address/lifetime, scalar, rejection and empty-output boundaries. The complete Coeus ARM32 attempt stops before tests in current Moirai
+`ChaseLevInner<u8, DeferredReclaim>` alignment >=64. The second borrow-model
+command therefore does not run. Provider-only ARM32 address/scalar cases run
+with parallel runtime features disabled; their result is recorded separately.
+i686 still fails the upstream binary64 alignment assertion before tests; no
+i686 execution result follows.
 Unseeded default-source and registry availability require the independent
 provider reviews to integrate first. No release or main merge is part of
 this independently reviewable recovery.

@@ -12,7 +12,7 @@
   using 0.13.0. See ADR 0081 and the real Sequential/Moirai panic regressions.
 - [minor] Align direct consumers with Eunomia 0.10, Hermes 0.9,
   Mnemosyne-memory 0.10, Leto/Leto-ops 0.47, Hephaestus 0.22.1 and
-  Apollo FFT 0.29.1. These pre-1.0 provider types must share one source
+  Apollo FFT 0.29.2. These pre-1.0 provider types must share one source
   identity; update downstream requirements together with Coeus 0.13.
 
 ### Added

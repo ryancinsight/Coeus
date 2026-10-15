@@ -9,7 +9,7 @@ regenerates it and independently verifies `metadata --offline --locked`.
 | --- | --- | --- |
 | [Leto #362](https://github.com/ryancinsight/leto/pull/362) | 0.47.0, signed stored-order views and prepared row tasks | `a277833444ed6d54b5b58cf72bf8911c4c9cbb3a` |
 | [Hephaestus #497](https://github.com/ryancinsight/hephaestus/pull/497) | 0.22.1, both Leto layers accept `>=0.46.0, <0.48.0` | `a153f475fbee1042fc323a845400da89c9737c94` |
-| [Apollo #674](https://github.com/ryancinsight/apollo/pull/674) | FFT 0.29.1 and affected family patches; same compatible interval | `d968d3cc73f86adab2185ac75c115453c3be6f44` |
+| [Apollo #674](https://github.com/ryancinsight/apollo/pull/674) | FFT 0.29.2 and affected family patches; same compatible interval | `f8fa292ce86315875adaf2eeb365ef862aba63f4` |
 | [Coeus #533](https://github.com/ryancinsight/Coeus/pull/533) | 0.13.0, accepted backend unwind contract and checked tensor adapter | Review head records the current complete candidate |
 
 The compatibility patches preserve the merged 0.46 cohort, all 1337/1064

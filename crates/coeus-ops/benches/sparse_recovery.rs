@@ -1,4 +1,4 @@
-//! Counterbalanced, value-checked comparisons against Coeus f9ebef34.
+//! Counterbalanced, value-checked comparisons against Coeus 33f6f1f0.
 //!
 //! The owned bridge below is the exact former dispatch: three Vec copies,
 //! CsrMatrix validation, a dense view, then the same Leto sparse kernel.
@@ -298,7 +298,7 @@ fn main() {
         .without_time()
         .init();
     tracing::info!(
-        base = "f9ebef3462a8c1704d0a4c7daf1770aeb1c04527",
+        base = "33f6f1f0596d3e3d914d11e33b79fe48ba16da4c",
         architecture = std::env::consts::ARCH,
         threads = std::thread::available_parallelism()
             .expect("hardware thread count")

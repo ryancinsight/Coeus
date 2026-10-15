@@ -1,7 +1,7 @@
 # Coeus sparse recovery checklist
 
 Active target: **0.13.0**. Owner: Codex. Current integration base:
-`f9ebef3462a8c1704d0a4c7daf1770aeb1c04527` (original audit: `cd8e984e`).
+`33f6f1f0596d3e3d914d11e33b79fe48ba16da4c` (original audit: `cd8e984e`).
 
 ## Borrowed dispatch recovery [patch]
 
@@ -33,8 +33,10 @@ complete compatible increment; the tensor forward migration remains open.
       precedence; measure the checked adapter against byte-identical main code.
 - [x] [patch] Resolve the actual provider review graph with one source each;
       deliver compatible Hephaestus #497 and Apollo #674 independently.
-- [ ] [arch] Complete scalar/layout/initialization regressions, both memory
-      models, exact-main performance, API compatibility and consumer resolution.
+- [x] [arch] Complete scalar/layout/initialization regressions, both memory
+      models, complete native/strict/doc gates and current-main performance.
+- [ ] [patch] Record final exact-head API/hosted checks and fresh review-source
+      consumers; retain default/registry availability as provider-first gates.
 
 The provider implementation and backend-contract commit are independently
 reviewable. The 0.12.1 bridge evidence below remains historical; it does not

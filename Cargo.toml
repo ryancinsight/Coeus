@@ -28,7 +28,6 @@ authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ryancinsight/Coeus.git"
 readme = "README.md"
-keywords = ["tensor", "autodiff", "gpu", "machine-learning", "simd"]
 categories = ["science", "mathematics", "data-structures"]
 
 [workspace.dependencies]
@@ -49,7 +48,7 @@ leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.47.0" }
 leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.47.0" }
 # Compatible provider bindings admit both Leto 0.46 and the additive 0.47
 # line. Review locks select their actual independent branch commits.
-apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.29.1", default-features = false }
+apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.29.2", default-features = false }
 
 # ── Numerical ──
 bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
