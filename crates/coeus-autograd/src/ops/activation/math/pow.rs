@@ -127,7 +127,8 @@ where
             // d/dx x^(-k) = -k · x^(-k-1) = -k / x^(k+1) (sign-preserving).
             // Denominator sign follows (k+1) parity on x.
             let k = (-exp_i) as u32;
-            let neg_coef = -exp_t;
+            // exp_t already carries the negative derivative coefficient -k.
+            let coef = exp_t;
             let exp_total = k + 1;
             let exp_total_odd = (exp_total & 1) == 1;
             for i in 0..n {
@@ -145,7 +146,7 @@ where
                 } else {
                     denom_abs
                 };
-                let local = neg_coef / denom;
+                let local = coef / denom;
                 grad_in_host[i] = grad_host[i] * local;
             }
         } else {
