@@ -10,25 +10,25 @@ use std::{
 };
 
 std::thread_local! {
-    pub(super) static DOWNLOADS: Cell<usize> = const { Cell::new(0) };
-    pub(super) static DEVICE_COPIES: Cell<usize> = const { Cell::new(0) };
-    pub(super) static FAIL_UNINITIALIZED_ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
-    pub(super) static FAIL_DEVICE_COPIES: Cell<usize> = const { Cell::new(0) };
+    pub(crate) static DOWNLOADS: Cell<usize> = const { Cell::new(0) };
+    pub(crate) static DEVICE_COPIES: Cell<usize> = const { Cell::new(0) };
+    pub(crate) static FAIL_UNINITIALIZED_ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
+    pub(crate) static FAIL_DEVICE_COPIES: Cell<usize> = const { Cell::new(0) };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum TestInitialization {
+pub(crate) enum TestInitialization {
     Zeroed,
     Uninitialized,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct TestBuffer<T: eunomia::Pod> {
-    pub(super) bytes: Arc<Mutex<Vec<u8>>>,
-    pub(super) len: usize,
-    pub(super) tier: MemoryTier,
-    pub(super) initialization: TestInitialization,
-    pub(super) marker: PhantomData<T>,
+    pub(crate) bytes: Arc<Mutex<Vec<u8>>>,
+    pub(crate) len: usize,
+    pub(crate) tier: MemoryTier,
+    pub(crate) initialization: TestInitialization,
+    pub(crate) marker: PhantomData<T>,
 }
 
 impl<T: eunomia::Pod> DeviceBuffer<T> for TestBuffer<T> {
@@ -45,19 +45,19 @@ impl<T: eunomia::Pod> DeviceBuffer<T> for TestBuffer<T> {
 pub(crate) struct TestProvider;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) struct UnavailableProvider;
+pub(crate) struct UnavailableProvider;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct TestDevice;
 
-pub(super) fn byte_len<T: eunomia::Pod>(len: usize) -> hephaestus_core::Result<usize> {
+pub(crate) fn byte_len<T: eunomia::Pod>(len: usize) -> hephaestus_core::Result<usize> {
     len.checked_mul(std::mem::size_of::<T>())
         .ok_or_else(|| HephaestusError::AllocationFailed {
             message: "test buffer size overflow".to_owned(),
         })
 }
 
-pub(super) fn empty_buffer<T: eunomia::Pod>(
+pub(crate) fn empty_buffer<T: eunomia::Pod>(
     len: usize,
     tier: MemoryTier,
     initialization: TestInitialization,
@@ -75,7 +75,7 @@ pub(super) fn empty_buffer<T: eunomia::Pod>(
     })
 }
 
-pub(super) fn require_len<T: eunomia::Pod>(
+pub(crate) fn require_len<T: eunomia::Pod>(
     buffer: &TestBuffer<T>,
     len: usize,
 ) -> hephaestus_core::Result<()> {
@@ -249,13 +249,9 @@ unsafe impl HephaestusProvider for TestProvider {
 
     const NAME: &'static str = "test";
 
-    fn device() -> &'static Self::Device {
-        static DEVICE: TestDevice = TestDevice;
-        &DEVICE
-    }
-
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
-        Ok(Self::device())
+        static DEVICE: TestDevice = TestDevice;
+        Ok(&DEVICE)
     }
 }
 
@@ -268,11 +264,6 @@ unsafe impl HephaestusProvider for UnavailableProvider {
 
     const NAME: &'static str = "unavailable-test";
 
-    fn device() -> &'static Self::Device {
-        static DEVICE: TestDevice = TestDevice;
-        &DEVICE
-    }
-
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
         Err(HephaestusError::DeviceUnavailable {
             message: "injected unavailable test device".to_owned(),
@@ -280,7 +271,7 @@ unsafe impl HephaestusProvider for UnavailableProvider {
     }
 }
 
-pub(super) fn assert_device_unavailable(
+pub(crate) fn assert_device_unavailable(
     error: crate::HephaestusBackendError,
     expected_operation: &str,
 ) {
@@ -297,7 +288,7 @@ pub(super) fn assert_device_unavailable(
     }
 }
 
-pub(super) fn expect_backend_failure<T>(
+pub(crate) fn expect_backend_failure<T>(
     result: Result<T, crate::HephaestusBackendError>,
     expectation: &str,
 ) -> crate::HephaestusBackendError {

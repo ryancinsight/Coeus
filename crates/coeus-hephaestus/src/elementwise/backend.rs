@@ -157,8 +157,11 @@ where
         let output_layout =
             ranked::<N>("elementwise_binary", output_layout).map_err(P::Error::from)?;
         output.make_unique()?;
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("elementwise_binary", source))
+        })?;
         P::binary(
-            P::device(),
+            device,
             operation,
             RankedOperand {
                 buffer: lhs.buffer(),
@@ -274,8 +277,11 @@ where
         let output_layout =
             ranked::<N>("elementwise_unary", output_layout).map_err(P::Error::from)?;
         output.make_unique()?;
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device("elementwise_unary", source))
+        })?;
         P::unary(
-            P::device(),
+            device,
             operation,
             RankedOperand {
                 buffer: input.buffer(),
@@ -395,8 +401,14 @@ where
         let output_layout =
             ranked::<N>("elementwise scalar power", output_layout).map_err(P::Error::from)?;
         output.make_unique()?;
+        let device = P::try_device().map_err(|source| {
+            P::Error::from(HephaestusBackendError::device(
+                "elementwise scalar power",
+                source,
+            ))
+        })?;
         P::scalar_power(
-            P::device(),
+            device,
             RankedOperand {
                 buffer: input.buffer(),
                 layout: &input_layout,

@@ -94,9 +94,10 @@ where
         buffer.make_unique()?;
     }
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();
+    let device = B::try_device().map_err(|source| B::dispatch_error(OPERATION, source))?;
     operations
         .attention_backward_accumulate(
-            B::device(),
+            device,
             AttentionBackwardOperands {
                 grad_output: StridedView::new(B::buffer(request.grad_output), &grad_output_layout),
                 query: StridedView::new(B::buffer(request.query), &query_layout),

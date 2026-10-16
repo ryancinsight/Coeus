@@ -39,8 +39,9 @@ where
         input: StridedView::new(B::buffer(input.0), &input_layout),
         output: StridedView::new(B::buffer(output.0), &output_layout),
     };
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
     B::Operations::default()
-        .unfold_into(B::device(), operands, parameters)
+        .unfold_into(device, operands, parameters)
         .map_err(|source| B::dispatch_error(operation, source))
 }
 
@@ -63,7 +64,8 @@ where
         input: StridedView::new(B::buffer(input.0), &input_layout),
         output: StridedView::new(B::buffer(output.0), &output_layout),
     };
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
     B::Operations::default()
-        .fold_into(B::device(), operands, output_spatial_shape, parameters)
+        .fold_into(device, operands, output_spatial_shape, parameters)
         .map_err(|source| B::dispatch_error(operation, source))
 }

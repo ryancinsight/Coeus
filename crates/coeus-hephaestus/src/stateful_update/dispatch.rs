@@ -281,6 +281,8 @@ where
     let gradient_layout = ranked::<N>(request.operation, request.gradient_layout)?;
     let parameter = StridedView::new(B::buffer(request.parameter), &parameter_layout);
     let gradient = StridedView::new(B::buffer(request.gradient), &gradient_layout);
+    let device = <Provider<B> as HephaestusProvider>::try_device()
+        .map_err(|source| B::dispatch_error(request.operation, source))?;
 
     match request.states {
         State::One(state, layout) => {
@@ -288,7 +290,7 @@ where
             let states = [StridedView::new(B::buffer(state), &layout)];
             Operations::<B>::default()
                 .stateful_update::<Rule, f32, N>(
-                    <Provider<B> as HephaestusProvider>::device(),
+                    device,
                     StatefulUpdateOperands {
                         parameter,
                         gradient,
@@ -307,7 +309,7 @@ where
             ];
             Operations::<B>::default()
                 .stateful_update::<Rule, f32, N>(
-                    <Provider<B> as HephaestusProvider>::device(),
+                    device,
                     StatefulUpdateOperands {
                         parameter,
                         gradient,

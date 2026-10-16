@@ -17,12 +17,7 @@ impl CudaScalar for i32 {}
 
 static CUDA_DEVICE: OnceLock<CudaDevice> = OnceLock::new();
 
-/// Retrieve a reference to the global lazily-initialized hephaestus CUDA device.
-pub fn get_cuda_device() -> &'static CudaDevice {
-    try_get_cuda_device().expect("Failed to initialize hephaestus-cuda device")
-}
-
-/// Try to retrieve the process-global CUDA device.
+/// Retrieve the process-global CUDA device, reporting acquisition failures.
 ///
 /// # Errors
 ///

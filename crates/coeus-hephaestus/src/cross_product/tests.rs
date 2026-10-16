@@ -73,7 +73,7 @@ fn fallback_matches_host_fold_off_last_axis() {
 
 #[test]
 fn seam_bundle_rejects_length_mismatch() {
-    let device = TestProvider::device();
+    let device = TestProvider::try_device().expect("invariant: test device acquisition succeeds");
     let a = device
         .upload(&[0.0_f32; 6])
         .expect("invariant: test buffer upload succeeds");
@@ -94,7 +94,7 @@ fn seam_bundle_rejects_length_mismatch() {
 
 #[test]
 fn seam_bundle_accepts_empty() {
-    let device = TestProvider::device();
+    let device = TestProvider::try_device().expect("invariant: test device acquisition succeeds");
     let empty: &[f32] = &[];
     let a = device
         .upload(empty)

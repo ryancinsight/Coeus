@@ -44,16 +44,6 @@ verification, tightening, feature}.
 - Acceptance: real-device regressions over each supported operation/scalar matrix pass; SemVer confirms the declared major removals (already 222/223 checks pass per the landed commit).
 - Next step: run the final workspace/device/SemVer gates once the upstream Hephaestus fix lands, then close.
 
-<a id="atlas-coeus-safety-001"></a>
-## ATLAS-COEUS-SAFETY-001 — Hephaestus provider device-acquisition panics
-
-- Status: todo; priority: correctness; [major] [arch].
-- Outcome: every provider-backed operation and copy-on-write detachment reports provider acquisition, allocation, and transfer failures instead of panicking inside a library boundary.
-- Evidence: the `COEUS-FALLIBLE-STORAGE-CORE` cutover makes storage allocation and `StorageMut::make_unique` fallible. Coeus provider-operation dispatch still calls `P::device()` across elementwise, convolution, pooling, matmul, unfold/fold, cross-entropy, attention, and stateful-update paths; ROCm and Metal `device()` still panic when acquisition fails.
-- Acceptance: value-semantic typed-error tests for unavailable devices and transfer failures; a production panic scan; provider feature gates on hosts with and without the required hardware; no CPU fallback or silent degradation.
-- Next step: draft the provider-acquisition ADR, then replace remaining operation-dispatch `P::device()` calls with typed `P::try_device()` propagation and add forced acquisition-failure coverage.
-- Note: deliberately outside the closed native-comparison-provider items — this is the separate public failure-boundary migration.
-
 <a id="coeus-sibling-named-crates"></a>
 ## COEUS-SIBLING-NAMED-CRATES — Crates named after their dependencies
 

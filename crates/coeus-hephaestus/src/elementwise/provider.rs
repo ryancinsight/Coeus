@@ -134,76 +134,37 @@ where
     let operations = P::Operations::default();
     let input = StridedView::new(input.buffer, input.layout);
     let output = StridedView::new(output.buffer, output.layout);
+    let device = P::try_device()?;
     match operation {
-        UnaryOp::Hardtanh(_) => operations.parameterized_unary_into::<HardtanhOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::HardtanhGrad(_) => operations.parameterized_unary_into::<HardtanhGradOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::LeakyRelu(_) => operations.parameterized_unary_into::<LeakyReluOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::LeakyReluGrad(_) => operations.parameterized_unary_into::<LeakyReluGradOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::Hardshrink(_) => operations.parameterized_unary_into::<HardshrinkOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::HardshrinkGrad(_) => operations.parameterized_unary_into::<HardshrinkGradOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::Softshrink(_) => operations.parameterized_unary_into::<SoftshrinkOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::SoftshrinkGrad(_) => operations.parameterized_unary_into::<SoftshrinkGradOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::Celu(_) => {
-            operations.parameterized_unary_into::<CeluOp, N>(P::device(), input, parameters, output)
+        UnaryOp::Hardtanh(_) => {
+            operations.parameterized_unary_into::<HardtanhOp, N>(device, input, parameters, output)
         }
-        UnaryOp::CeluGrad(_) => operations.parameterized_unary_into::<CeluGradOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::Threshold(_) => operations.parameterized_unary_into::<ThresholdOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
-        UnaryOp::ThresholdGrad(_) => operations.parameterized_unary_into::<ThresholdGradOp, N>(
-            P::device(),
-            input,
-            parameters,
-            output,
-        ),
+        UnaryOp::HardtanhGrad(_) => operations
+            .parameterized_unary_into::<HardtanhGradOp, N>(device, input, parameters, output),
+        UnaryOp::LeakyRelu(_) => {
+            operations.parameterized_unary_into::<LeakyReluOp, N>(device, input, parameters, output)
+        }
+        UnaryOp::LeakyReluGrad(_) => operations
+            .parameterized_unary_into::<LeakyReluGradOp, N>(device, input, parameters, output),
+        UnaryOp::Hardshrink(_) => operations
+            .parameterized_unary_into::<HardshrinkOp, N>(device, input, parameters, output),
+        UnaryOp::HardshrinkGrad(_) => operations
+            .parameterized_unary_into::<HardshrinkGradOp, N>(device, input, parameters, output),
+        UnaryOp::Softshrink(_) => operations
+            .parameterized_unary_into::<SoftshrinkOp, N>(device, input, parameters, output),
+        UnaryOp::SoftshrinkGrad(_) => operations
+            .parameterized_unary_into::<SoftshrinkGradOp, N>(device, input, parameters, output),
+        UnaryOp::Celu(_) => {
+            operations.parameterized_unary_into::<CeluOp, N>(device, input, parameters, output)
+        }
+        UnaryOp::CeluGrad(_) => {
+            operations.parameterized_unary_into::<CeluGradOp, N>(device, input, parameters, output)
+        }
+        UnaryOp::Threshold(_) => {
+            operations.parameterized_unary_into::<ThresholdOp, N>(device, input, parameters, output)
+        }
+        UnaryOp::ThresholdGrad(_) => operations
+            .parameterized_unary_into::<ThresholdGradOp, N>(device, input, parameters, output),
         _ => Err(hephaestus_core::HephaestusError::DispatchFailed {
             message: format!("operation {operation:?} is not a parameterized activation"),
         }),

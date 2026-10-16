@@ -54,9 +54,11 @@ pub(super) fn forward<B: CrossEntropyBackend>(
     let probabilities_candidate =
         B::cross_entropy_candidate(probabilities, false, "cross_entropy_forward_probabilities")?;
     let operations = <B::Provider as CrossEntropyProvider>::Operations::default();
+    let device = <B::Provider as crate::HephaestusProvider>::try_device()
+        .map_err(|source| B::dispatch_error("cross_entropy_forward", source))?;
     operations
         .cross_entropy_forward_into(
-            <B::Provider as crate::HephaestusProvider>::device(),
+            device,
             CrossEntropyForwardOperands {
                 logits: StridedView::new(B::buffer(logits), &logits_layout),
                 targets: StridedView::new(B::cross_entropy_target_buffer(targets), &target_layout),
@@ -115,9 +117,11 @@ pub(super) fn backward<B: CrossEntropyBackend>(
         "cross_entropy_backward_logit_gradient",
     )?;
     let operations = <B::Provider as CrossEntropyProvider>::Operations::default();
+    let device = <B::Provider as crate::HephaestusProvider>::try_device()
+        .map_err(|source| B::dispatch_error("cross_entropy_backward", source))?;
     operations
         .cross_entropy_backward_accumulate(
-            <B::Provider as crate::HephaestusProvider>::device(),
+            device,
             CrossEntropyBackwardOperands {
                 output_gradient: StridedView::new(
                     B::buffer(output_gradient),

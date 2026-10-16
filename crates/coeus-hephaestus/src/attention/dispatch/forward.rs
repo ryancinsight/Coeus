@@ -68,9 +68,10 @@ where
     request.output.make_unique()?;
     request.weights.make_unique()?;
     let operations = <<B as AttentionBackend<T>>::Provider as super::super::provider::AttentionProvider<T>>::Operations::default();
+    let device = B::try_device().map_err(|source| B::dispatch_error(OPERATION, source))?;
     operations
         .attention_forward_into(
-            B::device(),
+            device,
             AttentionForwardOperands {
                 query: StridedView::new(B::buffer(request.query), &query_layout),
                 key: StridedView::new(B::buffer(request.key), &key_layout),

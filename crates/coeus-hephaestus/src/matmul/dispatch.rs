@@ -35,9 +35,10 @@ where
     let out = ranked::<2>(MATMUL, c_layout)?;
 
     c.make_unique()?;
+    let device = B::try_device().map_err(|source| B::dispatch_error(MATMUL, source))?;
     B::Operations::default()
         .matmul_into(
-            B::device(),
+            device,
             StridedView::new(B::buffer(a), &lhs),
             StridedView::new(B::buffer(b), &rhs),
             StridedView::new(B::buffer(c), &out),

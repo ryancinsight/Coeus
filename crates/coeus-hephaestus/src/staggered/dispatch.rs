@@ -55,8 +55,9 @@ where
         }
         let taps = staggered_first_derivative_coefficients::<f32>(order / 2)
             .map_err(|error| B::configuration_error(OPERATION, error.to_string()))?;
+        let device = B::try_device().map_err(|source| B::dispatch_error(OPERATION, source))?;
         let kernel = B::Operations::default()
-            .prepare_staggered_3d(B::device())
+            .prepare_staggered_3d(device)
             .map_err(|source| B::dispatch_error(OPERATION, source))?;
         Ok(Self {
             kernel,
@@ -153,9 +154,10 @@ where
     const OPERATION: &str = "staggered_gradient";
     let params = parameters::<B>(OPERATION, pair, axis, (input.1, output.1))?;
     output.0.make_unique()?;
+    let device = B::try_device().map_err(|source| B::dispatch_error(OPERATION, source))?;
     B::Operations::default()
         .staggered_gradient_into(
-            B::device(),
+            device,
             &pair.kernel,
             B::buffer(input.0),
             B::buffer(output.0),
@@ -181,9 +183,10 @@ where
     const OPERATION: &str = "staggered_divergence";
     let params = parameters::<B>(OPERATION, pair, axis, (input.1, output.1))?;
     output.0.make_unique()?;
+    let device = B::try_device().map_err(|source| B::dispatch_error(OPERATION, source))?;
     B::Operations::default()
         .staggered_divergence_into(
-            B::device(),
+            device,
             &pair.kernel,
             B::buffer(input.0),
             B::buffer(output.0),

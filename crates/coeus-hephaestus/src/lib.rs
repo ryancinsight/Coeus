@@ -11,6 +11,8 @@ mod backend;
 mod convolution;
 mod cross_entropy;
 mod cross_product;
+#[cfg(test)]
+mod dispatch_tests;
 mod elementwise;
 mod error;
 mod fused_reduction;
