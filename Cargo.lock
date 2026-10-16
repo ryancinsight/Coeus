@@ -464,6 +464,7 @@ dependencies = [
  "bytemuck",
  "coeus-core",
  "coeus-ops",
+ "coeus-tensor",
  "eunomia",
  "hephaestus-core",
  "leto",
