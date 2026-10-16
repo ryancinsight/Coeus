@@ -280,6 +280,41 @@ pub(crate) fn bench_interpolate2d_bilinear_forward(c: &mut Criterion) {
     );
 }
 
+pub(crate) fn bench_interpolate1d_nearest_forward(c: &mut Criterion) {
+    const IN_N: usize = 8;
+    const IN_C: usize = 16;
+    const IN_L: usize = 128;
+    const OUT_L: usize = 256;
+
+    let input_data: Vec<f32> = (0..(IN_N * IN_C * IN_L))
+        .map(|i| (i as f32 * 0.0021).sin())
+        .collect();
+
+    let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![IN_N, IN_C, IN_L], &input_data)
+        .expect("invariant: test backend operation succeeds");
+    let x_moirai = Tensor::<f32, MoiraiBackend>::from_slice(vec![IN_N, IN_C, IN_L], &input_data)
+        .expect("invariant: test backend operation succeeds");
+
+    let mut group = c.benchmark_group("Coeus — interpolate_1d nearest forward (8x16x128 -> 256)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(
+                interpolate_1d(black_box(&x_seq), OUT_L, CoeusInterpolateMode::Nearest)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(
+                interpolate_1d(black_box(&x_moirai), OUT_L, CoeusInterpolateMode::Nearest)
+                    .expect("invariant: test operation succeeds"),
+            )
+        })
+    });
+    group.finish();
+}
+
 pub(crate) fn bench_maxpool1d_forward(c: &mut Criterion) {
     const MP1_N: usize = 8;
     const MP1_C: usize = 16;
