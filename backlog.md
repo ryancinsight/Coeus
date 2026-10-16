@@ -59,17 +59,6 @@ verification, tightening, feature}.
 - Non-goal: resurrect superseded dependency pins or storage implementations.
 - Next step: add a forced backend-allocation failure fixture for unary forward/backward, then run the gradient and device gates against the migrated signatures in [ADR 0076](docs/adr/0076-fallible-unary-autograd-execution.md).
 
-<a id="coeus-fallible-index-reduction"></a>
-## COEUS-FALLIBLE-INDEX-REDUCTION — Return index-reduction failures
-
-- Status: todo; priority: correctness; [major].
-- Outcome: malformed argmax/argmin requests return typed errors through their complete caller chain.
-- Scope: index-reduction backend trait methods, CPU/provider implementations, mathematical/Python callers; preserve index conventions and tie behavior.
-- Evidence: the `COEUS-FALLIBLE-STORAGE-CORE` cutover changes argmax/argmin provider methods and public callers to typed `Result`; failure-injection coverage remains to close the item.
-- Acceptance: malformed layouts/axes reject before output writes, retain clone values, propagate typed errors; valid ties/boundaries retain exact expected indices.
-- Needs: none; storage allocation propagation landed under `Item: COEUS-FALLIBLE-STORAGE-CORE`.
-- Next step: add malformed-layout and forced-provider-failure tests for argmax/argmin, then run the CPU and device parity gates.
-
 <a id="coeus-device-output-ownership"></a>
 ## COEUS-DEVICE-OUTPUT-OWNERSHIP — Collect the device/hardware verification half
 
