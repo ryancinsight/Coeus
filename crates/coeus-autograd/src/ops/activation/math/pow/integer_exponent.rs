@@ -1,4 +1,4 @@
-use coeus_core::Float;
+use coeus_core::{Float, FloatElement};
 
 // A finite binary64 exponent has at most 1024 magnitude bits. One extra
 // word accommodates rounding at the upper boundary and the derivative's ±1.
@@ -6,7 +6,7 @@ use coeus_core::Float;
 const MAGNITUDE_WORDS: usize = 17;
 
 /// Exact integer control, extracted once per operation from the rounded T.
-/// Tensor arithmetic stays in T; no scalar value is widened or cast to an int.
+/// Tensor arithmetic stays in T; control uses the provider's native floor.
 #[derive(Clone, Copy)]
 pub(super) struct IntegerExponent {
     words: [u64; MAGNITUDE_WORDS],
@@ -14,8 +14,8 @@ pub(super) struct IntegerExponent {
 }
 
 impl IntegerExponent {
-    pub(super) fn from_value<T: Float>(value: T) -> Option<Self> {
-        if !<T as Float>::is_finite(value) || !value.is_integer() {
+    pub(super) fn from_value<T: Float + FloatElement>(value: T) -> Option<Self> {
+        if !<T as Float>::is_finite(value) || value != <T as FloatElement>::floor(value) {
             return None;
         }
         let mut result = Self {
@@ -27,8 +27,9 @@ impl IntegerExponent {
         let mut bit = 0;
         // For binary integers, floor(n/2) is exact in T. Comparing n with
         // twice that quotient recovers its low bit without a numeric cast.
+        // Use the provider floor: the Coeus half-format Float floor widens.
         while remaining > T::ZERO {
-            let half = <T as Float>::floor(remaining / two);
+            let half = <T as FloatElement>::floor(remaining / two);
             if remaining != half + half {
                 result.words[bit / 64] |= 1 << (bit % 64);
                 result.used = bit / 64 + 1;
