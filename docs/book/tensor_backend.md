@@ -8,7 +8,7 @@ a compile-time decision with no runtime overhead.
 
 | Backend type | Description |
 |-------------|-------------|
-| `MoiraiBackend` | Default CPU backend via Moirai parallel pool |
+| `MoiraiBackend` | Default CPU backend (Moirai parallel pool; compute kernels delegate to `coeus-leto` / `leto-ops` where available) |
 | `CudaBackend` | NVIDIA CUDA via `hephaestus-cuda` |
 | `WgpuBackend` | Cross-platform GPU via `hephaestus-wgpu` |
 | `RocmBackend` | AMD ROCm via `hephaestus-rocm` |
@@ -17,8 +17,8 @@ a compile-time decision with no runtime overhead.
 ## Selecting a Backend
 
 ```rust,ignore
-use coeus::Tensor;
-use coeus::backend::CudaBackend;
+use coeus_tensor::Tensor;
+use coeus_cuda::CudaBackend;
 
 // Default CPU tensor
 let a: Tensor<f32> = Tensor::zeros([256, 256])?;
