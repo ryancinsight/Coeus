@@ -5,6 +5,7 @@
 //! fixtures, non-uniform weighting and gradcheck-derived tolerances.
 
 mod conv;
+mod losses;
 mod pooling;
 
 use coeus_autograd::{mul, sum, Var};
