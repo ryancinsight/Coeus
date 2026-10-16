@@ -164,14 +164,6 @@ impl<T: Float + FloatElement + core::ops::Neg<Output = T>> FloatOps for Complex<
 
 impl<T: Float + FloatElement + core::ops::Neg<Output = T>> Scalar for Complex<T> {
     #[inline(always)]
-    fn from_f64(v: f64) -> Self {
-        Self {
-            re: <T as FloatElement>::from_f64(v),
-            im: T::ZERO,
-        }
-    }
-
-    #[inline(always)]
     fn sqrt_val(self) -> Self {
         let r = <T as Float>::sqrt(self.re * self.re + self.im * self.im);
         let u = <T as Float>::sqrt((r + self.re) / <T as FloatElement>::from_f64(2.0));

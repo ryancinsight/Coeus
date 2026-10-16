@@ -27,6 +27,7 @@ criterion = { workspace = true }
 coeus-ops = { path = "../coeus-ops" }
 coeus-nn = { path = "../coeus-nn" }
 coeus-autograd = { path = "../coeus-autograd", default-features = false }
+eunomia = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 bincode = { version = "=2.0.0-rc.3", features = ["serde"] }

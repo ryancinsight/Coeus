@@ -5,18 +5,14 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
-<a id="coeus-scalar-vocab"></a>
-## COEUS-SCALAR-VOCAB — Delete `Scalar::from_f64`
+<a id="coeus-count-conv-spelling"></a>
+## COEUS-COUNT-CONV-SPELLING — Count-typed spelling for `from_f64(n as f64)` sites
 
-- Status: todo; priority: architecture; [major]; basis: c279b69e.
-- Outcome: `coeus_core::Scalar` declares only its slice-kernel surface; its last redeclared element method, `from_f64` (`crates/coeus-core/src/dtype/traits.rs`), deletes (atlas:0005 decision 1). `zero`, `one` and `to_f64` already moved to `NumericElement::ZERO`/`ONE`/`to_f64`.
-- Also: the `from_f64(n as f64)` count conversions COEUS-COUNT-CONV-001 left move to `from_count`/`try_from_count`.
-- Gap (decision first, as an ADR): `FloatElement::from_f64` exists for floats only and `Float` does not imply it — a `Float: FloatElement` supertrait makes every `x.exp()`/`x.floor()` on `T: Float` ambiguous (`Float` redeclares ~25 `FloatElement` methods) and per-site `+ FloatElement` bounds are viral; `Complex<T>` has neither `FloatElement` nor `CastFrom<f64>`; 17 src and ~130 test sites are `T: Scalar`-only and run at integers (`v as Self`, which `CastFrom<f64>` reproduces exactly). ~390 call sites.
-- Options: (1, recommended) `Scalar: CastFrom<f64>` with `CastFrom<f64> for Complex<T>` added upstream in eunomia, every site `<T as CastFrom<f64>>::cast_from(v)`; (2) per-site `+ FloatElement`, narrowing int-capable generics to floats.
-- 2026-10-15: option (1) is dead — eunomia 0.10 retired `CastFrom`/`CastTo` (eunomia ADR 0007; replacement map points `f64`-into-float at `FloatElement::from_f64`, i.e. option (2)). The ADR must now decide option (2) vs a new spelling, including the `Complex<T>` gap (`Complex` has no `FloatElement`).
-- 2026-10-15 resolution: option (2) confirmed by the sweep's executed design (`16a73a81`): `Scalar::from_f64` deletes; float sites become `<T as eunomia::FloatElement>::from_f64` (declared upstream with round-to-nearest-even semantics); int sites become `IntegerTarget::from_truncated` (ported as #549, in CI). The `Complex` gap is closed without a new spelling — `Complex<T>` calls `FloatElement::from_f64` on its component `T`, never on itself (sweep `dtype/complex.rs`). Remaining: ~184 float call sites outside the def files, mechanical per-crate ports; still needs the ADR to record the decision.
-- 2026-10-15 slices: #553 (nn, 49 sites, merged), #554 (autograd, 33 sites, merged), #555 (core/ops/fft/dist, 36 sites, in CI), #556 (optim, 52 sites, in CI), #557 (tests, 116 sites, in CI). Deliberately deferred: `cpu_impl/pool` avg + pool1d kernels (6 sites) — narrowing `PoolOps` to `FloatElement` breaks `BackendOps<i8>` (proven by `nonzero` test failure); they migrate with COEUS-POOL-LETO-CHAIN, which delegates the count conversion to leto. `Scalar::from_f64` deletes only after pool migrates.
-- Acceptance: `from_f64` absent from `Scalar`; values unchanged; coeus gate green.
+- Status: todo; priority: tightening; [patch].
+- Finding: the COEUS-SCALAR-VOCAB slices (closed) retargeted count conversions to `<T as FloatElement>::from_f64(n as f64)`; the item's "Also" clause (migrate them to `from_count`/`try_from_count`) was not executed — `from_count` does not exist, and the exactness contract above 2^53 (exact vs rounded vs rejected) is undecided. Values are correct today (`n as f64` is exact below 2^53); only the spelling misstates intent.
+- Scope: decide the contract, add the spelling (upstream if it belongs to eunomia), migrate the ~50 count sites.
+- Acceptance: every count-typed conversion names the count spelling; values unchanged; gates green.
+- Next step: decide exact-vs-rounded-vs-rejected for counts above 2^53.
 
 <a id="coeus-rescue-queue"></a>
 ## COEUS-RESCUE-QUEUE — Complete or close the stranded rescue PRs

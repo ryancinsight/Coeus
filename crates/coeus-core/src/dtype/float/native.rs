@@ -6,10 +6,6 @@ macro_rules! impl_scalar_float_native {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn from_f64(v: f64) -> Self {
-                v as Self
-            }
-            #[inline(always)]
             fn sqrt_val(self) -> Self {
                 self.sqrt()
             }

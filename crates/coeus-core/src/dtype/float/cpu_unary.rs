@@ -5,7 +5,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
         impl $crate::dtype::CpuUnaryDispatch for $t {
             #[inline(always)]
             fn eval_unary(op: $crate::dtype::CpuUnaryOp, x: Self) -> Self {
-                use ::eunomia::NumericElement;
+                use ::eunomia::{FloatElement, NumericElement};
                 use $crate::dtype::{CpuUnaryOp, FloatOps, Scalar};
                 match op {
                     CpuUnaryOp::Relu => {
@@ -28,10 +28,11 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::TanhGrad => Self::ONE - x * x,
                     CpuUnaryOp::Gelu => x.gelu_op(),
                     CpuUnaryOp::GeluGrad => {
-                        let half = Self::from_f64(0.5);
+                        let half = <Self as FloatElement>::from_f64(0.5);
                         let one = Self::ONE;
-                        let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
-                        let inv_sqrt_two_pi = Self::from_f64(0.3989422804014327);
+                        let inv_sqrt_two =
+                            <Self as FloatElement>::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+                        let inv_sqrt_two_pi = <Self as FloatElement>::from_f64(0.3989422804014327);
                         let x2 = x * x;
                         half * (one + (x * inv_sqrt_two).erf_op())
                             + x * ((Self::ZERO - half * x2).exp_op()) * inv_sqrt_two_pi
@@ -92,18 +93,18 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     CpuUnaryOp::Softplus => (Self::ONE + x.exp_op()).log_op(),
                     CpuUnaryOp::SoftplusGrad => x.sigmoid_op(),
                     CpuUnaryOp::GeluTanh => {
-                        let c1 = Self::from_f64(0.7978845608);
-                        let c2 = Self::from_f64(0.044715);
-                        let half = Self::from_f64(0.5);
+                        let c1 = <Self as FloatElement>::from_f64(0.7978845608);
+                        let c2 = <Self as FloatElement>::from_f64(0.044715);
+                        let half = <Self as FloatElement>::from_f64(0.5);
                         let one = Self::ONE;
                         let v = c1 * (x + c2 * x * x * x);
                         half * x * (one + v.tanh_op())
                     }
                     CpuUnaryOp::GeluTanhGrad => {
-                        let c1 = Self::from_f64(0.7978845608);
-                        let c2 = Self::from_f64(0.044715);
-                        let c3 = Self::from_f64(0.134145);
-                        let half = Self::from_f64(0.5);
+                        let c1 = <Self as FloatElement>::from_f64(0.7978845608);
+                        let c2 = <Self as FloatElement>::from_f64(0.044715);
+                        let c3 = <Self as FloatElement>::from_f64(0.134145);
+                        let half = <Self as FloatElement>::from_f64(0.5);
                         let one = Self::ONE;
                         let v = c1 * (x + c2 * x * x * x);
                         let t = v.tanh_op();
@@ -111,7 +112,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         half * (one + t) + half * x * (one - t * t) * dt
                     }
                     CpuUnaryOp::LeakyRelu(slope_bits) => {
-                        let slope = Self::from_f64(f64::from_bits(slope_bits));
+                        let slope = <Self as FloatElement>::from_f64(f64::from_bits(slope_bits));
                         if x >= Self::ZERO {
                             x
                         } else {
@@ -124,7 +125,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                     // forward's `x >= 0 ? x : slope*x` is unaffected (both predicates
                     // yield 0 at x = 0); only the gradient predicate is tightened.
                     CpuUnaryOp::LeakyReluGrad(slope_bits) => {
-                        let slope = Self::from_f64(f64::from_bits(slope_bits));
+                        let slope = <Self as FloatElement>::from_f64(f64::from_bits(slope_bits));
                         if x > Self::ZERO {
                             Self::ONE
                         } else {
@@ -132,8 +133,11 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Hardtanh(bits) => {
-                        let min_v = Self::from_f64(f32::from_bits(bits as u32) as f64);
-                        let max_v = Self::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
+                        let min_v =
+                            <Self as FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
+                        let max_v = <Self as FloatElement>::from_f64(f32::from_bits(
+                            (bits >> 32) as u32,
+                        ) as f64);
                         if x < min_v {
                             min_v
                         } else if x > max_v {
@@ -143,8 +147,11 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::HardtanhGrad(bits) => {
-                        let min_v = Self::from_f64(f32::from_bits(bits as u32) as f64);
-                        let max_v = Self::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
+                        let min_v =
+                            <Self as FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
+                        let max_v = <Self as FloatElement>::from_f64(f32::from_bits(
+                            (bits >> 32) as u32,
+                        ) as f64);
                         if x > min_v && x < max_v {
                             Self::ONE
                         } else {
@@ -152,8 +159,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Hardsigmoid => {
-                        let six = Self::from_f64(6.0);
-                        let half = Self::from_f64(0.5);
+                        let six = <Self as FloatElement>::from_f64(6.0);
+                        let half = <Self as FloatElement>::from_f64(0.5);
                         let one = Self::ONE;
                         let v = x / six + half;
                         if v < Self::ZERO {
@@ -165,8 +172,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::HardsigmoidGrad => {
-                        let three = Self::from_f64(3.0);
-                        let six = Self::from_f64(6.0);
+                        let three = <Self as FloatElement>::from_f64(3.0);
+                        let six = <Self as FloatElement>::from_f64(6.0);
                         if x > -three && x < three {
                             Self::ONE / six
                         } else {
@@ -174,8 +181,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Hardswish => {
-                        let three = Self::from_f64(3.0);
-                        let six = Self::from_f64(6.0);
+                        let three = <Self as FloatElement>::from_f64(3.0);
+                        let six = <Self as FloatElement>::from_f64(6.0);
                         let v = x + three;
                         let relu6 = if v < Self::ZERO {
                             Self::ZERO
@@ -193,9 +200,9 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         // (inclusive). The previous exclusive bound
                         // (`x < -three`) leaked the middle-branch evaluation
                         // at the kink x = -3, producing -0.5 instead of 0.
-                        let three = Self::from_f64(3.0);
-                        let six = Self::from_f64(6.0);
-                        let two = Self::from_f64(2.0);
+                        let three = <Self as FloatElement>::from_f64(3.0);
+                        let six = <Self as FloatElement>::from_f64(6.0);
+                        let two = <Self as FloatElement>::from_f64(2.0);
                         let one = Self::ONE;
                         if x <= -three {
                             Self::ZERO
@@ -206,7 +213,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Hardshrink(lam_bits) => {
-                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let lam = <Self as FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < Self::ZERO { Self::ZERO - x } else { x };
                         if ax > lam {
                             x
@@ -215,7 +222,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::HardshrinkGrad(lam_bits) => {
-                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let lam = <Self as FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < Self::ZERO { Self::ZERO - x } else { x };
                         if ax > lam {
                             Self::ONE
@@ -224,7 +231,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Softshrink(lam_bits) => {
-                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let lam = <Self as FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < Self::ZERO { Self::ZERO - x } else { x };
                         if ax > lam {
                             let s = if x < Self::ZERO {
@@ -238,7 +245,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::SoftshrinkGrad(lam_bits) => {
-                        let lam = Self::from_f64(f64::from_bits(lam_bits));
+                        let lam = <Self as FloatElement>::from_f64(f64::from_bits(lam_bits));
                         let ax = if x < Self::ZERO { Self::ZERO - x } else { x };
                         if ax > lam {
                             Self::ONE
@@ -258,8 +265,11 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         one / denom
                     }
                     CpuUnaryOp::Threshold(bits) => {
-                        let thr = Self::from_f64(f32::from_bits(bits as u32) as f64);
-                        let val = Self::from_f64(f32::from_bits((bits >> 32) as u32) as f64);
+                        let thr =
+                            <Self as FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
+                        let val = <Self as FloatElement>::from_f64(f32::from_bits(
+                            (bits >> 32) as u32,
+                        ) as f64);
                         if x > thr {
                             x
                         } else {
@@ -267,7 +277,8 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::ThresholdGrad(bits) => {
-                        let thr = Self::from_f64(f32::from_bits(bits as u32) as f64);
+                        let thr =
+                            <Self as FloatElement>::from_f64(f32::from_bits(bits as u32) as f64);
                         if x > thr {
                             Self::ONE
                         } else {
@@ -275,7 +286,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::Celu(alpha_bits) => {
-                        let alpha = Self::from_f64(f64::from_bits(alpha_bits));
+                        let alpha = <Self as FloatElement>::from_f64(f64::from_bits(alpha_bits));
                         let one = Self::ONE;
                         if x >= Self::ZERO {
                             x
@@ -284,7 +295,7 @@ macro_rules! impl_cpu_unary_dispatch_float {
                         }
                     }
                     CpuUnaryOp::CeluGrad(alpha_bits) => {
-                        let alpha = Self::from_f64(f64::from_bits(alpha_bits));
+                        let alpha = <Self as FloatElement>::from_f64(f64::from_bits(alpha_bits));
                         if x >= Self::ZERO {
                             Self::ONE
                         } else {
@@ -301,18 +312,20 @@ macro_rules! impl_cpu_unary_dispatch_float {
                             Self::ZERO
                         }
                     }
-                    CpuUnaryOp::Floor => {
-                        Self::from_f64(<Self as NumericElement>::to_f64(x).floor())
+                    CpuUnaryOp::Floor => <Self as FloatElement>::from_f64(
+                        <Self as NumericElement>::to_f64(x).floor(),
+                    ),
+                    CpuUnaryOp::Ceil => {
+                        <Self as FloatElement>::from_f64(<Self as NumericElement>::to_f64(x).ceil())
                     }
-                    CpuUnaryOp::Ceil => Self::from_f64(<Self as NumericElement>::to_f64(x).ceil()),
                     // Ties-to-even (banker's rounding) per IEEE-754 roundTiesToEven,
                     // matching torch.round, WGSL round(), and CUDA rintf.
-                    CpuUnaryOp::Round => {
-                        Self::from_f64(<Self as NumericElement>::to_f64(x).round_ties_even())
-                    }
-                    CpuUnaryOp::Trunc => {
-                        Self::from_f64(<Self as NumericElement>::to_f64(x).trunc())
-                    }
+                    CpuUnaryOp::Round => <Self as FloatElement>::from_f64(
+                        <Self as NumericElement>::to_f64(x).round_ties_even(),
+                    ),
+                    CpuUnaryOp::Trunc => <Self as FloatElement>::from_f64(
+                        <Self as NumericElement>::to_f64(x).trunc(),
+                    ),
                 }
             }
         }

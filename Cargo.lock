@@ -604,6 +604,7 @@ dependencies = [
  "coeus-nn",
  "coeus-ops",
  "criterion",
+ "eunomia",
  "leto",
  "leto-ops",
  "mnemosyne-memory",
