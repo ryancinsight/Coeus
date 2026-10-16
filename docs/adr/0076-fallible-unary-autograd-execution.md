@@ -5,6 +5,7 @@ Date: 2026-09-27  \
 Change class: [major] [arch]  \
 Delivery: Item `COEUS-FALLIBLE-STORAGE-CORE` (`git log --grep='^Item: COEUS-FALLIBLE-STORAGE-CORE'`)
 Revision 2026-09-29: implemented the signature and caller migration with fallible storage.
+Revision 2026-10-16: forced-allocation-failure fixture landed (`tests/autograd/unary_failure.rs`); forward and backward injection return the exact `BackendError::Allocation` through `unary_op` and `Var::backward`.
 
 ## Context
 

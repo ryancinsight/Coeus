@@ -34,17 +34,6 @@ verification, tightening, feature}.
 - Acceptance: bitwise-or-epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
 - Next step: write the contract comparison (leto pin's pooling params vs current semantics).
 
-<a id="coeus-fallible-unary-execution"></a>
-## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
-
-- Status: todo; priority: correctness; [major] [arch].
-- Outcome: provider failures reach callers without input-dependent panics for shared unary autograd execution.
-- Scope: `UnaryAutogradOp::forward`/`backward` (`coeus-autograd/src/ops/activation/mod.rs`), `unary_op`, and their ~44 implementors' public wrappers (macro-emitted and hand-written) across `coeus-autograd`, `coeus-nn`, `coeus-python`. Confirmed by falsification, not estimate: an unpushed, since-reverted attempt at widening `coeus-ops`'s unary functions alone broke `coeus-autograd` at exactly these 44 call sites — `UnaryAutogradOp` is infallible by trait contract even though the lower `BackwardNode::backward` already returns `Result`.
-- Acceptance: complete caller migration, typed failure/gradient tests, full native/device gates, SemVer classification with an updated ADR.
-- Needs: none; the storage allocation/COW caller cutover landed under `Item: COEUS-FALLIBLE-STORAGE-CORE`.
-- Non-goal: resurrect superseded dependency pins or storage implementations.
-- Next step: add a forced backend-allocation failure fixture for unary forward/backward, then run the gradient and device gates against the migrated signatures in [ADR 0076](docs/adr/0076-fallible-unary-autograd-execution.md).
-
 <a id="coeus-device-output-ownership"></a>
 ## COEUS-DEVICE-OUTPUT-OWNERSHIP — Collect the device/hardware verification half
 
