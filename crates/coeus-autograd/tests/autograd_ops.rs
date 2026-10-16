@@ -1,8 +1,8 @@
 //! Hierarchical integration harness for the standalone autograd operations.
 //!
 //! The established autograd module tree and the newer operation-family modules
-//! share one Cargo integration target so the package has one canonical test
-//! binary and one ownership boundary.
+//! share one Cargo integration target so their generic tensor and backward
+//! kernels are monomorphized once per scalar/backend pair.
 
 #![expect(
     clippy::unwrap_used,
@@ -20,3 +20,8 @@ mod interpolation;
 mod rotate_half;
 #[path = "autograd_ops/scan.rs"]
 mod scan;
+
+#[path = "autograd_ops/pow_exponent_contract.rs"]
+mod pow_exponent_contract;
+#[path = "autograd_ops/pow_negative_contract.rs"]
+mod pow_negative_contract;

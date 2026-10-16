@@ -1,8 +1,11 @@
+mod integer_exponent;
+
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
+use integer_exponent::IntegerExponent;
 use std::ops::Neg;
 use std::sync::Arc;
 
@@ -84,121 +87,101 @@ where
         //   For k = 0 the result is 1 and d/dx = 0.
         // When `exp` is fractional, PyTorch follows IEEE: pow(x, p) = NaN
         // for x < 0; backward `n · x^(n-1)` mirrors that (NaN where x < 0).
-        let exp_is_int = exp_t.is_integer();
-        let exp_i = (exp as i64) as i32;
+        let integer = IntegerExponent::from_value(exp_t);
 
         let mut grad_in_host = vec![T::ZERO; n];
         let one = T::ONE;
 
-        if exp_is_int && exp_i == 0 {
-            // x^0 = 1 → d/dx = 0; grad contribution is zero everywhere.
-        } else if exp_is_int && exp_i > 0 {
-            // d/dx x^k = k · x^(k-1).  Sign-preserving integer power:
-            //   x^(k-1) = sign(x)^(k-1) · |x|^(k-1).
-            // When k is odd, k-1 is even → sign^(k-1) = +1 (always non-negative).
-            // When k is even, k-1 is odd  → sign^(k-1) = sign(x) (local grad may
-            // change sign with x).
-            let k = exp_i;
-            let coef = exp_t;
-            let k_m1 = (k - 1) as u32;
-            let k_m1_odd = (k_m1 & 1) == 1;
-            for i in 0..n {
-                let x = x_host[i];
-                if x == T::ZERO {
-                    // k = 1: d/dx x = 1; else x = 0 → grad = 0 (k > 1).
-                    if k == 1 {
-                        grad_in_host[i] = grad_host[i] * coef;
+        match integer {
+            Some(integer) if integer.is_zero() => {
+                // x^0 = 1 → d/dx = 0; grad contribution is zero everywhere.
+            }
+            Some(integer) if exp_t > T::ZERO => {
+                // d/dx x^k = k · x^(k-1).  Sign-preserving integer power:
+                //   x^(k-1) = sign(x)^(k-1) · |x|^(k-1).
+                // When k is odd, k-1 is even → sign^(k-1) = +1 (always non-negative).
+                // When k is even, k-1 is odd  → sign^(k-1) = sign(x) (local grad may
+                // change sign with x).
+                let coef = exp_t;
+                let k_m1 = integer.predecessor();
+                let k_m1_odd = k_m1.is_odd();
+                for i in 0..n {
+                    let x = x_host[i];
+                    if x == T::ZERO {
+                        // k = 1: d/dx x = 1; else x = 0 → grad = 0 (k > 1).
+                        if exp_t == T::ONE {
+                            grad_in_host[i] = grad_host[i] * coef;
+                        }
+                        continue;
                     }
-                    continue;
+                    let abs_x = <T as Float>::abs(x);
+                    let abs_pow_m1 = k_m1.pow_magnitude(abs_x);
+                    let local = if k_m1_odd {
+                        // k-1 odd → sign(x) factor: x^(k-1) carries sign(x).
+                        let sgn = if x < T::ZERO { -one } else { one };
+                        coef * sgn * abs_pow_m1
+                    } else {
+                        // k-1 even → x^(k-1) is always non-negative.
+                        coef * abs_pow_m1
+                    };
+                    grad_in_host[i] = grad_host[i] * local;
                 }
-                let abs_x = <T as Float>::abs(x);
-                let abs_pow_m1 = int_pow_positive(abs_x, k_m1);
-                let local = if k_m1_odd {
-                    // k-1 odd → sign(x) factor: x^(k-1) carries sign(x).
-                    let sgn = if x < T::ZERO { -one } else { one };
-                    coef * sgn * abs_pow_m1
-                } else {
-                    // k-1 even → x^(k-1) is always non-negative.
-                    coef * abs_pow_m1
-                };
-                grad_in_host[i] = grad_host[i] * local;
             }
-        } else if exp_is_int && exp_i < 0 {
-            // d/dx x^(-k) = -k · x^(-k-1) = -k / x^(k+1) (sign-preserving).
-            // Denominator sign follows (k+1) parity on x.
-            let k = (-exp_i) as u32;
-            // exp_t already carries the negative derivative coefficient -k.
-            let coef = exp_t;
-            let exp_total = k + 1;
-            let exp_total_odd = (exp_total & 1) == 1;
-            for i in 0..n {
-                let x = x_host[i];
-                if x == T::ZERO {
-                    // 1/0 = inf or NaN; PyTorch yields inf.  Leave as zero
-                    // since `grad_host[i] * NaN` would taint the accumulator.
-                    continue;
+            Some(integer) => {
+                // d/dx x^(-k) = -k · x^(-k-1) = -k / x^(k+1) (sign-preserving).
+                // Denominator sign follows (k+1) parity on x.
+                // exp_t already carries the negative derivative coefficient -k.
+                let coef = exp_t;
+                let exp_total = integer.successor();
+                let exp_total_odd = exp_total.is_odd();
+                for i in 0..n {
+                    let x = x_host[i];
+                    if x == T::ZERO {
+                        // 1/0 = inf or NaN; PyTorch yields inf.  Leave as zero
+                        // since `grad_host[i] * NaN` would taint the accumulator.
+                        continue;
+                    }
+                    let abs_x = <T as Float>::abs(x);
+                    let denom_abs = exp_total.pow_magnitude(abs_x);
+                    let denom = if exp_total_odd {
+                        let sgn = if x < T::ZERO { -one } else { one };
+                        sgn * denom_abs
+                    } else {
+                        denom_abs
+                    };
+                    let local = coef / denom;
+                    grad_in_host[i] = grad_host[i] * local;
                 }
-                let abs_x = <T as Float>::abs(x);
-                let denom_abs = int_pow_positive(abs_x, exp_total);
-                let denom = if exp_total_odd {
-                    let sgn = if x < T::ZERO { -one } else { one };
-                    sgn * denom_abs
-                } else {
-                    denom_abs
-                };
-                let local = coef / denom;
-                grad_in_host[i] = grad_host[i] * local;
             }
-        } else {
-            // Fractional exponent path: compose with ln/exp so shape / device
-            // multiplication is preserved via the backend dispatch.  For x < 0,
-            // `ln(x)` propagates NaN (matches PyTorch IEEE).
-            let exp_m1 = exp - 1.0;
-            let ln_x = coeus_ops::log(&self.input_tensor, &backend)?;
-            let scaled = {
-                let scale = Tensor::full_on(
-                    ln_x.shape(),
-                    <T as FloatElement>::from_f64(exp_m1),
-                    &backend,
-                )?;
-                coeus_ops::mul(&ln_x, &scale, &backend)?
-            };
-            let x_pow_n_m1 = coeus_ops::exp(&scaled, &backend)?;
-            let n_tensor = Tensor::full_on(x_pow_n_m1.shape(), exp_t, &backend)?;
-            let local_grad = coeus_ops::mul(&n_tensor, &x_pow_n_m1, &backend)?;
-            let grad_in = coeus_ops::mul(grad_out, &local_grad, &backend)?;
-            let lock = g.write();
-            coeus_ops::add_assign(lock, &grad_in, &backend)?;
-            return Ok(());
+            None => {
+                // Fractional exponent path: compose with ln/exp so shape / device
+                // multiplication is preserved via the backend dispatch.  For x < 0,
+                // `ln(x)` propagates NaN (matches PyTorch IEEE).
+                let exp_m1 = exp - 1.0;
+                let ln_x = coeus_ops::log(&self.input_tensor, &backend)?;
+                let scaled = {
+                    let scale = Tensor::full_on(
+                        ln_x.shape(),
+                        <T as FloatElement>::from_f64(exp_m1),
+                        &backend,
+                    )?;
+                    coeus_ops::mul(&ln_x, &scale, &backend)?
+                };
+                let x_pow_n_m1 = coeus_ops::exp(&scaled, &backend)?;
+                let n_tensor = Tensor::full_on(x_pow_n_m1.shape(), exp_t, &backend)?;
+                let local_grad = coeus_ops::mul(&n_tensor, &x_pow_n_m1, &backend)?;
+                let grad_in = coeus_ops::mul(grad_out, &local_grad, &backend)?;
+                let lock = g.write();
+                coeus_ops::add_assign(lock, &grad_in, &backend)?;
+                return Ok(());
+            }
         }
-
         let grad_t =
             Tensor::from_slice_on(self.input_tensor.shape().to_vec(), &grad_in_host, &backend)?;
         let lock = g.write();
         coeus_ops::add_assign(lock, &grad_t, &backend)?;
         Ok(())
     }
-}
-
-/// Repeated-squaring integer power in the native precision of `T`.
-///
-/// No widening, no `powf` fallback — straight `mul` in `T` so the integer-exponent
-/// branch stays bit-identical to a hand-rolled `x^k = x·x·…·x`.  Exponent `0`
-/// returns `T::ONE`.  Used only on magnitude `|x| ≥ 0`; sign is applied by the
-/// caller per the parity convention (`(-x)^k` is sign-preserving).
-#[inline]
-fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
-    let mut acc = T::ONE;
-    let mut base = x;
-    let mut e = k;
-    while e > 0 {
-        if (e & 1) == 1 {
-            acc *= base;
-        }
-        base *= base;
-        e >>= 1;
-    }
-    acc
 }
 
 /// Tracked element-wise power: `y = x ^ exp`.
@@ -209,7 +192,7 @@ fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
 /// # Parity contract
 ///
 /// Matches `torch.Tensor.pow(scalar)` semantics:
-/// - When `exp` is integer-valued in `T` (i.e. `<T as FloatElement>::from_f64(exp).is_integer()`),
+/// - When the converted exponent is finite and integer-valued in `T`,
 ///   the forward is a sign-preserving integer power `(-x)^k = (-1)^k · x^k`,
 ///   with `x = 0` mapping to `1` when `k = 0`, to `0` when `k > 0`, and to
 ///   `+inf` when `k < 0` (delegated to PyTorch's IEEE-compliant convention).
@@ -218,7 +201,10 @@ fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
 /// # Precision
 /// Forward and backward execute in the native precision of `T` without widening.
 /// The exponent is converted once via `<T as FloatElement>::from_f64(exp)`; the integer-exponent
-/// branch uses repeated multiplication in `T` (no `powf` fallback).
+/// branch uses repeated multiplication in `T` (no `powf` fallback). Integer
+/// sign, magnitude and parity all follow that converted value, without an
+/// `i32`/`i64` range restriction. Backward retains the exact integer exponent
+/// offset even when adding or subtracting one would round in `T`.
 #[inline]
 pub fn pow<T: Float + FloatElement + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
@@ -231,7 +217,12 @@ where
     let exp_t = <T as FloatElement>::from_f64(exp);
 
     let n = a.tensor.numel();
-    let out_tensor = if exp_t.is_integer() && n > 0 {
+    let integer = if n > 0 {
+        IntegerExponent::from_value(exp_t)
+    } else {
+        None
+    };
+    let out_tensor = if let Some(integer) = integer {
         // Host-fold sign-preserving integer power.
         let input_contig = if a.tensor.is_contiguous() && a.tensor.layout().offset() == 0 {
             a.tensor.reshape([n])
@@ -241,13 +232,11 @@ where
         let mut x_host = vec![T::ZERO; n];
         backend.copy_to_host(input_contig.storage(), &mut x_host)?;
 
-        let exp_i = (exp as i64) as i32;
         let one = T::ONE;
         let mut out_host = vec![T::ZERO; n];
-        if exp_i == 0 {
+        if integer.is_zero() {
             out_host.fill(one);
-        } else if exp_i > 0 {
-            let k = exp_i as u32;
+        } else if exp_t > T::ZERO {
             for i in 0..n {
                 let x = x_host[i];
                 if x == T::ZERO {
@@ -256,8 +245,8 @@ where
                     continue;
                 }
                 let abs_x = <T as Float>::abs(x);
-                let abs_pow = int_pow_positive(abs_x, k);
-                out_host[i] = if (k & 1) == 1 {
+                let abs_pow = integer.pow_magnitude(abs_x);
+                out_host[i] = if integer.is_odd() {
                     let sgn = if x < T::ZERO { -one } else { one };
                     sgn * abs_pow
                 } else {
@@ -265,8 +254,7 @@ where
                 };
             }
         } else {
-            // exp_i < 0: x^(-k) = 1 / x^k with sign preservation.
-            let k = (-exp_i) as u32;
+            // Negative exponent: x^(-k) = 1 / x^k with sign preservation.
             for i in 0..n {
                 let x = x_host[i];
                 if x == T::ZERO {
@@ -276,8 +264,8 @@ where
                     continue;
                 }
                 let abs_x = <T as Float>::abs(x);
-                let denom_abs = int_pow_positive(abs_x, k);
-                let denom = if (k & 1) == 1 {
+                let denom_abs = integer.pow_magnitude(abs_x);
+                let denom = if integer.is_odd() {
                     let sgn = if x < T::ZERO { -one } else { one };
                     sgn * denom_abs
                 } else {
