@@ -40,8 +40,9 @@ where
         input: StridedView::new(B::buffer(input.0), &input_layout),
         output: StridedView::new(B::buffer(output.0), &output_layout),
     };
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
     B::Operations::default()
-        .pooling_forward_into(B::device(), operands, parameters, mode)
+        .pooling_forward_into(device, operands, parameters, mode)
         .map_err(|source| B::dispatch_error(operation, source))
 }
 
@@ -72,7 +73,8 @@ where
         grad_output: StridedView::new(B::buffer(grad_output.0), &grad_output_layout),
         grad_input: StridedView::new(B::buffer(grad_input.0), &grad_input_layout),
     };
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
     B::Operations::default()
-        .pooling_backward_accumulate(B::device(), operands, parameters, mode)
+        .pooling_backward_accumulate(device, operands, parameters, mode)
         .map_err(|source| B::dispatch_error(operation, source))
 }

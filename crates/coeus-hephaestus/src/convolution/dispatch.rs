@@ -291,14 +291,15 @@ where
         output: StridedView::new(B::buffer(request.output), &output_layout),
     };
     let operations = B::Operations::default();
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
     let result = match kind {
         ConvolutionKind::Regular(parameters) => operations.convolution_forward_into(
-            B::device(),
+            device,
             operands,
             parameters.map_err(|error| configuration::<B, T>(operation, error))?,
         ),
         ConvolutionKind::Transposed(parameters) => operations.convolution_transposed_forward_into(
-            B::device(),
+            device,
             operands,
             parameters.map_err(|error| configuration::<B, T>(operation, error))?,
         ),
@@ -412,15 +413,16 @@ where
         },
     };
     let operations = B::Operations::default();
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
     let result = match kind {
         ConvolutionKind::Regular(parameters) => operations.convolution_backward_accumulate(
-            B::device(),
+            device,
             operands,
             parameters.map_err(|error| configuration::<B, T>(operation, error))?,
         ),
         ConvolutionKind::Transposed(parameters) => operations
             .convolution_transposed_backward_accumulate(
-                B::device(),
+                device,
                 operands,
                 parameters.map_err(|error| configuration::<B, T>(operation, error))?,
             ),

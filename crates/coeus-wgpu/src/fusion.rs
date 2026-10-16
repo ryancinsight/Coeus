@@ -124,7 +124,9 @@ where
         expression,
         _scalar: PhantomData,
     };
-    let device = &crate::backend::get_wgpu_context().hephaestus_device;
+    let device = &crate::backend::try_get_wgpu_context()
+        .map_err(|source| WgpuBackendError::dispatch("fused elementwise", source))?
+        .hephaestus_device;
     WgpuFusionOps
         .fused_elementwise_into(device, &adapter, &input_views, output_view)
         .map_err(|source| WgpuBackendError::dispatch("fused elementwise", source))
@@ -162,7 +164,9 @@ where
         expression,
         _scalar: PhantomData,
     };
-    let device = &crate::backend::get_wgpu_context().hephaestus_device;
+    let device = &crate::backend::try_get_wgpu_context()
+        .map_err(|source| WgpuBackendError::dispatch("fused reduction", source))?
+        .hephaestus_device;
     WgpuFusionOps
         .fused_reduce_into(device, &adapter, &input_views, reduction, axis, output_view)
         .map_err(|source| WgpuBackendError::dispatch("fused reduction", source))

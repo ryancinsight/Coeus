@@ -33,10 +33,10 @@ pub unsafe trait HephaestusProvider: Send + Sync + Clone + Copy + Default + 'sta
     /// Stable backend name used by Coeus diagnostics.
     const NAME: &'static str;
 
-    /// Return the lazily acquired device owned by this provider.
-    fn device() -> &'static Self::Device;
-
-    /// Try to acquire the provider device without panicking.
+    /// Acquire the provider device, reporting acquisition failures.
+    ///
+    /// There is no infallible accessor: every caller propagates the typed
+    /// acquisition failure (ADR 0079).
     ///
     /// # Errors
     ///

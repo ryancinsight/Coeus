@@ -31,11 +31,6 @@ unsafe impl HephaestusProvider for RocmProvider {
     type Error = coeus_hephaestus::HephaestusBackendError;
     const NAME: &'static str = "rocm";
 
-    fn device() -> &'static Self::Device {
-        ROCM_DEVICE
-            .get_or_init(|| RocmDevice::try_default().expect("ROCm device acquisition failed"))
-    }
-
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
         if let Some(device) = ROCM_DEVICE.get() {
             return Ok(device);

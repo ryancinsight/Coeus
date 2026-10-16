@@ -1,4 +1,4 @@
-use crate::backend::get_cuda_device;
+use crate::backend::try_get_cuda_device;
 use coeus_core::StorageMut;
 use coeus_hephaestus::HephaestusStorage;
 use hephaestus_core::{ComputeDevice, DeviceBuffer};
@@ -13,7 +13,8 @@ fn storage_allocates_device_tier() {
 
 #[test]
 fn host_pinned_hint_uses_truthful_device_tier() {
-    let device = get_cuda_device();
+    let device =
+        try_get_cuda_device().expect("invariant: CUDA device acquisition succeeds under test");
     let input = vec![1.0f32, -2.5, 3.25, 8.0];
     let staging = device
         .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::HostPinned))
@@ -31,7 +32,8 @@ fn host_pinned_hint_uses_truthful_device_tier() {
 
 #[test]
 fn copy_on_write_preserves_values_in_both_device_buffers() {
-    let device = get_cuda_device();
+    let device =
+        try_get_cuda_device().expect("invariant: CUDA device acquisition succeeds under test");
     let input = vec![1.0f32, -2.5, 3.25, 8.0];
     let source = device
         .upload_with_hint(&input, PlacementHint::Tier(MemoryTier::Device))

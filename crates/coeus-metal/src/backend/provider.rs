@@ -28,11 +28,6 @@ unsafe impl HephaestusProvider for MetalProvider {
     type Error = coeus_hephaestus::HephaestusBackendError;
     const NAME: &'static str = "metal";
 
-    fn device() -> &'static Self::Device {
-        METAL_DEVICE
-            .get_or_init(|| MetalDevice::try_default().expect("Metal device acquisition failed"))
-    }
-
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
         if let Some(device) = METAL_DEVICE.get() {
             return Ok(device);

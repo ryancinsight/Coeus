@@ -69,12 +69,7 @@ pub struct WgpuContext {
 
 static WGPU_CONTEXT: OnceLock<WgpuContext> = OnceLock::new();
 
-/// Retrieve a reference to the global lazily-initialized wgpu context.
-pub fn get_wgpu_context() -> &'static WgpuContext {
-    try_get_wgpu_context().expect("Failed to initialize hephaestus-wgpu device")
-}
-
-/// Try to retrieve the process-global WGPU context.
+/// Retrieve the process-global WGPU context, reporting acquisition failures.
 ///
 /// # Errors
 ///

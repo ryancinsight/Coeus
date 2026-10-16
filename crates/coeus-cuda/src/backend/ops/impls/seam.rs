@@ -1,4 +1,4 @@
-use crate::backend::{get_cuda_device, CudaBackend};
+use crate::backend::{try_get_cuda_device, CudaBackend};
 use coeus_core::{BackendError, Scalar};
 use coeus_hephaestus::HephaestusSeamBackend;
 use hephaestus_core::{ComputeDevice, HephaestusError};
@@ -7,8 +7,8 @@ use hephaestus_cuda::CudaDevice;
 impl HephaestusSeamBackend for CudaBackend {
     type Device = CudaDevice;
 
-    fn device() -> &'static Self::Device {
-        get_cuda_device()
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        try_get_cuda_device()
     }
 
     fn buffer<T: Scalar>(

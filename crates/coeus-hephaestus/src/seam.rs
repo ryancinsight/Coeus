@@ -23,8 +23,15 @@ pub trait HephaestusSeamBackend: ComputeBackend {
     /// Concrete Hephaestus device selected by this backend.
     type Device: ComputeDevice + Send + Sync + 'static;
 
-    /// Return the lazily acquired provider device.
-    fn device() -> &'static Self::Device;
+    /// Acquire the provider device, reporting acquisition failures.
+    ///
+    /// There is no infallible accessor: every caller propagates the typed
+    /// acquisition failure (ADR 0079).
+    ///
+    /// # Errors
+    ///
+    /// Returns the provider's typed acquisition failure.
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device>;
 
     /// Borrow the provider buffer contained by Coeus storage.
     fn buffer<T: Scalar>(
@@ -44,8 +51,8 @@ where
 {
     type Device = P::Device;
 
-    fn device() -> &'static Self::Device {
-        P::device()
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        P::try_device()
     }
 
     fn buffer<T: Scalar>(

@@ -70,7 +70,8 @@ fn backend_storage_operations_report_device_acquisition_failure() {
         "allocate_zeroed",
     );
 
-    let buffer = TestProvider::device()
+    let buffer = TestProvider::try_device()
+        .expect("invariant: test device acquisition succeeds")
         .alloc_zeroed_with_hint(4, PlacementHint::Tier(MemoryTier::Device))
         .expect("invariant: test buffer allocation succeeds");
     // SAFETY: the provider allocated the buffer with zeroed initialization.
@@ -98,7 +99,8 @@ fn backend_storage_operations_report_device_acquisition_failure() {
         "copy_to_device",
     );
     let mut retained = [u32::MAX; 4];
-    TestProvider::device()
+    TestProvider::try_device()
+        .expect("invariant: test device acquisition succeeds")
         .download(storage.buffer(), &mut retained)
         .expect("invariant: test device can inspect rejected writes");
     assert_eq!(retained, [0; 4]);
@@ -119,7 +121,7 @@ fn make_unique_copies_device_data_without_host_download() {
     DOWNLOADS.with(|count| count.set(0));
     DEVICE_COPIES.with(|count| count.set(0));
 
-    let device = TestProvider::device();
+    let device = TestProvider::try_device().expect("invariant: test device acquisition succeeds");
     let mut storage = HephaestusStorage::<TestProvider, u32>::new(4)
         .expect("invariant: test provider allocation succeeds");
     device
@@ -149,7 +151,7 @@ fn make_unique_copies_device_data_without_host_download() {
 
 #[test]
 fn make_unique_reports_provider_allocation_failure() {
-    let device = TestProvider::device();
+    let device = TestProvider::try_device().expect("invariant: test device acquisition succeeds");
     let mut storage = HephaestusStorage::<TestProvider, u32>::new(4)
         .expect("invariant: test provider allocation succeeds");
     device
@@ -180,10 +182,12 @@ fn make_unique_reports_provider_allocation_failure() {
 
 #[test]
 fn make_unique_reports_device_acquisition_failure_without_replacing_storage() {
-    let buffer = TestProvider::device()
+    let buffer = TestProvider::try_device()
+        .expect("invariant: test device acquisition succeeds")
         .alloc_zeroed_with_hint(4, PlacementHint::Tier(MemoryTier::Device))
         .expect("invariant: test buffer allocation succeeds");
-    TestProvider::device()
+    TestProvider::try_device()
+        .expect("invariant: test device acquisition succeeds")
         .write_buffer(&buffer, &[13, 17, 19, 23])
         .expect("invariant: initial test data write succeeds");
     // SAFETY: the provider initialized all four elements before adoption.
@@ -198,7 +202,8 @@ fn make_unique_reports_device_acquisition_failure_without_replacing_storage() {
     assert_eq!(shared.allocation_id(), allocation_before);
 
     let mut retained = [0; 4];
-    TestProvider::device()
+    TestProvider::try_device()
+        .expect("invariant: test device acquisition succeeds")
         .download(storage.buffer(), &mut retained)
         .expect("invariant: source allocation remains readable");
     assert_eq!(retained, [13, 17, 19, 23]);
@@ -206,7 +211,7 @@ fn make_unique_reports_device_acquisition_failure_without_replacing_storage() {
 
 #[test]
 fn make_unique_reports_provider_copy_failure_without_replacing_storage() {
-    let device = TestProvider::device();
+    let device = TestProvider::try_device().expect("invariant: test device acquisition succeeds");
     let mut storage = HephaestusStorage::<TestProvider, u32>::new(4)
         .expect("invariant: test provider allocation succeeds");
     device
