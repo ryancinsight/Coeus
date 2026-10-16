@@ -87,7 +87,16 @@ ADR owns 0081.
 The unchanged analytical cases execute against exact main `9fc433b0` before
 repair: four pass, two fail, zero skip. F16 length-65536 mean returns `0x0000`
 instead of `0x0100`; minimum positive is `0x0040` instead of `0x0400`.
-After-source checks are recorded in the owning backlog item and PR #528.
+At source `89908e63`, the full suite passes 1539 native tests with WGPU/Metal
+devices required and eight existing skips. All 16 downstream NN checks and
+all six focused numerical cases pass. The full workspace passes 172 doctests
+with two existing ignores, including both integer compile-fail cases; strict
+all-target Clippy using the unchanged CI feature selection, warning-denied
+docs, formatting and ADR indexing pass. All-feature locked metadata resolves;
+actual all-feature compilation on this Mac stops at the provider's explicit
+Linux ROCm requirement. The initial sandbox run cannot provide loopback/GPU
+access; the unchanged host-access suite passes after normal approval. No test
+or timeout is removed. Final release checks remain pending as stated below.
 
 Cases cover tracked/untracked f32/f64/F16/Bf16 values with seed 2, strided
 logical input, empty NaN and every one of 65536 gradients of the exact F16
