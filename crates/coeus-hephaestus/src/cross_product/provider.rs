@@ -4,8 +4,8 @@ use hephaestus_core::CrossProductOps;
 
 /// Provider-owned operations required by the on-device cross-product bridge.
 ///
-/// Implemented only where hephaestus ships `CrossProductOps` (host/CPU and
-/// WGPU as of ADR 0077 — CUDA, ROCm, and Metal do not yet). A provider
+/// Implemented only where hephaestus ships `CrossProductOps` (host/CPU,
+/// WGPU, CUDA, ROCm, and Metal as of hephaestus 0.22.1). A provider
 /// without this impl simply has no `CrossProductProvider<T>` bound to
 /// satisfy; its backend's `coeus_ops::CrossOps` implementation calls the
 /// shared host-fold path directly instead (`coeus_ops::cross_fold`).

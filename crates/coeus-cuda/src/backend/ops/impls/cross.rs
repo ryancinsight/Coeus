@@ -1,11 +1,29 @@
-use crate::backend::CudaBackend;
-use coeus_core::{ComputeBackend, Layout, Scalar};
+use crate::backend::{CudaBackend, CudaScalar};
+use crate::CudaBackendError;
+use coeus_core::{ComputeBackend, Layout};
+use coeus_hephaestus::{cross_product, CrossProductProvider, HephaestusStorage};
+use hephaestus_core::{CrossProductOps, CudaC, DialectScalar};
+use hephaestus_cuda::{CudaCrossProductOps, CudaDevice};
 
-/// hephaestus has no `CrossProductOps` implementation for CUDA yet (only
-/// host/CPU and WGPU, ADR 0077) — this backend uses the same shared
-/// host-fold every other seam-less backend uses, via `copy_to_host`/
-/// `copy_to_device` since CUDA storage is not host-addressable.
-impl<T: Scalar> coeus_ops::CrossOps<T> for CudaBackend {
+impl<T> CrossProductProvider<T> for CudaBackend
+where
+    T: CudaScalar + DialectScalar<CudaC>,
+    CudaCrossProductOps: CrossProductOps<CudaDevice, T>,
+{
+    type Operations = CudaCrossProductOps;
+}
+
+/// Bridges `coeus_ops::CrossOps` to hephaestus's on-device `CrossProductOps`
+/// for the layout it can express — `dim` the last axis, both operands
+/// contiguous, so the tensor is already `numel / 3` consecutive `(x, y, z)`
+/// triples. Any other layout falls back to the shared host-fold every
+/// seam-less backend uses; that fallback is explicit and typed, never a
+/// silent runtime probe.
+impl<T> coeus_ops::CrossOps<T> for CudaBackend
+where
+    T: CudaScalar + DialectScalar<CudaC>,
+    CudaCrossProductOps: CrossProductOps<CudaDevice, T>,
+{
     fn cross_storage(
         &self,
         a: &Self::DeviceBuffer<T>,
@@ -14,11 +32,19 @@ impl<T: Scalar> coeus_ops::CrossOps<T> for CudaBackend {
         dim: usize,
     ) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         let numel = a_layout.numel();
-        let mut a_host = vec![T::ZERO; numel];
-        let mut b_host = vec![T::ZERO; numel];
+        if dim == a_layout.ndim().saturating_sub(1) && a_layout.is_contiguous() {
+            return cross_product::<Self, T>(a.buffer(), b.buffer(), numel / 3)
+                .map(|buffer| {
+                    // SAFETY: the cross-product kernel writes every output element.
+                    unsafe { HephaestusStorage::from_buffer(buffer) }
+                })
+                .map_err(|source| CudaBackendError::dispatch("cross", source));
+        }
+        let mut a_host = vec![<T as coeus_core::NumericElement>::ZERO; numel];
+        let mut b_host = vec![<T as coeus_core::NumericElement>::ZERO; numel];
         self.copy_to_host(a, &mut a_host)?;
         self.copy_to_host(b, &mut b_host)?;
-        let mut out_host = vec![T::ZERO; numel];
+        let mut out_host = vec![<T as coeus_core::NumericElement>::ZERO; numel];
         coeus_ops::cross_fold(&a_host, &b_host, a_layout, dim, &mut out_host);
         // SAFETY: copy_to_device uploads every element of the completed output.
         let mut output = unsafe { self.allocate(numel)? };

@@ -1,20 +1,20 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
-    CrossProductProvider, ElementwiseProvider, HephaestusProvider, HostCrossProductOps,
-    MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider,
-    ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StaggeredProvider,
-    StatefulUpdateProvider, UnfoldFoldProvider,
+    CrossProductProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
+    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
+    RotateHalfProvider, ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider,
+    UnfoldFoldProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
-use hephaestus_core::{CrossProductOps, PoolingOps, SlidingWindowOps};
+use hephaestus_core::{CrossProductOps, DialectScalar, HipC, PoolingOps, SlidingWindowOps};
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
 use hephaestus_rocm::{
-    RocmAxisReductionOps, RocmDenseProductOps, RocmElementwiseOps, RocmPoolingOps, RocmScanOps,
-    RocmSlidingWindowOps, RocmStaggered3DOps,
+    RocmAxisReductionOps, RocmCrossProductOps, RocmDenseProductOps, RocmElementwiseOps,
+    RocmPoolingOps, RocmScanOps, RocmSlidingWindowOps, RocmStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -158,8 +158,8 @@ where
 
 impl<T> CrossProductProvider<T> for RocmProvider
 where
-    T: Scalar,
-    HostCrossProductOps: CrossProductOps<RocmDevice, T>,
+    T: Scalar + DialectScalar<HipC>,
+    RocmCrossProductOps: CrossProductOps<RocmDevice, T>,
 {
-    type Operations = HostCrossProductOps;
+    type Operations = RocmCrossProductOps;
 }
