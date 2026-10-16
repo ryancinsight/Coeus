@@ -52,16 +52,6 @@ verification, tightening, feature}.
 - Acceptance: bitwise-or-epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
 - Next step: write the contract comparison (leto pin's pooling params vs current semantics).
 
-<a id="coeus-einsum-typed-errors"></a>
-## COEUS-EINSUM-TYPED-ERRORS — Dedicated einsum rejection variants
-
-- Status: todo; priority: tightening; [patch].
-- Finding: main's `shape/einsum.rs` (467 lines) rejects bad subscripts with generic `Storage`/`ShapeMismatch`. The sweep adds 4 dedicated variants (`EinsumOperandCount`/`EinsumRank`/`EinsumDim`/`EinsumUnsupportedPattern`, +264 lines in `einsum.rs` plus `BackendError` variants): untrusted-subscript rejection becomes typed and diagnosable, never a panic.
-- Scope: `BackendError` variants + einsum.rs rework adapted to current main (RealScalar bounds landed since) + one test per variant asserting the exact variant.
-- 2026-10-15: reference text confirmed at sweep `16a73a81` (`backend/error.rs` variants + 182 added lines in `shape/util/einsum.rs`): `EinsumOperandCount{subscript,subscript_operands,provided}`, `EinsumRank{subscript,operand,expected,actual}`, `EinsumDim`, `EinsumUnsupportedPattern`, each with a `#[error]` diagnostic string.
-- Acceptance: all four rejections produce their dedicated variant; existing einsum behavior/tests unchanged; gates green.
-- Next step: port the variant set onto current `BackendError`.
-
 <a id="coeus-sweep-residual-sampling"></a>
 ## COEUS-SWEEP-RESIDUAL-SAMPLING — Sample the unsampled #530 remainder
 
