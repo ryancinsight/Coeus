@@ -1,12 +1,13 @@
 //! Differential verification for public tensor linspace constructors.
 //!
 //! `Tensor::linspace_on` converts each coordinate through `TryFromCount`; the
-//! `coeus-leto::from_shape_fn_values` traversal with the `Scalar::from_f64`
-//! value contract is the differential oracle, and a coordinate outside the
-//! element range is a typed error.
+//! `coeus-leto::from_shape_fn_values` traversal with the
+//! `IntegerTarget::from_truncated` value contract is the differential oracle,
+//! and a coordinate outside the element range is a typed error.
 
-use coeus_core::{MoiraiBackend, Scalar, SequentialBackend, TryFromCount};
+use coeus_core::{MoiraiBackend, SequentialBackend, TryFromCount};
 use coeus_tensor::Tensor;
+use eunomia::convert::IntegerTarget;
 
 fn check_backend<B>()
 where
@@ -18,7 +19,7 @@ where
 
     let tensor = Tensor::<i32, B>::linspace_on(2, 8, 4, &backend).expect("0..4 fits i32");
     let expected = coeus_leto::from_shape_fn_values(&[4usize], |index| {
-        i32::from_f64(2.0 + 2.0 * index[0] as f64)
+        i32::from_truncated(2.0 + 2.0 * index[0] as f64)
     })
     .unwrap();
 
