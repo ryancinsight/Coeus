@@ -112,24 +112,6 @@ verification, tightening, feature}.
 - Acceptance: conforming layouts dispatch on-device on all four vendors; parity vs host fold within a derived bound; no `CrossOps` resolution regression for covered types; gates green.
 - Next step: audit dialect-scalar coverage vs current `CrossOps` callers per vendor.
 
-<a id="coeus-gradcheck-embedding"></a>
-## COEUS-GRADCHECK-EMBEDDING — Finite-difference gradcheck for embedding
-
-- Status: todo; priority: verification; [patch].
-- Finding: sweep `16a73a81` adds `embedding_case<T: GradcheckScalar>` + `embedding_backward_matches_finite_differences` (f64+f32) to `new_ops.rs`; main's file has no embedding coverage.
-- Scope: one generic case fn + dual instantiation, following the module's `weighted` pattern.
-- Acceptance: embedding backward matches central differences at f64 and f32; gates green.
-- Next step: port the two fns onto current `new_ops.rs`.
-
-<a id="coeus-gradcheck-interp-dual"></a>
-## COEUS-GRADCHECK-INTERP-DUAL — Dual-precision gradcheck for linear_interpolation
-
-- Status: todo; priority: verification; [patch].
-- Finding: #547 generalized the op over `T` with an f64 ops-level test but left `new_ops.rs::linear_interpolation_case` non-generic (f32-only) with its pinned-signature doc note — the unmet acceptance tail of COEUS-AUTOGRAD-LINEAR-INTERPOLATION-GENERIC-SCALAR, which otherwise closed with #547. The sweep generalizes the case fn to `<T: GradcheckScalar>`.
-- Scope: generic case fn + f64/f32 instantiation + doc-note update.
-- Acceptance: interpolation backward matches central differences at both precisions; the stale f32-pinned note is gone; gates green.
-- Next step: generalize the case fn per the sweep text.
-
 <a id="coeus-alloc-attribution"></a>
 ## COEUS-ALLOC-ATTRIBUTION — Allocation-site attribution for the alloc budget
 
