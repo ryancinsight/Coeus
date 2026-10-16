@@ -57,6 +57,8 @@ pub mod sparse;
 pub mod stateful_update;
 /// Structural tensor ops dispatch (pad, concat, split, stack).
 pub mod structural;
+/// Sliding-window extraction (unfold) and adjoint accumulation (fold).
+pub mod unfold_fold;
 
 pub use attention::{
     scaled_dot_product_attention_backward_accumulate, scaled_dot_product_attention_into,
@@ -93,3 +95,4 @@ pub use stateful_update::{
     MAX_STATEFUL_UPDATE_RANK,
 };
 pub use structural::{concat_values, pad_values, split_values, stack_values};
+pub use unfold_fold::{fold1d_into, fold2d_into, unfold1d_into, unfold2d_into};

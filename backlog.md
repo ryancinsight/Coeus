@@ -80,17 +80,6 @@ verification, tightening, feature}.
 - Acceptance: every #530 file is landed, filed as its own item, or dropped with a stated reason; #530 closes with the accounting comment.
 - Next step: sample rank 106+ files (≤28 lines each).
 
-<a id="coeus-unfold-leto-chain"></a>
-## COEUS-UNFOLD-LETO-CHAIN — Delegate CPU unfold/fold to leto (contract-gated)
-
-- Status: todo; priority: architecture; [minor].
-- Finding: main's `cpu_impl/unfold_fold.rs` (294 lines) + `unfold_fold/validation.rs` are hand-rolled PyTorch-convention kernels. The sweep rewrites all four kernels onto `coeus_leto::unfold_into` over leto-ops sliding-window seams and deletes local validation. `leto_ops::unfold_into`/`fold_into` exist at the leto 0.46 pin; `coeus-leto` has no unfold dispatch yet.
-- Contract gate (prove before porting): window-geometry/dilation/padding parity and fold overlap-accumulation identity between leto's `WindowParameters` contract and current CPU behavior, including empty-output; plus the `T: leto_ops::Scalar` bound ripple audit across callers (SemVer).
-- Scope: forward (1D/2D unfold) + fold + validation + differential tests with exact values; vendor `unfold_fold.rs` files stay (separate backends, sampled separately).
-- Acceptance: epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
-- 2026-10-15: reference design recovered — sweep `16a73a81:crates/coeus-ops/src/backend_ops/cpu_impl/unfold_fold.rs` delegates all four kernels to `coeus_leto::unfold_into`/`fold_into` (thin adapters over layouts+slices, `map_leto_error` mapping) and deletes `cpu_impl/unfold_fold/validation.rs` + shared `require_signed_coordinates`. Port = adapt that file to main's fallible context + prove the contract gate above against leto 0.46 (the sweep predates the pin).
-- Next step: write the contract comparison (leto pin's sliding-window params vs current semantics).
-
 <a id="coeus-cross-vendor-bundles"></a>
 ## COEUS-CROSS-VENDOR-BUNDLES — Name the vendor on-device cross bundles
 

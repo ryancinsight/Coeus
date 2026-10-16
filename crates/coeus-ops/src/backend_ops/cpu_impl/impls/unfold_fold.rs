@@ -1,10 +1,11 @@
 use super::super::unfold_fold;
 use super::super::CpuBackend;
 use crate::backend_ops::traits::UnfoldFoldOps;
-use coeus_core::{CpuAddressableStorageMut, Layout, Scalar, Storage};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar, Storage};
+use leto_ops::Scalar as LetoScalar;
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
-unsafe impl<T: Scalar, B: CpuBackend> UnfoldFoldOps<T> for B
+unsafe impl<T: Scalar + LetoScalar, B: CpuBackend> UnfoldFoldOps<T> for B
 where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -31,14 +32,13 @@ where
             output.len(),
         )?;
         unfold_fold::unfold1d(
-            self,
-            input,
+            input.as_slice(),
             input_layout,
             kernel_size,
             stride,
             padding,
             dilation,
-            output,
+            output.as_mut_slice()?,
             output_layout,
         )?;
         Ok(())
@@ -69,15 +69,14 @@ where
             output.len(),
         )?;
         unfold_fold::fold1d(
-            self,
-            input,
+            input.as_slice(),
             input_layout,
             output_size,
             kernel_size,
             stride,
             padding,
             dilation,
-            output,
+            output.as_mut_slice()?,
             output_layout,
         )?;
         Ok(())
@@ -114,8 +113,7 @@ where
             output.len(),
         )?;
         unfold_fold::unfold2d(
-            self,
-            input,
+            input.as_slice(),
             input_layout,
             kernel_h,
             kernel_w,
@@ -125,7 +123,7 @@ where
             padding_w,
             dilation_h,
             dilation_w,
-            output,
+            output.as_mut_slice()?,
             output_layout,
         )?;
         Ok(())
@@ -166,8 +164,7 @@ where
             output.len(),
         )?;
         unfold_fold::fold2d(
-            self,
-            input,
+            input.as_slice(),
             input_layout,
             output_h,
             output_w,
@@ -179,7 +176,7 @@ where
             padding_w,
             dilation_h,
             dilation_w,
-            output,
+            output.as_mut_slice()?,
             output_layout,
         )?;
         Ok(())
