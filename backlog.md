@@ -66,7 +66,7 @@ verification, tightening, feature}.
 - Batch 7 verdicts (2026-10-15): vendor `optim.rs`/`optimizer.rs`/`cross_entropy.rs` deletions — dropped as superseded (main retains all three with concrete provider+backend+ops impls).
 - Batch 8 verdicts (2026-10-15): wgpu `cross_entropy.rs`/`attention.rs` deletions and `device_outputs.rs` ×2 rewrites — dropped (superseded spelling; no new tests). `dtype/traits/float.rs` — converged with S3 (identical modulo a module-doc line). `cross_product/host_fallback.rs` restructure — dropped (lateral move of landed ADR-0077 logic; references `validate_cross_product_lengths`, absent from hephaestus 0.22). `interpolation.rs` f32→`T` genericization — unique, ported as #547 with an f64 second-instantiation test.
 - Next samples: `conv.rs` ×2 (104/102), `elementwise.rs` ×2 (96/90), `backend_stub.rs` (95).
-- Batch 9 verdicts (2026-10-15): vendor `conv.rs` ×2 deletions — dropped as superseded (main retains live const-generic forward/backward/transposed impls). `conv.rs` test — dropped (provider-rename only). ADRs 0079/0080 — landed (blob-identical: `95852799`/`288e6dad`). `dtype/traits/float.rs` — converged (same `Float` surface, doc-only drift). `gradcheck/mod.rs` — content landed inline in `gradcheck.rs`; exact 3-way split dropped as stylistic. `gradcheck/error.rs` — converged (2 doc lines).
+- Batch 9 verdicts (2026-10-15): vendor `conv.rs` ×2 deletions — dropped as superseded (main retains live const-generic forward/backward/transposed impls). `conv.rs` test — dropped (provider-rename only). ADRs [0079](docs/adr/0079-fallible-provider-initialization-transfer.md)/[0080](docs/adr/0080-concern-owned-adaptation-crate-names.md) — landed (Git blobs identical to the sweep). `dtype/traits/float.rs` — converged (same `Float` surface, doc-only drift). `gradcheck/mod.rs` — content landed inline in `gradcheck.rs`; exact 3-way split dropped as stylistic. `gradcheck/error.rs` — converged (2 doc lines).
 - Batch 10 verdicts (2026-10-15): `gradcheck/precision.rs` — content landed inline (`narrow`/`machine_epsilon` with the same eunomia-dev-dep rationale); its `FloatElement` retarget folds into COEUS-SCALAR-VOCAB. `new_ops.rs` — unique, filed as COEUS-GRADCHECK-EMBEDDING (`embedding_case<T: GradcheckScalar>`) and COEUS-GRADCHECK-INTERP-DUAL (generic interpolation case; also the unmet acceptance tail of the interpolation item #547 otherwise closed). `losses.rs` — `cross_entropy_loss` import is #550's ground (in CI); its `FloatElement` retargets fold into COEUS-SCALAR-VOCAB. `float_ops.rs` — converged (25/25 members). `abs.rs` — converged (same `AbsOp` shape, main fallible). `dtype/int.rs` — int half ported as #549 (in CI). `random.rs`/`regularization.rs` — `from_f64`→`FloatElement` + `ZERO`/`ONE`, fold into COEUS-SCALAR-VOCAB.
 - Batch 11 verdicts (2026-10-15): `host_fallback.rs` — RE-VERDICT unique, filed as COEUS-CROSS-HOST-SEAM: batch 8's drop rationale is disproven (`validate_cross_product_lengths` + `CrossProductOps` shipped in `crate-hephaestus-core-v0.22.0`, hence in the pinned 0.22.1). `device_outputs.rs`/`fusion.rs`/staggered-test/`unavailable.rs`/`state_updates.rs`/`pool1d.rs`/conv-transpose-test/pooling-test — dropped (sweep `HephaestusBackend<WgpuProvider>`/`CudaProvider` spelling; main has no `*Provider` structs, keeps concrete `WgpuBackend`/`CudaBackend`; unavailable coverage equivalent).
 - Batch 12 verdicts (2026-10-15): vendor `elementwise.rs` ×2, `backend_stub.rs`, `staggered.rs`, `cross.rs`, `matmul.rs` ×2 whole-file deletions — dropped as superseded (main's copies live: `CudaScalar`+metadata stub, real `matmul`/`convolution` impls, all `mod`-referenced). `cpu_impl/pool.rs` — main already fallible (`?` propagates); sweep tail-call is stylistic. `elementary.rs` — `ZERO`/`ONE` landed. `neg.rs` — converged (main fallible). `ctc_loss_tests.rs`/`init_leto_diff.rs` — `FloatElement` retargets fold into COEUS-SCALAR-VOCAB. `levenberg_marquardt.rs` — `ZERO` landed; `+ FloatElement` on `is_finite`/`check_finite` is a no-op (`abs_val`/`from_f64` are declared on `Scalar` itself).
@@ -310,25 +310,6 @@ verification, tightening, feature}.
 - Acceptance: no bare `.expect()` on backend-Result in listed files; failure surfaces as a typed error to the caller; existing behavior tests still pass.
 - Next step: start with `coeus-ops/src/unary/math.rs` (highest count), thread the `Result` through its callers.
 
-<a id="coeus-gradcheck-generic-scalar"></a>
-## COEUS-GRADCHECK-GENERIC-SCALAR — Generic finite-difference gradcheck over f32/f64
-
-- Status: todo; priority: verification; [patch]; owner: unclaimed.
-- Outcome: the finite-difference gradient-check harness is one generic function/macro instantiated per scalar type (f32 and f64), each with its own analytically derived tolerance, not an f64-only harness.
-- Scope: coeus-autograd's gradcheck test infrastructure.
-- Acceptance: existing f64 gradcheck coverage still passes; f32 instantiation runs with an f32-appropriate tolerance derived from step size and precision.
-- Next step: parameterize the harness's step size and tolerance by `T::EPSILON`, add the f32 instantiation.
-
-<a id="coeus-gradcheck-missing-ops"></a>
-## COEUS-GRADCHECK-MISSING-OPS — Fill finite-difference gradient-check gaps
-
-- Status: todo; priority: verification; [minor]; owner: unclaimed.
-- Outcome: every differentiable op has a finite-difference gradient-check test (depends on COEUS-GRADCHECK-GENERIC-SCALAR landing first).
-- Scope: add/sub/div/remainder/maximum/minimum/neg, all pooling ops, conv1d/conv3d/conv_transpose1d/2d/3d, fold/unfold, cross_entropy, ctc, dropout (mask-fixed), embedding, sparse_matmul/sparse_matmul_coo, transpose_2d, index_put, rotate_half, linear_interpolation.
-- Needs: COEUS-GRADCHECK-GENERIC-SCALAR.
-- Acceptance: each listed op has a passing FD gradcheck against its analytical Jacobian within the derived tolerance.
-- Next step: work the list in dependency-free batches (e.g. arithmetic ops first, since they share the harness shape).
-
 <a id="coeus-existence-only-nn-tests"></a>
 ## COEUS-EXISTENCE-ONLY-NN-TESTS — Value-semantic nn test assertions
 
@@ -393,14 +374,4 @@ verification, tightening, feature}.
 - Critical finding: this is FLAKY on hosted CI, not a deterministic regression. `main`'s own push-triggered `CI` run at the identical commit (`db144251`, run 36286664346, job 108528635313, 2026-09-27T02:03) shows this exact test **PASS**, while PR #425's `pull_request`-triggered run at essentially the same tree (run 36285453725, ~2026-09-27T01:46) shows it **FAIL** with small=6/large=10. Six concurrent copies of the compiled test binary, each pinned to a 2-core `ProcessorAffinity` mask, all pass locally (`multi_{0..5}.log`) — a scheduler-race reproduction attempt per the "two-core pinning reproduces CI scheduler flakes" pattern also did not reproduce. Per policy, a flaky test is root-caused, never silently retried: the counting allocator (`alloc_budget.rs`'s `#[global_allocator]`) is process-wide, so any concurrent or lazily-initialized background allocation (a `OnceLock`/thread-pool first-touch in a dependency, unrelated to `scatter_add` itself) racing with the small/large calls would produce exactly this nondeterministic +4 without any code-path difference in `scatter_add`.
 - Next step: add allocation-site attribution (capture a backtrace or a monotonic sequence id per counted allocation) to `alloc_budget.rs`'s global allocator so a failing run identifies *which* allocation is extra, rather than only the count; run that instrumented binary repeatedly on the hosted runner (matching its exact core count and load) until it flakes again.
 - Blocks: PR #425 and any other PR whose `Tests` job runs the full workspace suite on hosted CI.
-
-<a id="coeus-gradcheck-generic-instantiation"></a>
-## COEUS-GRADCHECK-GENERIC-INSTANTIATION — Generic-instantiation gradcheck coverage
-
-- Status: todo; priority: verification; [patch]; owner: unclaimed.
-- Outcome: every finite-difference check in `crates/coeus-autograd/tests/autograd/gradcheck/` runs at both `f64` (sensitivity oracle) and `f32` (instantiation coverage, per `standards`: Generic Instantiation Coverage), plus FD coverage for the ops that had none.
-- Delivered: `mod.rs`'s shared fixtures (`Sampler`, `tensor`, `weighting`, `weighted`) are generic over `GradcheckScalar` (`Float + leto_ops::Scalar + coeus_leto::RealScalar` plus the `CpuAddressableStorage` bound gradcheck itself needs); the module doc states the two-role f64/f32 rationale. New FD coverage, each a generic fn instantiated at both types from a single `#[test]`: `add`/`sub`/`div`/`remainder`/`maximum`/`minimum`/`neg` (`arithmetic.rs`); `max_pool1d/2d/3d`/`avg_pool1d/2d/3d` (`pooling.rs`, via `coeus-nn` `Module` layers, new dev-dependency); `conv1d`/`conv3d`/`conv_transpose1d/2d/3d`/`unfold1d/2d`/`fold1d/2d` (`conv.rs`, via `coeus-nn` `Module` layers). Converted to dual-instantiation: `normalization.rs`, `core_ops.rs`, `attention.rs`.
-- Remaining: (1) convert the 4 remaining existing check files (`activation`, `losses`, `reduction`, `shape`) to dual-instantiation; (2) FD coverage still missing: `ctc`, `dropout` (fixed mask), `sparse_matmul(_coo)`, `transpose_2d`, `index_put`, `rotate_half`, `linear_interpolation` (`cross_entropy` and `embedding` already have coverage in `losses.rs`).
-- Acceptance: every listed op has a generic FD check instantiated at both types; all 11 existing files are dual-instantiated; a check that fails at `f32` under gradcheck's own derived `ε^(2/3)` bound is root-caused, never given a widened tolerance.
-- Next step: convert `activation.rs` next (largest remaining, ~50 tests) then `losses`/`reduction`/`shape`, each its own PR; then the remaining missing-coverage ops as dependency-ordered per-family PRs.
 

@@ -27,7 +27,7 @@ Two designs were considered:
    so the supertrait makes every `x.exp()`/`x.floor()` on `T: Float`
    ambiguous, and the per-site bounds — though viral — stay explicit.
 
-The sweep's executed design (`16a73a81`) confirmed option 2,
+The sweep's executed design ([rescue PR #530](https://github.com/ryancinsight/Coeus/pull/530)) confirmed option 2,
 including the `Complex` gap closure: `Complex<T>` calls
 `FloatElement::from_f64` on its component `T`, never on itself, so
 no new spelling is needed.
