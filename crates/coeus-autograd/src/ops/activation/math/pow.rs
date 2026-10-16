@@ -1,7 +1,7 @@
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
 use crate::var::Var;
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 use std::ops::Neg;
 use std::sync::Arc;
@@ -22,8 +22,8 @@ pub struct PowNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub exp_bits: u64,
 }
 
-impl<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T, B>
-    for PowNode<T, B>
+impl<T: Float + FloatElement + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>
+    BackwardNode<T, B> for PowNode<T, B>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -51,7 +51,7 @@ where
         };
 
         let exp = f64::from_bits(self.exp_bits);
-        let exp_t = T::from_f64(exp);
+        let exp_t = <T as FloatElement>::from_f64(exp);
         let n = self.input_tensor.numel();
         if n == 0 {
             return Ok(());
@@ -155,7 +155,11 @@ where
             let exp_m1 = exp - 1.0;
             let ln_x = coeus_ops::log(&self.input_tensor, &backend)?;
             let scaled = {
-                let scale = Tensor::full_on(ln_x.shape(), T::from_f64(exp_m1), &backend)?;
+                let scale = Tensor::full_on(
+                    ln_x.shape(),
+                    <T as FloatElement>::from_f64(exp_m1),
+                    &backend,
+                )?;
                 coeus_ops::mul(&ln_x, &scale, &backend)?
             };
             let x_pow_n_m1 = coeus_ops::exp(&scaled, &backend)?;
@@ -204,7 +208,7 @@ fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
 /// # Parity contract
 ///
 /// Matches `torch.Tensor.pow(scalar)` semantics:
-/// - When `exp` is integer-valued in `T` (i.e. `T::from_f64(exp).is_integer()`),
+/// - When `exp` is integer-valued in `T` (i.e. `<T as FloatElement>::from_f64(exp).is_integer()`),
 ///   the forward is a sign-preserving integer power `(-x)^k = (-1)^k · x^k`,
 ///   with `x = 0` mapping to `1` when `k = 0`, to `0` when `k > 0`, and to
 ///   `+inf` when `k < 0` (delegated to PyTorch's IEEE-compliant convention).
@@ -212,10 +216,10 @@ fn int_pow_positive<T: Float>(x: T, k: u32) -> T {
 ///
 /// # Precision
 /// Forward and backward execute in the native precision of `T` without widening.
-/// The exponent is converted once via `T::from_f64(exp)`; the integer-exponent
+/// The exponent is converted once via `<T as FloatElement>::from_f64(exp)`; the integer-exponent
 /// branch uses repeated multiplication in `T` (no `powf` fallback).
 #[inline]
-pub fn pow<T: Float + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>(
+pub fn pow<T: Float + FloatElement + Neg<Output = T>, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
     exp: f64,
 ) -> Result<Var<T, B>, B::Error>
@@ -223,7 +227,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-    let exp_t = T::from_f64(exp);
+    let exp_t = <T as FloatElement>::from_f64(exp);
 
     let n = a.tensor.numel();
     let out_tensor = if exp_t.is_integer() && n > 0 {

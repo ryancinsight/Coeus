@@ -7,10 +7,6 @@ macro_rules! impl_scalar_float_half {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn from_f64(v: f64) -> Self {
-                <Self as eunomia::FloatElement>::from_f64(v)
-            }
-            #[inline(always)]
             fn sqrt_val(self) -> Self {
                 <Self as NumericElement>::sqrt(self)
             }
@@ -129,16 +125,17 @@ macro_rules! impl_scalar_float_half {
             }
             #[inline(always)]
             fn gelu_op(self) -> Self {
-                let half = Self::from_f64(0.5);
+                let half = <Self as eunomia::FloatElement>::from_f64(0.5);
                 let one = Self::ONE;
-                let inv_sqrt_two = Self::from_f64(core::f64::consts::FRAC_1_SQRT_2);
+                let inv_sqrt_two =
+                    <Self as eunomia::FloatElement>::from_f64(core::f64::consts::FRAC_1_SQRT_2);
                 half * self * (one + (self * inv_sqrt_two).erf_op())
             }
             #[inline(always)]
             fn sigmoid_op(self) -> Self {
                 let x_f = <Self as NumericElement>::to_f64(self);
                 let res = 1.0 / (1.0 + (-x_f).exp());
-                Self::from_f64(res)
+                <Self as eunomia::FloatElement>::from_f64(res)
             }
         }
         impl Float for $t {

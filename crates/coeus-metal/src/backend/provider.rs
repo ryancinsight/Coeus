@@ -1,15 +1,16 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
-    CrossEntropyProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
-    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
-    RotateHalfProvider, ScalarPowerProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    CrossEntropyProvider, CrossProductProvider, ElementwiseProvider, HephaestusProvider,
+    HostCrossProductOps, MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider,
+    RandomInitProvider, ReductionProvider, RotateHalfProvider, ScalarPowerProvider,
+    StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
 };
-use hephaestus_core::{PoolingOps, SlidingWindowOps};
+use hephaestus_core::{CrossProductOps, PoolingOps, SlidingWindowOps};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
     MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
-    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps,
+    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps, MetalStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -125,6 +126,10 @@ impl StatefulUpdateProvider for MetalProvider {
     type Operations = hephaestus_metal::MetalStatefulUpdateOps;
 }
 
+impl StaggeredProvider for MetalProvider {
+    type Operations = MetalStaggered3DOps;
+}
+
 // SAFETY: `MetalPoolingOps` initializes forward outputs and only accumulates
 // backward gradients into initialized destinations.
 unsafe impl<T> PoolingProvider<T> for MetalProvider
@@ -143,4 +148,12 @@ where
     MetalSlidingWindowOps: SlidingWindowOps<MetalDevice, T>,
 {
     type Operations = MetalSlidingWindowOps;
+}
+
+impl<T> CrossProductProvider<T> for MetalProvider
+where
+    T: Scalar,
+    HostCrossProductOps: CrossProductOps<MetalDevice, T>,
+{
+    type Operations = HostCrossProductOps;
 }

@@ -1,8 +1,10 @@
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement};
 use coeus_ops::CtcBatch;
 use eunomia::{Bf16, F16};
 
-pub(super) trait BinaryPrecision: Float + std::ops::Neg<Output = Self> {
+pub(super) trait BinaryPrecision:
+    Float + FloatElement + std::ops::Neg<Output = Self>
+{
     const EPSILON: Self;
 }
 
@@ -32,7 +34,7 @@ pub(super) struct AlignmentOracle<T> {
 
 /// Enumerate C^T raw paths, collapse adjacent repetitions before deleting blanks,
 /// and sum path products. This does not use the provider's extended-target DP.
-pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
+pub(super) fn enumerate<T: Float + FloatElement + std::ops::Neg<Output = T>>(
     log_probs: &[T],
     shape: [usize; 3],
     sequences: CtcBatch<'_>,
@@ -109,10 +111,10 @@ pub(super) fn enumerate<T: Float + std::ops::Neg<Output = T>>(
     }
 }
 
-pub(super) fn count<T: Float>(value: usize) -> T {
+pub(super) fn count<T: Float + FloatElement>(value: usize) -> T {
     // Fixture extents are at most 81: exact in every tested scalar format.
     let value = u16::try_from(value).expect("invariant: small fixture extent fits u16");
-    <T as Scalar>::from_f64(f64::from(value))
+    <T as coeus_core::FloatElement>::from_f64(f64::from(value))
 }
 
 pub(super) fn close<T: BinaryPrecision>(actual: T, expected: T, operations: usize) {

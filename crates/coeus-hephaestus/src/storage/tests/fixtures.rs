@@ -23,7 +23,7 @@ pub(super) enum TestInitialization {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct TestBuffer<T: eunomia::Pod> {
+pub(crate) struct TestBuffer<T: eunomia::Pod> {
     pub(super) bytes: Arc<Mutex<Vec<u8>>>,
     pub(super) len: usize,
     pub(super) tier: MemoryTier,
@@ -42,13 +42,13 @@ impl<T: eunomia::Pod> DeviceBuffer<T> for TestBuffer<T> {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) struct TestProvider;
+pub(crate) struct TestProvider;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct UnavailableProvider;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) struct TestDevice;
+pub(crate) struct TestDevice;
 
 pub(super) fn byte_len<T: eunomia::Pod>(len: usize) -> hephaestus_core::Result<usize> {
     len.checked_mul(std::mem::size_of::<T>())

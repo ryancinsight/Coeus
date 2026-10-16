@@ -493,6 +493,7 @@ dependencies = [
  "hephaestus-core",
  "hephaestus-metal",
  "leto-ops",
+ "tracing",
 ]
 
 [[package]]
@@ -576,6 +577,7 @@ dependencies = [
  "hephaestus-core",
  "hephaestus-rocm",
  "leto-ops",
+ "tracing",
 ]
 
 [[package]]
@@ -601,6 +603,7 @@ dependencies = [
  "coeus-nn",
  "coeus-ops",
  "criterion",
+ "eunomia",
  "leto",
  "leto-ops",
  "mnemosyne-memory",

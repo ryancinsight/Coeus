@@ -1,6 +1,6 @@
 use super::traits::{reduction_op, ReductionAutogradOp};
 use crate::var::Var;
-use coeus_core::{Float, Scalar};
+use coeus_core::{Float, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// ZST tag for sum reduction autograd.
@@ -73,10 +73,8 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 /// let _ = reduction_op::<i32, SequentialBackend, MeanOp>(&input, None);
 /// ```
 pub struct MeanOp;
-impl<
-        T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
-        B: coeus_ops::BackendOps<T> + Default,
-    > ReductionAutogradOp<T, B> for MeanOp
+impl<T: Scalar + FloatElement + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>
+    ReductionAutogradOp<T, B> for MeanOp
 {
     const OP_NAME: &'static str = "mean";
 
@@ -170,10 +168,7 @@ pub fn sum<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
 /// let _ = mean(&input);
 /// ```
 #[inline]
-pub fn mean<
-    T: Scalar + coeus_core::FloatElement + leto_ops::Scalar,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn mean<T: Scalar + FloatElement + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error> {
     reduction_op::<T, B, MeanOp>(a, None)
@@ -236,7 +231,10 @@ where
 /// Replaces NaN with 0, counts non-NaN elements, then divides sum by count.
 /// Differentiable: gradient at NaN positions is zero.
 #[inline]
-pub fn nanmean<T: coeus_core::Float + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn nanmean<
+    T: coeus_core::Float + coeus_core::FloatElement + leto_ops::RealScalar,
+    B: coeus_ops::BackendOps<T> + Default,
+>(
     a: &Var<T, B>,
 ) -> Result<Var<T, B>, B::Error>
 where
@@ -262,7 +260,7 @@ where
     )?;
     let cleaned = crate::ops::shape::masked_fill(a, &mask, T::ZERO)?;
     let s = sum(&cleaned)?;
-    crate::scalar_div(&s, <T as coeus_core::Scalar>::from_f64(count as f64))
+    crate::scalar_div(&s, T::from_count(count))
 }
 
 #[cfg(test)]

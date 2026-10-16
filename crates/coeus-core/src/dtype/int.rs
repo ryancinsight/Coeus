@@ -2,19 +2,15 @@
 // Scalar + Int for i8, i16, i32, i64, u8, u16, u32, u64.
 
 use super::traits::{private, Int, Scalar};
-use eunomia::NumericElement;
+use eunomia::{convert::IntegerTarget, NumericElement};
 
 macro_rules! impl_scalar_int_signed {
     ($t:ty) => {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn from_f64(v: f64) -> Self {
-                v as Self
-            }
-            #[inline(always)]
             fn sqrt_val(self) -> Self {
-                (<Self as NumericElement>::to_f64(self).sqrt()) as Self
+                Self::from_truncated(<Self as NumericElement>::to_f64(self).sqrt())
             }
             #[inline(always)]
             fn abs_val(self) -> Self {
@@ -71,12 +67,8 @@ macro_rules! impl_scalar_int_unsigned {
         impl private::Sealed for $t {}
         impl Scalar for $t {
             #[inline(always)]
-            fn from_f64(v: f64) -> Self {
-                v as Self
-            }
-            #[inline(always)]
             fn sqrt_val(self) -> Self {
-                (<Self as NumericElement>::to_f64(self).sqrt()) as Self
+                Self::from_truncated(<Self as NumericElement>::to_f64(self).sqrt())
             }
             #[inline(always)]
             fn abs_val(self) -> Self {
@@ -164,7 +156,7 @@ macro_rules! impl_cpu_unary_dispatch_int {
                     CpuUnaryOp::SigmoidGrad => x * (Self::ONE - x),
                     CpuUnaryOp::TanhGrad => Self::ONE - x * x,
                     CpuUnaryOp::LeakyRelu(slope_bits) => {
-                        let slope = Self::from_f64(f64::from_bits(slope_bits));
+                        let slope = Self::from_truncated(f64::from_bits(slope_bits));
                         if x >= Self::ZERO {
                             x
                         } else {
@@ -174,7 +166,7 @@ macro_rules! impl_cpu_unary_dispatch_int {
                     // PReLU / LeakyReLU gradient oracle: dx = 1 if x > 0 else slope.
                     // Matches PyTorch's contract which returns slope (not 1) at x = 0.
                     CpuUnaryOp::LeakyReluGrad(slope_bits) => {
-                        let slope = Self::from_f64(f64::from_bits(slope_bits));
+                        let slope = Self::from_truncated(f64::from_bits(slope_bits));
                         if x > Self::ZERO {
                             Self::ONE
                         } else {

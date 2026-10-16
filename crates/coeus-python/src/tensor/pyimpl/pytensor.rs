@@ -90,11 +90,28 @@ impl PyTensor {
     }
 
     #[inline]
-    fn unary_dispatch<F>(&self, py: Python<'_>, op: F) -> PyResult<Self>
+    pub(crate) fn unary_dispatch<F>(&self, py: Python<'_>, op: F) -> PyResult<Self>
     where
         F: FnOnce(&Var<f64>) -> Result<Var<f64>, coeus_core::BackendError> + Send,
     {
         let inner = py.allow_threads(|| op(&self.inner));
+        inner.map(Self::from_var).map_err(map_backend_error)
+    }
+
+    #[inline]
+    pub(crate) fn binary_dispatch<F>(
+        &self,
+        py: Python<'_>,
+        other: &PyTensor,
+        op: F,
+    ) -> PyResult<Self>
+    where
+        F: FnOnce(&Var<f64>, &Var<f64>) -> Result<Var<f64>, coeus_core::BackendError> + Send,
+    {
+        // Pre-clone both operands so only `Send` data crosses the GIL boundary.
+        let x = self.inner.clone();
+        let y = other.inner.clone();
+        let inner = py.allow_threads(move || op(&x, &y));
         inner.map(Self::from_var).map_err(map_backend_error)
     }
 

@@ -1,10 +1,15 @@
-use super::validation::{readable_storage, validate_backward, validate_forward, PoolParameters};
-use crate::ptr::{MutPtr, Ptr};
-use coeus_core::{Backend, CpuAddressableStorageMut, Layout, Scalar, Storage};
+//! Max-pooling CPU kernel delegations.
+#![allow(clippy::too_many_arguments)]
+
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
+
+use super::super::error::map_leto_error;
+use super::super::CpuBackend;
+use super::check_rank;
 
 #[inline]
-pub(crate) fn max_pool2d<T: Scalar, B: Backend>(
-    backend: &B,
+pub(crate) fn max_pool2d<T, B>(
+    _backend: &B,
     input: &B::DeviceBuffer<T>,
     input_layout: &Layout,
     kernel_size: usize,
@@ -15,86 +20,30 @@ pub(crate) fn max_pool2d<T: Scalar, B: Backend>(
     output_layout: &Layout,
 ) -> Result<(), B::Error>
 where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let parameters = PoolParameters {
+    check_rank("max pool 2d", input_layout, 4)?;
+    let input_slice = input.as_slice();
+    let output_slice = output.as_mut_slice()?;
+    coeus_leto::pooling_forward_into(
+        leto_ops::PoolingMode::Maximum,
+        input_layout,
+        input_slice,
         kernel_size,
         stride,
         padding,
         dilation,
-    };
-    let out_numel = validate_forward::<2>(
-        "max_pool2d",
-        input_layout,
-        input.len(),
         output_layout,
-        output.len(),
-        parameters,
-    )?;
-    let c = input_layout.shape()[1];
-    let h = input_layout.shape()[2];
-    let w = input_layout.shape()[3];
-    let h_out = output_layout.shape()[2];
-    let w_out = output_layout.shape()[3];
-    let input_slice = readable_storage("max_pool2d", input)?;
-    let output_slice = output.as_mut_slice()?;
-
-    let input_ptr = Ptr(input_slice.as_ptr());
-    let output_ptr = MutPtr(output_slice.as_mut_ptr());
-
-    let input_layout = input_layout.clone();
-    let output_layout = output_layout.clone();
-
-    let pad_s = padding as isize;
-    let stride_s = stride as isize;
-    let dil_s = dilation as isize;
-    let k_size = kernel_size;
-
-    backend.parallel_for(0, out_numel, move |i| {
-        let ow = i % w_out;
-        let temp1 = i / w_out;
-        let oh = temp1 % h_out;
-        let temp2 = temp1 / h_out;
-        let ci = temp2 % c;
-        let ni = temp2 / c;
-
-        let mut max_val: Option<T> = None;
-
-        for ikh in 0..k_size {
-            let h_in = oh as isize * stride_s + ikh as isize * dil_s - pad_s;
-            if h_in >= 0 && (h_in as usize) < h {
-                for ikw in 0..k_size {
-                    let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
-                    if w_in >= 0 && (w_in as usize) < w {
-                        let input_idx =
-                            input_layout.physical_index(&[ni, ci, h_in as usize, w_in as usize]);
-                        let val = unsafe { input_ptr.read(input_idx) };
-                        max_val = Some(match max_val {
-                            None => val,
-                            Some(m) => {
-                                if val > m {
-                                    val
-                                } else {
-                                    m
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        }
-
-        let output_idx = output_layout.physical_index(&[ni, ci, oh, ow]);
-        unsafe {
-            output_ptr.write(output_idx, max_val.unwrap_or(T::ZERO));
-        }
-    });
-    Ok(())
+        output_slice,
+    )
+    .map_err(|error| map_leto_error("max pool 2d", error))
 }
 
 #[inline]
-pub(crate) fn max_pool2d_backward<T: Scalar, B: Backend>(
-    backend: &B,
+pub(crate) fn max_pool2d_backward<T, B>(
+    _backend: &B,
     grad_out: &B::DeviceBuffer<T>,
     grad_out_layout: &Layout,
     input: &B::DeviceBuffer<T>,
@@ -107,131 +56,32 @@ pub(crate) fn max_pool2d_backward<T: Scalar, B: Backend>(
     grad_input_layout: &Layout,
 ) -> Result<(), B::Error>
 where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let parameters = PoolParameters {
+    check_rank("max pool 2d backward", grad_out_layout, 4)?;
+    check_rank("max pool 2d backward", input_layout, 4)?;
+    let grad_out_slice = grad_out.as_slice();
+    let grad_input_slice = grad_input.as_mut_slice()?;
+    coeus_leto::pooling_backward_into(
+        leto_ops::PoolingMode::Maximum,
+        grad_out_layout,
+        grad_out_slice,
+        Some((input_layout, input.as_slice())),
         kernel_size,
         stride,
         padding,
         dilation,
-    };
-    let counts = validate_backward::<2>(
-        "max_pool2d_backward",
-        input_layout,
-        input.len(),
-        grad_out_layout,
-        grad_out.len(),
         grad_input_layout,
-        grad_input.len(),
-        parameters,
-    )?;
-    let numel_in = counts.input;
-    let c = grad_input_layout.shape()[1];
-    let h = grad_input_layout.shape()[2];
-    let w = grad_input_layout.shape()[3];
-    let h_out = grad_out_layout.shape()[2];
-    let w_out = grad_out_layout.shape()[3];
-    let go_slice = readable_storage("max_pool2d_backward", grad_out)?;
-    let inp_slice = readable_storage("max_pool2d_backward", input)?;
-    let gi_slice = grad_input.as_mut_slice()?;
-
-    let go_ptr = Ptr(go_slice.as_ptr());
-    let gi_ptr = MutPtr(gi_slice.as_mut_ptr());
-    let inp_ptr = Ptr(inp_slice.as_ptr());
-
-    let go_layout = grad_out_layout.clone();
-    let gi_layout = grad_input_layout.clone();
-    let inp_layout = input_layout.clone();
-
-    let pad_s = padding as isize;
-    let stride_s = stride as isize;
-    let dil_s = dilation as isize;
-    let k_size = kernel_size;
-
-    backend.parallel_for(0, numel_in, move |i| {
-        let wi = i % w;
-        let temp1 = i / w;
-        let hi = temp1 % h;
-        let temp2 = temp1 / h;
-        let ci = temp2 % c;
-        let ni = temp2 / c;
-
-        let my_idx = inp_layout.physical_index(&[ni, ci, hi, wi]);
-        let my_val = unsafe { inp_ptr.read(my_idx) };
-
-        let mut sum = T::ZERO;
-
-        for ikh in 0..k_size {
-            let numer_h = hi as isize + pad_s - ikh as isize * dil_s;
-            if numer_h >= 0 && numer_h % stride_s == 0 {
-                let oh = (numer_h / stride_s) as usize;
-                if oh < h_out {
-                    for ikw in 0..k_size {
-                        let numer_w = wi as isize + pad_s - ikw as isize * dil_s;
-                        if numer_w >= 0 && numer_w % stride_s == 0 {
-                            let ow = (numer_w / stride_s) as usize;
-                            if ow < w_out {
-                                let mut max_val: Option<T> = None;
-                                let mut max_h: usize = 0;
-                                let mut max_w: usize = 0;
-
-                                for jkh in 0..k_size {
-                                    let h_in =
-                                        oh as isize * stride_s + jkh as isize * dil_s - pad_s;
-                                    if h_in >= 0 && (h_in as usize) < h {
-                                        for jkw in 0..k_size {
-                                            let w_in = ow as isize * stride_s
-                                                + jkw as isize * dil_s
-                                                - pad_s;
-                                            if w_in >= 0 && (w_in as usize) < w {
-                                                let input_idx = inp_layout.physical_index(&[
-                                                    ni,
-                                                    ci,
-                                                    h_in as usize,
-                                                    w_in as usize,
-                                                ]);
-                                                let val = unsafe { inp_ptr.read(input_idx) };
-                                                let is_new_max = match max_val {
-                                                    None => true,
-                                                    Some(m) => val > m,
-                                                };
-                                                if is_new_max {
-                                                    max_val = Some(val);
-                                                    max_h = h_in as usize;
-                                                    max_w = w_in as usize;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if max_h == hi
-                                    && max_w == wi
-                                    && max_val.is_some_and(|m| my_val == m)
-                                {
-                                    let go_idx = go_layout.physical_index(&[ni, ci, oh, ow]);
-                                    let gval = unsafe { go_ptr.read(go_idx) };
-                                    sum += gval;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let gi_idx = gi_layout.physical_index(&[ni, ci, hi, wi]);
-        unsafe {
-            let old = gi_ptr.read(gi_idx);
-            gi_ptr.write(gi_idx, old + sum);
-        }
-    });
-    Ok(())
+        grad_input_slice,
+    )
+    .map_err(|error| map_leto_error("max pool 2d backward", error))
 }
 
 #[inline]
-pub(crate) fn max_pool3d<T: Scalar, B: Backend>(
-    backend: &B,
+pub(crate) fn max_pool3d<T, B>(
+    _backend: &B,
     input: &B::DeviceBuffer<T>,
     input_layout: &Layout,
     kernel_size: usize,
@@ -242,100 +92,30 @@ pub(crate) fn max_pool3d<T: Scalar, B: Backend>(
     output_layout: &Layout,
 ) -> Result<(), B::Error>
 where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let parameters = PoolParameters {
+    check_rank("max pool 3d", input_layout, 5)?;
+    let input_slice = input.as_slice();
+    let output_slice = output.as_mut_slice()?;
+    coeus_leto::pooling_forward_into(
+        leto_ops::PoolingMode::Maximum,
+        input_layout,
+        input_slice,
         kernel_size,
         stride,
         padding,
         dilation,
-    };
-    let out_numel = validate_forward::<3>(
-        "max_pool3d",
-        input_layout,
-        input.len(),
         output_layout,
-        output.len(),
-        parameters,
-    )?;
-    let c = input_layout.shape()[1];
-    let d = input_layout.shape()[2];
-    let h = input_layout.shape()[3];
-    let w = input_layout.shape()[4];
-    let d_out = output_layout.shape()[2];
-    let h_out = output_layout.shape()[3];
-    let w_out = output_layout.shape()[4];
-    let input_slice = readable_storage("max_pool3d", input)?;
-    let output_slice = output.as_mut_slice()?;
-
-    let input_ptr = Ptr(input_slice.as_ptr());
-    let output_ptr = MutPtr(output_slice.as_mut_ptr());
-
-    let input_layout = input_layout.clone();
-    let output_layout = output_layout.clone();
-
-    let pad_s = padding as isize;
-    let stride_s = stride as isize;
-    let dil_s = dilation as isize;
-    let k_size = kernel_size;
-
-    backend.parallel_for(0, out_numel, move |i| {
-        let ow = i % w_out;
-        let temp1 = i / w_out;
-        let oh = temp1 % h_out;
-        let temp2 = temp1 / h_out;
-        let od = temp2 % d_out;
-        let temp3 = temp2 / d_out;
-        let ci = temp3 % c;
-        let ni = temp3 / c;
-
-        let mut max_val: Option<T> = None;
-
-        for ikd in 0..k_size {
-            let d_in = od as isize * stride_s + ikd as isize * dil_s - pad_s;
-            if d_in >= 0 && (d_in as usize) < d {
-                for ikh in 0..k_size {
-                    let h_in = oh as isize * stride_s + ikh as isize * dil_s - pad_s;
-                    if h_in >= 0 && (h_in as usize) < h {
-                        for ikw in 0..k_size {
-                            let w_in = ow as isize * stride_s + ikw as isize * dil_s - pad_s;
-                            if w_in >= 0 && (w_in as usize) < w {
-                                let input_idx = input_layout.physical_index(&[
-                                    ni,
-                                    ci,
-                                    d_in as usize,
-                                    h_in as usize,
-                                    w_in as usize,
-                                ]);
-                                let val = unsafe { input_ptr.read(input_idx) };
-                                max_val = Some(match max_val {
-                                    None => val,
-                                    Some(m) => {
-                                        if val > m {
-                                            val
-                                        } else {
-                                            m
-                                        }
-                                    }
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let output_idx = output_layout.physical_index(&[ni, ci, od, oh, ow]);
-        unsafe {
-            output_ptr.write(output_idx, max_val.unwrap_or(T::ZERO));
-        }
-    });
-    Ok(())
+        output_slice,
+    )
+    .map_err(|error| map_leto_error("max pool 3d", error))
 }
 
 #[inline]
-pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
-    backend: &B,
+pub(crate) fn max_pool3d_backward<T, B>(
+    _backend: &B,
     grad_out: &B::DeviceBuffer<T>,
     grad_out_layout: &Layout,
     input: &B::DeviceBuffer<T>,
@@ -348,153 +128,25 @@ pub(crate) fn max_pool3d_backward<T: Scalar, B: Backend>(
     grad_input_layout: &Layout,
 ) -> Result<(), B::Error>
 where
+    T: Scalar + leto_ops::Scalar,
+    B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    let parameters = PoolParameters {
+    check_rank("max pool 3d backward", grad_out_layout, 5)?;
+    check_rank("max pool 3d backward", input_layout, 5)?;
+    let grad_out_slice = grad_out.as_slice();
+    let grad_input_slice = grad_input.as_mut_slice()?;
+    coeus_leto::pooling_backward_into(
+        leto_ops::PoolingMode::Maximum,
+        grad_out_layout,
+        grad_out_slice,
+        Some((input_layout, input.as_slice())),
         kernel_size,
         stride,
         padding,
         dilation,
-    };
-    let counts = validate_backward::<3>(
-        "max_pool3d_backward",
-        input_layout,
-        input.len(),
-        grad_out_layout,
-        grad_out.len(),
         grad_input_layout,
-        grad_input.len(),
-        parameters,
-    )?;
-    let numel_in = counts.input;
-    let c = grad_input_layout.shape()[1];
-    let d = grad_input_layout.shape()[2];
-    let h = grad_input_layout.shape()[3];
-    let w = grad_input_layout.shape()[4];
-    let d_out = grad_out_layout.shape()[2];
-    let h_out = grad_out_layout.shape()[3];
-    let w_out = grad_out_layout.shape()[4];
-    let go_slice = readable_storage("max_pool3d_backward", grad_out)?;
-    let inp_slice = readable_storage("max_pool3d_backward", input)?;
-    let gi_slice = grad_input.as_mut_slice()?;
-
-    let go_ptr = Ptr(go_slice.as_ptr());
-    let gi_ptr = MutPtr(gi_slice.as_mut_ptr());
-    let inp_ptr = Ptr(inp_slice.as_ptr());
-
-    let go_layout = grad_out_layout.clone();
-    let gi_layout = grad_input_layout.clone();
-    let inp_layout = input_layout.clone();
-
-    let pad_s = padding as isize;
-    let stride_s = stride as isize;
-    let dil_s = dilation as isize;
-    let k_size = kernel_size;
-
-    backend.parallel_for(0, numel_in, move |i| {
-        let wi = i % w;
-        let temp1 = i / w;
-        let hi = temp1 % h;
-        let temp2 = temp1 / h;
-        let di = temp2 % d;
-        let temp3 = temp2 / d;
-        let ci = temp3 % c;
-        let ni = temp3 / c;
-
-        let my_idx = inp_layout.physical_index(&[ni, ci, di, hi, wi]);
-        let my_val = unsafe { inp_ptr.read(my_idx) };
-
-        let mut sum = T::ZERO;
-
-        for ikd in 0..k_size {
-            let numer_d = di as isize + pad_s - ikd as isize * dil_s;
-            if numer_d >= 0 && numer_d % stride_s == 0 {
-                let od = (numer_d / stride_s) as usize;
-                if od < d_out {
-                    for ikh in 0..k_size {
-                        let numer_h = hi as isize + pad_s - ikh as isize * dil_s;
-                        if numer_h >= 0 && numer_h % stride_s == 0 {
-                            let oh = (numer_h / stride_s) as usize;
-                            if oh < h_out {
-                                for ikw in 0..k_size {
-                                    let numer_w = wi as isize + pad_s - ikw as isize * dil_s;
-                                    if numer_w >= 0 && numer_w % stride_s == 0 {
-                                        let ow = (numer_w / stride_s) as usize;
-                                        if ow < w_out {
-                                            let mut max_val: Option<T> = None;
-                                            let mut max_d: usize = 0;
-                                            let mut max_h: usize = 0;
-                                            let mut max_w: usize = 0;
-
-                                            for jkd in 0..k_size {
-                                                let d_in = od as isize * stride_s
-                                                    + jkd as isize * dil_s
-                                                    - pad_s;
-                                                if d_in >= 0 && (d_in as usize) < d {
-                                                    for jkh in 0..k_size {
-                                                        let h_in = oh as isize * stride_s
-                                                            + jkh as isize * dil_s
-                                                            - pad_s;
-                                                        if h_in >= 0 && (h_in as usize) < h {
-                                                            for jkw in 0..k_size {
-                                                                let w_in = ow as isize * stride_s
-                                                                    + jkw as isize * dil_s
-                                                                    - pad_s;
-                                                                if w_in >= 0 && (w_in as usize) < w
-                                                                {
-                                                                    let input_idx = inp_layout
-                                                                        .physical_index(&[
-                                                                            ni,
-                                                                            ci,
-                                                                            d_in as usize,
-                                                                            h_in as usize,
-                                                                            w_in as usize,
-                                                                        ]);
-                                                                    let val = unsafe {
-                                                                        inp_ptr.read(input_idx)
-                                                                    };
-                                                                    let is_new_max = match max_val {
-                                                                        None => true,
-                                                                        Some(m) => val > m,
-                                                                    };
-                                                                    if is_new_max {
-                                                                        max_val = Some(val);
-                                                                        max_d = d_in as usize;
-                                                                        max_h = h_in as usize;
-                                                                        max_w = w_in as usize;
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            if max_d == di
-                                                && max_h == hi
-                                                && max_w == wi
-                                                && max_val.is_some_and(|m| my_val == m)
-                                            {
-                                                let go_idx =
-                                                    go_layout.physical_index(&[ni, ci, od, oh, ow]);
-                                                let gval = unsafe { go_ptr.read(go_idx) };
-                                                sum += gval;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let gi_idx = gi_layout.physical_index(&[ni, ci, di, hi, wi]);
-        unsafe {
-            let old = gi_ptr.read(gi_idx);
-            gi_ptr.write(gi_idx, old + sum);
-        }
-    });
-    Ok(())
+        grad_input_slice,
+    )
+    .map_err(|error| map_leto_error("max pool 3d backward", error))
 }

@@ -318,6 +318,83 @@ fn einsum_rejects_invalid_contracts_without_panicking() {
     };
     assert!(matches!(
         source.as_ref().downcast_ref::<BackendError>(),
-        Some(BackendError::Storage { .. })
+        Some(BackendError::EinsumUnsupportedPattern {
+            operand_count: 2,
+            ..
+        })
     ));
+}
+
+#[test]
+fn test_einsum_rejects_empty_subscript_without_panic() {
+    use coeus_autograd::EinsumError;
+
+    // "->" parses to empty labels, which are malformed: the subscript
+    // check must decline before the last-two-dims swap could underflow
+    // `n - 2`, not panic.
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![2, 2], &[1.0f32, 2.0, 3.0, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    assert!(matches!(
+        coeus_autograd::einsum("->", &[&a]),
+        Err(EinsumError::MalformedSubscript { .. })
+    ));
+}
+
+#[test]
+fn test_einsum_rejects_unsupported_arity() {
+    use coeus_autograd::EinsumError;
+
+    // Three parts with three Vars passes the count and rank checks but no
+    // two-operand branch applies (three-operand contraction is `einsum3`'s
+    // entry).
+    let backend = MoiraiBackend::new();
+    let mk = |v: f32| {
+        Var::new(
+            Tensor::from_slice_on(vec![2, 2], &[v, v, v, v], &backend)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds")
+    };
+    let (a, b, c) = (mk(1.0), mk(2.0), mk(3.0));
+    assert!(matches!(
+        coeus_autograd::einsum("ij,jk,kl->il", &[&a, &b, &c]),
+        Err(EinsumError::UnsupportedPattern {
+            operand_count: 3,
+            ..
+        })
+    ));
+}
+
+#[test]
+fn test_einsum_dot_rejects_length_mismatch() {
+    use coeus_autograd::EinsumError;
+
+    // Same label, different extents: the contracted-dimension check must
+    // report the mismatch instead of letting `mul` broadcast or fail.
+    let backend = MoiraiBackend::new();
+    let a = Var::new(
+        Tensor::from_slice_on(vec![4], &[1.0f32, 2.0, 3.0, 4.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let b = Var::new(
+        Tensor::from_slice_on(vec![3], &[1.0f32, 0.0, 1.0], &backend)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let Err(EinsumError::ShapeMismatch { left, right, .. }) =
+        coeus_autograd::einsum("i,i->", &[&a, &b])
+    else {
+        panic!("invariant: length mismatch reports ShapeMismatch");
+    };
+    assert_eq!(left, [4]);
+    assert_eq!(right, [3]);
 }

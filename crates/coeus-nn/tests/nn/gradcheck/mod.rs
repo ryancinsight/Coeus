@@ -9,7 +9,7 @@ mod pooling;
 
 use coeus_autograd::{mul, sum, Var};
 use coeus_core::MoiraiBackend;
-use coeus_core::{CpuAddressableStorage, Float};
+use coeus_core::{CpuAddressableStorage, Float, FloatElement};
 use coeus_tensor::Tensor;
 
 /// Bound shared by every scalar type this module instantiates checks at.
@@ -24,7 +24,8 @@ use coeus_tensor::Tensor;
 /// itself to read perturbed values back off the backend; naming it here once
 /// lets a generic check function state a single bound instead of repeating
 /// gradcheck's own where-clause at every call site.
-pub trait GradcheckScalar: Float + leto_ops::Scalar + coeus_leto::RealScalar
+pub trait GradcheckScalar:
+    Float + FloatElement + leto_ops::Scalar + coeus_leto::RealScalar
 where
     MoiraiBackend: coeus_ops::BackendOps<Self>,
     <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<Self>: CpuAddressableStorage<Self>,
@@ -33,7 +34,7 @@ where
 
 impl<T> GradcheckScalar for T
 where
-    T: Float + leto_ops::Scalar + coeus_leto::RealScalar,
+    T: Float + FloatElement + leto_ops::Scalar + coeus_leto::RealScalar,
     MoiraiBackend: coeus_ops::BackendOps<T>,
     <MoiraiBackend as coeus_core::ComputeBackend>::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
@@ -100,7 +101,7 @@ impl Sampler {
         let values: Vec<T> = self
             .values(count)
             .into_iter()
-            .map(<T as coeus_core::Scalar>::from_f64)
+            .map(<T as FloatElement>::from_f64)
             .collect();
         Tensor::from_slice_on(shape.to_vec(), &values, &MoiraiBackend::new())
             .expect("invariant: test backend operation succeeds")

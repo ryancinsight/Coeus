@@ -11,10 +11,11 @@ use std::ops::Rem;
 ///   Hephaestus; keeping it on `Scalar` prevents backend seams from accepting
 ///   a host-only numeric type that cannot cross a device boundary.
 /// - `NumericElement` is the eunomia SSOT element vocabulary (constants
-///   `ZERO`/`ONE`/etc., `abs`/`sqrt`/`is_finite`/`is_nan`/`to_f64`/`from_f64`/
+///   `ZERO`/`ONE`/etc., `abs`/`sqrt`/`is_finite`/`is_nan`/`to_f64`/
 ///   `try_from_count`, plus `Add`/`Sub`/`Mul`/`Div`/`Assigns`/`Copy`/`Send`/`Sync`/
-///   `'static`/`Debug`/`PartialOrd`). Backend `Scalar` traits must extend—
-///   not redeclare—`NumericElement`.
+///   `'static`/`Debug`/`PartialOrd`); `from_f64` lives one level down on
+///   `FloatElement`, and integer `f64` conversion on `IntegerTarget`.
+///   Backend `Scalar` traits must extend—not redeclare—this vocabulary.
 /// - `Rem<Output=Self>` is per-Scalar (not on `NumericElement`).
 /// - Sealed via `eunomia::private::Sealed`.
 ///
@@ -49,9 +50,6 @@ pub trait Scalar:
     fn has_zero_bit_pattern(&self) -> bool {
         bytemuck::bytes_of(self).iter().all(|&byte| byte == 0)
     }
-
-    /// Construct a scalar from `f64`.
-    fn from_f64(v: f64) -> Self;
 
     /// Scalar square root.
     fn sqrt_val(self) -> Self;

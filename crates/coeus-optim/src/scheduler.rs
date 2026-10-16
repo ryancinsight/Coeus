@@ -3,7 +3,7 @@
 // Zero-cost scheduler strategies encoded as ZST-compatible value types.
 // `LrScheduler<T, B, O, S>` wraps any `Optimizer<T, B>` and a `SchedulerStrategy`.
 // Strategy computation executes in `f64` (schedule math) and converts to `T` via
-// `Scalar::from_f64` at the `set_lr` boundary — the only precision crossing.
+// `FloatElement::from_f64` at the `set_lr` boundary — the only precision crossing.
 
 use crate::traits::Optimizer;
 use coeus_core::Float;
@@ -145,7 +145,7 @@ impl SchedulerStrategy for WarmupCosine {
 ///
 /// Monomorphized over `(T, B, O: Optimizer<T,B>, S: SchedulerStrategy)`.
 /// The only overhead beyond `O::step()` is one `f64` multiply (strategy), one
-/// `Scalar::from_f64` cast, and one `O::set_lr` call per training step.
+/// `FloatElement::from_f64` cast, and one `O::set_lr` call per training step.
 ///
 /// # Examples
 ///
@@ -190,7 +190,7 @@ where
 
 impl<T, B, O, S> LrScheduler<T, B, O, S>
 where
-    T: Float,
+    T: Float + coeus_core::FloatElement,
     B: coeus_ops::BackendOps<T> + coeus_ops::OptimizerOps<T> + Default,
     O: Optimizer<T, B>,
     S: SchedulerStrategy,
@@ -210,7 +210,7 @@ where
 
     /// Advance one training step:
     /// 1. Compute the new LR via the strategy.
-    /// 2. Set LR on the optimizer (`T::from_f64` conversion at boundary).
+    /// 2. Set LR on the optimizer (`FloatElement::from_f64` conversion at boundary).
     /// 3. Call `optimizer.step()`.
     /// 4. Increment `self.step`.
     ///
@@ -220,7 +220,8 @@ where
     #[inline]
     pub fn step(&mut self) -> Result<(), B::Error> {
         let new_lr = self.strategy.lr(self.base_lr, self.step);
-        self.optimizer.set_lr(T::from_f64(new_lr));
+        self.optimizer
+            .set_lr(<T as coeus_core::FloatElement>::from_f64(new_lr));
         self.optimizer.step()?;
         self.step += 1;
         Ok(())

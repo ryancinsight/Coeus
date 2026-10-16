@@ -81,4 +81,5 @@
 | [0078](0078-fallible-tensor-storage.md) | Fallible tensor storage operations | Accepted |
 | [0079](0079-fallible-provider-initialization-transfer.md) | Fallible Hephaestus provider initialization and transfer | Proposed |
 | [0080](0080-concern-owned-adaptation-crate-names.md) | Concern-owned names for the CPU and accelerator adaptation crates | Proposed |
-| [0081](0081-autograd-mean-float-contract.md) | Floating-point autograd mean contract | Accepted |
+| [0081](0081-scalar-from-f64-deletion.md) | Delete `Scalar::from_f64` in favor of the eunomia element vocabulary | Accepted |
+| [0082](0082-autograd-mean-float-contract.md) | Floating-point autograd mean contract | Accepted |

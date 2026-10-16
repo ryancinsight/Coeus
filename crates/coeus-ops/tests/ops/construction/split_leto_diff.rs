@@ -13,7 +13,7 @@ use coeus_tensor::{Tensor, Transpose};
 
 fn tensor_from_slice<T, B>(shape: &[usize], data: &[T], backend: &B) -> Tensor<T, B>
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -28,13 +28,16 @@ fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
     }
 }
 
-fn values<T: Scalar, const N: usize>(input: [f64; N]) -> Vec<T> {
-    input.into_iter().map(T::from_f64).collect()
+fn values<T: Scalar + coeus_core::FloatElement, const N: usize>(input: [f64; N]) -> Vec<T> {
+    input
+        .into_iter()
+        .map(<T as coeus_core::FloatElement>::from_f64)
+        .collect()
 }
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: Scalar,
+    T: Scalar + coeus_core::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

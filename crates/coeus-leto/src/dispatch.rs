@@ -44,6 +44,8 @@ pub mod init;
 pub mod layout;
 /// Linear algebra dispatch (matmul, batched_matmul, accumulate variants).
 pub mod linalg;
+/// Spatial pooling dispatch (max/average forward and backward accumulate).
+pub mod pooling;
 /// Reduction and scan dispatch (sum, mean, max, min, cumulative sum/product,
 /// argmax, argmin).
 pub mod reductions;
@@ -55,6 +57,8 @@ pub mod sparse;
 pub mod stateful_update;
 /// Structural tensor ops dispatch (pad, concat, split, stack).
 pub mod structural;
+/// Sliding-window extraction (unfold) and adjoint accumulation (fold).
+pub mod unfold_fold;
 
 pub use attention::{
     scaled_dot_product_attention_backward_accumulate, scaled_dot_product_attention_into,
@@ -78,6 +82,7 @@ pub use layout::{
 pub use linalg::{
     batched_matmul_accumulate_into, batched_matmul_into, matmul_accumulate_into, matmul_into,
 };
+pub use pooling::{pooling_backward_into, pooling_forward_into};
 pub use reductions::{
     argmax_into, argmin_into, cumprod_into, cumsum_into, mean_into, reduce_into, suffix_prod_into,
     suffix_sum_into,
@@ -90,3 +95,4 @@ pub use stateful_update::{
     MAX_STATEFUL_UPDATE_RANK,
 };
 pub use structural::{concat_values, pad_values, split_values, stack_values};
+pub use unfold_fold::{fold1d_into, fold2d_into, unfold1d_into, unfold2d_into};

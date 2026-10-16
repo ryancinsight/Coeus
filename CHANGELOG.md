@@ -12,7 +12,7 @@
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
   provider mean and `mean_axis`. Integer callers explicitly choose a floating
   tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
-  add the floating-point bound. See [ADR 0081](docs/adr/0081-autograd-mean-float-contract.md#migration).
+  add the floating-point bound. See [ADR 0082](docs/adr/0082-autograd-mean-float-contract.md#migration).
 
 - [major] Scalar reductions (`sum`, `mean`, `amax`, `amin`, `prod`, `norm`,
   `norm_p`, `var_mean`, plus delegating `var`, `std_dev`, `std_mean`,

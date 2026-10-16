@@ -22,7 +22,7 @@ fn three_dimensional_backward_matches_analytical_derivatives() {
         true,
     )
     .expect("invariant: test backend operation succeeds");
-    let sampled = linear_interpolation::<3, _, _>(&image, &grid, Replicate)
+    let sampled = linear_interpolation::<f32, 3, _, _>(&image, &grid, Replicate)
         .expect("valid three-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[3.5]);
     sum(&sampled)
@@ -54,7 +54,7 @@ fn two_dimensional_backward_matches_analytical_derivatives() {
         true,
     )
     .expect("invariant: test backend operation succeeds");
-    let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
+    let sampled = linear_interpolation::<f32, 2, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     assert_eq!(sampled.tensor.as_slice(), &[1.25]);
     sum(&sampled)
@@ -86,7 +86,7 @@ fn constant_image_has_zero_coordinate_gradient() {
         true,
     )
     .expect("invariant: test backend operation succeeds");
-    let sampled = linear_interpolation::<2, _, _>(&image, &grid, Replicate)
+    let sampled = linear_interpolation::<f32, 2, _, _>(&image, &grid, Replicate)
         .expect("valid two-dimensional contract");
     sum(&sampled)
         .expect("invariant: test operation succeeds")

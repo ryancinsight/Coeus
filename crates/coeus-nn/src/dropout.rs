@@ -37,7 +37,9 @@ impl Dropout {
     }
 }
 
-impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for Dropout {
+impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+    for Dropout
+{
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]
     }

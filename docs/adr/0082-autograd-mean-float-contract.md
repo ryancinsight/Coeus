@@ -1,4 +1,4 @@
-# ADR 0081: Floating-point autograd mean contract
+# ADR 0082: Floating-point autograd mean contract
 
 Status: Accepted  \
 Date: 2026-10-14  \
@@ -14,8 +14,11 @@ has sum 1 but its count converts to infinity, so forward returns zero rather
 than the representable mean 2^-16 (bits 0x0100).
 
 PR #494 closed unmerged. PR #523 delivered the GPU generic-reduction
-restriction; the current autograd signatures prove that whole-tensor mean
-still needs its floating-point contract.
+restriction. Rechecking main `9fc433b0` after #554/#562 confirms both autograd
+entry points now require `FloatElement`; retain that upstream contract and
+add integer compile-fail regression coverage. Its forward still divides by
+`T::from_count(N)`, so the F16 overflow defect remains. The companion F16
+minimum-normal constant is still `0x0040` rather than `0x0400`.
 
 ## Decision
 
@@ -63,8 +66,9 @@ NN-layer convolution and pooling gradchecks belong to the downstream NN test
 package. Keeping those 15 unchanged dual-scalar cases there removes the
 versioned autograd-to-NN development edge, so autograd can package before NN.
 Each package retains its own executable test fixtures; no cross-package test
-paths or stripped dependencies are used to hide the cycle. The combined test
-inventory remains 688 cases, including the same eight existing skips.
+paths or stripped dependencies are used to hide the cycle. The original 688-case test inventory and its eight existing skips are historical;
+upstream has since added interpolation, embedding and backend checks. Retain
+those additions and rerun the combined inventory after reconciliation.
 
 ## Current provider cohort integration
 
@@ -87,7 +91,7 @@ Moirai #623 separately owns compatible runtime 0.9.3 for its private Mnemosyne
 0.10 edge. Require 0.9.3 after its reviewed publication; no older runtime graph
 or duplicate implementation supplies acceptance. Preserve #622 and Metis #504.
 
-## Current integration evidence
+## Historical integration evidence before main #553–569
 
 Leto and Leto-ops 0.46 are published from 8b4ab407. Hephaestus #493 is
 merged/published at 672c5abc; all six actual archive checksums and source
@@ -110,8 +114,9 @@ Current main's math and dtype-trait splits are integrated without changing the
 four numerical implementation/regression files. The authorized follow-up changes
 only three cast expressions in the incoming code, preserving const signatures
 and behavior through coercion/byte decoding. Rename
-only this ADR to 0081 because newly merged main owns 0079/0080. Preserve that
-ownership and run all final Coeus gates on the eventual actual provider graph.
+only this unpublished ADR to 0082 because main now owns 0081 for scalar
+vocabulary deletion. Preserve that ownership and run all final Coeus gates
+on the eventual actual provider graph.
 
 ## Remaining integration gate
 
@@ -169,7 +174,9 @@ records. Hephaestus/Apollo candidates are prepared but unvalidated.
 New explicit human prerequisite authorization permits one exact retry of the
 previously rejected four-provider action. Approval accepts the retry; the
 Aequitas, Mnemosyne and Hermes tracked pushes pass. The Leto tracked native
-Python link step fails and remains unbypassed. No second approval denial occurs.
+Python link step initially fails. The separately owned, reviewed Atlas #542 /
+Leto #365 repair has since merged and Python 0.46.1 is published; that repair
+does not resolve the pending Eunomia version-policy decision. No gate is bypassed.
 
 No existing trait, type, signature or runtime numeric behavior breaks in the
 factory change. An unchanged external old-API consumer passes both 0.10 and the
@@ -221,3 +228,24 @@ before the actual factory/version release. Repeat applicable exact-final-head
 gates after consuming that provider. Ryan's explicit version-policy answer
 remains pending; elapsed time is not approval. No provider merge/publication
 or Miri/hardware/wheel-matrix acceptance follows from this independent run.
+
+
+## Main #553–569 source reconciliation
+
+The isolated continuation merges exact main
+`9fc433b032134d79a52b9294116714737c787d47`, including merged #566, into
+preserved repair checkpoint `cf75fc0fd3284cfa62f84be5d50a73f29a7ad881`.
+The original checkout and remote draft #528 stay unchanged. Keep upstream's
+FloatElement vocabulary, cross-host seams, CPU pooling/unfold delegation,
+typed einsum errors, gradient coverage and all unrelated board entries.
+The relocated NN test helper follows the same FloatElement vocabulary;
+its 15 tests retain their inputs, weighting and tolerances. Sparse #533 and
+other open owners remain untouched.
+
+All Git provider sources and all 231 registry records match this main;
+no pending factory, version exception or range candidate is selected.
+Before applying the numerical repairs, the unchanged analytical regression
+files on exact main execute six cases: four pass and two fail. The F16
+length-65536 mean produces `0x0000` instead of `0x0100`, and F16 minimum
+positive produces `0x0040` instead of `0x0400`. After-source and final-head
+checks remain to be recorded. Coeus Miri remains deferred and unverified.

@@ -1,6 +1,6 @@
 use super::{
     count, ctc_loss, probability_logs, variable, BackendError, BackendOps, BinaryPrecision, CtcOps,
-    Float, Scalar, Tensor,
+    Float, Tensor,
 };
 
 fn rejected<T, B>(
@@ -16,7 +16,7 @@ where
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
     let input = variable::<T, B>(logs, [2, 1, 2]);
-    let initial = <T as Scalar>::from_f64(0.75);
+    let initial = <T as coeus_core::FloatElement>::from_f64(0.75);
     input.set_grad(
         Tensor::from_slice([2, 1, 2], &[initial; 4])
             .expect("invariant: test backend operation succeeds"),
@@ -100,7 +100,7 @@ where
     // Sample zero is feasible. Sample one needs a blank between repeated labels
     // and cannot fit in two frames. Rejection must precede *all* accumulation.
     let input = variable::<T, B>(&probability_logs::<T>(&[0.5; 8]), [2, 2, 2]);
-    let initial = <T as Scalar>::from_f64(0.75);
+    let initial = <T as coeus_core::FloatElement>::from_f64(0.75);
     input.set_grad(
         Tensor::from_slice([2, 2, 2], &[initial; 8])
             .expect("invariant: test backend operation succeeds"),

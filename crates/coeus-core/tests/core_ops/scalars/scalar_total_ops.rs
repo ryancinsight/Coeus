@@ -7,7 +7,7 @@
 //! type is covered by adding it to the list here rather than by a hand-added
 //! copy of the whole test.
 
-use coeus_core::{Complex, Float, Scalar};
+use coeus_core::{Complex, Float, FloatElement, Scalar};
 use eunomia::{Bf16, F16};
 use std::fmt::Debug;
 
@@ -62,7 +62,7 @@ fn assert_float_total_ops<T: Float + Debug>() {
 /// implements `Scalar` but not `Float`, and its arithmetic is component-wise,
 /// so overflow and normal cases follow the same IEEE 754 rule at the
 /// component level as [`assert_float_total_ops`]'s real float types.
-fn assert_complex_total_ops<T: Float + core::ops::Neg<Output = T> + Debug>() {
+fn assert_complex_total_ops<T: Float + FloatElement + core::ops::Neg<Output = T> + Debug>() {
     let huge = Complex::<T>::new(T::MAX, T::ZERO);
     let overflowed = huge.total_add(huge);
     assert!(

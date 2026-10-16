@@ -18,18 +18,18 @@ use coeus_ops::{BinaryOp, CpuBackend};
 const SIZES: &[usize] = &[1, 2, 7, 8, 31, 8192, 8193, 16_384, 20_001];
 
 /// Scalar reference for a single op, in the element type's native precision.
-fn reference<T: Scalar>(op: BinaryOp, x: T, y: T) -> T {
+fn reference<T: Scalar + coeus_core::FloatElement>(op: BinaryOp, x: T, y: T) -> T {
     match op {
         BinaryOp::Add => x + y,
         BinaryOp::Sub => x - y,
         BinaryOp::Mul => x * y,
         BinaryOp::Div => x / y,
-        BinaryOp::Eq => T::from_f64(if x == y { 1.0 } else { 0.0 }),
-        BinaryOp::Ne => T::from_f64(if x != y { 1.0 } else { 0.0 }),
-        BinaryOp::Lt => T::from_f64(if x < y { 1.0 } else { 0.0 }),
-        BinaryOp::Gt => T::from_f64(if x > y { 1.0 } else { 0.0 }),
-        BinaryOp::Le => T::from_f64(if x <= y { 1.0 } else { 0.0 }),
-        BinaryOp::Ge => T::from_f64(if x >= y { 1.0 } else { 0.0 }),
+        BinaryOp::Eq => <T as coeus_core::FloatElement>::from_f64(if x == y { 1.0 } else { 0.0 }),
+        BinaryOp::Ne => <T as coeus_core::FloatElement>::from_f64(if x != y { 1.0 } else { 0.0 }),
+        BinaryOp::Lt => <T as coeus_core::FloatElement>::from_f64(if x < y { 1.0 } else { 0.0 }),
+        BinaryOp::Gt => <T as coeus_core::FloatElement>::from_f64(if x > y { 1.0 } else { 0.0 }),
+        BinaryOp::Le => <T as coeus_core::FloatElement>::from_f64(if x <= y { 1.0 } else { 0.0 }),
+        BinaryOp::Ge => <T as coeus_core::FloatElement>::from_f64(if x >= y { 1.0 } else { 0.0 }),
     }
 }
 
@@ -73,14 +73,20 @@ where
     out
 }
 
-fn check_op<T: Scalar + leto_ops::Scalar, B: CpuBackend>(backend: &B, op: BinaryOp)
-where
+fn check_op<T: Scalar + leto_ops::Scalar + coeus_core::FloatElement, B: CpuBackend>(
+    backend: &B,
+    op: BinaryOp,
+) where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     for &n in SIZES {
         // Deterministic inputs; b is always >= 1 so Div has no zero divisor.
-        let a: Vec<T> = (0..n).map(|i| T::from_f64(i as f64 * 0.5 - 3.0)).collect();
-        let b: Vec<T> = (0..n).map(|i| T::from_f64((i % 7) as f64 + 1.0)).collect();
+        let a: Vec<T> = (0..n)
+            .map(|i| <T as coeus_core::FloatElement>::from_f64(i as f64 * 0.5 - 3.0))
+            .collect();
+        let b: Vec<T> = (0..n)
+            .map(|i| <T as coeus_core::FloatElement>::from_f64((i % 7) as f64 + 1.0))
+            .collect();
 
         let got = device_binary(backend, op, &a, &b);
         let expected: Vec<T> = a

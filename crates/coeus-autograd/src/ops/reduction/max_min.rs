@@ -11,7 +11,7 @@
 //     tie_count = sum_axis(mask_raw, axis)
 //     mask = mask_raw / broadcast(tie_count, input_shape)
 //     grad_in = broadcast(grad_out, input_shape) * mask
-//   eps = T::from_f64(1e-30) — exploits the fact that floating-point max is exact.
+//   eps = <T as FloatElement>::from_f64(1e-30) — exploits the fact that floating-point max is exact.
 
 use crate::grad_buffer::GradBuffer;
 use crate::node::BackwardNode;
@@ -33,8 +33,10 @@ pub struct MaxAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>
-    BackwardNode<T, B> for MaxAxisNode<T, B>
+impl<
+        T: Scalar + FloatOps + coeus_core::FloatElement + leto_ops::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > BackwardNode<T, B> for MaxAxisNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -63,7 +65,7 @@ impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + 
 
         let eps = Tensor::full_on(
             self.input_tensor.shape(),
-            <T as coeus_core::Scalar>::from_f64(1e-30),
+            <T as coeus_core::FloatElement>::from_f64(1e-30),
             &backend,
         )?;
         let diff = coeus_ops::sub(&self.input_tensor, &max_broad, &backend)?;
@@ -137,8 +139,10 @@ pub struct MinAxisNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
     pub axis: usize,
 }
 
-impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + Default>
-    BackwardNode<T, B> for MinAxisNode<T, B>
+impl<
+        T: Scalar + FloatOps + coeus_core::FloatElement + leto_ops::RealScalar,
+        B: coeus_ops::BackendOps<T> + Default,
+    > BackwardNode<T, B> for MinAxisNode<T, B>
 {
     #[inline]
     fn op_name(&self) -> &'static str {
@@ -166,7 +170,7 @@ impl<T: Scalar + FloatOps + leto_ops::RealScalar, B: coeus_ops::BackendOps<T> + 
         let min_broad = self.min_tensor.broadcast(self.input_tensor.shape_cloned());
         let eps = Tensor::full_on(
             self.input_tensor.shape(),
-            <T as coeus_core::Scalar>::from_f64(1e-30),
+            <T as coeus_core::FloatElement>::from_f64(1e-30),
             &backend,
         )?;
         let diff = coeus_ops::sub(&self.input_tensor, &min_broad, &backend)?;

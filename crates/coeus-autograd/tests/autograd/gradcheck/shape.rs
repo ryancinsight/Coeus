@@ -111,7 +111,7 @@ fn pad_case<T: GradcheckScalar>() {
             &pad(
                 &v[0],
                 &[(1, 1), (2, 1)],
-                <T as coeus_core::Scalar>::from_f64(0.0),
+                <T as coeus_core::FloatElement>::from_f64(0.0),
             )
             .expect("invariant: test operation succeeds"),
             &w,
@@ -334,7 +334,7 @@ fn index_select_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&SHAPE, 0.79);
     let index_values: Vec<T> = [0.0, 1.0, 1.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let index = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on([3], &index_values, &backend)
@@ -367,7 +367,7 @@ fn scatter_add_case<T: GradcheckScalar>() {
     let src = tensor::<T>(&[3, 2], 0.89);
     let index_values: Vec<T> = [0.0, 2.0, 1.0, 1.0, 3.0, 0.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let index = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on([3, 2], &index_values, &backend)
@@ -399,7 +399,7 @@ fn masked_fill_case<T: GradcheckScalar>() {
     let x = tensor::<T>(&[2, 4], 0.91);
     let mask_values: Vec<T> = [0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let mask = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on([2, 4], &mask_values, &backend)
@@ -410,7 +410,7 @@ fn masked_fill_case<T: GradcheckScalar>() {
     let w = weighting::<T>(&[2, 4]);
     gradcheck(&[x], |v| {
         weighted(
-            &masked_fill(&v[0], &mask, <T as coeus_core::Scalar>::from_f64(0.0))
+            &masked_fill(&v[0], &mask, <T as coeus_core::FloatElement>::from_f64(0.0))
                 .expect("invariant: test operation succeeds"),
             &w,
         )
@@ -431,7 +431,7 @@ fn where_cond_case<T: GradcheckScalar>() {
     let backend = MoiraiBackend::new();
     let cond_values: Vec<T> = [1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0]
         .into_iter()
-        .map(<T as coeus_core::Scalar>::from_f64)
+        .map(<T as coeus_core::FloatElement>::from_f64)
         .collect();
     let cond = Var::new(
         Tensor::<T, MoiraiBackend>::from_slice_on([2, 4], &cond_values, &backend)
