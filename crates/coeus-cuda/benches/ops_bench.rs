@@ -190,10 +190,65 @@ fn bench_reduction_crossover(c: &mut Criterion) {
     group.finish();
 }
 
+/// One-shot device dot vs the composed mul+sum path: measures the headroom
+/// for binding `coeus_ops::dot` to `DenseVectorOps::dot`
+/// (COEUS-DOT-CROSS-HOST-COPY). Both sides read one scalar back; the delta
+/// is the intermediate product tensor plus the second kernel launch.
+fn bench_dot(c: &mut Criterion) {
+    if !cuda_available() {
+        return;
+    }
+    use hephaestus_cuda::{CudaDevice, CudaVectorOps, DenseVectorOps};
+
+    let seq = SequentialBackend::new();
+    let cuda = CudaBackend::new();
+    let device = CudaDevice::try_default().expect("invariant: CUDA device available");
+    let mut group = c.benchmark_group("CUDA Dot (f32)");
+    for &n in &[4096usize, 1 << 20] {
+        let a = fill(n, 1.0);
+        let b = fill(n, 2.0);
+        let a_cpu = Tensor::<f32, SequentialBackend>::from_slice([n], &a)
+            .expect("invariant: test backend operation succeeds");
+        let b_cpu = Tensor::<f32, SequentialBackend>::from_slice([n], &b)
+            .expect("invariant: test backend operation succeeds");
+        let a_g = a_cpu
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let b_g = b_cpu
+            .to_backend_on(&seq, &cuda)
+            .expect("invariant: test backend transfer succeeds");
+        let ops = CudaVectorOps::<f32>::new(&device).expect("invariant: vector ops acquire");
+        let id = format!("n={n}");
+
+        group.bench_with_input(BenchmarkId::new("composed mul+sum", &id), &id, |bn, _| {
+            bn.iter(|| {
+                black_box(
+                    coeus_ops::dot(black_box(&a_g), black_box(&b_g))
+                        .expect("invariant: test operation succeeds"),
+                )
+            });
+        });
+        group.bench_with_input(BenchmarkId::new("one-shot device", &id), &id, |bn, _| {
+            bn.iter(|| {
+                black_box(
+                    ops.dot(
+                        &device,
+                        black_box(a_g.storage().buffer()),
+                        black_box(b_g.storage().buffer()),
+                    )
+                    .expect("invariant: test operation succeeds"),
+                )
+            });
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_matmul,
     bench_conv_transpose2d,
-    bench_reduction_crossover
+    bench_reduction_crossover,
+    bench_dot
 );
 criterion_main!(benches);
