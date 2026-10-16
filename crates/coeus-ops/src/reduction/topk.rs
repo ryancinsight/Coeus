@@ -2,7 +2,7 @@
 // Returns the k largest (or smallest) values and their indices along a dimension.
 
 use crate::{BackendOps, CpuBackend};
-use coeus_core::{Layout, Scalar};
+use coeus_core::{BackendError, Layout, Scalar};
 use coeus_tensor::Tensor;
 
 /// Computes top-k values for a contiguous slice backing a tensor view.
@@ -166,6 +166,11 @@ pub fn topk<
 }
 
 /// Argmax along `dim`: returns indices of maximum values, shape `x.shape()[dim] = 1`.
+///
+/// # Errors
+///
+/// Returns [`BackendError::AxisOutOfRange`] (as `B::Error`) when `dim` names
+/// no axis of `x`.
 #[inline]
 pub fn argmax<
     T: Scalar + leto_ops::Scalar,
@@ -174,7 +179,13 @@ pub fn argmax<
     x: &Tensor<T, B>,
     dim: usize,
 ) -> Result<Tensor<i64, B>, B::Error> {
-    assert!(dim < x.ndim(), "argmax: dim {dim} out of range");
+    if dim >= x.ndim() {
+        return Err(BackendError::AxisOutOfRange {
+            operation: "argmax",
+            axis: dim,
+            rank: x.ndim(),
+        });
+    }
 
     let backend = B::default();
     let mut out_shape = x.shape_cloned();
@@ -187,6 +198,11 @@ pub fn argmax<
 }
 
 /// Argmin along `dim`: returns indices of minimum values, shape `x.shape()[dim] = 1`.
+///
+/// # Errors
+///
+/// Returns [`BackendError::AxisOutOfRange`] (as `B::Error`) when `dim` names
+/// no axis of `x`.
 #[inline]
 pub fn argmin<
     T: Scalar + leto_ops::Scalar,
@@ -195,7 +211,13 @@ pub fn argmin<
     x: &Tensor<T, B>,
     dim: usize,
 ) -> Result<Tensor<i64, B>, B::Error> {
-    assert!(dim < x.ndim(), "argmin: dim {dim} out of range");
+    if dim >= x.ndim() {
+        return Err(BackendError::AxisOutOfRange {
+            operation: "argmin",
+            axis: dim,
+            rank: x.ndim(),
+        });
+    }
 
     let backend = B::default();
     let mut out_shape = x.shape_cloned();

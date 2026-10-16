@@ -146,6 +146,12 @@ try:
     raise AssertionError("argmax out-of-range dim should fail")
 except ValueError:
     pass
+
+try:
+    pycoeus.argmin(v, 5)
+    raise AssertionError("argmin out-of-range dim should fail")
+except ValueError:
+    pass
 "#,
     );
 }
