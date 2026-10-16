@@ -169,6 +169,69 @@ pub(crate) fn bench_transformer_encoder_forward(c: &mut Criterion) {
     group.finish();
 }
 
+pub(crate) fn bench_transformer_decoder_forward(c: &mut Criterion) {
+    // One Pre-LN transformer decoder layer (masked self-attn + cross-attn +
+    // FFN + 3 LayerNorms) with dropout disabled to match the encoder bench.
+    const B: usize = 8;
+    const SEQ: usize = 64;
+    const D: usize = 256;
+    const D_FF: usize = 1024;
+    const H: usize = 8;
+
+    let dec_seq =
+        TransformerDecoder::<f32, SequentialBackend, H, 1, NullMask, NullMask>::new(D, D_FF, 0.0)
+            .expect("valid sequential decoder benchmark fixture");
+    let dec_moirai =
+        TransformerDecoder::<f32, MoiraiBackend, H, 1, NullMask, NullMask>::new(D, D_FF, 0.0)
+            .expect("valid parallel decoder benchmark fixture");
+    let tgt_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let tgt_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mem_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let mem_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::ones(vec![B, SEQ, D])
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+
+    let mut group =
+        c.benchmark_group("Coeus — Transformer decoder layer forward (8x64x256, d_ff=1024)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(
+                dec_seq
+                    .forward_decoder(black_box(&tgt_seq), black_box(&mem_seq))
+                    .expect("valid transformer decoder benchmark input"),
+            )
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(
+                dec_moirai
+                    .forward_decoder(black_box(&tgt_moirai), black_box(&mem_moirai))
+                    .expect("valid transformer decoder benchmark input"),
+            )
+        })
+    });
+    group.finish();
+}
+
 pub(crate) fn bench_sdp_attention_forward(c: &mut Criterion) {
     // Scaled dot-product attention: [4, 8, 64] Q×K×V (4 heads, seq=8, d_k=64).
     // The output alloc uses alloc_on: every position written by the kernel.

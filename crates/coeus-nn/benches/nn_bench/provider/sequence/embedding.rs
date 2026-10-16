@@ -38,7 +38,7 @@ pub(crate) fn bench_embedding_forward(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
-    // EmbeddingBag sum/mean-mode forward: 16 bags × 100 tokens each, vocab=200, dim=64.
+    // EmbeddingBag sum/mean/max-mode forward: 16 bags × 100 tokens each, vocab=200, dim=64.
     const EB_VOCAB: usize = 200;
     const EB_DIM: usize = 64;
     const EB_BAGS: usize = 16;
@@ -60,6 +60,12 @@ pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
             .expect("invariant: test operation succeeds");
     let eb_mean_moirai =
         EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Mean)
+            .expect("invariant: test operation succeeds");
+    let eb_max_seq =
+        EmbeddingBag::<f32, SequentialBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Max)
+            .expect("invariant: test operation succeeds");
+    let eb_max_moirai =
+        EmbeddingBag::<f32, MoiraiBackend>::new(EB_VOCAB, EB_DIM, EmbeddingBagMode::Max)
             .expect("invariant: test operation succeeds");
 
     let mut group = c.benchmark_group(
@@ -91,6 +97,22 @@ pub(crate) fn bench_embeddingbag_sum(c: &mut Criterion) {
         b.iter(|| {
             black_box(
                 eb_mean_moirai
+                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+            )
+        })
+    });
+    group.bench_function("Coeus Sequential max", |b| {
+        b.iter(|| {
+            black_box(
+                eb_max_seq
+                    .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
+            )
+        })
+    });
+    group.bench_function("Coeus Moirai max", |b| {
+        b.iter(|| {
+            black_box(
+                eb_max_moirai
                     .forward_with_offsets(black_box(&flat_indices), Some(black_box(&offsets))),
             )
         })
