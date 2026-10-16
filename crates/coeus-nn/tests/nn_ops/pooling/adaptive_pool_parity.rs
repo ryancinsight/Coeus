@@ -408,3 +408,26 @@ fn adaptive_pool_rejects_zero_output_dimensions() {
         }
     }
 }
+
+#[test]
+fn adaptive_max_pool1d_tied_maxima_split_gradient_equally() {
+    // [1, 1, 4] ? [1, 1, 2]: region 0 ties at 2.0 (grad 0.5/0.5),
+    // region 1 maxes at 3.0 (grad 1.0). Matches the max_axis convention.
+    let m = AdaptiveMaxPool1d::<f64, SequentialBackend>::new(2);
+    let x = Var::new(
+        Tensor::<f64, SequentialBackend>::from_slice(vec![1, 1, 4], &[2.0_f64, 2.0, 1.0, 3.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let y = m.forward(&x).expect("valid AdaptiveMaxPool1d input");
+    assert_eq!(y.tensor.as_slice(), &[2.0, 3.0]);
+    y.backward()
+        .expect("invariant: valid autograd fixture completes backward");
+    let grad = x
+        .grad()
+        .expect("adaptive max pool 1d tied gradient")
+        .as_slice()
+        .to_vec();
+    assert_eq!(grad, &[0.5, 0.5, 0.0, 1.0]);
+}
