@@ -457,3 +457,7 @@ pub(crate) fn bench_swiglu_forward(c: &mut Criterion) {
     });
     group.finish();
 }
+
+#[path = "sequence/extended.rs"]
+mod extended;
+pub(crate) use extended::*;

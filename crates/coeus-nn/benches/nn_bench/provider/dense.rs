@@ -207,6 +207,51 @@ pub(crate) fn bench_dropout_forward(c: &mut Criterion) {
     group.finish();
 }
 
+pub(crate) fn bench_dropout_train_forward(c: &mut Criterion) {
+    // Dropout train-mode forward (seeded masking, p=0.5): [128, 256].
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| (i as f32 * 0.0023).sin())
+        .collect();
+
+    // Coeus: Dropout is not generic over B; uses f32 Var with default backend.
+    // Default seed 42 keeps train-mode masking deterministic.
+    let mut do_layer = Dropout::new(0.5);
+    do_layer.set_training(true);
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+
+    let mut group = c.benchmark_group("Coeus — Dropout train forward (128x256, p=0.5)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(
+                do_layer
+                    .forward(black_box(&x_seq))
+                    .expect("valid dropout layer benchmark input"),
+            )
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(
+                do_layer
+                    .forward(black_box(&x_moirai))
+                    .expect("valid dropout layer benchmark input"),
+            )
+        })
+    });
+    group.finish();
+}
+
 pub(crate) fn bench_linear_fwd_bwd(c: &mut Criterion) {
     // Linear(256,512) fwd+bwd: [128,256]
     const IN_F: usize = FEATURES;
