@@ -504,3 +504,7 @@ pub(crate) fn bench_adaptive_max_pool2d_forward(c: &mut Criterion) {
     });
     group.finish();
 }
+
+#[path = "pooling_interpolation/extended.rs"]
+mod extended;
+pub(crate) use extended::*;
