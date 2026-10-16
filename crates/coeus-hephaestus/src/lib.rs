@@ -16,6 +16,7 @@ mod dispatch_tests;
 mod elementwise;
 mod error;
 mod fused_reduction;
+mod fusion;
 mod layout;
 mod matmul;
 mod pooling;
@@ -51,6 +52,7 @@ pub use elementwise::{
 };
 pub use error::HephaestusBackendError;
 pub use fused_reduction::fused_selector;
+pub use fusion::{dispatch_fused, dispatch_fused_reduce, FusionBackend};
 pub use matmul::{matmul, MatmulBackend, MatmulProvider};
 pub use pooling::{pooling_backward, pooling_forward, PoolingBackend, PoolingProvider};
 pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};

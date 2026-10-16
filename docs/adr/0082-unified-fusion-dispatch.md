@@ -1,9 +1,14 @@
 # ADR 0082: Unified generic fusion dispatch for CUDA and WGPU
 
-Status: Proposed  \
+Status: Accepted  \
 Date: 2026-10-16  \
 Change class: [arch]  \
 Board item: [COEUS-FUSION-UNIFICATION](../../backlog.md#coeus-fusion-unification)
+Revision 2026-10-16: implemented and accepted as decided. Both vendor
+`fusion.rs` files thin to `FusionBackend` implementations plus entry
+wrappers (172/173 lines to ~60 each); the CUDA and WGPU suites pass
+unchanged on hardware through the shared generic, and the converged
+error variants carry exact-error unit coverage.
 
 ## Context
 

@@ -14,16 +14,6 @@ verification, tightening, feature}.
 - Acceptance: every count-typed conversion names the count spelling; values unchanged; gates green.
 - Next step: decide exact-vs-rounded-vs-rejected for counts above 2^53.
 
-<a id="coeus-fusion-unification"></a>
-## COEUS-FUSION-UNIFICATION — One generic dispatch for vendor fusion
-
-- Status: todo; priority: architecture; [arch] — ADR first.
-- Finding: `crates/coeus-cuda/src/fusion.rs` (163 lines) and `crates/coeus-wgpu/src/fusion.rs` (160 lines) are ~65% identical (54+/57- diff): same `ExpressionAdapter`, same `provider_layout`, same empty-axis semantics, differing only in dialect/bundle/backend/error (`CudaC`/`CudaFusionOps`/`CudaBackend`/`CudaBackendError` vs WGPU counterparts).
-- Non-solution: transplanting the sweep's `FusionProvider` (`rescue/coeus-green-sweep-20261012:crates/coeus-hephaestus/src/fusion/`) lands dead code — its dispatch is typed over `Tensor<T, HephaestusBackend<P>>`, a spelling main's vendors don't use (concrete `CudaBackend`/`WgpuBackend` with own error types). Reuse its adapter/layout logic, not its tensor spelling.
-- Outcome: one generic dispatch (generic over the vendor backend, monomorphized per vendor) serves both vendors; the duplicated ~110 lines delete; vendor public API and `jit` tests unchanged and green.
-- Acceptance: ADR selects the generic spelling; both `fusion.rs` files thin to bundle+entry wiring; no parallel fusion paths remain.
-- Next step: draft the ADR.
-
 <a id="coeus-pool-leto-chain"></a>
 ## COEUS-POOL-LETO-CHAIN — Delegate CPU pooling to leto (contract-gated)
 
