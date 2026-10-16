@@ -14,16 +14,6 @@ verification, tightening, feature}.
 - Acceptance: every count-typed conversion names the count spelling; values unchanged; gates green.
 - Next step: decide exact-vs-rounded-vs-rejected for counts above 2^53.
 
-<a id="coeus-pool-leto-chain"></a>
-## COEUS-POOL-LETO-CHAIN — Delegate CPU pooling to leto (contract-gated)
-
-- Status: todo; priority: architecture; [minor].
-- Finding: main's `cpu_impl/pool/` (`avg.rs`, `max.rs`, `pool1d.rs`, `validation.rs`) is hand-rolled with no leto delegation. The sweep rewrites all three kernels onto `coeus_leto::pooling_forward_into`/`pooling_backward_into` (`crates/coeus-leto/src/dispatch/pooling.rs`, 259 lines) over `leto_ops::pooling_forward_into` — following main's established cpu_impl→coeus_leto dispatch pattern (8 call sites).
-- Contract gate (prove before porting): padding/dilation/ceil-mode/`count_include_pad`/divisor-override parity between leto's pooling contract and current CPU behavior, including empty-output and backward identities; plus the `T: leto_ops::Scalar` bound ripple audit across callers (SemVer).
-- Scope: forward + backward + validation + differential tests with exact values; vendor `pool.rs` files stay (separate backends, out of scope).
-- Acceptance: bitwise-or-epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
-- Next step: write the contract comparison (leto pin's pooling params vs current semantics).
-
 <a id="coeus-sibling-named-crates"></a>
 ## COEUS-SIBLING-NAMED-CRATES — Crates named after their dependencies
 
