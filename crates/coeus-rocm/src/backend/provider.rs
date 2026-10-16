@@ -1,13 +1,14 @@
 use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
-    ElementwiseProvider, HephaestusProvider, MatmulProvider, ParameterizedElementwiseProvider,
-    PoolingProvider, RandomInitProvider, ReductionProvider, RotateHalfProvider,
-    ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    CrossProductProvider, ElementwiseProvider, HephaestusProvider, HostCrossProductOps,
+    MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider,
+    ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StaggeredProvider,
+    StatefulUpdateProvider, UnfoldFoldProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
-use hephaestus_core::{PoolingOps, SlidingWindowOps};
+use hephaestus_core::{CrossProductOps, PoolingOps, SlidingWindowOps};
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
@@ -153,4 +154,12 @@ where
     RocmSlidingWindowOps: SlidingWindowOps<RocmDevice, T>,
 {
     type Operations = RocmSlidingWindowOps;
+}
+
+impl<T> CrossProductProvider<T> for RocmProvider
+where
+    T: Scalar,
+    HostCrossProductOps: CrossProductOps<RocmDevice, T>,
+{
+    type Operations = HostCrossProductOps;
 }

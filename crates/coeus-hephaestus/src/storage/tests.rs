@@ -1,4 +1,4 @@
-mod fixtures;
+pub(crate) mod fixtures;
 
 use super::*;
 use crate::backend::HephaestusProvider;

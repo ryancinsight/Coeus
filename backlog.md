@@ -103,15 +103,14 @@ verification, tightening, feature}.
 - 2026-10-15: reference design recovered — sweep `16a73a81:crates/coeus-ops/src/backend_ops/cpu_impl/unfold_fold.rs` delegates all four kernels to `coeus_leto::unfold_into`/`fold_into` (thin adapters over layouts+slices, `map_leto_error` mapping) and deletes `cpu_impl/unfold_fold/validation.rs` + shared `require_signed_coordinates`. Port = adapt that file to main's fallible context + prove the contract gate above against leto 0.46 (the sweep predates the pin).
 - Next step: write the contract comparison (leto pin's sliding-window params vs current semantics).
 
-<a id="coeus-cross-host-seam"></a>
-## COEUS-CROSS-HOST-SEAM — Host cross product over the hephaestus seam
+<a id="coeus-cross-vendor-bundles"></a>
+## COEUS-CROSS-VENDOR-BUNDLES — Name the vendor on-device cross bundles
 
 - Status: todo; priority: architecture; [minor].
-- Finding: main's `coeus-hephaestus/src/cross_product/host_fallback.rs` is a blanket `impl<P, T> CrossOps<T> for HephaestusBackend<P>`. The sweep restructures it onto the hephaestus seam: a `cross_host_fallback<B, T>` free fn (same `coeus_ops::cross_fold` via copy round-trip) plus `HostCrossProductOps: hephaestus_core::CrossProductOps` using `validate_cross_product_lengths`, with a narrowed blanket impl. Batch 8 dropped this as "absent from hephaestus 0.22" — disproven: both items shipped in `crate-hephaestus-core-v0.22.0`, inside the pinned 0.22.1.
-- Design note: default to the sweep's coeus-side placement; moving the host impl upstream (hephaestus owns the trait) is a follow-up, not part of this port.
-- Scope: port adapted to main's fallible context + a shapes/layouts test proving the host path matches the on-device seam where one exists.
-- Acceptance: providers without on-device cross route through the seam impl; no behavior change on providers with one; gates green.
-- Next step: port `HostCrossProductOps` + `cross_host_fallback` onto `coeus-hephaestus`.
+- Finding: the COEUS-CROSS-HOST-SEAM port routes metal/rocm/cuda through host-fold math (`HostCrossProductOps` / `CudaBackend`'s own impl), but the pinned hephaestus `b03e9176` ships on-device `CrossProductOps` for CUDA, Metal, ROCm, and WGPU (`CudaCrossProductOps`/`MetalCrossProductOps`/`RocmCrossProductOps`/`WgpuCrossProductOps`; only the last is named coeus-side). Naming the real bundles is a behavior change (host→device dispatch, possible 1-ulp FMA differences, dialect-bound coverage narrower than `T: Scalar`), so it was split out of the values-preserving seam port.
+- Scope: per-provider `CrossProductProvider` bundle swap + `CudaBackend::cross_storage` rewire to the wgpu fast-path shape + parity tests on HW; coverage audit per scalar type first (dialect bounds cover f32/u32/i32/f64/F16/Bf16-ish, not all `Scalar`).
+- Acceptance: conforming layouts dispatch on-device on all four vendors; parity vs host fold within a derived bound; no `CrossOps` resolution regression for covered types; gates green.
+- Next step: audit dialect-scalar coverage vs current `CrossOps` callers per vendor.
 
 <a id="coeus-gradcheck-embedding"></a>
 ## COEUS-GRADCHECK-EMBEDDING — Finite-difference gradcheck for embedding
