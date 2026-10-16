@@ -48,15 +48,6 @@ verification, tightening, feature}.
 - Acceptance: bitwise-or-epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
 - Next step: write the contract comparison (leto pin's pooling params vs current semantics).
 
-<a id="coeus-cross-vendor-bundles"></a>
-## COEUS-CROSS-VENDOR-BUNDLES — Name the vendor on-device cross bundles
-
-- Status: todo; priority: architecture; [minor].
-- Finding: the COEUS-CROSS-HOST-SEAM port routes metal/rocm/cuda through host-fold math (`HostCrossProductOps` / `CudaBackend`'s own impl), but the pinned hephaestus `b03e9176` ships on-device `CrossProductOps` for CUDA, Metal, ROCm, and WGPU (`CudaCrossProductOps`/`MetalCrossProductOps`/`RocmCrossProductOps`/`WgpuCrossProductOps`; only the last is named coeus-side). Naming the real bundles is a behavior change (host→device dispatch, possible 1-ulp FMA differences, dialect-bound coverage narrower than `T: Scalar`), so it was split out of the values-preserving seam port.
-- Scope: per-provider `CrossProductProvider` bundle swap + `CudaBackend::cross_storage` rewire to the wgpu fast-path shape + parity tests on HW; coverage audit per scalar type first (dialect bounds cover f32/u32/i32/f64/F16/Bf16-ish, not all `Scalar`).
-- Acceptance: conforming layouts dispatch on-device on all four vendors; parity vs host fold within a derived bound; no `CrossOps` resolution regression for covered types; gates green.
-- Next step: audit dialect-scalar coverage vs current `CrossOps` callers per vendor.
-
 <a id="coeus-fallible-unary-execution"></a>
 ## COEUS-FALLIBLE-UNARY-EXECUTION — Propagate unary provider failures
 
@@ -289,15 +280,6 @@ verification, tightening, feature}.
 - Scope: `coeus-nn` batch_norm tests (`batch_norm.rs:5-15,35-37,143-145`), `nn_normalization_tests.rs` (group/instance norm), attention `tests.rs:52-75,181-200`.
 - Acceptance: each listed test asserts a computed numeric value against a derived reference, not only `Ok`/shape.
 - Next step: derive the analytical reference (e.g. hand-computed normalization on a small fixture) for each listed test group.
-
-<a id="coeus-dot-cross-host-copy"></a>
-## COEUS-DOT-CROSS-HOST-COPY — Device-resident dot/cross on accelerator backends
-
-- Status: blocked; priority: tightening; [patch]; owner: unclaimed.
-- Outcome: `dot`/`cross` on accelerator backends stay device-resident instead of copying both operands to host.
-- Scope: `coeus-ops/src/reduction/linalg.rs`.
-- Blocker: hephaestus is adding device dot/cross; bind to it once it lands (re-open trigger: hephaestus device dot/cross merges).
-- Acceptance: no host round-trip for accelerator dot/cross; differential test against the CPU reference.
 
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
