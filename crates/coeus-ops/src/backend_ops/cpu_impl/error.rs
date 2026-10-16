@@ -1,6 +1,6 @@
 use coeus_core::BackendError;
 
-pub(super) fn map_leto_error(operation: &'static str, error: leto::LetoError) -> BackendError {
+pub(crate) fn map_leto_error(operation: &'static str, error: leto::LetoError) -> BackendError {
     match error {
         leto::LetoError::ShapeMismatch { lhs, rhs } => BackendError::ShapeMismatch {
             operation,
