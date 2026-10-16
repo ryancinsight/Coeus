@@ -14,20 +14,6 @@ verification, tightening, feature}.
 - Acceptance: every count-typed conversion names the count spelling; values unchanged; gates green.
 - Next step: decide exact-vs-rounded-vs-rejected for counts above 2^53.
 
-<a id="coeus-rescue-queue"></a>
-## COEUS-RESCUE-QUEUE — Complete or close the stranded rescue PRs
-
-- Status: todo; priority: correctness; [patch].
-- Outcome: each listed rescue PR is completed onto current `main` (ported, verified, merged) or closed once its diff resolves empty against `main`.
-- Scope: head refs of the PRs below; no board or code change until a PR is claimed.
-- PRs (draft parking records, unclaimed; head ref is the only durable copy):
-  - `ryancinsight/coeus#469` (`rescue/audit-coeus-20260928`): CLOSED as landed — takeover port #512 merged as `39ad8054` (verified on main); 2 audit commits (module-root splits, crate-level allow removal, RNG unit fix) now on main.
-  - `ryancinsight/coeus#530` (`rescue/coeus-green-sweep-20261012`, base `89cb08b0`): 304 files, +6689/-9415; unmergeable whole (3 add/add, 41 deletions vs landed work, 210 files also touched by main). Slices landed: ADRs 0079/0080 (#535), activation `math/` split (#536), dtype `traits/` split (#537). Drops with rationale: cuda/wgpu backend rewrite (superseded — main's concrete `CudaBackend` won), book hunks (stale API spelling), `coeus-leto` pooling dispatch as a single file (callers live in the pool-chain item below), `FusionProvider` transplant (typed for the `HephaestusBackend<P>` spelling vendors don't use; see fusion item). Residual sampling COEUS-SWEEP-RESIDUAL-SAMPLING CLOSED 2026-10-16 (all 304 files verdict'd, batches 1–35; #530 closed with the accounting comment).
-  - `ryancinsight/coeus#531` (`fix/coeus-s4b-sparse-wiring`): PRESERVATION DRAFT, do not close (peer #533 declares it intact). Sound part (allocation-free borrowed dispatch) recovered by peer-live #533. Forward spmv/spmm cutover proven unsound: Coeus accepts unsorted/duplicate CSR columns (stored-order accumulation), leto's `CsrView::from_slices` requires strictly increasing columns; leto kernels are serial vs `parallel_for` and use SIMD axpy (FMA) vs separate mul/add. Own takeover #534 closed with the proof.
-- Acceptance: no open `rescue/` PR for this repository remains unaccounted for; a port's resolved diff against `main` is either integrated and verified by the committed gate or empty (landed-work proof), never closed on resemblance.
-- Needs: none.
-- Next step: `git diff $(git merge-base origin/main <head>) <head>` per PR, port onto a fresh branch from `main`, run the package gates.
-
 <a id="coeus-fusion-unification"></a>
 ## COEUS-FUSION-UNIFICATION — One generic dispatch for vendor fusion
 
