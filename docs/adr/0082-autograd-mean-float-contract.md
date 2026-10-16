@@ -80,7 +80,8 @@ All Git provider records and all 231 registry records equal that main.
 The provider graph includes Eunomia 0.10 at `15fbb94c`, Leto 0.46 at
 `8b4ab407`, Hephaestus 0.22.1 at `b03e9176` and FFT 0.29.1 at `f266bb0b`.
 Only this unpublished ADR moves to 0082; main's accepted scalar-vocabulary
-ADR owns 0081.
+ADR owns 0081. Later main `afb9ba9e` (#570–577) changes only the backlog and
+book; integrate both without changing validated executable source or graph.
 
 ## Verification
 
