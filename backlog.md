@@ -34,16 +34,6 @@ verification, tightening, feature}.
 - Acceptance: bitwise-or-epsilon-justified parity vs current kernels on a fixed fixture grid; bound ripple compiles workspace-wide; package gates green.
 - Next step: write the contract comparison (leto pin's pooling params vs current semantics).
 
-<a id="coeus-device-output-ownership"></a>
-## COEUS-DEVICE-OUTPUT-OWNERSHIP — Collect the device/hardware verification half
-
-- Status: todo (core landed); priority: correctness; [major] [arch].
-- Outcome: every mutable GPU kernel output preserves other tensor clones; CUDA/WGPU own generic provider storage with no temporary `from_arc` owner.
-- Delivered: commit `9f897f2e` ("Give CUDA and WGPU generic provider storage") lands the core migration on `main` — vendor storage types and `from_arc` bridges are gone (`grep from_arc crates/coeus-{cuda,wgpu}/src` is empty), CPU scans propagate rejection, 267/267 CPU tests pass.
-- Residual: device/hardware matrices still need collecting, and the commit's own message names the open half — "the upstream CUDA scalar compiler correction" — tracked upstream at `hephaestus/backlog.md#heph-cuda-dense-product-scalars`.
-- Acceptance: real-device regressions over each supported operation/scalar matrix pass; SemVer confirms the declared major removals (already 222/223 checks pass per the landed commit).
-- Next step: run the final workspace/device/SemVer gates once the upstream Hephaestus fix lands, then close.
-
 <a id="coeus-sibling-named-crates"></a>
 ## COEUS-SIBLING-NAMED-CRATES — Crates named after their dependencies
 
