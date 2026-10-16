@@ -109,6 +109,8 @@
   exponent after conversion to the tensor dtype. Remove signed narrowing and
   minimum-integer negation; keep exact integer offsets for backward and native
   repeated-squaring arithmetic across the supported finite exponent range.
+  Power regressions share the established integration harness to avoid
+  recompiling their generic tensor and backward kernels in separate binaries.
 
 - [patch] Correct the sign of autograd `pow` derivatives for negative integer
   exponents at finite nonzero inputs. Preserve the negative exponent coefficient
