@@ -105,6 +105,11 @@
 
 ### Fixed
 
+- [patch] Correct the sign of autograd `pow` derivatives for negative integer
+  exponents at finite nonzero inputs. Preserve the negative exponent coefficient
+  in `n / x^(1-n)`. Add exact f32/f64/F16/Bf16 seeded-gradient regressions for
+  odd/even negative powers, both base signs and contiguous/strided layouts.
+
 - [patch] GPU unary activations decode single parameters from their public
   `f64` bit encoding. Staggered preparation rejects invalid spacing before
   device acquisition; dispatch rejects unequal shapes, offsets, and strides
