@@ -318,7 +318,10 @@ fn einsum_rejects_invalid_contracts_without_panicking() {
     };
     assert!(matches!(
         source.as_ref().downcast_ref::<BackendError>(),
-        Some(BackendError::Storage { .. })
+        Some(BackendError::EinsumUnsupportedPattern {
+            operand_count: 2,
+            ..
+        })
     ));
 }
 
