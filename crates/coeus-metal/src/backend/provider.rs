@@ -2,15 +2,16 @@ use coeus_core::Scalar;
 use coeus_hephaestus::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
     CrossEntropyProvider, CrossProductProvider, ElementwiseProvider, HephaestusProvider,
-    HostCrossProductOps, MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider,
-    RandomInitProvider, ReductionProvider, RotateHalfProvider, ScalarPowerProvider,
-    StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider,
+    ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StaggeredProvider,
+    StatefulUpdateProvider, UnfoldFoldProvider,
 };
-use hephaestus_core::{CrossProductOps, PoolingOps, SlidingWindowOps};
+use hephaestus_core::{CrossProductOps, DialectScalar, PoolingOps, SlidingWindowOps, Wgsl};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
-    MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
-    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps, MetalStaggered3DOps,
+    MetalCrossProductOps, MetalDenseProductOps, MetalDevice, MetalElementwiseOps,
+    MetalParameterizedUnaryOps, MetalPoolingOps, MetalRandomOps, MetalScanOps,
+    MetalSlidingWindowOps, MetalStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -152,8 +153,8 @@ where
 
 impl<T> CrossProductProvider<T> for MetalProvider
 where
-    T: Scalar,
-    HostCrossProductOps: CrossProductOps<MetalDevice, T>,
+    T: Scalar + DialectScalar<Wgsl>,
+    MetalCrossProductOps: CrossProductOps<MetalDevice, T>,
 {
-    type Operations = HostCrossProductOps;
+    type Operations = MetalCrossProductOps;
 }
