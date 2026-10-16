@@ -105,6 +105,11 @@
 
 ### Fixed
 
+- [patch] Autograd `pow` derives integer sign, magnitude and parity from the
+  exponent after conversion to the tensor dtype. Remove signed narrowing and
+  minimum-integer negation; keep exact integer offsets for backward and native
+  repeated-squaring arithmetic across the supported finite exponent range.
+
 - [patch] Correct the sign of autograd `pow` derivatives for negative integer
   exponents at finite nonzero inputs. Preserve the negative exponent coefficient
   in `n / x^(1-n)`. Add exact f32/f64/F16/Bf16 seeded-gradient regressions for
