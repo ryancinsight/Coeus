@@ -135,12 +135,13 @@ fn attention_forward_preserves_strides_and_grouped_mask_borrows() {
     let mut query = vec![-91.0; 12];
     let mut key = vec![-92.0; 24];
     let mut value = vec![-93.0; 24];
-    for batch in 0..4 {
-        query[1 + batch * 3] = 1.0;
-        key[1 + batch * 6] = 1.0;
-        key[3 + batch * 6] = 1.0;
-        value[1 + batch * 6] = 10.0 + batch as f64;
-        value[3 + batch * 6] = 20.0 + batch as f64;
+    for batch in 0..4u8 {
+        let b = usize::from(batch);
+        query[1 + b * 3] = 1.0;
+        key[1 + b * 6] = 1.0;
+        key[3 + b * 6] = 1.0;
+        value[1 + b * 6] = 10.0 + f64::from(batch);
+        value[3 + b * 6] = 20.0 + f64::from(batch);
     }
     let mask = [-94.0, 1.0, -94.0, 0.0, -94.0, 0.0, -94.0, 1.0];
     let mut output = vec![-95.0; 16];

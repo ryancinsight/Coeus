@@ -191,36 +191,36 @@ pub fn batched_matmul_accumulate_into<T: LetoScalar>(
     let lhs_batch_stride = if lhs_batch == 1 {
         0
     } else {
-        a_layout.strides()[0] as isize
+        a_layout.strides()[0].cast_signed()
     };
     let rhs_batch_stride = if rhs_batch == 1 {
         0
     } else {
-        b_layout.strides()[0] as isize
+        b_layout.strides()[0].cast_signed()
     };
-    let out_batch_stride = out_layout.strides()[0] as isize;
+    let out_batch_stride = out_layout.strides()[0].cast_signed();
 
-    let lhs_offset = a_layout.offset() as isize;
-    let rhs_offset = b_layout.offset() as isize;
-    let out_offset = out_layout.offset() as isize;
+    let lhs_offset = a_layout.offset().cast_signed();
+    let rhs_offset = b_layout.offset().cast_signed();
+    let out_offset = out_layout.offset().cast_signed();
 
     for b_idx in 0..batch {
         let a_sub = CoeusLayout::from_shape_strides(
             coeus_core::Shape::from([m, lhs_k].as_slice()),
             coeus_core::Strides::from([a_layout.strides()[1], a_layout.strides()[2]].as_slice()),
-            (lhs_offset + b_idx as isize * lhs_batch_stride) as usize,
+            (lhs_offset + b_idx.cast_signed() * lhs_batch_stride).cast_unsigned(),
         );
         let b_sub = CoeusLayout::from_shape_strides(
             coeus_core::Shape::from([rhs_k, n].as_slice()),
             coeus_core::Strides::from([b_layout.strides()[1], b_layout.strides()[2]].as_slice()),
-            (rhs_offset + b_idx as isize * rhs_batch_stride) as usize,
+            (rhs_offset + b_idx.cast_signed() * rhs_batch_stride).cast_unsigned(),
         );
         let out_sub = CoeusLayout::from_shape_strides(
             coeus_core::Shape::from([out_m, out_n].as_slice()),
             coeus_core::Strides::from(
                 [out_layout.strides()[1], out_layout.strides()[2]].as_slice(),
             ),
-            (out_offset + b_idx as isize * out_batch_stride) as usize,
+            (out_offset + b_idx.cast_signed() * out_batch_stride).cast_unsigned(),
         );
         matmul_accumulate_into(&a_sub, a, &b_sub, b, &out_sub, out)?;
     }
