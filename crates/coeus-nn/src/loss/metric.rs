@@ -15,7 +15,7 @@ use coeus_core::Float;
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn pairwise_distance<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     x1: &Var<T, B>,
@@ -38,7 +38,7 @@ pub fn pairwise_distance<
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn triplet_margin_loss<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     anchor: &Var<T, B>,
@@ -75,7 +75,7 @@ pub fn triplet_margin_with_distance_loss<T, B, F>(
     margin: T,
 ) -> Result<Var<T, B>, B::Error>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
     F: Fn(&Var<T, B>, &Var<T, B>) -> Result<Var<T, B>, B::Error>,
 {
@@ -95,7 +95,7 @@ where
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn cosine_embedding_loss<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x1: &Var<T, B>,

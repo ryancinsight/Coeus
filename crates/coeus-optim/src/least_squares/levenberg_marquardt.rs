@@ -55,7 +55,7 @@ pub enum SolverError {
 /// Scalars this solver operates on.
 ///
 /// Composes coeus's element vocabulary with leto's dense-linear-algebra
-/// vocabulary, the same bridge `AttentionScalar` uses in `coeus-leto`: the
+/// vocabulary, the same bridge `AttentionScalar` uses in `coeus-cpu`: the
 /// solver's arithmetic is coeus's, and the normal-equations solve is leto's.
 pub trait LeastSquaresScalar: Scalar + RealScalar + FloatElement {}
 

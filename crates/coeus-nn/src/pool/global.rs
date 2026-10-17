@@ -27,7 +27,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for GlobalAvgPool1d<T, B>
 {
@@ -74,7 +74,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for GlobalAvgPool2d<T, B>
 {
@@ -123,7 +123,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for GlobalAvgPool3d<T, B>
 {
@@ -173,7 +173,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for GlobalMaxPool2d<T, B>
 {
@@ -220,7 +220,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for GlobalMaxPool3d<T, B>
 {

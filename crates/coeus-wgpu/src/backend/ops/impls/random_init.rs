@@ -1,6 +1,6 @@
 use crate::backend::{WgpuBackend, WgpuBackendError};
+use coeus_accelerator::{random_normal, random_uniform, RandomInitProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{random_normal, random_uniform, RandomInitProvider};
 
 impl RandomInitProvider<f32> for WgpuBackend {
     type Operations = hephaestus_wgpu::WgpuRandomOps;
@@ -17,7 +17,7 @@ impl coeus_ops::RandomInitOps<f32> for WgpuBackend {
         random_uniform::<Self, _>(layout, low, high, seed)
             .map(|buffer| {
                 // SAFETY: random_uniform initializes every element on success.
-                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+                unsafe { coeus_accelerator::HephaestusStorage::from_buffer(buffer) }
             })
             .map_err(|source| WgpuBackendError::dispatch("uniform initialization", source))
     }
@@ -32,7 +32,7 @@ impl coeus_ops::RandomInitOps<f32> for WgpuBackend {
         random_normal::<Self, _>(layout, mean, std_dev, seed)
             .map(|buffer| {
                 // SAFETY: random_normal initializes every element on success.
-                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+                unsafe { coeus_accelerator::HephaestusStorage::from_buffer(buffer) }
             })
             .map_err(|source| WgpuBackendError::dispatch("normal initialization", source))
     }

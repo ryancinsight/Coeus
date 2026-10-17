@@ -146,7 +146,7 @@ impl WgpuBackend {
 // transfer operations initialize their complete destination buffers.
 unsafe impl ComputeBackend for WgpuBackend {
     type Error = WgpuBackendError;
-    type DeviceBuffer<T: Scalar> = coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>;
+    type DeviceBuffer<T: Scalar> = coeus_accelerator::HephaestusStorage<crate::WgpuBackend, T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;
 
@@ -175,12 +175,12 @@ unsafe impl ComputeBackend for WgpuBackend {
     unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         // SAFETY: this backend forwards the caller's initialization
         // obligation to the shared provider backend.
-        unsafe { coeus_hephaestus::HephaestusBackend::<WgpuBackend>::new().allocate(len) }
+        unsafe { coeus_accelerator::HephaestusBackend::<WgpuBackend>::new().allocate(len) }
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusStorage::<WgpuBackend, _>::new(len)
+        coeus_accelerator::HephaestusStorage::<WgpuBackend, _>::new(len)
             .map_err(|source| WgpuBackendError::dispatch("allocate_zeroed", source))
     }
 

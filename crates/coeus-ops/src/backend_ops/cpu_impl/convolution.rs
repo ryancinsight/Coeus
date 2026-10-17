@@ -5,7 +5,7 @@ use leto::{ConvolutionParameters, TransposedConvolutionParameters};
 use leto_ops::Scalar as LetoScalar;
 
 use super::error::map_leto_error;
-use coeus_leto::{
+use coeus_cpu::{
     convolution_backward_accumulate, convolution_forward_into,
     convolution_transposed_backward_accumulate, convolution_transposed_forward_into,
     ConvolutionBackward, ConvolutionForward, ConvolutionGradients, ReadOperand, WriteOperand,

@@ -1,5 +1,4 @@
-use coeus_core::Scalar;
-use coeus_hephaestus::{
+use coeus_accelerator::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
     CrossProductProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
     ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
@@ -7,7 +6,8 @@ use coeus_hephaestus::{
     UnfoldFoldProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
-use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
+use coeus_accelerator::{AttentionProvider, ConvolutionProvider};
+use coeus_core::Scalar;
 use hephaestus_core::{CrossProductOps, DialectScalar, HipC, PoolingOps, SlidingWindowOps};
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
@@ -28,7 +28,7 @@ pub struct RocmProvider;
 // context before accessing the allocation; the handle is thread-transferable.
 unsafe impl HephaestusProvider for RocmProvider {
     type Device = RocmDevice;
-    type Error = coeus_hephaestus::HephaestusBackendError;
+    type Error = coeus_accelerator::HephaestusBackendError;
     const NAME: &'static str = "rocm";
 
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {

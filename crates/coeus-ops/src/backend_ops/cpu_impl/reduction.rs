@@ -25,7 +25,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
     let op = ClosedReduction::from_op("reduction", op)?;
-    coeus_leto::reduce_into(
+    coeus_cpu::reduce_into(
         op,
         a_layout,
         a.as_slice(),
@@ -50,7 +50,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+    coeus_cpu::mean_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("reduction", error))
 }
 
@@ -68,7 +68,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::reduce_into(
+    coeus_cpu::reduce_into(
         ClosedReduction::Prod,
         a_layout,
         a.as_slice(),
@@ -94,7 +94,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
-    coeus_leto::argmax_into(
+    coeus_cpu::argmax_into(
         a_layout,
         a.as_slice(),
         axis,
@@ -119,7 +119,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
 {
-    coeus_leto::argmin_into(
+    coeus_cpu::argmin_into(
         a_layout,
         a.as_slice(),
         axis,
@@ -174,7 +174,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::cumsum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+    coeus_cpu::cumsum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("cumsum", error))
 }
 
@@ -192,7 +192,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::suffix_sum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+    coeus_cpu::suffix_sum_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("suffix_sum", error))
 }
 
@@ -210,7 +210,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::cumprod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+    coeus_cpu::cumprod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("cumprod", error))
 }
 
@@ -228,6 +228,6 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::suffix_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
+    coeus_cpu::suffix_prod_into(a_layout, a.as_slice(), axis, c_layout, c.as_mut_slice()?)
         .map_err(|error| map_leto_error("suffix_prod", error))
 }

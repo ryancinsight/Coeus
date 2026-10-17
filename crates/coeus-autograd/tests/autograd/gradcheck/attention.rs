@@ -48,7 +48,7 @@ const HEAD_DIM: usize = 4;
 const SCALE: f64 = 0.5;
 
 fn sdp_attention_case<
-    T: GradcheckScalar + coeus_ops::AttentionScalar + coeus_leto::AttentionScalar,
+    T: GradcheckScalar + coeus_ops::AttentionScalar + coeus_cpu::AttentionScalar,
 >() {
     // Unmasked attention, all three operands differentiated together.
     let q = tensor::<T>(&[BATCH, SEQ, HEAD_DIM], 0.17);
@@ -73,7 +73,7 @@ fn sdp_attention_backward_matches_finite_differences() {
 }
 
 fn causal_sdp_attention_case<
-    T: GradcheckScalar + coeus_ops::AttentionScalar + coeus_leto::AttentionScalar,
+    T: GradcheckScalar + coeus_ops::AttentionScalar + coeus_cpu::AttentionScalar,
 >() {
     // The causal mask is applied before the softmax, so the masked positions
     // must receive exactly zero gradient while the unmasked ones carry the full
@@ -202,7 +202,7 @@ fn masked_softmax_backward_matches_finite_differences() {
 }
 
 fn sdp_attention_wide_values_case<
-    T: GradcheckScalar + coeus_ops::AttentionScalar + coeus_leto::AttentionScalar,
+    T: GradcheckScalar + coeus_ops::AttentionScalar + coeus_cpu::AttentionScalar,
 >() {
     // A value tensor whose head dimension differs from the key's exercises the
     // dV = Aᵀ·dO rule on a non-square contraction, where a transposed operand

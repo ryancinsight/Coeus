@@ -1,9 +1,9 @@
 use crate::backend::{CudaBackend, CudaScalar};
-use coeus_core::{Float, Layout};
-use coeus_hephaestus::{
+use coeus_accelerator::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, ElementwiseProvider, HephaestusBackend,
     ParameterizedElementwiseProvider, ScalarPowerProvider,
 };
+use coeus_core::{Float, Layout};
 use hephaestus_cuda::{CudaC, CudaElementwiseOps, CudaParameterizedUnaryOps, DialectScalar};
 
 impl ParameterizedElementwiseProvider for CudaBackend {

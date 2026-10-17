@@ -1,5 +1,5 @@
+use coeus_accelerator::HephaestusBackend;
 use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
-use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::ElementwiseOps;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use coeus_ops::RotateHalfOps;
@@ -120,7 +120,7 @@ fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
 fn assert_integer_comparisons<T>(backend: &Backend, lhs: &[T], rhs: &[T])
 where
     T: Scalar + leto_ops::Scalar + Debug + PartialEq,
-    coeus_rocm::RocmProvider: coeus_hephaestus::ElementwiseProvider<T>,
+    coeus_rocm::RocmProvider: coeus_accelerator::ElementwiseProvider<T>,
 {
     let layout = Layout::new([lhs.len()].into());
     // SAFETY: the following `copy_to_device` initializes every element before any read.
@@ -145,7 +145,7 @@ where
         BinaryOp::Ge,
     ] {
         let mut expected = vec![T::ZERO; lhs.len()];
-        coeus_leto::elementwise_binary_into(
+        coeus_cpu::elementwise_binary_into(
             operation,
             &layout,
             lhs,

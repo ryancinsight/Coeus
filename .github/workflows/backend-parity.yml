@@ -149,7 +149,7 @@ jobs:
 
       - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
 
-      # Rebuilt the whole dependency graph (coeus-leto, coeus-ops, coeus-nn,
+      # Rebuilt the whole dependency graph (coeus-cpu, coeus-ops, coeus-nn,
       # coeus-autograd, coeus-wgpu, coeus-cuda) from zero every run -- no
       # cache existed here. Measured 1936-1982s wall on this job alone
       # (2 latest PR runs); this is the single largest CI-wall-time
@@ -172,10 +172,10 @@ jobs:
           set -euo pipefail
           cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
-          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-leto --all-targets
-          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-leto --all-targets --no-deps -- -D warnings
-          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-leto
-          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-leto --doc
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cpu --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cpu --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cpu
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cpu --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
@@ -737,8 +737,8 @@ jobs:
               install -m 0755 /workspace/.ci-tools/cargo-nextest "$HOME/.cargo/bin/cargo-nextest"
               cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
-              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
-              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
+              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-accelerator --all-targets
+              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-accelerator --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-rocm --features rocm --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-rocm --features rocm --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
@@ -853,8 +853,8 @@ jobs:
           set -euo pipefail
           cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
-          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
-          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-accelerator --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-accelerator --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-metal --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-metal --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-metal \

@@ -1,6 +1,6 @@
 use crate::backend::WgpuBackend;
+use coeus_accelerator::{PreparedStaggeredPair, StaggeredBackend, StaggeredProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{PreparedStaggeredPair, StaggeredBackend, StaggeredProvider};
 use coeus_ops::{Axis, StaggeredPairOps};
 use hephaestus_wgpu::WgpuStaggered3DOps;
 
@@ -34,7 +34,7 @@ impl StaggeredPairOps<f32> for WgpuBackend {
         output: &mut Self::DeviceBuffer<f32>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        coeus_hephaestus::staggered_gradient::<WgpuBackend>(
+        coeus_accelerator::staggered_gradient::<WgpuBackend>(
             pair,
             axis,
             (input, input_layout),
@@ -51,7 +51,7 @@ impl StaggeredPairOps<f32> for WgpuBackend {
         output: &mut Self::DeviceBuffer<f32>,
         output_layout: &Layout,
     ) -> Result<(), Self::Error> {
-        coeus_hephaestus::staggered_divergence::<WgpuBackend>(
+        coeus_accelerator::staggered_divergence::<WgpuBackend>(
             pair,
             axis,
             (input, input_layout),

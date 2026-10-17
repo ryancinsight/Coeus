@@ -12,11 +12,11 @@ members = [
     "crates/coeus-sparse",
     "crates/coeus-wgpu",
     "crates/coeus-cuda",
-    "crates/coeus-hephaestus",
+    "crates/coeus-accelerator",
     "crates/coeus-rocm",
     "crates/coeus-metal",
     "crates/coeus-dist",
-    "crates/coeus-leto",
+    "crates/coeus-cpu",
     "crates/coeus-fft",
 ]
 
@@ -78,7 +78,7 @@ pyo3 = { version = "0.23", features = ["extension-module"] }
 coeus-core     = { version = "0.12.0", path = "crates/coeus-core" }
 coeus-tensor   = { version = "0.12.0", path = "crates/coeus-tensor" }
 coeus-ops      = { version = "0.12.0", path = "crates/coeus-ops", default-features = false }
-coeus-hephaestus = { version = "0.12.0", path = "crates/coeus-hephaestus" }
+coeus-accelerator = { version = "0.12.0", path = "crates/coeus-accelerator" }
 coeus-autograd = { version = "0.12.0", path = "crates/coeus-autograd", default-features = false }
 coeus-nn       = { version = "0.12.0", path = "crates/coeus-nn", default-features = false }
 coeus-optim    = { version = "0.12.0", path = "crates/coeus-optim", default-features = false }

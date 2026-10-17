@@ -167,7 +167,7 @@ fn fused_reduction<T: CudaScalar, E: coeus_ops::fuse::ExprNode<T, CudaBackend> +
 
         crate::fusion::dispatch_fused_reduce(
             expr,
-            coeus_hephaestus::fused_selector(op),
+            coeus_accelerator::fused_selector(op),
             axis,
             out.storage_mut()?,
             &out_layout,

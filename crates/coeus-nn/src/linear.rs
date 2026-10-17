@@ -20,7 +20,7 @@ pub struct Linear<T: Scalar, B: coeus_ops::BackendOps<T> + Default = MoiraiBacke
 /// `Linear<T, B>` stays nameable for any scalar.
 impl<T, B> Linear<T, B>
 where
-    T: Scalar + Float + coeus_leto::RealScalar,
+    T: Scalar + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + RandomInitOps<T> + Default,
 {
     /// Create a Linear layer with given input/output features.
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<T: Scalar + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Scalar + coeus_cpu::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for Linear<T, B>
 {
     fn parameters(&self) -> Vec<Var<T, B>> {

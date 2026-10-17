@@ -4,6 +4,14 @@
 
 ### Changed
 
+- [major] `coeus-leto` is renamed `coeus-cpu` and `coeus-hephaestus` is
+  renamed `coeus-accelerator`: crate names now state the concern each
+  crate owns instead of the stack member it adapts. Update manifests,
+  `use` paths (`coeus_leto::` → `coeus_cpu::`, `coeus_hephaestus::` →
+  `coeus_accelerator::`), and feature references; there is no re-export
+  bridge. The old names are not yanked, so pinned builds keep working;
+  migrate in this release window. See
+  [ADR 0080](docs/adr/0080-concern-owned-adaptation-crate-names.md).
 - [major] Scalar reductions (`sum`, `mean`, `amax`, `amin`, `prod`, `norm`,
   `norm_p`, `var_mean`, plus delegating `var`, `std_dev`, `std_mean`,
   `frobenius_norm`, `frobenius_norm_batched`, `dot`, and the autograd

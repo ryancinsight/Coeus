@@ -57,7 +57,7 @@ where
 /// argmax. The transient `[rows, out_len, in_len]` mask is `out_len`× the slice
 /// — modest for typical pools; an argmax-scatter kernel would avoid it.
 fn masked_adaptive_max<
-    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x2: &Var<T, B>,
@@ -138,7 +138,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveAvgPool1d<T, B>
 where
@@ -229,7 +229,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveAvgPool2d<T, B>
 where
@@ -311,7 +311,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveMaxPool1d<T, B>
 where
@@ -411,7 +411,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveMaxPool2d<T, B>
 where

@@ -1,6 +1,6 @@
 use crate::backend::{try_get_wgpu_context, WgpuBackend, WgpuBackendError};
+use coeus_accelerator::HephaestusSeamBackend;
 use coeus_core::{BackendError, Scalar};
-use coeus_hephaestus::HephaestusSeamBackend;
 use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_wgpu::WgpuDevice;
 

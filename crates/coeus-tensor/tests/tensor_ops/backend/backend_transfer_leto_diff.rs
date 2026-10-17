@@ -1,7 +1,7 @@
 //! Differential verification for cross-backend tensor transfers.
 //!
 //! Non-contiguous cross-backend transfers route through
-//! `coeus-leto::contiguous_values` before copying into the destination backend.
+//! `coeus-cpu::contiguous_values` before copying into the destination backend.
 
 use coeus_core::{CpuAddressableStorage, MoiraiBackend, SequentialBackend};
 use coeus_tensor::{Tensor, Transpose};
@@ -15,7 +15,7 @@ fn sequential_to_moirai_transfer_matches_leto_materialization() {
         .expect("invariant: test backend operation succeeds");
     let view = tensor.slice(&[(0, 3), (1, 4)]).transpose();
 
-    let expected = coeus_leto::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
+    let expected = coeus_cpu::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
     let transferred = view
         .to_backend_on(&seq, &moirai)
         .expect("invariant: test backend operation succeeds");
@@ -35,7 +35,7 @@ fn moirai_to_sequential_transfer_matches_leto_materialization() {
         .expect("invariant: test backend operation succeeds");
     let view = tensor.slice(&[(0, 2), (1, 3), (0, 4)]).t_nd();
 
-    let expected = coeus_leto::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
+    let expected = coeus_cpu::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
     let transferred = view
         .to_backend_on(&moirai, &seq)
         .expect("invariant: test backend operation succeeds");

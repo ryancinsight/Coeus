@@ -10,10 +10,7 @@
 /// # Errors
 ///
 /// Returns the backend error when an intermediate allocation or dispatch fails.
-pub fn nansum<
-    T: coeus_core::Float + coeus_leto::RealScalar,
-    B: coeus_ops::BackendOps<T> + Default,
->(
+pub fn nansum<T: coeus_core::Float + coeus_cpu::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &coeus_autograd::Var<T, B>,
 ) -> Result<coeus_autograd::Var<T, B>, B::Error>
 where
@@ -31,7 +28,7 @@ where
 ///
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 pub fn nanmean<
-    T: coeus_core::Float + coeus_leto::RealScalar,
+    T: coeus_core::Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x: &coeus_autograd::Var<T, B>,

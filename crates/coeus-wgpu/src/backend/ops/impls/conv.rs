@@ -1,9 +1,9 @@
 use crate::backend::{WgpuBackend, WgpuScalar};
-use coeus_core::Float;
-use coeus_hephaestus::{
+use coeus_accelerator::{
     convolution_backward, convolution_forward, convolution_transposed_backward,
     convolution_transposed_forward, ConvolutionBackend,
 };
+use coeus_core::Float;
 use coeus_ops::{ConvolutionBackward, ConvolutionForward};
 use hephaestus_core::ConvolutionOps;
 use hephaestus_wgpu::{DialectScalar, WgpuConvolutionOps, WgpuDevice, Wgsl};

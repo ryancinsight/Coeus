@@ -1,6 +1,6 @@
 use crate::backend::{WgpuBackend, WgpuScalar};
+use coeus_accelerator::{matmul, MatmulBackend};
 use coeus_core::Layout;
-use coeus_hephaestus::{matmul, MatmulBackend};
 use hephaestus_core::DenseProductOps;
 use hephaestus_wgpu::{DialectScalar, WgpuDenseProductOps, WgpuDevice, Wgsl};
 

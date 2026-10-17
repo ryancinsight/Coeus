@@ -1,11 +1,11 @@
 //! Coeus expression and layout adaptation for provider-owned CUDA fusion.
 //!
 //! Bundle and entry wiring over the shared generic dispatch
-//! ([`coeus_hephaestus::fusion`], ADR 0082); all dispatch logic lives there
+//! ([`coeus_accelerator::fusion`], ADR 0082); all dispatch logic lives there
 //! and monomorphizes once for [`CudaBackend`].
 
+use coeus_accelerator::FusionBackend;
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::FusionBackend;
 use coeus_ops::fuse::ExprNode;
 use hephaestus_core::{CudaC, FusedReduction};
 
@@ -27,14 +27,14 @@ unsafe impl<T: CudaScalar> FusionBackend<T> for CudaBackend {
 /// Dispatch a fused elementwise expression through Hephaestus CUDA.
 pub(crate) fn dispatch_fused<T, E>(
     expression: &E,
-    output: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+    output: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
     output_layout: &Layout,
 ) -> Result<(), CudaBackendError>
 where
     T: CudaScalar,
     E: ExprNode<T, CudaBackend>,
 {
-    coeus_hephaestus::dispatch_fused::<T, CudaBackend, E>(expression, output, output_layout)
+    coeus_accelerator::dispatch_fused::<T, CudaBackend, E>(expression, output, output_layout)
 }
 
 /// Dispatch a fused expression reduction through Hephaestus CUDA.
@@ -42,14 +42,14 @@ pub(crate) fn dispatch_fused_reduce<T, E>(
     expression: &E,
     reduction: FusedReduction,
     axis: usize,
-    output: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+    output: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
     output_layout: &Layout,
 ) -> Result<(), CudaBackendError>
 where
     T: CudaScalar,
     E: ExprNode<T, CudaBackend>,
 {
-    coeus_hephaestus::dispatch_fused_reduce::<T, CudaBackend, E>(
+    coeus_accelerator::dispatch_fused_reduce::<T, CudaBackend, E>(
         expression,
         reduction,
         axis,

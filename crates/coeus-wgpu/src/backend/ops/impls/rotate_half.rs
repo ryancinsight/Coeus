@@ -1,6 +1,6 @@
 use crate::backend::WgpuBackend;
+use coeus_accelerator::{rotate_half, RotateHalfProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{rotate_half, RotateHalfProvider};
 
 impl RotateHalfProvider<f32> for WgpuBackend {
     type Operations = hephaestus_wgpu::WgpuElementwiseOps;
@@ -15,7 +15,7 @@ impl coeus_ops::RotateHalfOps<f32> for WgpuBackend {
         rotate_half::<Self, _>(input.buffer(), layout)
             .map(|buffer| {
                 // SAFETY: rotate_half initializes every output element on success.
-                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+                unsafe { coeus_accelerator::HephaestusStorage::from_buffer(buffer) }
             })
             .map_err(|source| crate::backend::WgpuBackendError::dispatch("rotate_half", source))
     }

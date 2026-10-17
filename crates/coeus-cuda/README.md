@@ -2,7 +2,7 @@
 
 CUDA backend for [Coeus](../../README.md) tensor operations.
 
-Implements the [`coeus-hephaestus`](../coeus-hephaestus/README.md) provider
+Implements the [`coeus-accelerator`](../coeus-accelerator/README.md) provider
 traits against NVIDIA CUDA.
 
 ## Feature gate

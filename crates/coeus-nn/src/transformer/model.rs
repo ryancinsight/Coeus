@@ -10,7 +10,7 @@ use coeus_core::MoiraiBackend;
 ///
 /// Composes a `TransformerEncoder` and `TransformerDecoder`.
 pub struct Transformer<
-    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     const NUM_ENC: usize = 6,
@@ -26,7 +26,7 @@ pub struct Transformer<
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,
@@ -51,7 +51,7 @@ where
         dropout_p: f64,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RealScalar,
+        T: coeus_cpu::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         Ok(Self {
@@ -91,7 +91,7 @@ where
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,
@@ -123,7 +123,7 @@ impl<
 
 /// Manual Clone impl.
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const NUM_ENC: usize,

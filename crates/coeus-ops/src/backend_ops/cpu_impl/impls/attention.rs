@@ -1,7 +1,7 @@
 use super::super::CpuBackend;
 use crate::backend_ops::traits::{AttentionOps, AttentionScalar};
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
-use coeus_leto::{
+use coeus_cpu::{
     scaled_dot_product_attention_backward_accumulate, scaled_dot_product_attention_into,
     AttentionBackward, AttentionForward, AttentionGradientTargets, ReadOperand, WriteOperand,
 };
@@ -34,7 +34,7 @@ fn map_attention_error(operation: &'static str, error: leto_ops::AttentionError)
 }
 
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
-unsafe impl<T: Scalar + leto_ops::Scalar + coeus_leto::AttentionScalar, B: CpuBackend>
+unsafe impl<T: Scalar + leto_ops::Scalar + coeus_cpu::AttentionScalar, B: CpuBackend>
     AttentionOps<T> for B
 where
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,

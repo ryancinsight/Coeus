@@ -1,6 +1,6 @@
 //! Differential verification of the public CPU split path.
 //!
-//! `coeus_ops::split` delegates to the dynamic-rank `coeus-leto` structural
+//! `coeus_ops::split` delegates to the dynamic-rank `coeus-cpu` structural
 //! dispatch. The expected values below are derived from row-major slicing of
 //! exact scalar values, so exact equality is the correct oracle for both scalar
 //! widths.

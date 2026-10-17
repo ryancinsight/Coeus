@@ -1,7 +1,7 @@
 //! Differential verification of the CPU matmul `BackendOps` path.
 //!
 //! `SequentialBackend` and `MoiraiBackend` delegate 2-D matmul through
-//! `coeus-leto::matmul_into`. The reference below is an independent row-major
+//! `coeus-cpu::matmul_into`. The reference below is an independent row-major
 //! triple loop, and the inputs are small integers exactly representable in
 //! `f32`/`f64`; the products and sums stay below the exact-integer range, so
 //! bitwise equality is the correct oracle for both scalar widths.

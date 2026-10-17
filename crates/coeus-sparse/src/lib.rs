@@ -4,7 +4,7 @@
 //! N-D) and [`CsrTensor`] (compressed-sparse-row, 2-D). Following DIP, these
 //! types hold only shape, indices, and values — they carry no arithmetic.
 //! Conversions (dense ↔ COO ↔ CSR) and sparse kernels (SpMV/SpMM and their
-//! backward passes) live in `coeus-ops`/`coeus-leto`, keeping the data
+//! backward passes) live in `coeus-ops`/`coeus-cpu`, keeping the data
 //! structures backend-agnostic and isolation-testable.
 //!
 //! Both constructors validate their structural invariants (index rank/count,

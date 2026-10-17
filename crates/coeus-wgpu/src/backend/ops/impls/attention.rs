@@ -1,6 +1,6 @@
 use crate::backend::{try_get_wgpu_context, WgpuBackend, WgpuBackendError};
+use coeus_accelerator::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use hephaestus_wgpu::{WgpuAttentionOps, WgpuDevice};
 
 // SAFETY: `HephaestusStorage` retains the provider buffer behind `Arc`, and the

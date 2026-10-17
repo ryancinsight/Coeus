@@ -7,8 +7,8 @@ use accumulated_outputs::{
     attention_preserves_output_clones, convolution_preserves_output_clones,
     pooling_preserves_output_clones, windows_preserve_output_clones,
 };
+use coeus_accelerator::HephaestusBackend;
 use coeus_cuda::CudaBackend;
-use coeus_hephaestus::HephaestusBackend;
 use optimizer::adam_preserves_all_state_clones;
 
 #[test]

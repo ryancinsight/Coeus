@@ -1,7 +1,7 @@
 use super::super::CpuBackend;
 use crate::CrossEntropyOps;
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
-use coeus_leto::{to_leto_view, to_leto_view_mut};
+use coeus_cpu::{to_leto_view, to_leto_view_mut};
 
 fn provider_error(operation: &'static str, source: impl std::fmt::Display) -> BackendError {
     BackendError::Storage {

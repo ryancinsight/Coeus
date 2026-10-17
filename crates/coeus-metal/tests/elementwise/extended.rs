@@ -39,7 +39,7 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         BinaryOp::Ge,
     ] {
         let mut expected = [0.0_f32; 6];
-        coeus_leto::elementwise_binary_into(
+        coeus_cpu::elementwise_binary_into(
             operation,
             &lhs_layout,
             &lhs,
@@ -104,7 +104,7 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
             .copy_to_device(&rhs, &mut device_rhs)
             .expect("invariant: test backend operation succeeds");
         let mut expected = vec![0.0_f32; lhs.len()];
-        coeus_leto::elementwise_binary_into(
+        coeus_cpu::elementwise_binary_into(
             BinaryOp::Add,
             &layout,
             &lhs,
@@ -153,7 +153,7 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         CpuUnaryOp::Recip,
     ] {
         let mut expected = [0.0_f32; 6];
-        coeus_leto::elementwise_unary_into(
+        coeus_cpu::elementwise_unary_into(
             operation,
             &lhs_layout,
             &unary_input,
@@ -190,7 +190,7 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
                 .copy_to_device(math_input, &mut device_math_input)
                 .expect("invariant: test backend operation succeeds");
             let mut expected = vec![0.0_f32; math_input.len()];
-            coeus_leto::elementwise_unary_into(
+            coeus_cpu::elementwise_unary_into(
                 $operation,
                 &math_layout,
                 math_input,
@@ -296,7 +296,7 @@ fn native_elementwise_operations_match_leto_with_broadcasting() {
         CpuUnaryOp::ThresholdGrad(threshold),
     ] {
         let mut expected = [0.0_f32; 6];
-        coeus_leto::elementwise_unary_into(
+        coeus_cpu::elementwise_unary_into(
             operation,
             &activation_layout,
             &activation_input,

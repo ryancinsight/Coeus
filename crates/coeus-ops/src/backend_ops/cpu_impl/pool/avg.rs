@@ -27,7 +27,7 @@ where
     check_rank("avg pool 2d", input_layout, 4)?;
     let input_slice = input.as_slice();
     let output_slice = output.as_mut_slice()?;
-    coeus_leto::pooling_forward_into(
+    coeus_cpu::pooling_forward_into(
         leto_ops::PoolingMode::Average,
         input_layout,
         input_slice,
@@ -61,7 +61,7 @@ where
     check_rank("avg pool 2d backward", grad_out_layout, 4)?;
     let grad_out_slice = grad_out.as_slice();
     let grad_input_slice = grad_input.as_mut_slice()?;
-    coeus_leto::pooling_backward_into(
+    coeus_cpu::pooling_backward_into(
         leto_ops::PoolingMode::Average,
         grad_out_layout,
         grad_out_slice,
@@ -96,7 +96,7 @@ where
     check_rank("avg pool 3d", input_layout, 5)?;
     let input_slice = input.as_slice();
     let output_slice = output.as_mut_slice()?;
-    coeus_leto::pooling_forward_into(
+    coeus_cpu::pooling_forward_into(
         leto_ops::PoolingMode::Average,
         input_layout,
         input_slice,
@@ -130,7 +130,7 @@ where
     check_rank("avg pool 3d backward", grad_out_layout, 5)?;
     let grad_out_slice = grad_out.as_slice();
     let grad_input_slice = grad_input.as_mut_slice()?;
-    coeus_leto::pooling_backward_into(
+    coeus_cpu::pooling_backward_into(
         leto_ops::PoolingMode::Average,
         grad_out_layout,
         grad_out_slice,

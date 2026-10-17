@@ -1,6 +1,6 @@
 use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
+use coeus_accelerator::{cross_product, CrossProductProvider, HephaestusStorage};
 use coeus_core::{ComputeBackend, Layout};
-use coeus_hephaestus::{cross_product, CrossProductProvider, HephaestusStorage};
 use hephaestus_core::CrossProductOps;
 use hephaestus_wgpu::{DialectScalar, WgpuCrossProductOps, WgpuDevice, Wgsl};
 

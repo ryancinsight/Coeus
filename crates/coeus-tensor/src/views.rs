@@ -61,8 +61,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     #[inline]
     pub fn reshape<S: Into<Shape>>(&self, new_shape: S) -> Self {
         let new_shape = new_shape.into();
-        let layout = coeus_leto::reshape_layout(&self.layout, &new_shape)
-            .expect("coeus-leto reshape validation failed");
+        let layout = coeus_cpu::reshape_layout(&self.layout, &new_shape)
+            .expect("coeus-cpu reshape validation failed");
         self.with_layout(layout)
     }
 
@@ -71,8 +71,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// `dims` specifies the new order of dimensions.
     #[inline]
     pub fn permute(&self, dims: &[usize]) -> Self {
-        let layout = coeus_leto::permute_layout(&self.layout, dims)
-            .expect("coeus-leto permute validation failed");
+        let layout = coeus_cpu::permute_layout(&self.layout, dims)
+            .expect("coeus-cpu permute validation failed");
         self.with_layout(layout)
     }
 
@@ -83,8 +83,8 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     #[inline]
     pub fn broadcast<S: Into<Shape>>(&self, target_shape: S) -> Self {
         let target_shape = target_shape.into();
-        let layout = coeus_leto::broadcast_layout(&self.layout, &target_shape)
-            .expect("coeus-leto broadcast validation failed");
+        let layout = coeus_cpu::broadcast_layout(&self.layout, &target_shape)
+            .expect("coeus-cpu broadcast validation failed");
         self.with_layout(layout)
     }
 

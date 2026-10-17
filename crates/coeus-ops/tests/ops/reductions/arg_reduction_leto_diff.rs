@@ -1,7 +1,7 @@
 //! Differential verification of public CPU arg reductions.
 //!
 //! `coeus_ops::argmax` and `coeus_ops::argmin` route through the dynamic-rank
-//! `coeus-leto` arg-reduction shim. The reference indices below are derived
+//! `coeus-cpu` arg-reduction shim. The reference indices below are derived
 //! from independent row-major scans over exactly represented values.
 
 use coeus_core::{

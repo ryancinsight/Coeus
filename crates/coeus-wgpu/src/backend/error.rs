@@ -20,15 +20,15 @@ pub enum WgpuBackendError {
     },
 }
 
-impl From<coeus_hephaestus::HephaestusBackendError> for WgpuBackendError {
-    fn from(source: coeus_hephaestus::HephaestusBackendError) -> Self {
+impl From<coeus_accelerator::HephaestusBackendError> for WgpuBackendError {
+    fn from(source: coeus_accelerator::HephaestusBackendError) -> Self {
         match source {
             // The historical WGPU backend reported rank rejection for axis
             // reductions under the operation label "reduction"; the bridge
             // labels the same dispatch "reduce". Normalize so the public
             // `Validation(UnsupportedRank)` contract is unchanged for
             // consumers.
-            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+            coeus_accelerator::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
                 operation: "reduce",
                 rank,
                 max_rank,
@@ -37,8 +37,8 @@ impl From<coeus_hephaestus::HephaestusBackendError> for WgpuBackendError {
                 rank,
                 max_rank,
             }),
-            coeus_hephaestus::HephaestusBackendError::Backend(error) => Self::Validation(error),
-            coeus_hephaestus::HephaestusBackendError::Device { operation, source } => {
+            coeus_accelerator::HephaestusBackendError::Backend(error) => Self::Validation(error),
+            coeus_accelerator::HephaestusBackendError::Device { operation, source } => {
                 Self::Dispatch { operation, source }
             }
             // The bridge error is non-exhaustive so future provider categories
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn bridge_rank_rejection_keeps_the_historical_reduction_label() {
         let bridge_error =
-            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+            coeus_accelerator::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
                 operation: "reduce",
                 rank: 3,
                 max_rank: 2,
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn bridge_device_failures_surface_as_typed_dispatch_errors() {
-        let bridge_error = coeus_hephaestus::HephaestusBackendError::device(
+        let bridge_error = coeus_accelerator::HephaestusBackendError::device(
             "reduce",
             hephaestus_core::HephaestusError::DispatchFailed {
                 message: "provider rejected the kernel".to_owned(),

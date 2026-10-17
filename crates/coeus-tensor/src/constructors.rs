@@ -70,7 +70,7 @@ where
         F: Fn(&[usize]) -> T,
     {
         let shape = shape.into();
-        let values = coeus_leto::from_shape_fn_values(&shape, f)
+        let values = coeus_cpu::from_shape_fn_values(&shape, f)
             .map_err(|error| generation_error::<B>("Tensor::from_fn_on", error))?;
         Self::from_slice_on(shape, &values, backend)
     }
@@ -78,7 +78,7 @@ where
     /// Identity matrix of size n×n on the given backend.
     #[inline]
     pub fn eye_on(n: usize, backend: &B) -> Result<Self, B::Error> {
-        let values = coeus_leto::from_shape_fn_values(&[n, n], |index| {
+        let values = coeus_cpu::from_shape_fn_values(&[n, n], |index| {
             if index[0] == index[1] {
                 T::ONE
             } else {
@@ -155,7 +155,7 @@ where
     #[inline]
     pub fn logspace_on(start: T, end: T, n: usize, base: T, backend: &B) -> Result<Self, B::Error> {
         let n_minus_1 = T::from_count(if n > 1 { n - 1 } else { 1 });
-        let values = coeus_leto::from_shape_fn_values(&[n], |index| {
+        let values = coeus_cpu::from_shape_fn_values(&[n], |index| {
             let exp = if n > 1 {
                 start + (end - start) * T::from_count(index[0]) / n_minus_1
             } else {
@@ -192,7 +192,7 @@ where
         } else {
             one
         };
-        let values = coeus_leto::from_shape_fn_values(&[n], |index| {
+        let values = coeus_cpu::from_shape_fn_values(&[n], |index| {
             if n > 1 {
                 sign * start_abs * Float::powf(ratio, T::from_count(index[0]))
             } else {

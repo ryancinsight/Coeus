@@ -98,7 +98,7 @@ where
 /// eps: clamp for numerical stability (e.g., 1e-7 as T).
 #[inline]
 pub fn binary_cross_entropy<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     pred: &Var<T, B>,
@@ -113,7 +113,7 @@ pub fn binary_cross_entropy<
 /// `BCEWithLogitsLoss(reduction="mean")`.
 #[inline]
 pub fn bce_with_logits<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     logits: &Var<T, B>,
@@ -126,7 +126,7 @@ pub fn bce_with_logits<
 /// log_probs: `[N, C]` log-probabilities, targets: `[N]` class indices.
 #[inline]
 pub fn nll_loss<
-    T: Float + FloatElement + coeus_leto::RealScalar,
+    T: Float + FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     log_probs: &Var<T, B>,
@@ -147,7 +147,7 @@ where
 /// Delegates to `bce_with_logits` directly.
 #[inline]
 pub fn multi_label_soft_margin_loss<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x: &Var<T, B>,
@@ -162,7 +162,7 @@ pub fn multi_label_soft_margin_loss<
 /// `mean(target * (log(target) - input))`.
 #[inline]
 pub fn kl_divergence<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,

@@ -1,9 +1,12 @@
 # ADR 0080: Concern-owned names for the CPU and accelerator adaptation crates
 
-Status: Proposed  \
+Status: Accepted  \
 Date: 2026-10-10  \
 Change class: [arch] [major]  \
 Board item: [COEUS-SIBLING-NAMED-CRATES](../../backlog.md#coeus-sibling-named-crates)
+
+Revision 2026-10-16: accepted; the rename executes on PR #608 with no
+change to the decided names.
 
 ## Context
 

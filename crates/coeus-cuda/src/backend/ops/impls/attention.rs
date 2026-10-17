@@ -1,7 +1,7 @@
 use crate::backend::{try_get_cuda_device, CudaBackend, CudaScalar};
 use crate::CudaBackendError;
+use coeus_accelerator::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use coeus_core::{Float, Layout};
-use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use hephaestus_core::{AttentionOps, AttentionScalar};
 use hephaestus_cuda::{CudaAttentionOps, CudaDevice};
 

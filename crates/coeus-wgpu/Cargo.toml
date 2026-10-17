@@ -15,7 +15,7 @@ description = "WebGPU backend integration for Coeus tensor operations."
 coeus-core   = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-ops    = { workspace = true, default-features = false }
-coeus-hephaestus = { workspace = true }
+coeus-accelerator = { workspace = true }
 hephaestus-wgpu = { workspace = true }
 hephaestus-core = { workspace = true }
 bytemuck     = { workspace = true }

@@ -1,7 +1,7 @@
 //! Differential verification of public CPU reduction APIs.
 //!
 //! The CPU `BackendOps::reduce` path delegates sum/mean/min/max reductions
-//! through `coeus-leto::reduce_into`. Inputs use exactly representable values,
+//! through `coeus-cpu::reduce_into`. Inputs use exactly representable values,
 //! so bitwise equality is the correct oracle for both scalar widths.
 
 use coeus_core::{

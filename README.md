@@ -19,11 +19,11 @@ Foundation and CPU stack:
 - **[coeus-nn](crates/coeus-nn/README.md)**: Neural network modules (Linear, Conv1/2/3d, the normalization family, pooling, attention, transformer blocks, RNN) and activations.
 - **[coeus-optim](crates/coeus-optim/README.md)**: Parameter optimizers (SGD, Adam, AdamW, RMSProp, AdaGrad), gradient clipping, and LR schedulers.
 - **[coeus-sparse](crates/coeus-sparse/README.md)**: Sparse storage representations (`CooTensor`, `CsrTensor`). Data structures only.
-- **[coeus-leto](crates/coeus-leto/README.md)**: Const-rank dispatch shim adapting Coeus dynamic-rank layouts onto Leto array kernels (leto ADR 0002).
+- **[coeus-cpu](crates/coeus-cpu/README.md)**: Const-rank dispatch shim adapting Coeus dynamic-rank layouts onto Leto array kernels (leto ADR 0002).
 
 Accelerator and integration crates — the current development focus:
 
-- **[coeus-hephaestus](crates/coeus-hephaestus/README.md)**: Vendor-neutral bridge owning device storage, host/device transfer, layout validation, and dispatch once, against the `HephaestusProvider` trait family.
+- **[coeus-accelerator](crates/coeus-accelerator/README.md)**: Vendor-neutral bridge owning device storage, host/device transfer, layout validation, and dispatch once, against the `HephaestusProvider` trait family.
 - **[coeus-wgpu](crates/coeus-wgpu/README.md)**: WebGPU backend adapting Coeus tensors and expressions to Hephaestus' provider-owned WGSL operations. Contains no device kernels.
 - **[coeus-cuda](crates/coeus-cuda/README.md)**: CUDA backend adapting Coeus storage and operation contracts to Hephaestus' provider-owned CUDA implementations, gated behind the `cuda` feature. Contains no device kernels.
 - **[coeus-rocm](crates/coeus-rocm/README.md)**: Provider wiring binding Coeus operations to `hephaestus-rocm`. Contains no kernels of its own.
@@ -137,7 +137,7 @@ silently downgrades execution to Leto.
 
 ### Run Benchmarks
 `coeus-tensor` contains Criterion baselines for Coeus Sequential, Coeus Moirai,
-direct Leto, and the Coeus-Leto dispatch seam. Native analytical and
+direct Leto, and the coeus-cpu dispatch seam. Native analytical and
 backend-conformance tests own correctness evidence; benchmarks measure the
 implemented provider paths. The workspace bench profile
 uses thin LTO and one codegen unit so generic cross-crate kernels are measured
