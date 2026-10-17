@@ -1,6 +1,6 @@
 use crate::backend::{WgpuBackend, WgpuScalar};
+use coeus_accelerator::{HephaestusBackend, ReductionProvider};
 use coeus_core::{FloatElement, Layout};
-use coeus_hephaestus::{HephaestusBackend, ReductionProvider};
 use hephaestus_core::{
     CumProdOp, CumSumOp, DialectScalar, IdentityToken, MaxOp, MinOp, OpIdentity, ProdOp, SumOp,
 };

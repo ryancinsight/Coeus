@@ -8,7 +8,7 @@ fn tensor_broadcast_matches_leto_layout_metadata_and_values() {
         .expect("invariant: test backend operation succeeds");
 
     let broadcasted = row.broadcast([2, 3]);
-    let direct = coeus_leto::to_leto_layout::<2>(row.layout())
+    let direct = coeus_cpu::to_leto_layout::<2>(row.layout())
         .unwrap()
         .broadcast::<2>([2, 3])
         .unwrap();
@@ -86,7 +86,7 @@ fn broadcast_shape_helper_routes_through_leto_bridge() {
 }
 
 #[test]
-#[should_panic(expected = "coeus-leto broadcast validation failed")]
+#[should_panic(expected = "coeus-cpu broadcast validation failed")]
 fn tensor_broadcast_rejects_incompatible_shape() {
     let backend = SequentialBackend;
     let tensor = Tensor::<i32, SequentialBackend>::from_slice_on([2, 2], &[1, 2, 3, 4], &backend)
@@ -101,8 +101,8 @@ fn leto_bridge_matches_manual_strided_layout_case() {
         Strides::from_slice(&[3usize, 1]),
         4,
     );
-    let bridge = coeus_leto::broadcast_layout(&source, &[2, 3]).unwrap();
-    let direct = coeus_leto::to_leto_layout::<2>(&source)
+    let bridge = coeus_cpu::broadcast_layout(&source, &[2, 3]).unwrap();
+    let direct = coeus_cpu::to_leto_layout::<2>(&source)
         .unwrap()
         .broadcast::<2>([2, 3])
         .unwrap();

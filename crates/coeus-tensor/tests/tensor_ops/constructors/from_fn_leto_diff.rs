@@ -1,7 +1,7 @@
 //! Differential verification for tensor coordinate constructors.
 //!
 //! `Tensor::from_fn_on` routes coordinate generation through
-//! `coeus-leto::from_shape_fn_values`.
+//! `coeus-cpu::from_shape_fn_values`.
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
@@ -18,7 +18,7 @@ where
         i32::try_from(index[0] * 100 + index[1] * 10 + index[2]).unwrap()
     })
     .expect("invariant: test backend operation succeeds");
-    let expected = coeus_leto::from_shape_fn_values(&shape, |index| {
+    let expected = coeus_cpu::from_shape_fn_values(&shape, |index| {
         i32::try_from(index[0] * 100 + index[1] * 10 + index[2]).unwrap()
     })
     .unwrap();

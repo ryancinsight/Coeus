@@ -18,7 +18,7 @@ use coeus_tensor::Tensor;
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn multi_margin<
-    T: Float + FloatElement + coeus_leto::RealScalar,
+    T: Float + FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::ScalarPowerOps<T> + Default,
 >(
     x: &Var<T, B>,
@@ -44,7 +44,7 @@ where
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn multi_label_margin_loss<
-    T: Float + FloatElement + coeus_leto::RealScalar,
+    T: Float + FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x: &Var<T, B>,
@@ -65,7 +65,7 @@ where
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn soft_margin<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -84,7 +84,7 @@ pub fn soft_margin<
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn margin_ranking_loss<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input1: &Var<T, B>,
@@ -112,7 +112,7 @@ pub fn hinge_embedding_loss<T, B>(
     margin: T,
 ) -> Result<Var<T, B>, B::Error>
 where
-    T: Float + coeus_leto::RealScalar,
+    T: Float + coeus_cpu::RealScalar,
     B: ComputeBackend + Default + coeus_ops::BackendOps<T>,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

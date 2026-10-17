@@ -2,10 +2,12 @@
 
 use super::*;
 
+use eunomia::F32;
+
 pub(crate) fn bench_relu_forward(c: &mut Criterion) {
     // ReLU activation on [BATCH=128, FEATURES=256] — largest normalization shape.
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
 
     let x_seq = Var::new(
@@ -36,7 +38,7 @@ pub(crate) fn bench_relu_forward(c: &mut Criterion) {
 pub(crate) fn bench_gelu_forward(c: &mut Criterion) {
     // GeLU activation on [BATCH=128, FEATURES=256].
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
 
     let x_seq = Var::new(
@@ -68,7 +70,7 @@ pub(crate) fn bench_prelu_forward(c: &mut Criterion) {
     // PReLU on [BATCH x FEATURES] with the shared default alpha = 0.25. Inputs
     // are shifted negative so the parametric branch is exercised on ~half.
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin() - 0.4)
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin() - 0.4)
         .collect();
 
     let x_seq = Var::new(
@@ -118,7 +120,7 @@ pub(crate) fn bench_prelu_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_leaky_relu_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -153,7 +155,7 @@ pub(crate) fn bench_leaky_relu_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_relu2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.003).sin() * 2.0)
+        .map(|i| (F32::from_count(i).0 * 0.003).sin() * 2.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -189,7 +191,7 @@ pub(crate) fn bench_relu2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_gelu2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -225,7 +227,7 @@ pub(crate) fn bench_gelu2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_selu2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -261,7 +263,7 @@ pub(crate) fn bench_selu2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_elu2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -296,7 +298,7 @@ pub(crate) fn bench_elu2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_hardshrink_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 2.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 2.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -332,7 +334,7 @@ pub(crate) fn bench_hardshrink_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_leaky_relu2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -368,7 +370,7 @@ pub(crate) fn bench_leaky_relu2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_softshrink_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 2.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 2.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -404,7 +406,7 @@ pub(crate) fn bench_softshrink_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_celu_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -438,7 +440,7 @@ pub(crate) fn bench_celu_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_prelu2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)

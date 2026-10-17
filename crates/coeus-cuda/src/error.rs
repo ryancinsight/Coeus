@@ -63,14 +63,14 @@ impl From<BackendError> for CudaBackendError {
     }
 }
 
-impl From<coeus_hephaestus::HephaestusBackendError> for CudaBackendError {
-    fn from(source: coeus_hephaestus::HephaestusBackendError) -> Self {
+impl From<coeus_accelerator::HephaestusBackendError> for CudaBackendError {
+    fn from(source: coeus_accelerator::HephaestusBackendError) -> Self {
         match source {
             // The historical CUDA backend reported rank rejection for axis
             // reductions under the operation label "reduction"; the bridge
             // labels the same dispatch "reduce". Normalize so the public
             // `UnsupportedRank` contract is unchanged for consumers.
-            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+            coeus_accelerator::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
                 operation: "reduce",
                 rank,
                 max_rank,
@@ -79,7 +79,7 @@ impl From<coeus_hephaestus::HephaestusBackendError> for CudaBackendError {
                 rank,
                 max_rank,
             },
-            coeus_hephaestus::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
+            coeus_accelerator::HephaestusBackendError::Backend(BackendError::UnsupportedRank {
                 operation,
                 rank,
                 max_rank,
@@ -88,8 +88,8 @@ impl From<coeus_hephaestus::HephaestusBackendError> for CudaBackendError {
                 rank,
                 max_rank,
             },
-            coeus_hephaestus::HephaestusBackendError::Backend(error) => Self::validation(error),
-            coeus_hephaestus::HephaestusBackendError::Device { operation, source } => {
+            coeus_accelerator::HephaestusBackendError::Backend(error) => Self::validation(error),
+            coeus_accelerator::HephaestusBackendError::Device { operation, source } => {
                 Self::Dispatch { operation, source }
             }
             // The bridge error is non-exhaustive so future provider categories

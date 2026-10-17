@@ -33,8 +33,8 @@ where
         .step_by(chunk_size)
         .map(|start| (dim_size - start).min(chunk_size))
         .collect();
-    let (flat, offsets) = coeus_leto::split_values(x.layout(), x.storage().as_slice(), dim, &sizes)
-        .expect("coeus-leto split failed");
+    let (flat, offsets) = coeus_cpu::split_values(x.layout(), x.storage().as_slice(), dim, &sizes)
+        .expect("coeus-cpu split failed");
 
     offsets
         .windows(2)

@@ -76,7 +76,7 @@ pub struct MhaProjectionParams<'a, T: Scalar, B: coeus_ops::BackendOps<T> + Defa
 /// Returns a typed contract failure before evaluating invalid Q/K/V,
 /// projection, head-count, bias, or mask shapes.
 pub fn multi_head_attention_cross<
-    T: coeus_ops::AttentionScalar + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: coeus_ops::AttentionScalar + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
     const H: usize,
     M: AttentionMask,
@@ -185,7 +185,7 @@ pub fn multi_head_attention_cross<
 /// - Reshape to `[batch*seq, d_model]` (tracked)
 /// - Matmul with `w^T` (tracked)
 /// - Reshape back to `[batch, seq, d_model]` (tracked)
-fn project_3d<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+fn project_3d<T: Float + coeus_cpu::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     x: &Var<T, B>,
     w: &Var<T, B>,
     bias: Option<&Var<T, B>>,
@@ -205,7 +205,7 @@ fn project_3d<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + D
 }
 
 impl<
-        T: coeus_ops::AttentionScalar + coeus_core::FloatElement + coeus_leto::RealScalar,
+        T: coeus_ops::AttentionScalar + coeus_core::FloatElement + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         M: AttentionMask,
@@ -222,7 +222,7 @@ impl<
         bias: bool,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RealScalar,
+        T: coeus_cpu::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         if H == 0 || d_model == 0 || !d_model.is_multiple_of(H) {
@@ -294,7 +294,7 @@ impl<
 
 /// Self-attention `Module` impl (Q = K = V = input).
 impl<
-        T: coeus_ops::AttentionScalar + coeus_core::FloatElement + coeus_leto::RealScalar,
+        T: coeus_ops::AttentionScalar + coeus_core::FloatElement + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         M: AttentionMask,

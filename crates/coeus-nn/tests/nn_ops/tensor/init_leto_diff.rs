@@ -1,7 +1,7 @@
 //! Differential verification of neural-network initializers.
 //!
 //! CPU `coeus_nn::init::{uniform_with_seed, normal_with_seed}` dispatch through
-//! destination-writing `coeus-leto` operations. The oracle is direct Leto
+//! destination-writing `coeus-cpu` operations. The oracle is direct Leto
 //! output for the same shape, scalar type, and seed.
 
 use coeus_autograd::Var;
@@ -22,7 +22,7 @@ fn assert_values<T: Scalar>(got: &[T], expected: &[T], context: &str) {
 
 fn check_backend<T, B>(backend: &B)
 where
-    T: coeus_core::Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: coeus_core::Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::RandomInitOps<T> + ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -36,7 +36,7 @@ where
 
     coeus_nn::init::uniform_with_seed(&mut weight, -2.0, 5.0, 42)
         .expect("valid seeded uniform initializer fixture");
-    let expected_uniform = coeus_leto::uniform_values(
+    let expected_uniform = coeus_cpu::uniform_values(
         &shape,
         <T as coeus_core::FloatElement>::from_f64(-2.0),
         <T as coeus_core::FloatElement>::from_f64(5.0),
@@ -51,7 +51,7 @@ where
 
     coeus_nn::init::normal_with_seed(&mut weight, 1.0, 2.0, 11)
         .expect("valid seeded normal initializer fixture");
-    let expected_normal = coeus_leto::normal_values(
+    let expected_normal = coeus_cpu::normal_values(
         &shape,
         <T as coeus_core::FloatElement>::from_f64(1.0),
         <T as coeus_core::FloatElement>::from_f64(2.0),
@@ -67,13 +67,13 @@ where
 
 // kaiming_uniform and kaiming_normal delegate to uniform/normal with analytically
 // computed bounds. Verify by reproducing those bounds and comparing against direct
-// coeus-leto dispatch.
+// coeus-cpu dispatch.
 //
 // kaiming_uniform bound: limit = sqrt(6 / fan_in)
 // kaiming_normal std_dev: sigma = sqrt(2 / fan_in)
 fn check_kaiming<T, B>(backend: &B)
 where
-    T: coeus_core::Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: coeus_core::Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::RandomInitOps<T> + ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -92,7 +92,7 @@ where
 
     let fan = T::from_count(fan_in);
     let limit = (<T as coeus_core::FloatElement>::from_f64(6.0) / fan).sqrt_val();
-    let expected_uniform = coeus_leto::uniform_values(&shape, T::ZERO - limit, limit, seed)
+    let expected_uniform = coeus_cpu::uniform_values(&shape, T::ZERO - limit, limit, seed)
         .expect("valid direct Leto Kaiming uniform fixture");
     assert_values(
         weight.tensor.as_slice(),
@@ -103,7 +103,7 @@ where
     coeus_nn::init::kaiming_normal_with_seed(&mut weight, fan_in, seed)
         .expect("valid seeded Kaiming normal fixture");
     let std_dev = (<T as coeus_core::FloatElement>::from_f64(2.0) / fan).sqrt_val();
-    let expected_normal = coeus_leto::normal_values(
+    let expected_normal = coeus_cpu::normal_values(
         &shape,
         <T as coeus_core::FloatElement>::from_f64(0.0),
         std_dev,
@@ -131,7 +131,7 @@ fn moirai_initializers_match_leto_dispatch() {
 // xavier_normal std_dev: sigma = sqrt(2 / (fan_in + fan_out))
 fn check_xavier<T, B>(backend: &B)
 where
-    T: coeus_core::Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: coeus_core::Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::RandomInitOps<T> + ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -151,7 +151,7 @@ where
 
     let fan = T::from_count(fan_in + fan_out);
     let limit = (<T as coeus_core::FloatElement>::from_f64(6.0) / fan).sqrt_val();
-    let expected_uniform = coeus_leto::uniform_values(&shape, T::ZERO - limit, limit, seed)
+    let expected_uniform = coeus_cpu::uniform_values(&shape, T::ZERO - limit, limit, seed)
         .expect("valid direct Leto Xavier uniform fixture");
     assert_values(
         weight.tensor.as_slice(),
@@ -162,7 +162,7 @@ where
     coeus_nn::init::xavier_normal_with_seed(&mut weight, fan_in, fan_out, seed)
         .expect("valid seeded Xavier normal fixture");
     let std_dev = (<T as coeus_core::FloatElement>::from_f64(2.0) / fan).sqrt_val();
-    let expected_normal = coeus_leto::normal_values(
+    let expected_normal = coeus_cpu::normal_values(
         &shape,
         <T as coeus_core::FloatElement>::from_f64(0.0),
         std_dev,

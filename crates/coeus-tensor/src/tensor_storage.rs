@@ -136,7 +136,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             if self.is_contiguous() {
                 host_slice[start..start + numel].to_vec()
             } else {
-                coeus_leto::contiguous_values(&self.layout, host_slice).map_err(|error| {
+                coeus_cpu::contiguous_values(&self.layout, host_slice).map_err(|error| {
                     TensorTransferError::Source(
                         BackendError::Storage {
                             operation: "tensor backend transfer",
@@ -156,17 +156,15 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
             if self.is_contiguous() {
                 full_host_storage[start..start + numel].to_vec()
             } else {
-                coeus_leto::contiguous_values(&self.layout, &full_host_storage).map_err(
-                    |error| {
-                        TensorTransferError::Source(
-                            BackendError::Storage {
-                                operation: "tensor backend transfer",
-                                reason: error.to_string(),
-                            }
-                            .into(),
-                        )
-                    },
-                )?
+                coeus_cpu::contiguous_values(&self.layout, &full_host_storage).map_err(|error| {
+                    TensorTransferError::Source(
+                        BackendError::Storage {
+                            operation: "tensor backend transfer",
+                            reason: error.to_string(),
+                        }
+                        .into(),
+                    )
+                })?
             }
         };
         dst_backend

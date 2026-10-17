@@ -20,7 +20,7 @@ to direct specializations.
 - Provider-dispatched optimizer steps used by
   [`coeus-optim`](../coeus-optim/README.md).
 
-CPU execution routes through [`coeus-leto`](../coeus-leto/README.md) into the
+CPU execution routes through [`coeus-cpu`](../coeus-cpu/README.md) into the
 Leto array kernels.
 
 ## Documentation

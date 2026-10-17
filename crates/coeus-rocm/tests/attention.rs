@@ -1,9 +1,9 @@
-//! ROCm attention dispatch through the generic Coeus-Hephaestus bridge.
+//! ROCm attention dispatch through the generic coeus-accelerator bridge.
 
 #![cfg(all(feature = "rocm", target_os = "linux"))]
 
+use coeus_accelerator::{HephaestusBackend, HephaestusBackendError};
 use coeus_core::{ComputeBackend, Layout};
-use coeus_hephaestus::{HephaestusBackend, HephaestusBackendError};
 use coeus_ops::AttentionOps;
 use coeus_rocm::RocmProvider;
 

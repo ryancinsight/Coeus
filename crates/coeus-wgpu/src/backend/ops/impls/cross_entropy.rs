@@ -1,6 +1,6 @@
 use crate::backend::WgpuBackend;
+use coeus_accelerator::{prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{prepare_cross_entropy_targets, CrossEntropyBackend, CrossEntropyProvider};
 use hephaestus_core::ComputeDevice;
 use hephaestus_wgpu::{WgpuCrossEntropyOps, WgpuDevice};
 
@@ -18,7 +18,7 @@ impl CrossEntropyBackend for WgpuBackend {
         preserve_contents: bool,
         operation: &'static str,
     ) -> Result<Self::DeviceBuffer<f32>, Self::Error> {
-        coeus_hephaestus::prepare_candidate::<Self>(storage, preserve_contents, operation)
+        coeus_accelerator::prepare_candidate::<Self>(storage, preserve_contents, operation)
     }
 
     fn install_cross_entropy_candidate(

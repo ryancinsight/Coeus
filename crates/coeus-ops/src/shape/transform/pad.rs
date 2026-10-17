@@ -34,7 +34,7 @@ where
         out_shape[d] += pads[d].0 + pads[d].1;
     }
 
-    let values = coeus_leto::pad_values(x.layout(), x.storage().as_slice(), pads, value)
-        .expect("coeus-leto pad failed");
+    let values = coeus_cpu::pad_values(x.layout(), x.storage().as_slice(), pads, value)
+        .expect("coeus-cpu pad failed");
     Tensor::from_slice_on(out_shape, &values, &backend)
 }

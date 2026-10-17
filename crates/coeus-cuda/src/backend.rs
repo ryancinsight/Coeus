@@ -50,7 +50,7 @@ impl CudaBackend {
 // transfer operations initialize their complete destination buffers.
 unsafe impl ComputeBackend for CudaBackend {
     type Error = crate::CudaBackendError;
-    type DeviceBuffer<T: Scalar> = coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>;
+    type DeviceBuffer<T: Scalar> = coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>;
     type KernelDescriptor = ();
     type DispatchFuture<T: Scalar> = std::future::Ready<T>;
 
@@ -79,12 +79,12 @@ unsafe impl ComputeBackend for CudaBackend {
     unsafe fn allocate<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
         // SAFETY: this backend forwards the caller's initialization
         // obligation to the shared provider backend.
-        unsafe { coeus_hephaestus::HephaestusBackend::<CudaBackend>::new().allocate(len) }
+        unsafe { coeus_accelerator::HephaestusBackend::<CudaBackend>::new().allocate(len) }
     }
 
     #[inline]
     fn allocate_zeroed<T: Scalar>(&self, len: usize) -> Result<Self::DeviceBuffer<T>, Self::Error> {
-        coeus_hephaestus::HephaestusStorage::<CudaBackend, _>::new(len)
+        coeus_accelerator::HephaestusStorage::<CudaBackend, _>::new(len)
             .map_err(|source| CudaBackendError::dispatch("allocate_zeroed", source))
     }
 

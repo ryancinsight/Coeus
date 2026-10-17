@@ -1,6 +1,6 @@
 //! Differential verification of the public CPU pad path.
 //!
-//! `coeus_ops::pad` delegates to the dynamic-rank `coeus-leto` structural
+//! `coeus_ops::pad` delegates to the dynamic-rank `coeus-cpu` structural
 //! dispatch. The expected values below are derived from row-major coordinate
 //! mapping over exactly represented scalar values, so exact equality is the
 //! correct oracle for both scalar widths.

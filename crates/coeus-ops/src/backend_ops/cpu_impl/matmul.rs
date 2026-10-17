@@ -20,7 +20,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::matmul_into(
+    coeus_cpu::matmul_into(
         a_layout,
         a.as_slice(),
         b_layout,
@@ -46,7 +46,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::batched_matmul_into(
+    coeus_cpu::batched_matmul_into(
         a_layout,
         a.as_slice(),
         b_layout,
@@ -72,7 +72,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::matmul_accumulate_into(
+    coeus_cpu::matmul_accumulate_into(
         a_layout,
         a.as_slice(),
         b_layout,
@@ -98,7 +98,7 @@ where
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
-    coeus_leto::batched_matmul_accumulate_into(
+    coeus_cpu::batched_matmul_accumulate_into(
         a_layout,
         a.as_slice(),
         b_layout,

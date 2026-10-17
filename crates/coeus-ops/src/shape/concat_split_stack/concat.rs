@@ -56,7 +56,6 @@ where
         .iter()
         .map(|tensor| tensor.storage().as_slice())
         .collect();
-    let values =
-        coeus_leto::concat_values(&layouts, &inputs, dim).expect("coeus-leto concat failed");
+    let values = coeus_cpu::concat_values(&layouts, &inputs, dim).expect("coeus-cpu concat failed");
     Tensor::from_slice_on(out_shape, &values, &backend)
 }

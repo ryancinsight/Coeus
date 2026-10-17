@@ -225,7 +225,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
     /// layout, so offsets and strides do not leak into the returned buffer.
     pub fn to_vec_on(&self, backend: &B) -> Result<Vec<T>, B::Error> {
         if let Some(host_slice) = self.storage.try_as_slice() {
-            return coeus_leto::contiguous_values(&self.layout, host_slice).map_err(|error| {
+            return coeus_cpu::contiguous_values(&self.layout, host_slice).map_err(|error| {
                 BackendError::Storage {
                     operation: "tensor host materialization",
                     reason: error.to_string(),
@@ -236,7 +236,7 @@ impl<T: Scalar, B: ComputeBackend> Tensor<T, B> {
 
         let mut physical = vec![T::ZERO; Storage::len(&self.storage)];
         backend.copy_to_host(&self.storage, &mut physical)?;
-        coeus_leto::contiguous_values(&self.layout, &physical).map_err(|error| {
+        coeus_cpu::contiguous_values(&self.layout, &physical).map_err(|error| {
             BackendError::Storage {
                 operation: "tensor host materialization",
                 reason: error.to_string(),

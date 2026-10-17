@@ -1,6 +1,6 @@
 use crate::backend::CudaBackend;
+use coeus_accelerator::{StatefulUpdateBackend, StatefulUpdateProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{StatefulUpdateBackend, StatefulUpdateProvider};
 use hephaestus_cuda::CudaStatefulUpdateOps;
 
 impl StatefulUpdateProvider for CudaBackend {
@@ -21,11 +21,11 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
 
     fn sgd_step(
         &self,
-        p: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        p: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         pl: &Layout,
-        g: &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        g: &coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         gl: &Layout,
-        s: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        s: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         sl: &Layout,
         lr: f32,
         momentum: f32,
@@ -35,13 +35,13 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
 
     fn adam_step(
         &self,
-        p: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        p: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         pl: &Layout,
-        g: &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        g: &coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         gl: &Layout,
-        first: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        first: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         fl: &Layout,
-        second: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        second: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         sl: &Layout,
         lr: f32,
         b1: f32,
@@ -54,11 +54,11 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
 
     fn rmsprop_step(
         &self,
-        p: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        p: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         pl: &Layout,
-        g: &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        g: &coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         gl: &Layout,
-        s: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        s: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         sl: &Layout,
         lr: f32,
         alpha: f32,
@@ -69,13 +69,13 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
 
     fn adamw_step(
         &self,
-        p: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        p: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         pl: &Layout,
-        g: &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        g: &coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         gl: &Layout,
-        first: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        first: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         fl: &Layout,
-        second: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        second: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         sl: &Layout,
         lr: f32,
         b1: f32,
@@ -91,11 +91,11 @@ impl coeus_ops::OptimizerOps<f32> for CudaBackend {
 
     fn adagrad_step(
         &self,
-        p: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        p: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         pl: &Layout,
-        g: &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        g: &coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         gl: &Layout,
-        s: &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, f32>,
+        s: &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, f32>,
         sl: &Layout,
         lr: f32,
         eps: f32,

@@ -1,7 +1,7 @@
 use crate::backend_ops::CpuBackend;
 use coeus_core::{Layout, Scalar};
 
-/// Default: copy to host, run `coeus_leto::argmax_into`, copy back.
+/// Default: copy to host, run `coeus_cpu::argmax_into`, copy back.
 pub fn argmax<T, B>(
     backend: &B,
     a: &B::DeviceBuffer<T>,
@@ -18,13 +18,13 @@ where
     backend.copy_to_host(a, &mut host_a)?;
 
     let mut host_c = vec![0i64; c_layout.shape().iter().product()];
-    coeus_leto::argmax_into(a_layout, &host_a, axis, c_layout, &mut host_c)
+    coeus_cpu::argmax_into(a_layout, &host_a, axis, c_layout, &mut host_c)
         .map_err(|error| crate::backend_ops::cpu_impl::error::map_leto_error("argmax", error))?;
 
     backend.copy_to_device(&host_c, c)
 }
 
-/// Default: copy to host, run `coeus_leto::argmin_into`, copy back.
+/// Default: copy to host, run `coeus_cpu::argmin_into`, copy back.
 pub fn argmin<T, B>(
     backend: &B,
     a: &B::DeviceBuffer<T>,
@@ -41,7 +41,7 @@ where
     backend.copy_to_host(a, &mut host_a)?;
 
     let mut host_c = vec![0i64; c_layout.shape().iter().product()];
-    coeus_leto::argmin_into(a_layout, &host_a, axis, c_layout, &mut host_c)
+    coeus_cpu::argmin_into(a_layout, &host_a, axis, c_layout, &mut host_c)
         .map_err(|error| crate::backend_ops::cpu_impl::error::map_leto_error("argmin", error))?;
 
     backend.copy_to_device(&host_c, c)

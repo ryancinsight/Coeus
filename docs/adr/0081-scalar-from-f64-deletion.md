@@ -5,6 +5,10 @@ Date: 2026-10-15  \
 Change class: [arch] [major]  \
 Board item: [COEUS-SCALAR-VOCAB](../../backlog.md#coeus-scalar-vocab)
 
+Revision 2026-10-16: the executed-design citation pointed at an
+unlanded branch commit; it now names the landed execution
+(PR #562, `4cb2a84d`).
+
 ## Context
 
 `coeus_core::Scalar` redeclared `from_f64`, duplicating conversion
@@ -27,7 +31,7 @@ Two designs were considered:
    so the supertrait makes every `x.exp()`/`x.floor()` on `T: Float`
    ambiguous, and the per-site bounds — though viral — stay explicit.
 
-The sweep's executed design (`16a73a81`) confirmed option 2,
+The sweep's executed design (PR #562, `4cb2a84d`) confirmed option 2,
 including the `Complex` gap closure: `Complex<T>` calls
 `FloatElement::from_f64` on its component `T`, never on itself, so
 no new spelling is needed.

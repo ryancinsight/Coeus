@@ -15,7 +15,7 @@ construction invariants, and nothing else.
 
 No arithmetic. Sparse matrix-vector and matrix-matrix products live in
 [`coeus-ops`](../coeus-ops/README.md) and
-[`coeus-leto`](../coeus-leto/README.md).
+[`coeus-cpu`](../coeus-cpu/README.md).
 
 ## Documentation
 

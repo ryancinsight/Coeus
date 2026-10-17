@@ -53,6 +53,6 @@ where
         .iter()
         .map(|tensor| tensor.storage().as_slice())
         .collect();
-    let values = coeus_leto::stack_values(&layouts, &inputs, dim).expect("coeus-leto stack failed");
+    let values = coeus_cpu::stack_values(&layouts, &inputs, dim).expect("coeus-cpu stack failed");
     Tensor::from_slice_on(out_shape, &values, &backend)
 }

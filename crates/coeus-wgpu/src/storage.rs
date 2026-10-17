@@ -1,7 +1,7 @@
 use crate::backend::try_get_wgpu_context;
+use coeus_accelerator::HephaestusStorage;
 use coeus_core::ComputeBackend;
 use coeus_core::StorageMut;
-use coeus_hephaestus::HephaestusStorage;
 use hephaestus_core::{ComputeDevice, DeviceBuffer};
 use themis::{MemoryTier, PlacementHint};
 

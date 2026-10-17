@@ -1,7 +1,7 @@
 //! Differential verification for public tensor contiguous materialization.
 //!
 //! `Tensor::to_contiguous_on` routes CPU-addressable views through
-//! `coeus-leto::contiguous_values`; this test asserts exact value parity for
+//! `coeus-cpu::contiguous_values`; this test asserts exact value parity for
 //! offset, strided, and transposed layouts.
 
 use coeus_core::{CpuAddressableStorage, MoiraiBackend, SequentialBackend};
@@ -25,7 +25,7 @@ where
     let contiguous = view
         .to_contiguous_on(&backend)
         .expect("invariant: test backend operation succeeds");
-    let expected = coeus_leto::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
+    let expected = coeus_cpu::contiguous_values(view.layout(), view.storage().as_slice()).unwrap();
 
     assert!(contiguous.is_contiguous());
     assert_eq!(contiguous.shape(), view.shape());

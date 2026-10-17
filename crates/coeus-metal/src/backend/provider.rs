@@ -1,11 +1,11 @@
-use coeus_core::Scalar;
-use coeus_hephaestus::{
+use coeus_accelerator::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
     CrossEntropyProvider, CrossProductProvider, ElementwiseProvider, HephaestusProvider,
     MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider,
     ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StaggeredProvider,
     StatefulUpdateProvider, UnfoldFoldProvider,
 };
+use coeus_core::Scalar;
 use hephaestus_core::{CrossProductOps, DialectScalar, PoolingOps, SlidingWindowOps, Wgsl};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
@@ -25,7 +25,7 @@ pub struct MetalProvider;
 // submission supplies the synchronization boundary required by the handle.
 unsafe impl HephaestusProvider for MetalProvider {
     type Device = MetalDevice;
-    type Error = coeus_hephaestus::HephaestusBackendError;
+    type Error = coeus_accelerator::HephaestusBackendError;
     const NAME: &'static str = "metal";
 
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {

@@ -6,7 +6,7 @@ mod optimizer;
 #[path = "../../coeus-ops/tests/ops/ownership/staggered.rs"]
 mod staggered_oracle;
 
-use coeus_hephaestus::HephaestusBackend;
+use coeus_accelerator::HephaestusBackend;
 use coeus_rocm::RocmProvider;
 use staggered_oracle::staggered_preserves_clones;
 

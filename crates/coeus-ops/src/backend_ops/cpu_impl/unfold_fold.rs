@@ -6,7 +6,7 @@
 //! strided-injective outputs, while this surface rejects both (matching
 //! PyTorch and the historical CPU contract). The traversal itself — window
 //! decomposition, padded coordinates, fold accumulation order — is proven
-//! identical to [`coeus_leto`], so delegation is value-preserving.
+//! identical to [`coeus_cpu`], so delegation is value-preserving.
 
 use super::error::map_leto_error;
 use coeus_core::{BackendError, Layout};
@@ -30,7 +30,7 @@ pub(super) fn unfold1d<T: LetoScalar>(
     output: &mut [T],
     output_layout: &Layout,
 ) -> Result<(), BackendError> {
-    coeus_leto::unfold1d_into(
+    coeus_cpu::unfold1d_into(
         input_layout,
         input,
         kernel_size,
@@ -58,7 +58,7 @@ pub(super) fn fold1d<T: LetoScalar>(
     output: &mut [T],
     output_layout: &Layout,
 ) -> Result<(), BackendError> {
-    coeus_leto::fold1d_into(
+    coeus_cpu::fold1d_into(
         input_layout,
         input,
         output_size,
@@ -90,7 +90,7 @@ pub(super) fn unfold2d<T: LetoScalar>(
     output: &mut [T],
     output_layout: &Layout,
 ) -> Result<(), BackendError> {
-    coeus_leto::unfold2d_into(
+    coeus_cpu::unfold2d_into(
         input_layout,
         input,
         kernel_h,
@@ -127,7 +127,7 @@ pub(super) fn fold2d<T: LetoScalar>(
     output: &mut [T],
     output_layout: &Layout,
 ) -> Result<(), BackendError> {
-    coeus_leto::fold2d_into(
+    coeus_cpu::fold2d_into(
         input_layout,
         input,
         output_h,

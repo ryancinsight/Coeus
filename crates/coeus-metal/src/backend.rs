@@ -2,5 +2,5 @@
 
 mod provider;
 
-pub use coeus_hephaestus::HephaestusBackend;
+pub use coeus_accelerator::HephaestusBackend;
 pub use provider::MetalProvider;

@@ -48,7 +48,7 @@ pub struct EmbeddingBag<T: Scalar, B: coeus_ops::BackendOps<T> + Default = Moira
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > EmbeddingBag<T, B>
 where
@@ -169,7 +169,7 @@ where
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for EmbeddingBag<T, B>
 where

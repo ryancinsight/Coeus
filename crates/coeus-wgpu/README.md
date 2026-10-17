@@ -2,7 +2,7 @@
 
 WebGPU backend for [Coeus](../../README.md) tensor operations.
 
-Implements the [`coeus-hephaestus`](../coeus-hephaestus/README.md) provider
+Implements the [`coeus-accelerator`](../coeus-accelerator/README.md) provider
 traits through Hephaestus, giving Coeus a portable GPU path across Vulkan and
 Metal without a second device implementation.
 

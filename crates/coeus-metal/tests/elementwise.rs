@@ -1,5 +1,5 @@
+use coeus_accelerator::HephaestusBackend;
 use coeus_core::{BinaryOp, ComputeBackend, CpuUnaryOp, Layout, Scalar};
-use coeus_hephaestus::HephaestusBackend;
 use coeus_metal::MetalProvider;
 use coeus_ops::{ElementwiseOps, RotateHalfOps};
 use std::fmt::Debug;
@@ -119,7 +119,7 @@ fn assert_close(actual: &[f32], expected: &[f32], operation: &str) {
 fn assert_integer_comparisons<T>(backend: &Backend, lhs: &[T], rhs: &[T])
 where
     T: Scalar + leto_ops::Scalar + Debug + PartialEq,
-    coeus_metal::MetalProvider: coeus_hephaestus::ElementwiseProvider<T>,
+    coeus_metal::MetalProvider: coeus_accelerator::ElementwiseProvider<T>,
 {
     let layout = Layout::new([lhs.len()].into());
     // SAFETY: the following `copy_to_device` initializes every element before any read.
@@ -144,7 +144,7 @@ where
         BinaryOp::Ge,
     ] {
         let mut expected = vec![T::ZERO; lhs.len()];
-        coeus_leto::elementwise_binary_into(
+        coeus_cpu::elementwise_binary_into(
             operation,
             &layout,
             lhs,

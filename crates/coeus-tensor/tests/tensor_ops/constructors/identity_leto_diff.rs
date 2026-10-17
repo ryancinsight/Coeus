@@ -1,7 +1,7 @@
 //! Differential verification for public tensor identity constructors.
 //!
 //! `Tensor::eye_on` routes coordinate generation through
-//! `coeus-leto::from_shape_fn_values`.
+//! `coeus-cpu::from_shape_fn_values`.
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_tensor::Tensor;
@@ -17,7 +17,7 @@ where
     let tensor =
         Tensor::<i32, B>::eye_on(4, &backend).expect("invariant: test backend operation succeeds");
     let expected =
-        coeus_leto::from_shape_fn_values(
+        coeus_cpu::from_shape_fn_values(
             &[4usize, 4],
             |index| {
                 if index[0] == index[1] {
@@ -40,7 +40,7 @@ where
     let empty =
         Tensor::<i32, B>::eye_on(0, &backend).expect("invariant: test backend operation succeeds");
     let expected_empty =
-        coeus_leto::from_shape_fn_values(
+        coeus_cpu::from_shape_fn_values(
             &[0usize, 0],
             |index| {
                 if index[0] == index[1] {

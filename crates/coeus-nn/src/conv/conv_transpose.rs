@@ -90,7 +90,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> ConvTran
         bias: bool,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RealScalar,
+        T: coeus_cpu::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         Self::with_params(in_channels, out_channels, kernel_size, 1, 0, 0, 1, bias)
@@ -114,7 +114,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> ConvTran
         bias: bool,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RealScalar,
+        T: coeus_cpu::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         let backend = B::default();
@@ -198,7 +198,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> ConvTranspose<T, B, 3> {
 impl<T: Float, B: coeus_ops::BackendOps<T> + Default, const DIM: usize> Module<T, B>
     for ConvTranspose<T, B, DIM>
 where
-    T: coeus_leto::RealScalar,
+    T: coeus_cpu::RealScalar,
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
         let mut p = vec![self.weight.clone()];

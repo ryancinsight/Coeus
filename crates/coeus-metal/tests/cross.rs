@@ -1,5 +1,5 @@
+use coeus_accelerator::HephaestusBackend;
 use coeus_core::{ComputeBackend, Layout};
-use coeus_hephaestus::HephaestusBackend;
 use coeus_metal::MetalProvider;
 use coeus_ops::CrossOps;
 

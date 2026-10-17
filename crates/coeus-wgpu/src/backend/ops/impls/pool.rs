@@ -1,6 +1,6 @@
 use crate::backend::{WgpuBackend, WgpuBackendError, WgpuScalar};
+use coeus_accelerator::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use hephaestus_core::PoolingMode;
 use hephaestus_wgpu::{WgpuPoolingOps, WgpuWindowScalar};
 use leto::WindowParameters;
@@ -342,13 +342,13 @@ where
 fn forward<T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (
-        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::WgpuBackend, T>,
         &Layout,
     ),
     window: WindowConfiguration<S>,
     mode: PoolingMode,
     output: (
-        &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &mut coeus_accelerator::HephaestusStorage<crate::WgpuBackend, T>,
         &Layout,
     ),
 ) -> Result<(), WgpuBackendError>
@@ -368,7 +368,7 @@ where
             reason: error.to_string(),
         })
     })?;
-    coeus_hephaestus::pooling_forward::<WgpuBackend, T, R, S>(
+    coeus_accelerator::pooling_forward::<WgpuBackend, T, R, S>(
         operation, input, parameters, mode, output,
     )
 }
@@ -376,17 +376,17 @@ where
 fn backward<T, const R: usize, const S: usize>(
     operation: &'static str,
     grad_output: (
-        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::WgpuBackend, T>,
         &Layout,
     ),
     input: Option<(
-        &coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::WgpuBackend, T>,
         &Layout,
     )>,
     window: WindowConfiguration<S>,
     mode: PoolingMode,
     grad_input: (
-        &mut coeus_hephaestus::HephaestusStorage<crate::WgpuBackend, T>,
+        &mut coeus_accelerator::HephaestusStorage<crate::WgpuBackend, T>,
         &Layout,
     ),
 ) -> Result<(), WgpuBackendError>
@@ -406,7 +406,7 @@ where
             reason: error.to_string(),
         })
     })?;
-    coeus_hephaestus::pooling_backward::<WgpuBackend, T, R, S>(
+    coeus_accelerator::pooling_backward::<WgpuBackend, T, R, S>(
         operation,
         grad_output,
         input,

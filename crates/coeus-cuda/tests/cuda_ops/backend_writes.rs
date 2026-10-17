@@ -1,8 +1,8 @@
 #[path = "../../../coeus-core/tests/core_ops/storage/backend_writes.rs"]
 mod shared;
 
+use coeus_accelerator::HephaestusBackend;
 use coeus_cuda::CudaBackend;
-use coeus_hephaestus::HephaestusBackend;
 use shared::{preserves_cloned_storage, Write};
 
 #[test]
