@@ -122,13 +122,13 @@ impl<T: Scalar + coeus_cpu::RealScalar, B: coeus_ops::BackendOps<T> + Default> M
             .iter()
             .copied()
             .product::<usize>();
-        let flattened = if input_shape.len() == 2 {
-            input.clone()
-        } else {
-            coeus_autograd::reshape(input, [rows, in_features])?
-        };
         let w_t = coeus_autograd::transpose_2d(&self.weight)?;
-        let projected = coeus_autograd::matmul(&flattened, &w_t)?;
+        let projected = if input_shape.len() == 2 {
+            coeus_autograd::matmul(input, &w_t)?
+        } else {
+            let flattened = coeus_autograd::reshape(input, [rows, in_features])?;
+            coeus_autograd::matmul(&flattened, &w_t)?
+        };
         let projected = if let Some(ref bias) = self.bias {
             coeus_autograd::add(&projected, bias)?
         } else {
