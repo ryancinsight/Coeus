@@ -79,9 +79,19 @@ owners; no unmerged provider candidate is integrated.
 All Git provider records and all 231 registry records equal that main.
 The provider graph includes Eunomia 0.10 at `15fbb94c`, Leto 0.46 at
 `8b4ab407`, Hephaestus 0.22.1 at `b03e9176` and FFT 0.29.1 at `f266bb0b`.
-Only this unpublished ADR moves to 0082; main's accepted scalar-vocabulary
+At that checkpoint this unpublished ADR moved to 0082; main's accepted scalar-vocabulary
 ADR owns 0081. Later main `afb9ba9e` (#570–577) changes only the backlog and
 book; integrate both without changing validated executable source or graph.
+
+The numeric-admission continuation retains this owner at `4f1bd98d` and
+merges current main `6b8271bd`, including its canonical crate names and
+borrowed graph reads. Mean uses ADR 0084 because main owns fusion ADR 0082
+and ADR 0083 remains reserved for the preserved sparse continuation.
+The same isolated continuation integrates reviewed negative-power repair
+[PR #584](https://github.com/ryancinsight/Coeus/pull/584), preserving its
+coefficient and analytical regression source unchanged. Owner checkouts and
+remote repair drafts remain intact. Final integration/publication requires
+the coordinated provider and release gates.
 
 ## Verification
 

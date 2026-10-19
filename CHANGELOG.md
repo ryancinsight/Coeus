@@ -24,7 +24,7 @@
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
   provider mean and `mean_axis`. Integer callers explicitly choose a floating
   tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
-  add the floating-point bound. See [ADR 0082](docs/adr/0084-autograd-mean-float-contract.md#migration).
+  add the floating-point bound. See [ADR 0084](docs/adr/0084-autograd-mean-float-contract.md#migration).
 
 - [major] `coeus-leto` is renamed `coeus-cpu` and `coeus-hephaestus` is
   renamed `coeus-accelerator`: crate names now state the concern each
@@ -159,6 +159,11 @@
   wrapper is retained.
 
 ### Fixed
+
+- [patch] Correct the sign of autograd `pow` derivatives for negative integer
+  exponents at finite nonzero inputs. Preserve the negative exponent coefficient
+  in `n / x^(1-n)`. Add exact f32/f64/F16/Bf16 seeded-gradient regressions for
+  odd/even negative powers, both base signs and contiguous/strided layouts.
 
 - [patch] GPU unary activations decode single parameters from their public
   `f64` bit encoding. Staggered preparation rejects invalid spacing before
