@@ -253,9 +253,10 @@ impl Layout {
         first_shape[axis] = index;
         let mut second_shape = self.shape.clone();
         second_shape[axis] = extent - index;
+        let strides = self.strides.clone();
         Some((
-            Self::from_shape_strides(first_shape, self.strides.clone(), self.offset),
-            Self::from_shape_strides(second_shape, self.strides.clone(), second_offset),
+            Self::from_shape_strides(first_shape, strides.clone(), self.offset),
+            Self::from_shape_strides(second_shape, strides, second_offset),
         ))
     }
 
