@@ -4,12 +4,16 @@
 
 ### Changed
 
-- [patch] Admit Eunomia 0.10/0.11, Leto/Leto-ops 0.46/0.47 and Moirai 0.9/0.10
-  while retaining the valid current lock. Fresh canonical lock renewal follows
-  Apollo's Moirai 0.10 admission; final latest-version floors remain held.
+- [patch] Require published Hermes 0.9.1, Leto/Leto-ops >=0.46.1,<0.48,
+  Apollo FFT 0.29.3 and Hephaestus 0.22.2. Retain admission for Eunomia
+  0.10/0.11 and Moirai 0.9/0.10. Ordinary Cargo renewal selects the canonical
+  provider bridges and Moirai 0.10; final package, native, API and hosted
+  acceptance remain gates. Complete future backend/Python acceptance remains
+  separate from these source-range admissions.
 - Preserve the existing 0.13 numerical, native/wheel linkage and downstream
   NN test-cycle repairs; reconcile current main's canonical crate names and
-  borrowed graph reads without changing numerical implementations or assertions.
+  borrowed graph reads and layout stride reuse without changing numerical
+  implementations or assertions.
 
 
 ## [0.13.0] - Unreleased

@@ -86,6 +86,8 @@ verification, tightening, feature}.
 - Outcome: bound device-test compilation while preserving the full scalar/backend matrix.
 - Scope: CPU test placement and monomorphization in existing integration harnesses; no assertion, scalar, workload or runtime-budget reduction.
 - Evidence: ownership RED compilation took 13m06s while native execution took 7.965s; `wgpu_ops` rustc was the last compiler in the integrated attempt and also instantiates CPU-only scalar matrices.
+- Current attribution: [PR #611](https://github.com/ryancinsight/Coeus/pull/611), run 39325265218, reaches the unchanged 25-minute limit in all three native shards before test execution. Every shard compiles the same graph; the Nextest partition applies after compilation. Sccache reports 68 non-cacheable test/bin compiler calls per shard. Excluding the `coeus-wgpu` workspace member still includes Hephaestus WGPU through the Metal provider's default decomposition features.
+- Controlled source `da8b1aa6`: the Mac cold native build takes 256 seconds, with the `ops` test compiler peaking at 8.66 GiB. A private three-way operation-harness split preserves all 1,410 test identities and ignored states but takes 274 seconds and peaks at 8.79 GiB; it is not integrated. Mac measurements do not establish Linux memory pressure or OOM. The separate negative-power contract binary duplicates autograd compilation; consolidation of its unchanged test bodies is under measurement. Keep all compiler profiles, features, test coverage, shard count and limits unchanged.
 - Acceptance: compiler timing/codegen evidence identifies the dominant work; an evidence-backed structural change preserves the enumerated test matrix and lowers its attributed compile cost, or records why the proposed partition does not help.
 - Needs: [kernel output correction](#coeus-device-output-ownership); keep compiler flags and shared target policy fixed for comparison.
 
@@ -95,6 +97,7 @@ verification, tightening, feature}.
 - Status: todo; priority: verification; [arch].
 - Outcome: fresh lock generation and default/all-feature locked resolution agree, including against current upstream (not only offline idempotence).
 - Evidence: a frozen tree regenerates the same offline lock twice and both activation checks pass — this proves closure/idempotence, not remote freshness against the current upstream state.
+- Bridge renewal: after the published Apollo 0.29.3 / Leto 0.46.1 / Hephaestus 0.22.2 / Hermes 0.9.1 prerequisites, ordinary targeted Cargo update renews 38 first-party Git records, including Aequitas 0.3.1, Mnemosyne-memory 0.10.1 and Moirai 0.10.0. Registry package records remain unchanged. Final locked default/all-feature resolution, standard packages and actual-head gates remain pending.
 - Acceptance: standalone regeneration is idempotent and all configured gates pass against a freshly fetched upstream.
 - Next step: re-run `cargo update` against current remotes and confirm the lock still resolves after any upstream version alignment since the last check.
 
