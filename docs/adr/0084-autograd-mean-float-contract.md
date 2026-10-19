@@ -64,27 +64,27 @@ nonuniform weighting and tolerances remain unchanged; only the helper follows
 main's FloatElement vocabulary. Every library/internal requirement stays
 0.13.0. Earlier exact-main #539 ordinary normalized packaging reproduced
 453 errors against stale registry 0.12.0 interfaces; the aligned source at
-`1d3e62c336ed47be0ff43bf55babdf439bd361f4` compiled all 15 ordinary archives.
+[packaging checkpoint](https://github.com/ryancinsight/Coeus/pull/528) compiled all 15 ordinary archives.
 This historical package result does not establish current-head acceptance.
 
 ## Main reconciliation and ownership
 
 The isolated source continuation merges exact main `9fc433b0`, including
-merged #566, into preserved checkpoint `cf75fc0f`. Keep upstream's scalar
+merged #566, into preserved checkpoint [earlier mean-repair checkpoint](https://github.com/ryancinsight/Coeus/pull/528). Keep upstream's scalar
 vocabulary, cross-host seams, CPU pooling/unfold delegation, typed einsum
 errors, gradient coverage and unrelated board entries. The original checkout
 and remote draft #528 remain unchanged. Preserve open sparse #533 and other
 owners; no unmerged provider candidate is integrated.
 
 All Git provider records and all 231 registry records equal that main.
-The provider graph includes Eunomia 0.10 at `15fbb94c`, Leto 0.46 at
+The provider graph includes Eunomia 0.10 at the locked provider revision, Leto 0.46 at
 `8b4ab407`, Hephaestus 0.22.1 at `b03e9176` and FFT 0.29.1 at `f266bb0b`.
 At that checkpoint this unpublished ADR moved to 0082; main's accepted scalar-vocabulary
 ADR owns 0081. Later main `afb9ba9e` (#570–577) changes only the backlog and
 book; integrate both without changing validated executable source or graph.
 
-The numeric-admission continuation retains this owner at `4f1bd98d` and
-merges current main `6b8271bd`, including its canonical crate names and
+The numeric-admission continuation retains this owner at [preserved mean owner](https://github.com/ryancinsight/Coeus/pull/528) and
+merges current main [main #609](https://github.com/ryancinsight/Coeus/pull/609), including its canonical crate names and
 borrowed graph reads. Mean uses ADR 0084 because main owns fusion ADR 0082
 and ADR 0083 remains reserved for the preserved sparse continuation.
 The same isolated continuation integrates reviewed negative-power repair
@@ -98,7 +98,7 @@ the coordinated provider and release gates.
 The unchanged analytical cases execute against exact main `9fc433b0` before
 repair: four pass, two fail, zero skip. F16 length-65536 mean returns `0x0000`
 instead of `0x0100`; minimum positive is `0x0040` instead of `0x0400`.
-At source `89908e63`, the full suite passes 1539 native tests with WGPU/Metal
+At source [validated mean-repair checkpoint](https://github.com/ryancinsight/Coeus/pull/528), the full suite passes 1539 native tests with WGPU/Metal
 devices required and eight existing skips. All 16 downstream NN checks and
 all six focused numerical cases pass. The full workspace passes 172 doctests
 with two existing ignores, including both integer compile-fail cases; strict
@@ -135,8 +135,7 @@ factory, merge an automatic publisher, or claim a coherent final release.
 The separate Atlas #542 / Leto #365 Python linkage repair is merged and
 Python 0.46.1 is published; it does not resolve this version decision.
 
-Remote draft #528 remains open at `806366ca`; no known-blocked push is
-retried. After the prerequisite, repeat applicable exact-final-head native,
+Remote draft #528 remains open at [preserved draft #528](https://github.com/ryancinsight/Coeus/pull/528); the historical blocked source is not retried. After the prerequisite, repeat applicable exact-final-head native,
 API, standard-package and hosted release checks. Coeus Miri remains deferred
 and unverified; required CUDA/ROCm hardware and the full Python wheel matrix
 remain unverified. No coverage, baseline, deadline or review is weakened.
