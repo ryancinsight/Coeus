@@ -18,7 +18,7 @@ use coeus_core::MoiraiBackend;
 /// - `M` — masking strategy ZST
 #[derive(Clone)]
 pub struct TransformerEncoder<
-    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default = MoiraiBackend,
     const H: usize = 8,
     const N: usize = 6,
@@ -29,7 +29,7 @@ pub struct TransformerEncoder<
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,
@@ -49,7 +49,7 @@ where
         dropout_p: f64,
     ) -> Result<Self, crate::init::InitializationError<B::Error>>
     where
-        T: coeus_leto::RealScalar,
+        T: coeus_cpu::RealScalar,
         B: coeus_ops::RandomInitOps<T>,
     {
         if N == 0 {
@@ -79,7 +79,7 @@ where
 }
 
 impl<
-        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + coeus_ops::AttentionScalar + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + coeus_ops::AttentionOps<T> + Default,
         const H: usize,
         const N: usize,

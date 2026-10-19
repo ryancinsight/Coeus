@@ -1,20 +1,20 @@
-use coeus_core::Scalar;
-use coeus_hephaestus::{
+use coeus_accelerator::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, CrossEntropyProvider,
-    CrossProductProvider, ElementwiseProvider, HephaestusProvider, HostCrossProductOps,
-    MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider,
-    ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StaggeredProvider,
-    StatefulUpdateProvider, UnfoldFoldProvider,
+    CrossProductProvider, ElementwiseProvider, HephaestusProvider, MatmulProvider,
+    ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider, ReductionProvider,
+    RotateHalfProvider, ScalarPowerProvider, StaggeredProvider, StatefulUpdateProvider,
+    UnfoldFoldProvider,
 };
 #[cfg(all(feature = "rocm", target_os = "linux"))]
-use coeus_hephaestus::{AttentionProvider, ConvolutionProvider};
-use hephaestus_core::{CrossProductOps, PoolingOps, SlidingWindowOps};
+use coeus_accelerator::{AttentionProvider, ConvolutionProvider};
+use coeus_core::Scalar;
+use hephaestus_core::{CrossProductOps, DialectScalar, HipC, PoolingOps, SlidingWindowOps};
 use hephaestus_rocm::RocmDevice;
 #[cfg(all(feature = "rocm", target_os = "linux"))]
 use hephaestus_rocm::{RocmAttentionOps, RocmConvolutionOps};
 use hephaestus_rocm::{
-    RocmAxisReductionOps, RocmDenseProductOps, RocmElementwiseOps, RocmPoolingOps, RocmScanOps,
-    RocmSlidingWindowOps, RocmStaggered3DOps,
+    RocmAxisReductionOps, RocmCrossProductOps, RocmDenseProductOps, RocmElementwiseOps,
+    RocmPoolingOps, RocmScanOps, RocmSlidingWindowOps, RocmStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -28,13 +28,8 @@ pub struct RocmProvider;
 // context before accessing the allocation; the handle is thread-transferable.
 unsafe impl HephaestusProvider for RocmProvider {
     type Device = RocmDevice;
-    type Error = coeus_hephaestus::HephaestusBackendError;
+    type Error = coeus_accelerator::HephaestusBackendError;
     const NAME: &'static str = "rocm";
-
-    fn device() -> &'static Self::Device {
-        ROCM_DEVICE
-            .get_or_init(|| RocmDevice::try_default().expect("ROCm device acquisition failed"))
-    }
 
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
         if let Some(device) = ROCM_DEVICE.get() {
@@ -158,8 +153,8 @@ where
 
 impl<T> CrossProductProvider<T> for RocmProvider
 where
-    T: Scalar,
-    HostCrossProductOps: CrossProductOps<RocmDevice, T>,
+    T: Scalar + DialectScalar<HipC>,
+    RocmCrossProductOps: CrossProductOps<RocmDevice, T>,
 {
-    type Operations = HostCrossProductOps;
+    type Operations = RocmCrossProductOps;
 }

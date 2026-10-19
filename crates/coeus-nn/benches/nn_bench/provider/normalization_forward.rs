@@ -352,6 +352,111 @@ pub(crate) fn bench_instancenorm2d_forward(c: &mut Criterion) {
     group.finish();
 }
 
+pub(crate) fn bench_instancenorm1d_forward(c: &mut Criterion) {
+    // InstanceNorm1d forward on [N=2, C=32, L=64].
+    const IN_N: usize = 2;
+    const IN_C: usize = 32;
+    const IN_L: usize = 64;
+
+    let input_data: Vec<f32> = (0..(IN_N * IN_C * IN_L))
+        .map(|i| (i as f32 * 0.0027).cos())
+        .collect();
+
+    // Coeus: InstanceNorm1d::new(num_features, eps).
+    let in_seq = InstanceNorm1d::<f32, SequentialBackend>::new(IN_C, 1e-5)
+        .expect("invariant: test operation succeeds");
+    let in_moirai = InstanceNorm1d::<f32, MoiraiBackend>::new(IN_C, 1e-5)
+        .expect("invariant: test operation succeeds");
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(vec![IN_N, IN_C, IN_L], &input_data)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![IN_N, IN_C, IN_L], &input_data)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+
+    let mut group = c.benchmark_group("Coeus — InstanceNorm1d forward (2x32x64)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(
+                in_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid instance normalization benchmark input"),
+            )
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(
+                in_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid instance normalization benchmark input"),
+            )
+        })
+    });
+    group.finish();
+}
+
+pub(crate) fn bench_instancenorm3d_forward(c: &mut Criterion) {
+    // InstanceNorm3d forward on [N=2, C=8, D=8, H=8, W=8].
+    const IN_N: usize = 2;
+    const IN_C: usize = 8;
+    const IN_D: usize = 8;
+    const IN_H: usize = 8;
+    const IN_W: usize = 8;
+
+    let input_data: Vec<f32> = (0..(IN_N * IN_C * IN_D * IN_H * IN_W))
+        .map(|i| (i as f32 * 0.0027).cos())
+        .collect();
+
+    // Coeus: InstanceNorm3d::new(num_features, eps).
+    let in_seq = InstanceNorm3d::<f32, SequentialBackend>::new(IN_C, 1e-5)
+        .expect("invariant: test operation succeeds");
+    let in_moirai = InstanceNorm3d::<f32, MoiraiBackend>::new(IN_C, 1e-5)
+        .expect("invariant: test operation succeeds");
+    let x_seq = Var::new(
+        Tensor::<f32, SequentialBackend>::from_slice(
+            vec![IN_N, IN_C, IN_D, IN_H, IN_W],
+            &input_data,
+        )
+        .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x_moirai = Var::new(
+        Tensor::<f32, MoiraiBackend>::from_slice(vec![IN_N, IN_C, IN_D, IN_H, IN_W], &input_data)
+            .expect("invariant: test backend operation succeeds"),
+        false,
+    )
+    .expect("invariant: test backend operation succeeds");
+
+    let mut group = c.benchmark_group("Coeus — InstanceNorm3d forward (2x8x8x8x8)");
+    group.bench_function("Coeus Sequential", |b| {
+        b.iter(|| {
+            black_box(
+                in_seq
+                    .forward(black_box(&x_seq))
+                    .expect("valid instance normalization benchmark input"),
+            )
+        })
+    });
+    group.bench_function("Coeus Moirai", |b| {
+        b.iter(|| {
+            black_box(
+                in_moirai
+                    .forward(black_box(&x_moirai))
+                    .expect("valid instance normalization benchmark input"),
+            )
+        })
+    });
+    group.finish();
+}
+
 pub(crate) fn bench_local_response_norm_forward(c: &mut Criterion) {
     const LRN_N: usize = 8;
     const LRN_C: usize = 32;

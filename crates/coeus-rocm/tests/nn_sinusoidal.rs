@@ -1,6 +1,6 @@
 //! Compile-time contract for the ROCm sinusoidal module capability boundary.
 
-use coeus_hephaestus::HephaestusBackend;
+use coeus_accelerator::HephaestusBackend;
 use coeus_nn::{Module, SinusoidalEncoding};
 use coeus_ops::{ElementwiseOps, ReductionOps};
 use coeus_rocm::RocmProvider;

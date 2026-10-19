@@ -1,14 +1,14 @@
-use crate::backend::{get_wgpu_context, WgpuBackend, WgpuBackendError};
+use crate::backend::{try_get_wgpu_context, WgpuBackend, WgpuBackendError};
+use coeus_accelerator::HephaestusSeamBackend;
 use coeus_core::{BackendError, Scalar};
-use coeus_hephaestus::HephaestusSeamBackend;
 use hephaestus_core::{ComputeDevice, HephaestusError};
 use hephaestus_wgpu::WgpuDevice;
 
 impl HephaestusSeamBackend for WgpuBackend {
     type Device = WgpuDevice;
 
-    fn device() -> &'static Self::Device {
-        &get_wgpu_context().hephaestus_device
+    fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
+        try_get_wgpu_context().map(|context| &context.hephaestus_device)
     }
 
     fn buffer<T: Scalar>(

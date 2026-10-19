@@ -82,7 +82,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
     pub fn forward(&self, x: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>>
     where
         B: coeus_ops::RotateHalfOps<T>,
-        T: coeus_leto::RealScalar,
+        T: coeus_cpu::RealScalar,
     {
         let shape = x.tensor.shape();
         let ndim = shape.len();
@@ -136,7 +136,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
+impl<T: Float + coeus_cpu::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
     for RotaryEmbedding<T, B>
 where
     B: coeus_ops::RotateHalfOps<T>,

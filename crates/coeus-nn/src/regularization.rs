@@ -51,7 +51,7 @@ impl AlphaDropout {
 }
 
 fn alpha_dropout_with_mask<
-    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -124,7 +124,7 @@ fn alpha_dropout_with_mask<
 }
 
 impl<
-        T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+        T: Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AlphaDropout
 {
@@ -185,7 +185,7 @@ impl FeatureAlphaDropout {
 }
 
 impl<
-        T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+        T: Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for FeatureAlphaDropout
 {
@@ -237,7 +237,7 @@ impl GaussianNoise {
 }
 
 impl<
-        T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+        T: Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for GaussianNoise
 {
@@ -331,7 +331,7 @@ impl LocalResponseNorm {
 }
 
 impl<
-        T: Float + coeus_core::FloatElement + std::ops::Neg<Output = T> + coeus_leto::RealScalar,
+        T: Float + coeus_core::FloatElement + std::ops::Neg<Output = T> + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for LocalResponseNorm
 where

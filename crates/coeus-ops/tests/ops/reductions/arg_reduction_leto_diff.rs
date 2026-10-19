@@ -1,11 +1,12 @@
 //! Differential verification of public CPU arg reductions.
 //!
 //! `coeus_ops::argmax` and `coeus_ops::argmin` route through the dynamic-rank
-//! `coeus-leto` arg-reduction shim. The reference indices below are derived
+//! `coeus-cpu` arg-reduction shim. The reference indices below are derived
 //! from independent row-major scans over exactly represented values.
 
 use coeus_core::{
-    ComputeBackend, CpuAddressableStorageMut, MoiraiBackend, Scalar, SequentialBackend,
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, Scalar,
+    SequentialBackend,
 };
 use coeus_tensor::{Tensor, Transpose};
 
@@ -121,4 +122,195 @@ fn topk_dim0_matches_torch_reference() {
     for (i, (g, w)) in gi.as_slice().iter().zip(expected_idx.iter()).enumerate() {
         assert_eq!(g, w, "idxs[{i}]");
     }
+}
+
+// -- COEUS-FALLIBLE-INDEX-REDUCTION: typed failures, ties, boundaries --
+
+fn tensor_i64_from_slice<B>(shape: &[usize], data: &[i64], backend: &B) -> Tensor<i64, B>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
+{
+    match Tensor::from_slice_on(shape.to_vec(), data, backend) {
+        Ok(tensor) => tensor,
+        Err(err) => panic!("invariant: test backend operation succeeds: {err:?}"),
+    }
+}
+
+fn assert_axis_out_of_range<T, B>(backend: &B)
+where
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
+{
+    let data: Vec<T> = [1.0, 4.0, -2.0, 5.0, 3.0, 6.0]
+        .into_iter()
+        .map(<T as coeus_core::FloatElement>::from_f64)
+        .collect();
+    let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
+
+    for dim in [2usize, 5] {
+        match coeus_ops::argmax(&tensor, dim) {
+            Err(coeus_core::BackendError::AxisOutOfRange {
+                operation,
+                axis,
+                rank,
+            }) => {
+                assert_eq!(operation, "argmax");
+                assert_eq!(axis, dim);
+                assert_eq!(rank, 2);
+            }
+            Err(other) => panic!("expected AxisOutOfRange, got {other:?}"),
+            Ok(_) => panic!("axis {dim} must fail"),
+        }
+        match coeus_ops::argmin(&tensor, dim) {
+            Err(coeus_core::BackendError::AxisOutOfRange {
+                operation,
+                axis,
+                rank,
+            }) => {
+                assert_eq!(operation, "argmin");
+                assert_eq!(axis, dim);
+                assert_eq!(rank, 2);
+            }
+            Err(other) => panic!("expected AxisOutOfRange, got {other:?}"),
+            Ok(_) => panic!("axis {dim} must fail"),
+        }
+    }
+}
+
+#[test]
+fn arg_reduction_axis_out_of_range_is_typed() {
+    let seq = SequentialBackend;
+    assert_axis_out_of_range::<f64, _>(&seq);
+    let moirai = MoiraiBackend;
+    assert_axis_out_of_range::<f64, _>(&moirai);
+}
+
+fn assert_malformed_output_layout_rejected<T, B>(backend: &B)
+where
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: coeus_core::CpuAddressableStorage<i64> + CpuAddressableStorageMut<i64>,
+{
+    use coeus_core::Layout;
+
+    let data: Vec<T> = [1.0, 4.0, -2.0, 5.0, 3.0, 6.0]
+        .into_iter()
+        .map(<T as coeus_core::FloatElement>::from_f64)
+        .collect();
+    let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
+
+    // Wrong keep-dim shape [2, 2] instead of [2, 1]; sentinel must survive.
+    let bad_layout = Layout::new(vec![2, 2].into());
+    let mut out = tensor_i64_from_slice::<B>(&[2, 2], &[7i64; 4], backend);
+    let (out_storage, _) = out
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
+    let before: Vec<i64> = out_storage.as_slice().to_vec();
+    let result = backend.argmax(
+        tensor.storage(),
+        tensor.layout(),
+        1,
+        out_storage,
+        &bad_layout,
+    );
+    match result {
+        Err(coeus_core::BackendError::ShapeMismatch {
+            operation,
+            lhs,
+            rhs,
+        }) => {
+            assert_eq!(operation, "argmax");
+            assert_eq!(lhs, vec![2, 1]);
+            assert_eq!(rhs, vec![2, 2]);
+        }
+        other => panic!("expected ShapeMismatch, got {other:?}"),
+    }
+    let (out_storage_after, _) = out
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
+    assert_eq!(out_storage_after.as_slice(), before.as_slice());
+
+    // Out-of-range axis at the backend level is typed, never a panic.
+    let good_layout = Layout::new(vec![2, 1].into());
+    let mut out2 = tensor_i64_from_slice::<B>(&[2, 1], &[7i64; 2], backend);
+    let (out2_storage, _) = out2
+        .storage_mut_and_layout()
+        .expect("invariant: test backend operation succeeds");
+    let err = backend
+        .argmin(
+            tensor.storage(),
+            tensor.layout(),
+            5,
+            out2_storage,
+            &good_layout,
+        )
+        .expect_err("axis 5 on a rank-2 tensor must fail");
+    let reason = format!("{err:?}");
+    assert!(reason.contains("axis"), "unexpected error: {reason}");
+}
+
+#[test]
+fn backend_arg_reduction_rejects_malformed_requests() {
+    let seq = SequentialBackend;
+    assert_malformed_output_layout_rejected::<f64, _>(&seq);
+    let moirai = MoiraiBackend;
+    assert_malformed_output_layout_rejected::<f64, _>(&moirai);
+}
+
+fn check_ties_and_boundaries<T, B>(backend: &B)
+where
+    T: Scalar + leto_ops::Scalar + coeus_core::FloatElement,
+    B: coeus_ops::BackendOps<T> + coeus_ops::BackendOps<i64> + coeus_ops::CpuBackend + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+    B::DeviceBuffer<i64>: CpuAddressableStorageMut<i64>,
+{
+    // Ties resolve to the first maximum (leto strict-`>` fold).
+    let tied: Vec<T> = [2.0, 5.0, 5.0, 1.0]
+        .into_iter()
+        .map(<T as coeus_core::FloatElement>::from_f64)
+        .collect();
+    let tensor = tensor_from_slice::<T, B>(&[1, 4], &tied, backend);
+    let max = coeus_ops::argmax(&tensor, 1).expect("invariant: test operation succeeds");
+    assert_indices(max.as_slice(), &[1], "tied argmax takes first");
+    let tied_min: Vec<T> = [2.0, 1.0, 1.0, 3.0]
+        .into_iter()
+        .map(<T as coeus_core::FloatElement>::from_f64)
+        .collect();
+    let tensor_min = tensor_from_slice::<T, B>(&[1, 4], &tied_min, backend);
+    let min = coeus_ops::argmin(&tensor_min, 1).expect("invariant: test operation succeeds");
+    assert_indices(min.as_slice(), &[1], "tied argmin takes first");
+
+    // Rank-1 input.
+    let line: Vec<T> = [3.0, 1.0, 2.0]
+        .into_iter()
+        .map(<T as coeus_core::FloatElement>::from_f64)
+        .collect();
+    let rank1 = tensor_from_slice::<T, B>(&[3], &line, backend);
+    let r1max = coeus_ops::argmax(&rank1, 0).expect("invariant: test operation succeeds");
+    assert_eq!(r1max.shape(), &[1]);
+    assert_indices(r1max.as_slice(), &[0], "rank-1 argmax");
+
+    // Size-1 reduction axis: every index is 0.
+    let col: Vec<T> = [4.0, 2.0]
+        .into_iter()
+        .map(<T as coeus_core::FloatElement>::from_f64)
+        .collect();
+    let thin = tensor_from_slice::<T, B>(&[1, 2], &col, backend);
+    let thin_max = coeus_ops::argmax(&thin, 0).expect("invariant: test operation succeeds");
+    assert_eq!(thin_max.shape(), &[1, 2]);
+    assert_indices(thin_max.as_slice(), &[0, 0], "size-1 axis argmax");
+}
+
+#[test]
+fn arg_reduction_ties_and_boundaries_match_reference() {
+    let seq = SequentialBackend;
+    check_ties_and_boundaries::<f32, _>(&seq);
+    check_ties_and_boundaries::<f64, _>(&seq);
+    let moirai = MoiraiBackend;
+    check_ties_and_boundaries::<f32, _>(&moirai);
+    check_ties_and_boundaries::<f64, _>(&moirai);
 }

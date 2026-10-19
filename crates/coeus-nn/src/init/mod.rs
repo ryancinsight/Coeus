@@ -15,4 +15,4 @@ pub use random::{
 /// Minimum tensor rank supported by provider-owned random initialization.
 pub const MIN_INITIALIZER_RANK: usize = 1;
 /// Maximum tensor rank supported by provider-owned random initialization.
-pub const MAX_INITIALIZER_RANK: usize = coeus_leto::MAX_DISPATCH_RANK;
+pub const MAX_INITIALIZER_RANK: usize = coeus_cpu::MAX_DISPATCH_RANK;

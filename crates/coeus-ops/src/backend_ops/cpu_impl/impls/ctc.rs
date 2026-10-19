@@ -1,7 +1,7 @@
 use super::super::{error::map_leto_error, CpuBackend};
 use crate::{CtcBatch, CtcOps};
 use coeus_core::{BackendError, CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
-use coeus_leto::{to_leto_view, to_leto_view_mut};
+use coeus_cpu::{to_leto_view, to_leto_view_mut};
 use leto_ops::ctc::{CtcError, CtcState};
 
 fn scalar_shape(operation: &'static str, layout: &Layout) -> Result<(), BackendError> {

@@ -7,7 +7,7 @@ ROCm provider wiring for [Coeus](../../README.md).
 This crate contains **no kernels**. It is the binding layer that connects Coeus
 operations to `hephaestus-rocm`, where the actual ROCm compute lives. It
 declares the zero-sized `RocmProvider`, a device accessor, and the
-[`coeus-hephaestus`](../coeus-hephaestus/README.md) provider trait
+[`coeus-accelerator`](../coeus-accelerator/README.md) provider trait
 implementations that point at the corresponding `hephaestus-rocm` operation
 types.
 

@@ -59,7 +59,7 @@ impl<const N: usize> From<[usize; N]> for NormalizedShape {
 /// dimensions, affine parameter shapes, or epsilon violate the LayerNorm
 /// contract, or when a backend operation fails.
 pub fn layer_norm<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -194,7 +194,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
         normalized_size: usize,
     ) -> Result<Var<T, B>, ModuleError<B::Error>>
     where
-        T: coeus_leto::RealScalar,
+        T: coeus_cpu::RealScalar,
     {
         const MODULE: &str = "LayerNorm";
         let batch = input.tensor.shape()[0];
@@ -256,7 +256,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
 
 /// Implements the [`crate::module::Module`] interface for [`LayerNorm`].
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for LayerNorm<T, B>
 {
@@ -277,7 +277,7 @@ impl<
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > LayerNorm<T, B>
 {

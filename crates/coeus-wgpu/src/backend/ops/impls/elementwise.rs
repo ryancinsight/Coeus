@@ -1,11 +1,11 @@
 //! Coeus elementwise contracts implemented by the Hephaestus WGPU provider.
 
 use crate::backend::{WgpuBackend, WgpuScalar};
-use coeus_core::Layout;
-use coeus_hephaestus::{
+use coeus_accelerator::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, ElementwiseProvider, HephaestusBackend,
     ParameterizedElementwiseProvider, ScalarPowerProvider,
 };
+use coeus_core::Layout;
 use hephaestus_core::DialectScalar;
 use hephaestus_wgpu::{WgpuElementwiseOps, WgpuParameterizedUnaryOps, Wgsl};
 

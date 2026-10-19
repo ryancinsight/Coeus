@@ -1,5 +1,17 @@
 # Changelog
 
+## [Numeric provider compatibility] - Unreleased
+
+### Changed
+
+- [patch] Admit Eunomia 0.10/0.11, Leto/Leto-ops 0.46/0.47 and Moirai 0.9/0.10
+  while retaining the valid current lock. Fresh canonical lock renewal follows
+  Apollo's Moirai 0.10 admission; final latest-version floors remain held.
+- Preserve the existing 0.13 numerical, native/wheel linkage and downstream
+  NN test-cycle repairs; reconcile current main's canonical crate names and
+  borrowed graph reads without changing numerical implementations or assertions.
+
+
 ## [0.13.0] - Unreleased
 
 ### Breaking
@@ -12,8 +24,16 @@
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
   provider mean and `mean_axis`. Integer callers explicitly choose a floating
   tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
-  add the floating-point bound. See [ADR 0082](docs/adr/0082-autograd-mean-float-contract.md#migration).
+  add the floating-point bound. See [ADR 0082](docs/adr/0084-autograd-mean-float-contract.md#migration).
 
+- [major] `coeus-leto` is renamed `coeus-cpu` and `coeus-hephaestus` is
+  renamed `coeus-accelerator`: crate names now state the concern each
+  crate owns instead of the stack member it adapts. Update manifests,
+  `use` paths (`coeus_leto::` → `coeus_cpu::`, `coeus_hephaestus::` →
+  `coeus_accelerator::`), and feature references; there is no re-export
+  bridge. The old names are not yanked, so pinned builds keep working;
+  migrate in this release window. See
+  [ADR 0080](docs/adr/0080-concern-owned-adaptation-crate-names.md).
 - [major] Scalar reductions (`sum`, `mean`, `amax`, `amin`, `prod`, `norm`,
   `norm_p`, `var_mean`, plus delegating `var`, `std_dev`, `std_mean`,
   `frobenius_norm`, `frobenius_norm_batched`, `dot`, and the autograd

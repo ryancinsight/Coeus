@@ -1,7 +1,7 @@
 //! Differential verification for public tensor range constructors.
 //!
 //! `Tensor::arange_on` converts each index through `TryFromCount`; the
-//! `coeus-leto::from_shape_fn_values` traversal of the same conversion is the
+//! `coeus-cpu::from_shape_fn_values` traversal of the same conversion is the
 //! differential oracle, and an index outside the element range is a typed error.
 
 use coeus_core::{MoiraiBackend, SequentialBackend, TryFromCount};
@@ -16,7 +16,7 @@ where
     let backend = B::default();
 
     let tensor = Tensor::<i32, B>::arange_on(8, &backend).expect("0..8 fits i32");
-    let expected = coeus_leto::from_shape_fn_values(&[8usize], |index| {
+    let expected = coeus_cpu::from_shape_fn_values(&[8usize], |index| {
         i32::try_from_count(index[0]).expect("0..8 fits i32")
     })
     .unwrap();
@@ -27,7 +27,7 @@ where
     assert_eq!(tensor.as_slice(), &[0, 1, 2, 3, 4, 5, 6, 7]);
 
     let empty = Tensor::<i32, B>::arange_on(0, &backend).expect("an empty range fits i32");
-    let expected_empty = coeus_leto::from_shape_fn_values(&[0usize], |index| {
+    let expected_empty = coeus_cpu::from_shape_fn_values(&[0usize], |index| {
         i32::try_from_count(index[0]).expect("an empty range has no index")
     })
     .unwrap();

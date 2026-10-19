@@ -1,9 +1,9 @@
 #[path = "../../../coeus-ops/tests/ops/ownership/device_outputs.rs"]
 mod shared;
-#[path = "../../../coeus-hephaestus/tests/support/device_transfer.rs"]
+#[path = "../../../coeus-accelerator/tests/support/device_transfer.rs"]
 mod transfer;
 
-use coeus_hephaestus::HephaestusBackend;
+use coeus_accelerator::HephaestusBackend;
 use coeus_wgpu::WgpuBackend;
 use shared::{
     preserves_output_clones, rejects_invalid_output_write, scans_preserve_output_clones, Add,

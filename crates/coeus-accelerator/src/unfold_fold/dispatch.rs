@@ -1,0 +1,71 @@
+use super::provider::UnfoldFoldBackend;
+use crate::layout::ranked_exact;
+use coeus_core::{Layout, Scalar, StorageMut};
+use hephaestus_core::{
+    SlidingWindowFoldOperands, SlidingWindowOps, SlidingWindowUnfoldOperands, StridedView,
+};
+use leto::WindowParameters;
+
+pub(super) fn parameters<B, T, const S: usize>(
+    operation: &'static str,
+    kernel: [usize; S],
+    stride: [usize; S],
+    padding: [usize; S],
+    dilation: [usize; S],
+) -> Result<WindowParameters<S>, B::Error>
+where
+    B: UnfoldFoldBackend<T>,
+    T: Scalar + leto_ops::Scalar,
+{
+    WindowParameters::new(kernel, stride, padding, dilation)
+        .map_err(|error| B::configuration_error(operation, error.to_string()))
+}
+
+/// Unfold into a destination while preserving its other clones.
+pub fn unfold<B, T, const R: usize, const S: usize>(
+    operation: &'static str,
+    input: (&B::DeviceBuffer<T>, &Layout),
+    parameters: WindowParameters<S>,
+    output: (&mut B::DeviceBuffer<T>, &Layout),
+) -> Result<(), B::Error>
+where
+    B: UnfoldFoldBackend<T>,
+    T: Scalar + leto_ops::Scalar,
+{
+    let input_layout = ranked_exact::<R>(operation, input.1)?;
+    let output_layout = ranked_exact::<3>(operation, output.1)?;
+    output.0.make_unique()?;
+    let operands = SlidingWindowUnfoldOperands {
+        input: StridedView::new(B::buffer(input.0), &input_layout),
+        output: StridedView::new(B::buffer(output.0), &output_layout),
+    };
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
+    B::Operations::default()
+        .unfold_into(device, operands, parameters)
+        .map_err(|source| B::dispatch_error(operation, source))
+}
+
+/// Replace the output view with folded overlap sums, preserving other clones.
+pub fn fold<B, T, const R: usize, const S: usize>(
+    operation: &'static str,
+    input: (&B::DeviceBuffer<T>, &Layout),
+    output_spatial_shape: [usize; S],
+    parameters: WindowParameters<S>,
+    output: (&mut B::DeviceBuffer<T>, &Layout),
+) -> Result<(), B::Error>
+where
+    B: UnfoldFoldBackend<T>,
+    T: Scalar + leto_ops::Scalar,
+{
+    let input_layout = ranked_exact::<3>(operation, input.1)?;
+    let output_layout = ranked_exact::<R>(operation, output.1)?;
+    output.0.make_unique()?;
+    let operands = SlidingWindowFoldOperands {
+        input: StridedView::new(B::buffer(input.0), &input_layout),
+        output: StridedView::new(B::buffer(output.0), &output_layout),
+    };
+    let device = B::try_device().map_err(|source| B::dispatch_error(operation, source))?;
+    B::Operations::default()
+        .fold_into(device, operands, output_spatial_shape, parameters)
+        .map_err(|source| B::dispatch_error(operation, source))
+}

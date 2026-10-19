@@ -149,7 +149,7 @@ jobs:
 
       - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
 
-      # Rebuilt the whole dependency graph (coeus-leto, coeus-ops, coeus-nn,
+      # Rebuilt the whole dependency graph (coeus-cpu, coeus-ops, coeus-nn,
       # coeus-autograd, coeus-wgpu, coeus-cuda) from zero every run -- no
       # cache existed here. Measured 1936-1982s wall on this job alone
       # (2 latest PR runs); this is the single largest CI-wall-time
@@ -172,10 +172,10 @@ jobs:
           set -euo pipefail
           cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
-          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-leto --all-targets
-          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-leto --all-targets --no-deps -- -D warnings
-          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-leto
-          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-leto --doc
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cpu --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cpu --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cpu
+          cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cpu --doc
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-ops --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-ops --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-ops
@@ -590,7 +590,7 @@ jobs:
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-cuda --features cuda --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-cuda --features cuda --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-                -E "test(matmul_rejects_each_layout_that_exceeds_storage) or test(matmul_rejects_writable_zero_stride_output) or test(cuda_storage_validation_checks_physical_bound_and_writable_aliasing) or test(signed_ptx_storage_validation_enforces_address_boundary) or test(signed_ptx_storage_validation_rejects_oversized_shape_and_stride) or test(pool_storage_validation_rejects_undersized_and_overflowed_layouts) or test(pool_signed_index_validation_covers_forward_and_backward_extrema) or test(test_cuda_backend_conv_and_reduce) or test(test_cuda_conv_backward) or test(test_cuda_conv3d) or test(test_cuda_parity_conv1d_forward) or test(test_cuda_parity_conv2d_forward) or test(test_cuda_parity_conv2d_backward) or test(test_cuda_parity_conv3d_forward) or test(test_cuda_parity_conv3d_backward) or test(test_cuda_parity_conv_transpose1d) or test(test_cuda_parity_conv_transpose2d) or test(test_cuda_parity_conv_transpose1d_backward) or test(test_cuda_parity_conv_transpose2d_backward) or test(test_cuda_parity_sum_axis0) or test(test_cuda_parity_sum_axis1) or test(test_cuda_parity_mean_axis) or test(test_cuda_parity_max_axis) or test(test_cuda_parity_min_axis) or test(test_cuda_parity_prod_axis) or test(test_cuda_parity_rank_one_sum) or test(test_cuda_parity_rank_one_scan) or test(test_cuda_reduction_rejects_unsupported_rank) or test(test_cuda_parity_cumulative_scans) or test(test_cuda_backend_ops) or test(test_cuda_norm_p_provider_dispatch) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_strided_elu_matches_cpu) or test(test_cuda_strided_elu_gradient_matches_cpu) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad) or test(test_cuda_attention_forward_nomask) or test(test_cuda_attention_forward_causal) or test(test_cuda_attention_forward_preserves_native_f64) or test(test_cuda_attention_forward_masked) or test(test_cuda_attention_forward_masked_causal) or test(test_cuda_attention_backward) or test(test_cuda_f64_comparisons_match_cpu) or test(test_cuda_strided_parameterized_activations_match_cpu) or test(cosine_similarity_dispatches_with_cuda_parity) or test(bce_with_logits_dispatches_with_cuda_value_and_gradient_parity) or test(random_initialization_dispatches_with_seeded_provider_parity) or test(rotate_half_dispatches_with_cuda_parity) or test(cross_entropy_dispatches_with_cuda_value_and_gradient_parity) or test(unary_assignment_detaches_shared_cuda_view) or test(partial_update_preserves_cuda_parent_and_shared_source) or test(preserves_cloned_storage) or test(device_outputs::) or test(state_updates::)"
+                -E "test(matmul_rejects_each_layout_that_exceeds_storage) or test(matmul_rejects_writable_zero_stride_output) or test(cuda_storage_validation_checks_physical_bound_and_writable_aliasing) or test(signed_ptx_storage_validation_enforces_address_boundary) or test(signed_ptx_storage_validation_rejects_oversized_shape_and_stride) or test(pool_storage_validation_rejects_undersized_and_overflowed_layouts) or test(pool_signed_index_validation_covers_forward_and_backward_extrema) or test(test_cuda_backend_conv_and_reduce) or test(test_cuda_conv_backward) or test(test_cuda_conv3d) or test(test_cuda_parity_conv1d_forward) or test(test_cuda_parity_conv2d_forward) or test(test_cuda_parity_conv2d_backward) or test(test_cuda_parity_conv3d_forward) or test(test_cuda_parity_conv3d_backward) or test(test_cuda_parity_conv_transpose1d) or test(test_cuda_parity_conv_transpose2d) or test(test_cuda_parity_conv_transpose1d_backward) or test(test_cuda_parity_conv_transpose2d_backward) or test(test_cuda_parity_sum_axis0) or test(test_cuda_parity_sum_axis1) or test(test_cuda_parity_mean_axis) or test(test_cuda_parity_max_axis) or test(test_cuda_parity_min_axis) or test(test_cuda_parity_prod_axis) or test(test_cuda_parity_rank_one_sum) or test(test_cuda_parity_rank_one_scan) or test(test_cuda_reduction_rejects_unsupported_rank) or test(test_cuda_parity_cumulative_scans) or test(test_cuda_backend_ops) or test(test_cuda_norm_p_provider_dispatch) or test(test_cuda_parity_elu) or test(test_cuda_parity_elu_grad) or test(test_cuda_strided_elu_matches_cpu) or test(test_cuda_strided_elu_gradient_matches_cpu) or test(test_cuda_parity_gelu) or test(test_cuda_parity_gelu_grad) or test(test_cuda_parity_gelu_tanh) or test(test_cuda_parity_gelu_tanh_grad) or test(test_cuda_parity_softplus) or test(test_cuda_parity_softplus_grad) or test(test_cuda_attention_forward_nomask) or test(test_cuda_attention_forward_causal) or test(test_cuda_attention_forward_preserves_native_f64) or test(test_cuda_attention_forward_masked) or test(test_cuda_attention_forward_masked_causal) or test(test_cuda_attention_backward) or test(test_cuda_f64_comparisons_match_cpu) or test(test_cuda_parity_cross_last_axis) or test(test_cuda_parity_cross_non_last_axis_fallback) or test(test_cuda_strided_parameterized_activations_match_cpu) or test(cosine_similarity_dispatches_with_cuda_parity) or test(bce_with_logits_dispatches_with_cuda_value_and_gradient_parity) or test(random_initialization_dispatches_with_seeded_provider_parity) or test(rotate_half_dispatches_with_cuda_parity) or test(cross_entropy_dispatches_with_cuda_value_and_gradient_parity) or test(unary_assignment_detaches_shared_cuda_view) or test(partial_update_preserves_cuda_parent_and_shared_source) or test(preserves_cloned_storage) or test(device_outputs::) or test(state_updates::)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-cuda --features cuda --doc
               sccache --show-stats
             '
@@ -617,7 +617,7 @@ jobs:
         env:
           HEPHAESTUS_CUDA_REQUIRE_DEVICE: "1"
         run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-          -E "test(test_cuda_strided_parameterized_activations_match_cpu) or test(test_cuda_norm_p_provider_dispatch) or test(random_initialization_dispatches_with_seeded_provider_parity) or test(rotate_half_dispatches_with_cuda_parity) or test(cross_entropy_dispatches_with_cuda_value_and_gradient_parity) or test(unary_assignment_detaches_shared_cuda_view) or test(partial_update_preserves_cuda_parent_and_shared_source) or test(preserves_cloned_storage) or test(device_outputs::) or test(state_updates::)"
+          -E "test(test_cuda_parity_cross_last_axis) or test(test_cuda_parity_cross_non_last_axis_fallback) or test(test_cuda_strided_parameterized_activations_match_cpu) or test(test_cuda_norm_p_provider_dispatch) or test(random_initialization_dispatches_with_seeded_provider_parity) or test(rotate_half_dispatches_with_cuda_parity) or test(cross_entropy_dispatches_with_cuda_value_and_gradient_parity) or test(unary_assignment_detaches_shared_cuda_view) or test(partial_update_preserves_cuda_parent_and_shared_source) or test(preserves_cloned_storage) or test(device_outputs::) or test(state_updates::)"
 
   rocm:
     name: ROCm Coeus provider contracts
@@ -737,12 +737,12 @@ jobs:
               install -m 0755 /workspace/.ci-tools/cargo-nextest "$HOME/.cargo/bin/cargo-nextest"
               cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
               cargo "+$RUST_TOOLCHAIN" fmt --all --check
-              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
-              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
+              cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-accelerator --all-targets
+              cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-accelerator --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-rocm --features rocm --all-targets
               cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-rocm --features rocm --all-targets --no-deps -- -D warnings
               cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
-                -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_rocm_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_rocm_value_and_gradient_contract) or test(invalid_rank_is_typed_without_device_acquisition) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_rocm_parity) or test(partial_update_preserves_rocm_parent_and_shared_source)"
+                -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_rocm_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_rocm_value_and_gradient_contract) or test(invalid_rank_is_typed_without_device_acquisition) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_rocm_parity) or test(rocm_cross_last_axis_matches_host_fold) or test(rocm_cross_non_last_axis_falls_back) or test(partial_update_preserves_rocm_parent_and_shared_source)"
               cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-rocm --features rocm --doc
             '
 
@@ -853,12 +853,12 @@ jobs:
           set -euo pipefail
           cargo "+$RUST_TOOLCHAIN" metadata --locked --format-version 1 --all-features > /dev/null
           cargo "+$RUST_TOOLCHAIN" fmt --all --check
-          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-hephaestus --all-targets
-          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-hephaestus --all-targets --no-deps -- -D warnings
+          cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-accelerator --all-targets
+          cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-accelerator --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" check --locked --package coeus-metal --all-targets
           cargo "+$RUST_TOOLCHAIN" clippy --locked --package coeus-metal --all-targets --no-deps -- -D warnings
           cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-metal \
-            -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_metal_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_metal_value_and_gradient_contract) or test(invalid_rank_is_typed_without_device_acquisition) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_metal_parity) or test(partial_update_preserves_metal_parent_and_shared_source)"
+            -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_metal_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_metal_value_and_gradient_contract) or test(invalid_rank_is_typed_without_device_acquisition) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_metal_parity) or test(metal_cross_last_axis_matches_host_fold) or test(metal_cross_non_last_axis_falls_back) or test(partial_update_preserves_metal_parent_and_shared_source)"
           cargo "+$RUST_TOOLCHAIN" test --locked --package coeus-metal --doc
 
   rocm-hardware:
@@ -945,4 +945,4 @@ jobs:
         env:
           HEPHAESTUS_ROCM_REQUIRE_DEVICE: "1"
         run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
-          -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_rocm_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_rocm_value_and_gradient_contract) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_rocm_parity) or test(partial_update_preserves_rocm_parent_and_shared_source)"
+          -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_rocm_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_rocm_value_and_gradient_contract) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_rocm_parity) or test(rocm_cross_last_axis_matches_host_fold) or test(rocm_cross_non_last_axis_falls_back) or test(partial_update_preserves_rocm_parent_and_shared_source)"

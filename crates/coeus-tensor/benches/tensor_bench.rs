@@ -4,7 +4,7 @@
 //! Run one group: `cargo bench -p coeus-tensor --bench tensor_bench -- GELU`.
 //!
 //! The suite measures one operation through Coeus's Sequential and Moirai
-//! execution policies, plus the direct Leto and Coeus-Leto dispatch paths
+//! execution policies, plus the direct Leto and coeus-cpu dispatch paths
 //! where the operation exposes them. Legacy tensor providers are not benchmark
 //! dependencies or comparison oracles.
 //!
@@ -143,11 +143,11 @@ fn bench_matmul(c: &mut Criterion) {
         )
     });
 
-    group.bench_function("Coeus-Leto dispatch", |b| {
+    group.bench_function("coeus-cpu dispatch", |b| {
         b.iter_batched(
             || vec![0.0f32; m * n],
             |mut out| {
-                coeus_leto::matmul_into(
+                coeus_cpu::matmul_into(
                     black_box(&coeus_layout_a),
                     black_box(&coeus_a),
                     black_box(&coeus_layout_b),

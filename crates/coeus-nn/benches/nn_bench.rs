@@ -13,14 +13,15 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use coeus_autograd::Var;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use coeus_nn::{
-    cross_entropy_loss, gelu, huber_loss, interpolate_2d, leaky_relu, mse_loss, prelu, relu,
-    sigmoid, silu, tanh, AdaptiveAvgPool2d, AvgPool1d as CoeusAvgPool1d, AvgPool2d, AvgPool3d,
-    BatchNorm1d, BatchNorm2d, BatchNorm3d, Bidirectional, Bilinear, Conv1d, Conv2d, Conv3d,
-    ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag, EmbeddingBagMode,
-    GroupNorm, Gru as CoeusGru, InstanceNorm2d, InterpolateMode as CoeusInterpolateMode, LayerNorm,
-    Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt,
+    cross_entropy_loss, gelu, huber_loss, interpolate_1d, interpolate_2d, leaky_relu, mse_loss,
+    prelu, relu, sigmoid, silu, tanh, AdaptiveAvgPool2d, AlphaDropout, AvgPool1d as CoeusAvgPool1d,
+    AvgPool2d, AvgPool3d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Bidirectional, Bilinear, Conv1d,
+    Conv2d, Conv3d, ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag,
+    EmbeddingBagMode, FeatureAlphaDropout, GaussianNoise, GroupNorm, Gru as CoeusGru,
+    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, InterpolateMode as CoeusInterpolateMode,
+    LayerNorm, Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt,
     MultiHeadAttention, NullMask, RMSNorm, RNNCell, ReLU, Rnn, RnnNonlinearity, RotaryEmbedding,
-    Sequential, SinusoidalEncoding, SwiGlu, TransformerEncoderLayer,
+    Sequential, SinusoidalEncoding, SwiGlu, TransformerDecoder, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
 
@@ -70,6 +71,8 @@ mod rectifier_forward;
 mod reduction_backward;
 #[path = "nn_bench/provider/reduction_forward.rs"]
 mod reduction_forward;
+#[path = "nn_bench/provider/regularization_forward.rs"]
+mod regularization_forward;
 #[path = "nn_bench/provider/sequence.rs"]
 mod sequence;
 #[path = "nn_bench/provider/tensor_operation.rs"]
@@ -104,6 +107,7 @@ use rectifier_backward::*;
 use rectifier_forward::*;
 use reduction_backward::*;
 use reduction_forward::*;
+use regularization_forward::*;
 use sequence::*;
 use tensor_operation::*;
 use trigonometric_backward::*;
@@ -117,6 +121,11 @@ criterion_group!(
     bench_minimum_forward,
     bench_remainder_forward,
     bench_uniform_initializer,
+    bench_normal_initializer,
+    bench_xavier_uniform_initializer,
+    bench_xavier_normal_initializer,
+    bench_kaiming_uniform_initializer,
+    bench_kaiming_normal_initializer,
     bench_sinusoidal_encoding_forward,
     bench_rotary_embedding_forward,
     bench_sequential_composition_forward,
@@ -131,6 +140,7 @@ criterion_group!(
     bench_avgpool2d_forward,
     bench_maxpool3d_forward,
     bench_avgpool3d_forward,
+    bench_interpolate1d_nearest_forward,
     bench_interpolate2d_nearest_forward,
     bench_interpolate2d_bilinear_forward,
     bench_bilinear_forward,
@@ -140,10 +150,17 @@ criterion_group!(
     bench_conv2d_forward_backward,
     bench_conv3d_forward,
     bench_conv_transpose1d_forward,
+    bench_conv_transpose2d_forward,
     bench_conv_transpose3d_forward,
+    bench_depthwise_conv3d_forward,
+    bench_unfold1d_forward,
+    bench_unfold2d_forward,
+    bench_fold1d_forward,
+    bench_fold2d_forward,
     bench_mha_forward,
     bench_mha_cross_attention_forward,
     bench_transformer_encoder_forward,
+    bench_transformer_decoder_forward,
     bench_embedding_forward,
     bench_embeddingbag_sum,
     bench_linear_forward_backward,
@@ -151,6 +168,8 @@ criterion_group!(
     bench_gru_forward,
     bench_rnn_forward,
     bench_rnn_cell_forward,
+    bench_gru_cell_forward,
+    bench_lstm_cell_forward,
     bench_bidirectional_rnn_forward,
     bench_swiglu_forward,
     bench_glu_forward,
@@ -158,13 +177,39 @@ criterion_group!(
     bench_diff_forward,
     bench_softmax_forward,
     bench_adaptive_avg_pool2d_forward,
+    bench_instancenorm1d_forward,
     bench_instancenorm2d_forward,
+    bench_instancenorm3d_forward,
     bench_cross_entropy_loss,
     bench_mse_loss,
     bench_huber_loss,
+    bench_bce_with_logits_loss,
+    bench_binary_cross_entropy_loss,
+    bench_nll_loss,
+    bench_multi_label_soft_margin_loss,
+    bench_kl_divergence_loss,
+    bench_multi_margin_loss,
+    bench_multi_label_margin_loss,
+    bench_soft_margin_loss,
+    bench_margin_ranking_loss,
+    bench_hinge_embedding_loss,
+    bench_pairwise_distance_loss,
+    bench_triplet_margin_loss,
+    bench_triplet_margin_with_distance_loss,
+    bench_cosine_embedding_loss,
+    bench_cosine_similarity_loss,
+    bench_nansum_loss,
+    bench_nanmean_loss,
+    bench_l1_loss,
+    bench_smooth_l1_loss,
+    bench_poisson_nll_loss,
+    bench_gaussian_nll_loss,
+    bench_ctc_loss,
     bench_relu_forward,
     bench_prelu_forward,
     bench_gelu_forward,
+    bench_gelu_tanh_forward,
+    bench_tanhshrink_forward,
     bench_sigmoid_forward,
     bench_tanh_forward,
     bench_silu_forward,
@@ -173,10 +218,21 @@ criterion_group!(
     bench_log_sigmoid_forward,
     bench_softplus_forward,
     bench_dropout_forward,
+    bench_dropout_train_forward,
     bench_local_response_norm_forward,
+    bench_alpha_dropout_forward,
+    bench_feature_alpha_dropout_forward,
+    bench_gaussian_noise_forward,
     bench_maxpool1d_forward,
     bench_avgpool1d_forward,
     bench_adaptive_max_pool2d_forward,
+    bench_adaptive_avg_pool1d_forward,
+    bench_adaptive_max_pool1d_forward,
+    bench_global_avg_pool1d_forward,
+    bench_global_avg_pool2d_forward,
+    bench_global_avg_pool3d_forward,
+    bench_global_max_pool2d_forward,
+    bench_global_max_pool3d_forward,
     bench_nansum_forward,
     bench_tril_forward,
     bench_topk_forward,

@@ -1,7 +1,7 @@
 use crate::backend::CudaBackend;
 use crate::CudaBackendError;
+use coeus_accelerator::{random_normal, random_uniform, RandomInitProvider};
 use coeus_core::Layout;
-use coeus_hephaestus::{random_normal, random_uniform, RandomInitProvider};
 
 impl RandomInitProvider<f32> for CudaBackend {
     type Operations = hephaestus_cuda::CudaRandomOps;
@@ -18,7 +18,7 @@ impl coeus_ops::RandomInitOps<f32> for CudaBackend {
         random_uniform::<Self, _>(layout, low, high, seed)
             .map(|buffer| {
                 // SAFETY: random_uniform initializes every element on success.
-                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+                unsafe { coeus_accelerator::HephaestusStorage::from_buffer(buffer) }
             })
             .map_err(|source| CudaBackendError::dispatch("uniform initialization", source))
     }
@@ -33,7 +33,7 @@ impl coeus_ops::RandomInitOps<f32> for CudaBackend {
         random_normal::<Self, _>(layout, mean, std_dev, seed)
             .map(|buffer| {
                 // SAFETY: random_normal initializes every element on success.
-                unsafe { coeus_hephaestus::HephaestusStorage::from_buffer(buffer) }
+                unsafe { coeus_accelerator::HephaestusStorage::from_buffer(buffer) }
             })
             .map_err(|source| CudaBackendError::dispatch("normal initialization", source))
     }

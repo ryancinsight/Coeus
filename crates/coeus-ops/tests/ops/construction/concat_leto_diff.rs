@@ -1,6 +1,6 @@
 //! Differential verification of the public CPU concat path.
 //!
-//! `coeus_ops::cat` delegates to the dynamic-rank `coeus-leto` structural
+//! `coeus_ops::cat` delegates to the dynamic-rank `coeus-cpu` structural
 //! dispatch. The expected values below are derived from row-major concatenation
 //! of exact scalar values, so exact equality is the correct oracle for both
 //! scalar widths.

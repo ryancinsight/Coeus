@@ -310,10 +310,10 @@ impl<T: Scalar, B: ComputeBackend + Default> Var<T, B> {
 
         // Propagate in reverse topological order
         for node in order.into_iter().rev() {
-            let out_grad = node.output_grad().read().clone();
+            let out_grad = node.output_grad().read();
             let input_grads: Vec<Option<Arc<GradBuffer<T, B>>>> =
                 node.inputs().iter().map(|v| v.grad.clone()).collect();
-            node.backward(&out_grad, &input_grads)?;
+            node.backward(out_grad, &input_grads)?;
         }
         Ok(())
     }

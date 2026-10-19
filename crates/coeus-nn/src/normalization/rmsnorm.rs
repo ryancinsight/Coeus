@@ -20,7 +20,7 @@ use coeus_tensor::Tensor;
 /// the weight shape differs from the trailing dimension, epsilon is invalid,
 /// or a backend operation fails.
 pub fn rms_norm<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -68,7 +68,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
 
 /// Implements the [`crate::module::Module`] interface for [`RMSNorm`].
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for RMSNorm<T, B>
 {

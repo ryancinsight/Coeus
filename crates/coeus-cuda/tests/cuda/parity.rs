@@ -12,6 +12,8 @@ mod bce_with_logits;
 mod convolution;
 #[path = "parity/convolution_transpose.rs"]
 mod convolution_transpose;
+#[path = "parity/cross.rs"]
+mod cross;
 #[path = "parity/cross_entropy.rs"]
 mod cross_entropy;
 #[path = "parity/matmul.rs"]

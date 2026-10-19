@@ -1,9 +1,20 @@
 # ADR 0079: Fallible Hephaestus provider initialization and transfer
 
-Status: Proposed  \
+Status: Accepted  \
 Date: 2026-10-10  \
 Change class: [major] [arch]  \
 Board item: [ATLAS-COEUS-SAFETY-001](../../backlog.md#atlas-coeus-safety-001)
+Revision 2026-10-16: implemented and accepted. The caller survey grew from
+eleven files to 35 production acquisition sites (the `B::device()` seam
+path, cross-entropy/stateful-update provider-associated paths, and CUDA/WGPU
+fusion entry points were not counted in the original audit); `try_device()`
+was added to `HephaestusSeamBackend` alongside the provider trait, and the
+infallible `device()` surface was deleted from both traits, all seven vendor
+and test implementations, and the `get_cuda_device`/`get_wgpu_context`
+helpers. Representative-pattern unavailable-device dispatch tests
+(`coeus-hephaestus/src/dispatch_tests.rs`) and a production panic scan
+(zero `.expect()`/`.unwrap()`; one provably-unreachable internal invariant)
+land with the migration.
 
 ## Context
 

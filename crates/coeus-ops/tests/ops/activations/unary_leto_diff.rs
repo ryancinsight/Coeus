@@ -1,7 +1,7 @@
 //! Differential verification of the CPU unary `BackendOps` path.
 //!
 //! `SequentialBackend` and `MoiraiBackend` delegate unary CPU kernels through
-//! `coeus-leto::elementwise_unary_into`, which maps each lane with
+//! `coeus-cpu::elementwise_unary_into`, which maps each lane with
 //! `Scalar::eval_unary`. The reference below calls that scalar operation
 //! directly, so exact equality is the correct oracle: every output lane is one
 //! invocation of the same native-precision scalar contract.

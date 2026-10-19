@@ -1,6 +1,6 @@
 //! Compile-time contract for the Metal sinusoidal module capability boundary.
 
-use coeus_hephaestus::HephaestusBackend;
+use coeus_accelerator::HephaestusBackend;
 use coeus_metal::MetalProvider;
 use coeus_nn::{Module, SinusoidalEncoding};
 use coeus_ops::{ElementwiseOps, ReductionOps};

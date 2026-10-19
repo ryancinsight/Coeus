@@ -12,7 +12,7 @@ fn provider_error(operation: &'static str, source: leto::LetoError) -> BackendEr
 
 impl<T, B> RandomInitOps<T> for B
 where
-    T: Scalar + coeus_leto::RealScalar,
+    T: Scalar + coeus_cpu::RealScalar,
     B: CpuBackend,
     B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
 {
@@ -27,7 +27,7 @@ where
         // mutable slice can exist. Keep the single final allocation while
         // avoiding a typed reference over uninitialized storage.
         let mut storage = self.allocate_zeroed(layout.numel())?;
-        coeus_leto::uniform_values_into(layout, storage.as_mut_slice()?, low, high, seed)
+        coeus_cpu::uniform_values_into(layout, storage.as_mut_slice()?, low, high, seed)
             .map_err(|source| provider_error("uniform initialization", source))?;
         Ok(storage)
     }
@@ -42,7 +42,7 @@ where
         // See `uniform_random`: zero-initialization is the validity boundary
         // for the destination-writing provider API.
         let mut storage = self.allocate_zeroed(layout.numel())?;
-        coeus_leto::normal_values_into(layout, storage.as_mut_slice()?, mean, std_dev, seed)
+        coeus_cpu::normal_values_into(layout, storage.as_mut_slice()?, mean, std_dev, seed)
             .map_err(|source| provider_error("normal initialization", source))?;
         Ok(storage)
     }

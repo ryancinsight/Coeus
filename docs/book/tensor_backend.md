@@ -8,7 +8,7 @@ a compile-time decision with no runtime overhead.
 
 | Backend type | Description |
 |-------------|-------------|
-| `MoiraiBackend` | Default CPU backend (Moirai parallel pool; compute kernels delegate to `coeus-leto` / `leto-ops` where available) |
+| `MoiraiBackend` | Default CPU backend (Moirai parallel pool; compute kernels delegate to `coeus-cpu` / `leto-ops` where available) |
 | `CudaBackend` | NVIDIA CUDA via `hephaestus-cuda` |
 | `WgpuBackend` | Cross-platform GPU via `hephaestus-wgpu` |
 | `RocmBackend` | AMD ROCm via `hephaestus-rocm` |

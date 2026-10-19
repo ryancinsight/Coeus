@@ -1,9 +1,9 @@
-//! ROCm cross-entropy dispatch through the generic Coeus-Hephaestus bridge.
+//! ROCm cross-entropy dispatch through the generic coeus-accelerator bridge.
 
 #![cfg(all(feature = "rocm", target_os = "linux"))]
 
+use coeus_accelerator::HephaestusBackend;
 use coeus_core::{ComputeBackend, Layout};
-use coeus_hephaestus::HephaestusBackend;
 use coeus_ops::CrossEntropyOps;
 use coeus_rocm::RocmProvider;
 

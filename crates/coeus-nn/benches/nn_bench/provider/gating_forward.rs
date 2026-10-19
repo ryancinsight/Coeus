@@ -2,9 +2,11 @@
 
 use super::*;
 
+use eunomia::F32;
+
 pub(crate) fn bench_sigmoid_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -35,7 +37,7 @@ pub(crate) fn bench_sigmoid_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_tanh_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -64,7 +66,7 @@ pub(crate) fn bench_tanh_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_silu_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -93,7 +95,7 @@ pub(crate) fn bench_silu_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_mish_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -120,7 +122,7 @@ pub(crate) fn bench_mish_forward(c: &mut Criterion) {
 pub(crate) fn bench_log_sigmoid_forward(c: &mut Criterion) {
     // LogSigmoid = log(sigmoid(x)) = -softplus(-x).
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -146,7 +148,7 @@ pub(crate) fn bench_log_sigmoid_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_softplus_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -173,7 +175,7 @@ pub(crate) fn bench_softplus_forward(c: &mut Criterion) {
 pub(crate) fn bench_softplus_activation(c: &mut Criterion) {
     // softplus: [128, 256] — F.softplus(x, beta=1, threshold=20).
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0037).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.0037).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -200,7 +202,7 @@ pub(crate) fn bench_softplus_activation(c: &mut Criterion) {
 
 pub(crate) fn bench_tanh2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin())
+        .map(|i| (F32::from_count(i).0 * 0.002).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -236,7 +238,7 @@ pub(crate) fn bench_tanh2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_sigmoid2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -272,7 +274,7 @@ pub(crate) fn bench_sigmoid2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_atanh_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.001).sin() * 0.9)
+        .map(|i| (F32::from_count(i).0 * 0.001).sin() * 0.9)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -308,7 +310,7 @@ pub(crate) fn bench_atanh_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_silu2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -344,7 +346,7 @@ pub(crate) fn bench_silu2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_hardsigmoid2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 5.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 5.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -380,7 +382,7 @@ pub(crate) fn bench_hardsigmoid2_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_softsign_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.003).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.003).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -412,7 +414,7 @@ pub(crate) fn bench_softsign_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_hardsigmoid_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 5.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 5.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -446,7 +448,7 @@ pub(crate) fn bench_hardsigmoid_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_softplus2_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.002).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.002).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)

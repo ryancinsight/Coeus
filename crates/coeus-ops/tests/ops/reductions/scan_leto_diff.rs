@@ -1,7 +1,7 @@
 //! Differential verification of public CPU cumulative-sum scans.
 //!
 //! `coeus_ops::cumsum` and `coeus_ops::suffix_sum` route through the
-//! dynamic-rank `coeus-leto` scan shim. The references below are independent
+//! dynamic-rank `coeus-cpu` scan shim. The references below are independent
 //! row-major prefix/suffix scans over exactly representable values.
 
 use coeus_core::{

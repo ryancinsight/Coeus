@@ -1,16 +1,17 @@
-use coeus_core::Scalar;
-use coeus_hephaestus::{
+use coeus_accelerator::{
     ActivationUnaryOperations, ArithmeticUnaryOperations, AttentionProvider, ConvolutionProvider,
     CrossEntropyProvider, CrossProductProvider, ElementwiseProvider, HephaestusProvider,
-    HostCrossProductOps, MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider,
-    RandomInitProvider, ReductionProvider, RotateHalfProvider, ScalarPowerProvider,
-    StaggeredProvider, StatefulUpdateProvider, UnfoldFoldProvider,
+    MatmulProvider, ParameterizedElementwiseProvider, PoolingProvider, RandomInitProvider,
+    ReductionProvider, RotateHalfProvider, ScalarPowerProvider, StaggeredProvider,
+    StatefulUpdateProvider, UnfoldFoldProvider,
 };
-use hephaestus_core::{CrossProductOps, PoolingOps, SlidingWindowOps};
+use coeus_core::Scalar;
+use hephaestus_core::{CrossProductOps, DialectScalar, PoolingOps, SlidingWindowOps, Wgsl};
 use hephaestus_metal::{
     MetalAttentionOps, MetalAxisReductionOps, MetalConvolutionOps, MetalCrossEntropyOps,
-    MetalDenseProductOps, MetalDevice, MetalElementwiseOps, MetalParameterizedUnaryOps,
-    MetalPoolingOps, MetalRandomOps, MetalScanOps, MetalSlidingWindowOps, MetalStaggered3DOps,
+    MetalCrossProductOps, MetalDenseProductOps, MetalDevice, MetalElementwiseOps,
+    MetalParameterizedUnaryOps, MetalPoolingOps, MetalRandomOps, MetalScanOps,
+    MetalSlidingWindowOps, MetalStaggered3DOps,
 };
 use std::sync::OnceLock;
 
@@ -24,13 +25,8 @@ pub struct MetalProvider;
 // submission supplies the synchronization boundary required by the handle.
 unsafe impl HephaestusProvider for MetalProvider {
     type Device = MetalDevice;
-    type Error = coeus_hephaestus::HephaestusBackendError;
+    type Error = coeus_accelerator::HephaestusBackendError;
     const NAME: &'static str = "metal";
-
-    fn device() -> &'static Self::Device {
-        METAL_DEVICE
-            .get_or_init(|| MetalDevice::try_default().expect("Metal device acquisition failed"))
-    }
 
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
         if let Some(device) = METAL_DEVICE.get() {
@@ -152,8 +148,8 @@ where
 
 impl<T> CrossProductProvider<T> for MetalProvider
 where
-    T: Scalar,
-    HostCrossProductOps: CrossProductOps<MetalDevice, T>,
+    T: Scalar + DialectScalar<Wgsl>,
+    MetalCrossProductOps: CrossProductOps<MetalDevice, T>,
 {
-    type Operations = HostCrossProductOps;
+    type Operations = MetalCrossProductOps;
 }

@@ -3,7 +3,7 @@
 //! The crate exposes the generic `HephaestusBackend<MetalProvider>` for
 //! elementwise, scalar-power, matmul, convolution, axis-reduction, scan,
 //! random, rotate-half, stateful-update, and cross-entropy dispatch through the
-//! shared Coeus-Hephaestus bridge, with no host fallback for unsupported
+//! shared coeus-accelerator bridge, with no host fallback for unsupported
 //! layouts.
 #![deny(missing_docs)]
 
@@ -17,7 +17,7 @@ mod tests {
 
     /// The provider seam, not a per-vendor kernel, is what supplies matmul to
     /// this backend: the bound resolves only through
-    /// `coeus_hephaestus::MatmulProvider`.
+    /// `coeus_accelerator::MatmulProvider`.
     ///
     /// Pooling and unfold/fold are supplied by the generic Hephaestus Metal
     /// window providers alongside matmul.

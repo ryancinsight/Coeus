@@ -378,12 +378,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "coeus-accelerator"
+version = "0.13.0"
+dependencies = [
+ "bytemuck",
+ "coeus-core",
+ "coeus-ops",
+ "coeus-tensor",
+ "eunomia",
+ "hephaestus-core",
+ "leto",
+ "leto-ops",
+ "themis-topology",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "coeus-autograd"
 version = "0.13.0"
 dependencies = [
  "apollo-fft",
  "coeus-core",
- "coeus-leto",
+ "coeus-cpu",
  "coeus-ops",
  "coeus-sparse",
  "coeus-tensor",
@@ -409,13 +425,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "coeus-cpu"
+version = "0.13.0"
+dependencies = [
+ "coeus-core",
+ "leto",
+ "leto-ops",
+]
+
+[[package]]
 name = "coeus-cuda"
 version = "0.13.0"
 dependencies = [
  "bytemuck",
+ "coeus-accelerator",
  "coeus-autograd",
  "coeus-core",
- "coeus-hephaestus",
  "coeus-nn",
  "coeus-ops",
  "coeus-tensor",
@@ -457,36 +482,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "coeus-hephaestus"
-version = "0.13.0"
-dependencies = [
- "bytemuck",
- "coeus-core",
- "coeus-ops",
- "eunomia",
- "hephaestus-core",
- "leto",
- "leto-ops",
- "themis-topology",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "coeus-leto"
-version = "0.13.0"
-dependencies = [
- "coeus-core",
- "leto",
- "leto-ops",
-]
-
-[[package]]
 name = "coeus-metal"
 version = "0.13.0"
 dependencies = [
+ "coeus-accelerator",
  "coeus-core",
- "coeus-hephaestus",
- "coeus-leto",
+ "coeus-cpu",
  "coeus-nn",
  "coeus-ops",
  "coeus-tensor",
@@ -502,7 +503,7 @@ version = "0.13.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
- "coeus-leto",
+ "coeus-cpu",
  "coeus-ops",
  "coeus-optim",
  "coeus-tensor",
@@ -519,7 +520,7 @@ version = "0.13.0"
 dependencies = [
  "bytemuck",
  "coeus-core",
- "coeus-leto",
+ "coeus-cpu",
  "coeus-sparse",
  "coeus-tensor",
  "criterion",
@@ -568,9 +569,9 @@ dependencies = [
 name = "coeus-rocm"
 version = "0.13.0"
 dependencies = [
+ "coeus-accelerator",
  "coeus-core",
- "coeus-hephaestus",
- "coeus-leto",
+ "coeus-cpu",
  "coeus-nn",
  "coeus-ops",
  "coeus-tensor",
@@ -599,7 +600,7 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
- "coeus-leto",
+ "coeus-cpu",
  "coeus-nn",
  "coeus-ops",
  "criterion",
@@ -618,9 +619,9 @@ name = "coeus-wgpu"
 version = "0.13.0"
 dependencies = [
  "bytemuck",
+ "coeus-accelerator",
  "coeus-autograd",
  "coeus-core",
- "coeus-hephaestus",
  "coeus-nn",
  "coeus-ops",
  "coeus-tensor",

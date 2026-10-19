@@ -1,7 +1,7 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::CudaBackendError;
+use coeus_accelerator::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{PoolingBackend, PoolingProvider, WindowConfiguration};
 use hephaestus_core::{CudaC, DialectScalar, PoolingMode};
 use hephaestus_cuda::CudaPoolingOps;
 use leto::WindowParameters;
@@ -343,13 +343,13 @@ where
 fn forward<T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (
-        &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
     window: WindowConfiguration<S>,
     mode: PoolingMode,
     output: (
-        &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
 ) -> Result<(), CudaBackendError>
@@ -369,7 +369,7 @@ where
             reason: error.to_string(),
         },
     })?;
-    coeus_hephaestus::pooling_forward::<CudaBackend, T, R, S>(
+    coeus_accelerator::pooling_forward::<CudaBackend, T, R, S>(
         operation, input, parameters, mode, output,
     )
 }
@@ -377,17 +377,17 @@ where
 fn backward<T, const R: usize, const S: usize>(
     operation: &'static str,
     grad_output: (
-        &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
     input: Option<(
-        &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     )>,
     window: WindowConfiguration<S>,
     mode: PoolingMode,
     grad_input: (
-        &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
 ) -> Result<(), CudaBackendError>
@@ -407,7 +407,7 @@ where
             reason: error.to_string(),
         },
     })?;
-    coeus_hephaestus::pooling_backward::<CudaBackend, T, R, S>(
+    coeus_accelerator::pooling_backward::<CudaBackend, T, R, S>(
         operation,
         grad_output,
         input,

@@ -37,7 +37,7 @@ pub fn mse_loss<
 /// is empty, or `delta` is non-finite or non-positive.
 #[inline]
 pub fn huber_loss<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     pred: &Var<T, B>,
@@ -55,7 +55,7 @@ pub fn huber_loss<
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn l1_loss<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     pred: &Var<T, B>,
@@ -74,7 +74,7 @@ pub fn l1_loss<
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn poisson_nll<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,
@@ -94,7 +94,7 @@ pub fn poisson_nll<
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn smooth_l1_loss<
-    T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+    T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     pred: &Var<T, B>,
@@ -117,7 +117,7 @@ pub fn smooth_l1_loss<
 /// Returns the backend error when an intermediate allocation or dispatch fails.
 #[inline]
 pub fn gaussian_nll_loss<
-    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     input: &Var<T, B>,

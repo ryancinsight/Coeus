@@ -7,7 +7,7 @@ Metal provider wiring for [Coeus](../../README.md).
 This crate contains **no kernels** and no `.metal` shader sources. It is the
 binding layer that connects Coeus operations to `hephaestus-metal`, where the
 actual Metal compute lives. It declares the zero-sized `MetalProvider` and the
-[`coeus-hephaestus`](../coeus-hephaestus/README.md) provider trait
+[`coeus-accelerator`](../coeus-accelerator/README.md) provider trait
 implementations that delegate to the corresponding `hephaestus-metal`
 operation types.
 

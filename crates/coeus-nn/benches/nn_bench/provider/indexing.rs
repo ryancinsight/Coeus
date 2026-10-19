@@ -2,10 +2,12 @@
 
 use super::*;
 
+use eunomia::F32;
+
 pub(crate) fn bench_diff_forward(c: &mut Criterion) {
     // torch.diff(x, n=1) — first-order discrete difference along last dim.
     let input_data: Vec<f32> = (0..BATCH * FEATURES)
-        .map(|i| (i as f32 * 0.0023).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0023).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -42,7 +44,9 @@ pub(crate) fn bench_diff_forward(c: &mut Criterion) {
 pub(crate) fn bench_tril_forward(c: &mut Criterion) {
     // tril: [256, 256] lower-triangular mask, diagonal=0.
     const SZ: usize = 256;
-    let input_data: Vec<f32> = (0..(SZ * SZ)).map(|i| i as f32 * 0.001).collect();
+    let input_data: Vec<f32> = (0..(SZ * SZ))
+        .map(|i| F32::from_count(i).0 * 0.001)
+        .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![SZ, SZ], &input_data)
             .expect("invariant: test backend operation succeeds"),
@@ -80,7 +84,7 @@ pub(crate) fn bench_topk_forward(c: &mut Criterion) {
     // topk k=16 along dim=1 on [128, 256].
     const TOPK: usize = 16;
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.007).sin())
+        .map(|i| (F32::from_count(i).0 * 0.007).sin())
         .collect();
     let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
         .expect("invariant: test backend operation succeeds");
@@ -110,7 +114,7 @@ pub(crate) fn bench_topk_forward(c: &mut Criterion) {
 pub(crate) fn bench_roll_forward(c: &mut Criterion) {
     // roll shift=32 along dim=1 on [128, 256].
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0031).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0031).sin())
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -148,10 +152,10 @@ pub(crate) fn bench_roll_forward(c: &mut Criterion) {
 pub(crate) fn bench_gather_forward(c: &mut Criterion) {
     // gather dim=1 on [128, 256] with indices covering full column range.
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.0017).sin())
+        .map(|i| (F32::from_count(i).0 * 0.0017).sin())
         .collect();
     let idx_f32_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| ((i * 7 + 13) % FEATURES) as f32)
+        .map(|i| F32::from_count((i * 7 + 13) % FEATURES).0)
         .collect();
 
     let x_seq = Var::new(
@@ -201,7 +205,7 @@ pub(crate) fn bench_gather_forward(c: &mut Criterion) {
 
 pub(crate) fn bench_clamp_forward(c: &mut Criterion) {
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.003).sin() * 3.0)
+        .map(|i| (F32::from_count(i).0 * 0.003).sin() * 3.0)
         .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
@@ -239,8 +243,12 @@ pub(crate) fn bench_scatter_add_forward(c: &mut Criterion) {
     // scatter_add dim=1 on [128,256] with random indices covering full range
     const S: usize = BATCH;
     const D: usize = FEATURES;
-    let src_data: Vec<f32> = (0..(S * D)).map(|i| (i as f32 * 0.001).sin()).collect();
-    let idx_f32: Vec<f32> = (0..(S * D)).map(|i| ((i * 7 + 13) % D) as f32).collect();
+    let src_data: Vec<f32> = (0..(S * D))
+        .map(|i| (F32::from_count(i).0 * 0.001).sin())
+        .collect();
+    let idx_f32: Vec<f32> = (0..(S * D))
+        .map(|i| F32::from_count((i * 7 + 13) % D).0)
+        .collect();
     let base_data = vec![0.0f32; S * D];
     let base_seq =
         coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(vec![S, D], &base_data)
@@ -292,7 +300,7 @@ pub(crate) fn bench_scatter_add_forward(c: &mut Criterion) {
 pub(crate) fn bench_argmax2_forward(c: &mut Criterion) {
     // argmax dim=1 on [128,256]
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.007).sin())
+        .map(|i| (F32::from_count(i).0 * 0.007).sin())
         .collect();
     let x_seq = coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(
         vec![BATCH, FEATURES],
@@ -327,7 +335,7 @@ pub(crate) fn bench_topk2_forward(c: &mut Criterion) {
     // topk k=32 on [128,256] dim=1
     const K2: usize = 32;
     let input_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.009).cos())
+        .map(|i| (F32::from_count(i).0 * 0.009).cos())
         .collect();
     let x_seq = coeus_tensor::Tensor::<f32, SequentialBackend>::from_slice(
         vec![BATCH, FEATURES],
@@ -363,10 +371,10 @@ pub(crate) fn bench_where_cond_forward(c: &mut Criterion) {
         .map(|i| if i % 2 == 0 { 1.0 } else { 0.0 })
         .collect();
     let a_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.003).sin())
+        .map(|i| (F32::from_count(i).0 * 0.003).sin())
         .collect();
     let b_data: Vec<f32> = (0..(BATCH * FEATURES))
-        .map(|i| (i as f32 * 0.005).cos())
+        .map(|i| (F32::from_count(i).0 * 0.005).cos())
         .collect();
     let cond_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &cond_data)
@@ -433,7 +441,9 @@ pub(crate) fn bench_where_cond_forward(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_flip_backward(c: &mut Criterion) {
-    let input_data: Vec<f32> = (0..(BATCH * FEATURES)).map(|i| i as f32 * 0.01).collect();
+    let input_data: Vec<f32> = (0..(BATCH * FEATURES))
+        .map(|i| F32::from_count(i).0 * 0.01)
+        .collect();
     let x_seq = Var::new(
         Tensor::<f32, SequentialBackend>::from_slice(vec![BATCH, FEATURES], &input_data)
             .expect("invariant: test backend operation succeeds"),

@@ -49,7 +49,7 @@ jobs:
     name: SemVer gate
     uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
     with:
-      package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-hephaestus,coeus-leto,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-rocm,coeus-sparse,coeus-tensor,coeus-wgpu
+      package: coeus-autograd,coeus-core,coeus-dist,coeus-fft,coeus-accelerator,coeus-cpu,coeus-metal,coeus-nn,coeus-ops,coeus-optim,coeus-rocm,coeus-sparse,coeus-tensor,coeus-wgpu
       rust-toolchain: 1.97.0
     permissions:
       contents: read

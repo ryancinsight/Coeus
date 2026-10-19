@@ -1,6 +1,6 @@
+use coeus_accelerator::HephaestusBackend;
+use coeus_accelerator::HephaestusBackendError;
 use coeus_core::{BackendError, ClosedReduction, ComputeBackend, Layout, ReductionOp};
-use coeus_hephaestus::HephaestusBackend;
-use coeus_hephaestus::HephaestusBackendError;
 use coeus_metal::MetalProvider;
 use coeus_ops::ReductionOps;
 
@@ -43,7 +43,7 @@ fn native_reductions_and_scans_match_leto() {
         (ReductionOp::Max, [3.0_f32, 6.0]),
     ] {
         let mut expected_values = [0.0_f32; 2];
-        coeus_leto::reduce_into(
+        coeus_cpu::reduce_into(
             ClosedReduction::from_op("oracle", op).expect("invariant: closed reductions only"),
             &layout,
             &input,
@@ -77,7 +77,7 @@ fn native_reductions_and_scans_match_leto() {
     // Mean is float-only: both the Leto oracle and the provider route it
     // through the bounded entry point.
     let mut expected_values = [0.0_f32; 2];
-    coeus_leto::mean_into(
+    coeus_cpu::mean_into(
         &layout,
         &input,
         1,
@@ -107,7 +107,7 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(actual_values, expected_values, "Metal Mean parity");
 
     let mut expected_values = [0.0_f32; 2];
-    coeus_leto::reduce_into(
+    coeus_cpu::reduce_into(
         ClosedReduction::Prod,
         &layout,
         &input,
@@ -170,7 +170,7 @@ fn native_reductions_and_scans_match_leto() {
     ));
 
     let mut expected_scan = [0.0_f32; 6];
-    coeus_leto::cumsum_into(&layout, &input, 1, &layout, &mut expected_scan)
+    coeus_cpu::cumsum_into(&layout, &input, 1, &layout, &mut expected_scan)
         .expect("Leto cumulative-sum oracle failed");
     // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
     let mut scan = unsafe { backend.allocate::<f32>(input.len()) }
@@ -184,7 +184,7 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(actual_scan, expected_scan);
 
     let mut expected_suffix_sum = [0.0_f32; 6];
-    coeus_leto::suffix_sum_into(&layout, &input, 1, &layout, &mut expected_suffix_sum)
+    coeus_cpu::suffix_sum_into(&layout, &input, 1, &layout, &mut expected_suffix_sum)
         .expect("Leto suffix-sum oracle failed");
     // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
     let mut suffix_sum = unsafe { backend.allocate::<f32>(input.len()) }
@@ -205,7 +205,7 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(actual_suffix_sum, expected_suffix_sum);
 
     let mut expected_product_scan = [0.0_f32; 6];
-    coeus_leto::cumprod_into(&layout, &input, 1, &layout, &mut expected_product_scan)
+    coeus_cpu::cumprod_into(&layout, &input, 1, &layout, &mut expected_product_scan)
         .expect("Leto cumulative-product oracle failed");
     // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
     let mut product_scan = unsafe { backend.allocate::<f32>(input.len()) }
@@ -226,7 +226,7 @@ fn native_reductions_and_scans_match_leto() {
     assert_eq!(actual_product_scan, expected_product_scan);
 
     let mut expected_suffix_product = [0.0_f32; 6];
-    coeus_leto::suffix_prod_into(&layout, &input, 1, &layout, &mut expected_suffix_product)
+    coeus_cpu::suffix_prod_into(&layout, &input, 1, &layout, &mut expected_suffix_product)
         .expect("Leto suffix-product oracle failed");
     // SAFETY: the dispatched provider operation overwrites every logical output element before the buffer is read.
     let mut suffix_product = unsafe { backend.allocate::<f32>(input.len()) }

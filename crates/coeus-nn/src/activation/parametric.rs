@@ -62,7 +62,7 @@ impl<T: Float, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GeLUTanh 
 ///
 /// # Panics
 /// If `dim` is out of range or the extent along `dim` is odd.
-pub fn glu<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
+pub fn glu<T: Float + coeus_cpu::RealScalar, B: coeus_ops::BackendOps<T> + Default>(
     input: &Var<T, B>,
     dim: usize,
 ) -> Result<Var<T, B>, B::Error> {
@@ -102,9 +102,7 @@ impl GLU {
     }
 }
 
-impl<T: Float + coeus_leto::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B>
-    for GLU
-{
+impl<T: Float + coeus_cpu::RealScalar, B: coeus_ops::BackendOps<T> + Default> Module<T, B> for GLU {
     #[inline]
     fn parameters(&self) -> Vec<Var<T, B>> {
         vec![]

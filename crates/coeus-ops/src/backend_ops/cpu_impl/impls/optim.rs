@@ -4,7 +4,7 @@ use crate::backend_ops::traits::{
     OptimizerOps, OptimizerStateRef, OptimizerStepRule, OptimizerStepValidation,
 };
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Layout, Scalar};
-use coeus_leto::{
+use coeus_cpu::{
     stateful_update, validate_stateful_update, ReadOperand, StatefulUpdateOperands,
     StatefulUpdateState, StatefulUpdateValidation, StatefulUpdateValidationState, WriteOperand,
 };

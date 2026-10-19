@@ -1,7 +1,7 @@
-use crate::backend::get_wgpu_context;
+use crate::backend::try_get_wgpu_context;
+use coeus_accelerator::HephaestusStorage;
 use coeus_core::ComputeBackend;
 use coeus_core::StorageMut;
-use coeus_hephaestus::HephaestusStorage;
 use hephaestus_core::{ComputeDevice, DeviceBuffer};
 use themis::{MemoryTier, PlacementHint};
 
@@ -14,7 +14,7 @@ fn storage_allocates_device_tier() {
 
 #[test]
 fn device_upload_roundtrip_preserves_values() {
-    let ctx = get_wgpu_context();
+    let ctx = try_get_wgpu_context().expect("invariant: WGPU test context acquisition succeeds");
     let input = vec![1.0f32, -2.5, 3.25, 8.0];
     let device_buf = ctx
         .hephaestus_device
@@ -54,7 +54,7 @@ fn backend_zero_memory_operations_preserve_exact_values() {
 
 #[test]
 fn host_pinned_upload_is_rejected_without_false_tier() {
-    let ctx = get_wgpu_context();
+    let ctx = try_get_wgpu_context().expect("invariant: WGPU test context acquisition succeeds");
     let input = vec![1.0f32, -2.5, 3.25, 8.0];
     let error = ctx
         .hephaestus_device
@@ -71,7 +71,7 @@ fn host_pinned_upload_is_rejected_without_false_tier() {
 
 #[test]
 fn copy_on_write_preserves_values_in_both_device_buffers() {
-    let ctx = get_wgpu_context();
+    let ctx = try_get_wgpu_context().expect("invariant: WGPU test context acquisition succeeds");
     let input = vec![1.0f32, -2.5, 3.25, 8.0];
     let source = ctx
         .hephaestus_device

@@ -57,7 +57,7 @@ where
 /// argmax. The transient `[rows, out_len, in_len]` mask is `out_len`× the slice
 /// — modest for typical pools; an argmax-scatter kernel would avoid it.
 fn masked_adaptive_max<
-    T: Float + coeus_core::FloatElement + coeus_leto::RealScalar,
+    T: Float + coeus_core::FloatElement + coeus_cpu::RealScalar,
     B: coeus_ops::BackendOps<T> + Default,
 >(
     x2: &Var<T, B>,
@@ -138,7 +138,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveAvgPool1d<T, B>
 where
@@ -229,7 +229,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveAvgPool2d<T, B>
 where
@@ -311,7 +311,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveMaxPool1d<T, B>
 where
@@ -322,7 +322,11 @@ where
     }
 
     fn forward(&self, input: &Var<T, B>) -> Result<Var<T, B>, ModuleError<B::Error>> {
-        // Differentiable: masked max over each adaptive region along the length.
+        // Direct region-maximum loop: one strided pass over the input with no
+        // [rows, out_len, in_len] broadcast intermediate (previously ~20ms on
+        // the standard fixture; COEUS-ADAPTIVE-MAX-POOL1D-PERF). Region maxima
+        // use strict `>`, so the first maximum wins; a NaN wins only when it
+        // is the first element of its region.
         let shape = input.tensor.shape_cloned();
         if shape.len() != 3 {
             return Err(ModuleError::InvalidRank {
@@ -342,9 +346,35 @@ where
             });
         }
         let backend = B::default();
-        let x2 = coeus_autograd::reshape(input, [n * c, l])?;
-        let pooled = masked_adaptive_max::<T, B>(&x2, n * c, l, o, &backend)?;
-        Ok(coeus_autograd::reshape(&pooled, [n, c, o])?)
+        // SAFETY: every output element is written by the loop below before the
+        // tensor is read.
+        let mut out_tensor = unsafe { Tensor::alloc_on([n, c, o], &backend) }?;
+        let (out_storage, out_layout) = out_tensor.storage_mut_and_layout()?;
+        let out_buf = out_storage.as_mut_slice()?;
+        let (out_off, out_st) = (out_layout.offset(), out_layout.strides());
+        let in_buf = input.tensor.storage().as_slice();
+        let in_layout = input.tensor.layout();
+        let (in_off, in_st) = (in_layout.offset(), in_layout.strides());
+        for n_i in 0..n {
+            for c_i in 0..c {
+                let in_base = in_off + n_i * in_st[0] + c_i * in_st[1];
+                let out_base = out_off + n_i * out_st[0] + c_i * out_st[1];
+                for o_i in 0..o {
+                    let (start, end) = coeus_autograd::ops::nn::pool::adaptive_region(o_i, l, o);
+                    let mut best = in_buf[in_base + start * in_st[2]];
+                    for i in (start + 1)..end {
+                        let v = in_buf[in_base + i * in_st[2]];
+                        if v > best {
+                            best = v;
+                        }
+                    }
+                    out_buf[out_base + o_i * out_st[2]] = best;
+                }
+            }
+        }
+        Ok(coeus_autograd::adaptive_max_pool1d(
+            input, out_tensor, l, o,
+        )?)
     }
 }
 
@@ -381,7 +411,7 @@ impl<T: coeus_core::FloatElement + Scalar, B: coeus_ops::BackendOps<T> + Default
 }
 
 impl<
-        T: coeus_core::FloatElement + Float + coeus_leto::RealScalar,
+        T: coeus_core::FloatElement + Float + coeus_cpu::RealScalar,
         B: coeus_ops::BackendOps<T> + Default,
     > Module<T, B> for AdaptiveMaxPool2d<T, B>
 where

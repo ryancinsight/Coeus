@@ -17,4 +17,5 @@ mod remainder;
 mod scatter_add;
 mod shape_ops;
 mod sparse;
+mod unary_failure;
 mod unary_math;

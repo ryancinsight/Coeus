@@ -1,7 +1,7 @@
 // Value-semantic tests for the COO / CSR sparse tensor types.
 //
 // `coeus-sparse` holds the pure sparse data structures (conversions and
-// arithmetic live in `coeus-ops`/`coeus-leto` per DIP). These tests pin the
+// arithmetic live in `coeus-ops`/`coeus-cpu` per DIP). These tests pin the
 // construction invariants the public constructors enforce and verify accessor
 // round-trips against a known 2×3 sparse matrix:
 //

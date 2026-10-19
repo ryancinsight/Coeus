@@ -1,6 +1,6 @@
 //! Differential verification for public tensor shape views.
 //!
-//! `Tensor::{reshape, permute}` route metadata validation through `coeus-leto`
+//! `Tensor::{reshape, permute}` route metadata validation through `coeus-cpu`
 //! while preserving zero-copy storage sharing.
 
 use coeus_core::{MoiraiBackend, SequentialBackend};
@@ -18,13 +18,13 @@ where
         .expect("invariant: test backend operation succeeds");
 
     let permuted = tensor.permute(&[2, 0, 1]);
-    let expected_permuted = coeus_leto::permute_layout(tensor.layout(), &[2, 0, 1]).unwrap();
+    let expected_permuted = coeus_cpu::permute_layout(tensor.layout(), &[2, 0, 1]).unwrap();
     assert_eq!(permuted.shape(), expected_permuted.shape());
     assert_eq!(permuted.strides(), expected_permuted.strides());
     assert_eq!(permuted.get(&[3, 1, 2]), tensor.get(&[1, 2, 3]));
 
     let transposed = tensor.t_nd();
-    let expected_transposed = coeus_leto::permute_layout(tensor.layout(), &[0, 2, 1]).unwrap();
+    let expected_transposed = coeus_cpu::permute_layout(tensor.layout(), &[0, 2, 1]).unwrap();
     assert_eq!(transposed.shape(), expected_transposed.shape());
     assert_eq!(transposed.strides(), expected_transposed.strides());
     assert_eq!(transposed.get(&[1, 3, 2]), tensor.get(&[1, 2, 3]));
@@ -39,7 +39,7 @@ where
         .expect("invariant: test backend operation succeeds")
         .slice(&[(2, 6)]);
     let reshaped = sliced.reshape([2usize, 2]);
-    let expected_reshaped = coeus_leto::reshape_layout(sliced.layout(), &[2, 2]).unwrap();
+    let expected_reshaped = coeus_cpu::reshape_layout(sliced.layout(), &[2, 2]).unwrap();
     assert_eq!(reshaped.shape(), expected_reshaped.shape());
     assert_eq!(reshaped.strides(), expected_reshaped.strides());
     assert_eq!(reshaped.layout().offset(), 2);

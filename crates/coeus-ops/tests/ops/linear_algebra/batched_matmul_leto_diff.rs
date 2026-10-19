@@ -2,7 +2,7 @@
 //!
 //! This covers the `coeus_ops::matmul` batching layer above
 //! `BackendOps::matmul`: it builds per-batch 2-D layouts and dispatches each
-//! slice to the CPU backend, which then routes through `coeus-leto`.
+//! slice to the CPU backend, which then routes through `coeus-cpu`.
 
 use coeus_core::{
     ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, NumericElement, Scalar,

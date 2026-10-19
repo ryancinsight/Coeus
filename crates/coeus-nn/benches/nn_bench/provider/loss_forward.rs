@@ -158,3 +158,22 @@ pub(crate) fn bench_huber_loss(c: &mut Criterion) {
     });
     group.finish();
 }
+
+#[path = "loss_forward/classification.rs"]
+mod classification;
+pub(crate) use classification::*;
+#[path = "loss_forward/margin.rs"]
+mod margin;
+pub(crate) use margin::*;
+#[path = "loss_forward/metric.rs"]
+mod metric;
+pub(crate) use metric::*;
+#[path = "loss_forward/nan.rs"]
+mod nan;
+pub(crate) use nan::*;
+#[path = "loss_forward/regression.rs"]
+mod regression;
+pub(crate) use regression::*;
+#[path = "loss_forward/ctc.rs"]
+mod ctc;
+pub(crate) use ctc::*;

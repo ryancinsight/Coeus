@@ -1,7 +1,7 @@
 use crate::backend::{CudaBackend, CudaScalar};
 use crate::CudaBackendError;
+use coeus_accelerator::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
 use coeus_core::{BackendError, Layout};
-use coeus_hephaestus::{UnfoldFoldBackend, UnfoldFoldProvider, WindowConfiguration};
 use hephaestus_core::{CudaC, DialectScalar};
 use hephaestus_cuda::CudaSlidingWindowOps;
 use leto::WindowParameters;
@@ -140,12 +140,12 @@ where
 fn unfold<T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (
-        &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
     window: WindowConfiguration<S>,
     output: (
-        &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
 ) -> Result<(), CudaBackendError>
@@ -165,7 +165,7 @@ where
             reason: error.to_string(),
         },
     })?;
-    coeus_hephaestus::unfold_fold_unfold::<CudaBackend, T, R, S>(
+    coeus_accelerator::unfold_fold_unfold::<CudaBackend, T, R, S>(
         operation, input, parameters, output,
     )
 }
@@ -173,13 +173,13 @@ where
 fn fold<T, const R: usize, const S: usize>(
     operation: &'static str,
     input: (
-        &coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
     output_spatial_shape: [usize; S],
     window: WindowConfiguration<S>,
     output: (
-        &mut coeus_hephaestus::HephaestusStorage<crate::CudaBackend, T>,
+        &mut coeus_accelerator::HephaestusStorage<crate::CudaBackend, T>,
         &Layout,
     ),
 ) -> Result<(), CudaBackendError>
@@ -199,7 +199,7 @@ where
             reason: error.to_string(),
         },
     })?;
-    coeus_hephaestus::unfold_fold_fold::<CudaBackend, T, R, S>(
+    coeus_accelerator::unfold_fold_fold::<CudaBackend, T, R, S>(
         operation,
         input,
         output_spatial_shape,

@@ -1,0 +1,73 @@
+//! Generic Coeus integration for Hephaestus device providers.
+//!
+//! This crate owns storage, transfer, layout validation, and Coeus dispatch
+//! orchestration once. Vendor crates implement [`HephaestusProvider`] plus the
+//! operation-specific [`ReductionProvider`], [`AttentionProvider`], and
+//! [`AttentionBackend`] seams; they do not copy consumer-side request assembly.
+#![deny(missing_docs)]
+
+mod attention;
+mod backend;
+mod convolution;
+mod cross_entropy;
+mod cross_product;
+#[cfg(test)]
+mod dispatch_tests;
+mod elementwise;
+mod error;
+mod fused_reduction;
+mod fusion;
+mod layout;
+mod matmul;
+mod pooling;
+mod random_init;
+mod reduction;
+mod rotate_half;
+mod seam;
+mod staggered;
+mod stateful_update;
+mod storage;
+mod unfold_fold;
+mod window;
+
+pub use attention::{AttentionBackend, AttentionProvider};
+pub use backend::{HephaestusBackend, HephaestusProvider};
+pub use convolution::{
+    regular_backward as convolution_backward, regular_forward as convolution_forward,
+    transposed_backward as convolution_transposed_backward,
+    transposed_forward as convolution_transposed_forward, ConvolutionBackend,
+    ConvolutionBackwardDispatch, ConvolutionForwardDispatch, ConvolutionProvider,
+};
+pub use cross_entropy::{
+    prepare_candidate, prepare_targets as prepare_cross_entropy_targets, CrossEntropyBackend,
+    CrossEntropyProvider,
+};
+pub use cross_product::{
+    cross_host_fallback, cross_product, CrossProductProvider, HostCrossProductOps,
+};
+pub use elementwise::{
+    parameterized_unary, ActivationUnaryOperations, ArithmeticUnaryOperations,
+    BinaryElementwiseDispatch, ElementwiseProvider, ParameterizedElementwiseProvider,
+    ScalarPowerDispatch, ScalarPowerProvider, UnaryElementwiseDispatch,
+};
+pub use error::HephaestusBackendError;
+pub use fused_reduction::fused_selector;
+pub use fusion::{dispatch_fused, dispatch_fused_reduce, FusionBackend};
+pub use matmul::{matmul, MatmulBackend, MatmulProvider};
+pub use pooling::{pooling_backward, pooling_forward, PoolingBackend, PoolingProvider};
+pub use random_init::{normal as random_normal, uniform as random_uniform, RandomInitProvider};
+pub use reduction::{
+    AxisReductionDispatch, RankedOperand, ReductionProvider, ScanDispatch, ScanOperation,
+};
+pub use rotate_half::{rotate_half, RotateHalfProvider};
+pub use seam::HephaestusSeamBackend;
+pub use staggered::{
+    staggered_divergence, staggered_gradient, PreparedStaggeredPair, StaggeredBackend,
+    StaggeredProvider,
+};
+pub use stateful_update::{StatefulUpdateBackend, StatefulUpdateProvider};
+pub use storage::{AllocationId, HephaestusStorage};
+pub use unfold_fold::{
+    unfold_fold_fold, unfold_fold_unfold, UnfoldFoldBackend, UnfoldFoldProvider,
+};
+pub use window::WindowConfiguration;

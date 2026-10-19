@@ -1,7 +1,7 @@
-use crate::backend::{get_cuda_device, try_get_cuda_device, CudaBackend, CudaScalar};
+use crate::backend::{try_get_cuda_device, CudaBackend, CudaScalar};
 use crate::CudaBackendError;
+use coeus_accelerator::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use coeus_core::{Float, Layout};
-use coeus_hephaestus::{AttentionBackend, AttentionProvider, HephaestusProvider};
 use hephaestus_core::{AttentionOps, AttentionScalar};
 use hephaestus_cuda::{CudaAttentionOps, CudaDevice};
 
@@ -12,10 +12,6 @@ unsafe impl HephaestusProvider for CudaBackend {
     type Error = CudaBackendError;
 
     const NAME: &'static str = "cuda";
-
-    fn device() -> &'static Self::Device {
-        get_cuda_device()
-    }
 
     fn try_device() -> hephaestus_core::Result<&'static Self::Device> {
         try_get_cuda_device()

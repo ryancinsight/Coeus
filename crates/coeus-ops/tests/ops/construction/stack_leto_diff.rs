@@ -1,6 +1,6 @@
 //! Differential verification of the public CPU stack path.
 //!
-//! `coeus_ops::stack` delegates to the dynamic-rank `coeus-leto` structural
+//! `coeus_ops::stack` delegates to the dynamic-rank `coeus-cpu` structural
 //! dispatch. Expected values are exact row-major results from Leto's stack
 //! contract, so exact equality is the value-semantic oracle.
 

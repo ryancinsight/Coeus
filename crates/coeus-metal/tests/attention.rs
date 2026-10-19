@@ -1,9 +1,9 @@
-//! Metal attention dispatch through the generic Coeus-Hephaestus bridge.
+//! Metal attention dispatch through the generic coeus-accelerator bridge.
 
 #![cfg(target_os = "macos")]
 
+use coeus_accelerator::{HephaestusBackend, HephaestusBackendError};
 use coeus_core::{ComputeBackend, Layout};
-use coeus_hephaestus::{HephaestusBackend, HephaestusBackendError};
 use coeus_metal::MetalProvider;
 use coeus_ops::AttentionOps;
 
