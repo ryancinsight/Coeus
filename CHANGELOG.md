@@ -14,6 +14,9 @@
   NN test-cycle repairs; reconcile current main's canonical crate names and
   borrowed graph reads and layout stride reuse without changing numerical
   implementations or assertions.
+- [patch] Load the four negative-integer power regressions through the existing
+  autograd integration harness. Their test bodies and full scalar/layout/seed
+  matrix stay byte-identical while one duplicate integration binary is removed.
 
 
 ## [0.13.0] - Unreleased
