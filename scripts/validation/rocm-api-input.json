@@ -1,0 +1,36 @@
+{
+  "schema": "coeus-rocm-locked-api-input/v1",
+  "package": "coeus-rocm",
+  "toolchain": "1.97.0",
+  "checker_version": "0.51.0",
+  "features": [
+    "default",
+    "rocm"
+  ],
+  "baseline": {
+    "head": "5d5979bcd6d33d8965133c619ebf2427cba136a4",
+    "tree": "7e289d3434834f0acaeca701a223d1711bb897f8",
+    "version": "0.13.0",
+    "lock_sha256": "705bf488a4107c7737a5df0e81be26b82385b7ff6ddb699cedb800dc7fe6a551",
+    "provider_head": "36965bf2d775f09f4e5a76daae57d2a64b145e1c",
+    "provider_version": "0.25.0",
+    "apollo_head": "4a6122b591ee51300b0455b74434e05159d19777",
+    "apollo_version": "0.29.3",
+    "provider_floor": "0.25.0",
+    "apollo_floor": "0.29.3"
+  },
+  "candidate": {
+    "head": "c26c2f68afa1c47c2dc482a9e81bbc478e2f5803",
+    "tree": "53f70ecd5edfe5749a7ec06ff6aadd872ff11e47",
+    "version": "0.14.0",
+    "lock_sha256": "cae6951dfff49d07dac1e5b5bbcf5a37041b90ec29d1124cbaafead8fb19767b",
+    "provider_head": "a735c608dd686bc665ef48ac329aca4872b8508f",
+    "provider_version": "0.27.1",
+    "apollo_head": "124b67ba7f2d7e8380b9ff76fe5a970f1e1ca68a",
+    "apollo_version": "0.30.0",
+    "provider_floor": "0.27.1",
+    "apollo_floor": "0.30.0"
+  },
+  "provider_approval_receipt_sha256": "a67101b6813ee27717cf0e43b1802ddf1ddbbe973afe7f828c7964c060d0c869",
+  "scope": "Exact consumer full-feature source API pair only; no provider API, registry, device, performance or release acceptance."
+}

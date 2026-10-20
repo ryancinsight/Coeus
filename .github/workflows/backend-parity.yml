@@ -21,6 +21,19 @@ on:
       - ".github/workflows/backend-parity.yml"
   workflow_dispatch:
     inputs:
+      locked_rocm_api_only:
+        description: Compare the exact approved Coeus ROCm source pair; no runtime jobs
+        required: true
+        default: false
+        type: boolean
+      api_candidate_sha:
+        description: Exact candidate SHA bound by the reviewed input policy
+        required: false
+        type: string
+      api_policy_sha256:
+        description: SHA256 of scripts/validation/rocm-api-input.json in this workflow revision
+        required: false
+        type: string
       run_cuda_hardware:
         description: Run the CUDA Coeus contracts on the registered NVIDIA runner
         required: true
@@ -58,6 +71,7 @@ jobs:
   # that retouches the base crates still recompiles them in every shard,
   # which is why each shard timeout admits a cold compile.
   wgpu-leto-ops:
+    if: github.event_name != 'workflow_dispatch' || !inputs.locked_rocm_api_only
     name: WGPU Coeus provider contracts (leto, ops)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -186,6 +200,7 @@ jobs:
         run: sccache --show-stats
 
   wgpu-nn-autograd:
+    if: github.event_name != 'workflow_dispatch' || !inputs.locked_rocm_api_only
     name: WGPU Coeus provider contracts (nn, autograd)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -306,6 +321,7 @@ jobs:
         run: sccache --show-stats
 
   wgpu-wgpu-cuda:
+    if: github.event_name != 'workflow_dispatch' || !inputs.locked_rocm_api_only
     name: WGPU Coeus provider contracts (wgpu, cuda)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -441,6 +457,7 @@ jobs:
         run: sccache --show-stats
 
   cuda:
+    if: github.event_name != 'workflow_dispatch' || !inputs.locked_rocm_api_only
     name: CUDA Coeus provider contracts
     runs-on: ubuntu-24.04
     # Cold-aware: the container step compiles ~10m cold (7m44s + 2m08s test
@@ -597,7 +614,7 @@ jobs:
 
   cuda-hardware:
     name: CUDA Coeus required-device contracts
-    if: github.event_name == 'workflow_dispatch' && inputs.run_cuda_hardware
+    if: github.event_name == 'workflow_dispatch' && inputs.run_cuda_hardware && !inputs.locked_rocm_api_only
     runs-on: [self-hosted, linux, x64, cuda]
     timeout-minutes: 30
     steps:
@@ -619,6 +636,7 @@ jobs:
         run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda
 
   rocm:
+    if: github.event_name != 'workflow_dispatch' || !inputs.locked_rocm_api_only
     name: ROCm Coeus provider contracts
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -746,6 +764,7 @@ jobs:
             '
 
   metal:
+    if: github.event_name != 'workflow_dispatch' || !inputs.locked_rocm_api_only
     name: Metal Coeus provider contracts
     runs-on: macos-15
     timeout-minutes: 45
@@ -862,7 +881,7 @@ jobs:
 
   rocm-hardware:
     name: ROCm Coeus required-device contracts
-    if: github.event_name == 'workflow_dispatch' && inputs.run_rocm_hardware
+    if: github.event_name == 'workflow_dispatch' && inputs.run_rocm_hardware && !inputs.locked_rocm_api_only
     runs-on: [self-hosted, linux, x64, rocm]
     timeout-minutes: 30
     steps:
@@ -944,3 +963,89 @@ jobs:
         env:
           HEPHAESTUS_ROCM_REQUIRE_DEVICE: "1"
         run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm
+
+  rocm-locked-api:
+    name: Exact locked ROCm consumer API (no device)
+    if: github.event_name == 'workflow_dispatch' && inputs.locked_rocm_api_only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the reviewed validation workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: validation-tooling
+          persist-credentials: false
+      - name: Check out the exact candidate history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.api_candidate_sha }}
+          path: coeus-api-source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the approved source policy before SDK provisioning
+        env:
+          POLICY_SHA256: ${{ inputs.api_policy_sha256 }}
+          CANDIDATE_SHA: ${{ inputs.api_candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          sha = os.environ['CANDIDATE_SHA']
+          assert re.fullmatch('[0-9a-f]{40}', sha)
+          data = json.loads(Path('validation-tooling/scripts/validation/rocm-api-input.json').read_text())
+          assert data['candidate']['head'] == sha
+          PY
+          python3 validation-tooling/scripts/validation/coeus_rocm_locked_api.py \
+            --repo coeus-api-source \
+            --policy validation-tooling/scripts/validation/rocm-api-input.json \
+            --policy-sha256 "$POLICY_SHA256" \
+            --output "$GITHUB_WORKSPACE/rocm-api-preflight" --preflight-only
+      - name: Install the pinned API checker
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
+        with:
+          tool: cargo-semver-checks@0.51.0
+          checksum: true
+      - name: Compile the full-feature consumer pair in the ROCm SDK image
+        env:
+          POLICY_SHA256: ${{ inputs.api_policy_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-tools .rocm-api-home .rocm-api-cargo rocm-api-environment
+          cp "$(command -v cargo-semver-checks)" .ci-tools/cargo-semver-checks
+          docker pull rocm/dev-ubuntu-24.04:7.2.4
+          docker image inspect rocm/dev-ubuntu-24.04:7.2.4 > rocm-api-environment/base-image.json
+          docker build --pull=false --network=host --file validation-tooling/scripts/validation/rocm-api.Dockerfile \
+            --tag "coeus-rocm-api:$GITHUB_RUN_ID" validation-tooling/scripts/validation
+          docker image inspect "coeus-rocm-api:$GITHUB_RUN_ID" > rocm-api-environment/tool-image.json
+          docker run --rm --network host --user "$(id -u):$(id -g)" \
+            --env HOME=/workspace/.rocm-api-home \
+            --env ROCM_PATH=/opt/rocm \
+            --env POLICY_SHA256 \
+            --volume "$GITHUB_WORKSPACE:/workspace" --workdir /workspace \
+            "coeus-rocm-api:$GITHUB_RUN_ID" \
+            bash -c 'set -euo pipefail
+              python3 validation-tooling/scripts/validation/coeus_rocm_locked_api.py \
+                --repo coeus-api-source \
+                --policy validation-tooling/scripts/validation/rocm-api-input.json \
+                --policy-sha256 "$POLICY_SHA256" \
+                --output /workspace/rocm-api-evidence \
+                --cargo-home /workspace/.rocm-api-cargo \
+                --checker /workspace/.ci-tools/cargo-semver-checks'
+      - name: Retain exact consumer JSON, commands and image identities
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: coeus-rocm-locked-api-${{ github.run_id }}
+          if-no-files-found: error
+          path: |
+            rocm-api-preflight/report.json
+            rocm-api-evidence/report.json
+            rocm-api-evidence/input-policy.json
+            rocm-api-evidence/*-coeus-rocm.json
+            rocm-api-evidence/logs/**
+            rocm-api-environment/**
