@@ -4,8 +4,8 @@
 
 ### Changed
 
-- [patch] Require published Hermes 0.9.1, Leto/Leto-ops >=0.46.1,<0.48,
-  Apollo FFT 0.29.3 and Hephaestus 0.22.2. Retain admission for Eunomia
+- [patch] Require published Hermes 0.9.1, Leto/Leto-ops >=0.46.3,<0.48,
+  Apollo FFT 0.29.3 and Hephaestus 0.24.0. Retain admission for Eunomia
   0.10/0.11. Preserve merged PR #613's Moirai runtime/async 0.10 minimum
   and complete registry renewal while reconciling the private 0.13 workspace.
   Ordinary Cargo renewal selects the canonical provider bridges; final
@@ -25,19 +25,25 @@
 
 ### Dependency safety floor
 
-- [patch] Admit Hephaestus 0.22.2 and 0.23 consistently across the core and
-  backend edges after the embedding provider release.
+- [arch] Require Hephaestus 0.24 consistently across all five core/backend
+  edges. Preserve merged PR #614's CUDA, disabled-CUDA and WGPU bounds on
+  `hephaestus_core::FusionScalar<CudaC/Wgsl>` while retaining private 0.13
+  requirements and merged PR #613 ancestry. Generic downstream scalar
+  implementations now implement the provider-owned dialect-parametric trait.
+  See [the reconciliation design](docs/verification/hephaestus-024-reconciliation.md).
 
 - [patch] Require Leto and LetoOps 0.46.3 while retaining the planned 0.47
   admission. This excludes the 0.46.2 finite-input CSR NaN regression.
   The prepared graph uses the provisional [Leto repair PR #376](https://github.com/ryancinsight/leto/pull/376);
-  independent native acceptance and publication remain required.
+  exact-head numerical and matched-performance acceptance covers candidate
+  b3d744a9; canonical publication and this consumer graph's own verification
+  remain separate prerequisites.
 
 ### Breaking
 
 - [major] Advance the public provider cohort on unpublished 0.13.0:
-  Eunomia 0.10, Mnemosyne-memory 0.10, Hermes 0.9, Leto 0.46, Hephaestus 0.22
-  and Apollo FFT 0.29.1. The Cargo-managed lock selects their integrated defaults;
+  Eunomia 0.10/0.11, Mnemosyne-memory 0.10, Hermes 0.9.1,
+  Leto >=0.46.3,<0.48, Hephaestus 0.24 and Apollo FFT 0.29.3. The Cargo-managed lock selects their integrated defaults;
   final native, API, package and hosted acceptance remain release gates.
 
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
