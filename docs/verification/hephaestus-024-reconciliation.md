@@ -1,5 +1,10 @@
 # Hephaestus 0.24 and repaired-native reconciliation
 
+Historical checkpoint: exact head `38e014b3` is independently accepted within
+its recorded 0.24 graph. Current source admission and verification are in the
+[0.25 renewal](hephaestus-025-renewal.md); this note does not claim latest-provider
+readiness.
+
 [arch] The unpublished Coeus 0.13 workspace reconciles its existing repairs
 with actual merged Coeus PR #614 (e8b429ffd8c48a2fd3daf8289d079edb6b3c1a7c,
 feature 9b76889437b86d6be035b1371196bf91f0d2b459). Actual PR #613

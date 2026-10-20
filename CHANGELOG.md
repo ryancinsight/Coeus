@@ -5,7 +5,7 @@
 ### Changed
 
 - [patch] Require published Hermes 0.9.1, Leto/Leto-ops >=0.46.3,<0.48,
-  Apollo FFT 0.29.3 and Hephaestus 0.24.0. Retain admission for Eunomia
+  Apollo FFT 0.29.3 and Hephaestus 0.25.0. Retain admission for Eunomia
   0.10/0.11. Preserve merged PR #613's Moirai runtime/async 0.10 minimum
   and complete registry renewal while reconciling the private 0.13 workspace.
   Ordinary Cargo renewal selects the canonical provider bridges; final
@@ -25,12 +25,18 @@
 
 ### Dependency safety floor
 
-- [arch] Require Hephaestus 0.24 consistently across all five core/backend
+- [patch] Renew the unpublished cohort to the current Hephaestus 0.25 default
+  after PR #506. The provider adds CUDA/ROCm embedding and Metal forwarding;
+  this consumer preserves the existing FusionScalar migration and introduces
+  no embedding implementation or wiring. Repeat material graph/API/package
+  checks; the accepted 0.24 checkpoint remains scoped to its locked graph.
+
+- [arch] Require Hephaestus 0.25 consistently across all five core/backend
   edges. Preserve merged PR #614's CUDA, disabled-CUDA and WGPU bounds on
   `hephaestus_core::FusionScalar<CudaC/Wgsl>` while retaining private 0.13
   requirements and merged PR #613 ancestry. Generic downstream scalar
   implementations now implement the provider-owned dialect-parametric trait.
-  See [the reconciliation design](docs/verification/hephaestus-024-reconciliation.md).
+  See [the reconciliation design](docs/verification/hephaestus-025-renewal.md).
 
 - [patch] Require Leto and LetoOps 0.46.3 while retaining the planned 0.47
   admission. This excludes the 0.46.2 finite-input CSR NaN regression.
@@ -43,7 +49,7 @@
 
 - [major] Advance the public provider cohort on unpublished 0.13.0:
   Eunomia 0.10/0.11, Mnemosyne-memory 0.10, Hermes 0.9.1,
-  Leto >=0.46.3,<0.48, Hephaestus 0.24 and Apollo FFT 0.29.3. The Cargo-managed lock selects their integrated defaults;
+  Leto >=0.46.3,<0.48, Hephaestus 0.25 and Apollo FFT 0.29.3. The Cargo-managed lock selects their integrated defaults;
   final native, API, package and hosted acceptance remain release gates.
 
 - [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching

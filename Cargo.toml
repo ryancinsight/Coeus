@@ -57,11 +57,11 @@ smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
 # Accelerator providers remain Git-sourced and lockfile-pinned.
 # Provider-owned fusion is merged; Cargo.lock records the provider revision.
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.24.0" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.24.0" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.24.0", default-features = false }
-hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.24.0" }
-hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.24.0" }
+hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.25.0" }
+hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.25.0" }
+hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.25.0", default-features = false }
+hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.25.0" }
+hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.25.0" }
 themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.11.0" }
 
 # ── Error ──
