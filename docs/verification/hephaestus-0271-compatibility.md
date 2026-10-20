@@ -59,3 +59,21 @@ private proposal; the final owner source and ADR adoption decisions remain
 pending. It grants no release or public-update authority and inherits every
 remaining Linux/full-feature, numerical-tail, portable-bound, physical-device,
 performance, broader-cohort, deferred Miri and service hold above.
+
+## Unselected FFI-source alternative
+
+This separate private alternative binds all three Apollo lock records to
+`124b67ba7f2d7e8380b9ff76fe5a970f1e1ca68a`, the renewed Apollo FFI preparation.
+The primary Coeus preparation at `db5def7efc2dbafbf2821773d5168a8de960bfed`
+and its evidence stay unchanged. The selected FFT, FFT macros and Leto interop
+package subtrees are identical to the primary Apollo preparation at
+`a6428287573150623cb270c6539bde748f155f51`; only their exact Git identity changes.
+Hephaestus remains at `a735c608dd686bc665ef48ac329aca4872b8508f` with the
+^0.27.1 floor, Apollo FFT remains ^0.30.0, and all other lock records and source
+bytes remain unchanged apart from this explicit verification note.
+
+The external receipt records checks against this alternative's exact commit.
+This is concrete preparation for the pending source-adoption decision, not an
+adopted canonical source or owner approval. It carries every existing gate and
+hold above; it does not alter the separate Linux validation proposal or imply
+ordinary remote, registry, device, FFI-runtime or release availability.
