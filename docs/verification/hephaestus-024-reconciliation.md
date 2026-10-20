@@ -1,7 +1,8 @@
 # Hephaestus 0.24 and repaired-native reconciliation
 
-Historical checkpoint: exact head `38e014b3` is independently accepted within
-its recorded 0.24 graph. Current source admission and verification are in the
+Historical checkpoint: the isolated reconciliation tracked by
+[Coeus PR #611](https://github.com/ryancinsight/Coeus/pull/611) is independently
+accepted within its externally recorded 0.24 graph. Current source admission and verification are in the
 [0.25 renewal](hephaestus-025-renewal.md); this note does not claim latest-provider
 readiness.
 

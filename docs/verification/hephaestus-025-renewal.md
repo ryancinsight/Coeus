@@ -8,9 +8,11 @@ an old lock alone does not establish fresh compatibility.
 
 ## Preserved design and source
 
-Build on independently accepted 38e014b39529d3715f08180b877908a76e02e7d7,
-tree 6e2ebb44f41263fff443174b745f6003b1617d7e, receipt SHA256
-94b41b9f3288779394892645b528c201629b8607a5eda952fbfef6bf34575d77.
+Build on the independently accepted [0.24 reconciliation](hephaestus-024-reconciliation.md)
+tracked by [Coeus PR #611](https://github.com/ryancinsight/Coeus/pull/611).
+The external review packet binds its exact private head, tree and receipt.
+Repository citations use public PRs or repository documents; keep private
+candidate identities in revision-scoped external evidence, not landed-history citations.
 Actual #613 and #614 merge histories remain ancestors. Keep the owner's exact
 CUDA real/stub and WGPU FusionScalar<L> bounds, every existing numerical/NN
 and Python-linkage repair, private 0.13 versions, strict Moirai floors and
