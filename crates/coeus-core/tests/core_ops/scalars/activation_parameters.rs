@@ -1,5 +1,8 @@
 use coeus_core::CpuUnaryOp;
 
+#[path = "activation_parameters/const_contract.rs"]
+mod const_contract;
+
 #[test]
 fn single_activation_parameters_decode_the_public_encoding() {
     for (parameter, expected) in [(0.0_f64, 0.0_f32), (0.5, 0.5), (1.25, 1.25), (-2.0, -2.0)] {

@@ -1,5 +1,8 @@
 //! Scalar arithmetic and index-conversion contract tests.
 
+#[path = "scalars/float_constants.rs"]
+mod float_constants;
+
 #[path = "scalars/activation_parameters.rs"]
 mod activation_parameters;
 #[path = "scalars/scalar_dot_scale.rs"]

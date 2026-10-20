@@ -155,6 +155,11 @@ jobs:
         env:
           RUSTC_WRAPPER: ""
         run: python3 -B -m unittest scripts.tests.test_hooks -v
+      - name: Python for native binding tests
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: needs.changed_scope.outputs.test_path == 'native'
+        with:
+          python-version: "3.13"
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
         if: needs.changed_scope.outputs.test_path == 'native'
         with:
@@ -174,22 +179,17 @@ jobs:
       # fail on a bare runner with `AdapterUnavailable`. It is not skipped
       # coverage: backend-parity.yml runs its check, clippy at -D warnings,
       # nextest and doctests on a runner with mesa-vulkan-drivers installed.
-      #
-      # `coeus-python` is excluded from both: PyO3's `extension-module` tells
-      # it not to link libpython, because a loaded extension gets those symbols
-      # from the interpreter. A standalone test binary has no interpreter, so
-      # linking fails with `undefined symbol: _Py_DecRef`. It builds on Windows,
-      # which links pythonXY.lib regardless, which is why this passed locally
-      # and not here. `python-release.yml` owns that crate's verification.
+      # Native Python binding tests embed the configured interpreter and link
+      # libpython. Only Maturin wheel builds enable pyo3/extension-module.
       - name: Native tests
         if: needs.changed_scope.outputs.test_path == 'native'
-        run: cargo nextest run --locked --workspace --exclude coeus-python --exclude coeus-wgpu --partition count:${{ matrix.shard }}/3
+        run: cargo nextest run --locked --workspace --exclude coeus-wgpu --partition count:${{ matrix.shard }}/3
 
       # Shares the `test` profile compile above, so this costs only its own
       # doctest binaries. Runs on shard 1 only: one invocation covers them.
       - name: Documentation tests
         if: needs.changed_scope.outputs.test_path == 'native' && matrix.shard == 1
-        run: cargo test --locked --doc --workspace --exclude coeus-python --exclude coeus-wgpu
+        run: cargo test --locked --doc --workspace --exclude coeus-wgpu
 
       - name: sccache stats
         if: always() && needs.changed_scope.outputs.test_path == 'native'
@@ -229,6 +229,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}

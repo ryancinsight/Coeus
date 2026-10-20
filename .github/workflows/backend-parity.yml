@@ -616,8 +616,7 @@ jobs:
       - name: Run required-device CUDA provider contracts
         env:
           HEPHAESTUS_CUDA_REQUIRE_DEVICE: "1"
-        run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda \
-          -E "test(test_cuda_parity_cross_last_axis) or test(test_cuda_parity_cross_non_last_axis_fallback) or test(test_cuda_strided_parameterized_activations_match_cpu) or test(test_cuda_norm_p_provider_dispatch) or test(random_initialization_dispatches_with_seeded_provider_parity) or test(rotate_half_dispatches_with_cuda_parity) or test(cross_entropy_dispatches_with_cuda_value_and_gradient_parity) or test(unary_assignment_detaches_shared_cuda_view) or test(partial_update_preserves_cuda_parent_and_shared_source) or test(preserves_cloned_storage) or test(device_outputs::) or test(state_updates::)"
+        run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-cuda --features cuda
 
   rocm:
     name: ROCm Coeus provider contracts
@@ -944,5 +943,4 @@ jobs:
         working-directory: coeus
         env:
           HEPHAESTUS_ROCM_REQUIRE_DEVICE: "1"
-        run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm \
-          -E "test(native_reductions_and_scans_match_leto) or test(norm_p_dispatches_with_rocm_provider_parity) or test(native_elementwise_operations_match_leto_with_broadcasting) or test(native_attention_dispatches_and_preserves_provider_errors) or test(cross_entropy_dispatches_with_rocm_value_and_gradient_contract) or test(seeded_values_match_leto_oracle) or test(rotate_half_dispatches_with_rocm_parity) or test(rocm_cross_last_axis_matches_host_fold) or test(rocm_cross_non_last_axis_falls_back) or test(partial_update_preserves_rocm_parent_and_shared_source)"
+        run: cargo "+$RUST_TOOLCHAIN" nextest run --locked --package coeus-rocm --features rocm

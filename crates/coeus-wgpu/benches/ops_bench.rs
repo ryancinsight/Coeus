@@ -9,7 +9,7 @@
 // Machine class: depends on the local GPU/driver and CPU; record the host when
 // committing a baseline. Not run in headless CI (no GPU) — an on-demand tool.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorageMut, SequentialBackend};
+use coeus_core::{ComputeBackend, CpuAddressableStorageMut, FloatElement, SequentialBackend};
 use coeus_ops::conv_transpose2d;
 use coeus_tensor::Tensor;
 use coeus_wgpu::WgpuBackend;
@@ -146,7 +146,7 @@ fn bench_reduction_crossover(c: &mut Criterion) {
         }
         let cpu = coeus_ops::sum(&staged, &seq).expect("cpu sum succeeds");
         assert!(
-            (gpu - cpu).abs() < 1e-4 * n as f32,
+            (gpu - cpu).abs() < 1e-4 * f32::from_count(n),
             "placement mismatch at n={n}: gpu={gpu} cpu={cpu}"
         );
 

@@ -68,6 +68,22 @@ the Rust crates it wraps. One implementation means one place to verify, and
 the suite differences the bindings against PyTorch, JAX, and MLX on identical
 inputs rather than against themselves.
 
+## Native binding tests and wheel builds
+
+Native Rust binding tests embed Python and use PyO3's default Python-library
+linkage. Run them with `cargo nextest run --locked -p coeus-python`; select a
+supported interpreter with `PYO3_PYTHON` when needed. The required TCP tests
+bind loopback sockets and retain the repository's 60-second test deadline.
+
+Maturin reads `pyo3/extension-module` from this package's `pyproject.toml` when
+building wheels, so Unix extensions resolve Python symbols from the loading
+interpreter. A manual extension build must explicitly pass
+`--features pyo3/extension-module` and supply the platform's extension link
+arguments. The native-test and wheel paths use the same binding source.
+
+The workspace CI native shards include these Rust binding tests; the release
+workflow continues to own the full wheel/interpreter matrix.
+
 ## Testing the CTC binding
 
 Use an environment containing the wheel built from the current source and its

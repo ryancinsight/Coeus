@@ -124,7 +124,7 @@ pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     } else {
         None
     };
-    let creator = if requires_grad {
+    let creator: Option<Arc<dyn BackwardNode<T, B>>> = if requires_grad {
         let output_grad = grad.as_ref().expect("invariant: requires_grad gates both the Some(grad) construction above and this read").clone();
         let node = ClampNode {
             output_grad,
@@ -133,7 +133,7 @@ pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
             min_val,
             max_val,
         };
-        Some(Arc::new(node) as Arc<dyn BackwardNode<T, B>>)
+        Some(Arc::new(node))
     } else {
         None
     };

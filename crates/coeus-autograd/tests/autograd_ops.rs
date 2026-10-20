@@ -20,3 +20,6 @@ mod interpolation;
 mod rotate_half;
 #[path = "autograd_ops/scan.rs"]
 mod scan;
+
+#[path = "autograd_ops/pow_negative_contract.rs"]
+mod pow_negative_contract;

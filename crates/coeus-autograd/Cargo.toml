@@ -24,8 +24,7 @@ thiserror    = { workspace = true }
 
 [dev-dependencies]
 eunomia = { workspace = true }
-coeus-nn = { workspace = true, default-features = false }
-coeus-cpu = { version = "0.12.0", path = "../coeus-cpu" }
+coeus-cpu = { version = "0.13.0", path = "../coeus-cpu" }
 
 [lints]
 workspace = true

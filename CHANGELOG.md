@@ -1,8 +1,64 @@
 # Changelog
 
-## [Unreleased]
+## [Numeric provider compatibility] - Unreleased
 
 ### Changed
+
+- [patch] Run the full CUDA and ROCm suites in manual required-device jobs,
+  including CUDA storage tests; preserve runner labels, device flags and limits.
+
+- [patch] Require published Hermes 0.9.1, Leto/Leto-ops >=0.46.3,<0.48,
+  Apollo FFT 0.29.3 and Hephaestus 0.25.0. Retain admission for Eunomia
+  0.10/0.11. Preserve merged PR #613's Moirai runtime/async 0.10 minimum
+  and complete registry renewal while reconciling the private 0.13 workspace.
+  Ordinary Cargo renewal selects the canonical provider bridges; final
+  package, native, API and hosted
+  acceptance remain gates. Complete future backend/Python acceptance remains
+  separate from these source-range admissions.
+- Preserve the existing 0.13 numerical, native/wheel linkage and downstream
+  NN test-cycle repairs; reconcile current main's canonical crate names and
+  borrowed graph reads and layout stride reuse without changing numerical
+  implementations or assertions.
+- [patch] Load the four negative-integer power regressions through the existing
+  autograd integration harness. Their test bodies and full scalar/layout/seed
+  matrix stay byte-identical while one duplicate integration binary is removed.
+
+
+## [0.13.0] - Unreleased
+
+### Dependency safety floor
+
+- [patch] Renew the unpublished cohort to the current Hephaestus 0.25 default
+  after PR #506. The provider adds CUDA/ROCm embedding and Metal forwarding;
+  this consumer preserves the existing FusionScalar migration and introduces
+  no embedding implementation or wiring. Repeat material graph/API/package
+  checks; the accepted 0.24 checkpoint remains scoped to its locked graph.
+
+- [arch] Require Hephaestus 0.25 consistently across all five core/backend
+  edges. Preserve merged PR #614's CUDA, disabled-CUDA and WGPU bounds on
+  `hephaestus_core::FusionScalar<CudaC/Wgsl>` while retaining private 0.13
+  requirements and merged PR #613 ancestry. Generic downstream scalar
+  implementations now implement the provider-owned dialect-parametric trait.
+  See [the reconciliation design](docs/verification/hephaestus-025-renewal.md).
+
+- [patch] Require Leto and LetoOps 0.46.3 while retaining the planned 0.47
+  admission. This excludes the 0.46.2 finite-input CSR NaN regression.
+  The prepared graph uses the provisional [Leto repair PR #376](https://github.com/ryancinsight/leto/pull/376);
+  exact-head numerical and matched-performance acceptance covers candidate
+  b3d744a9; canonical publication and this consumer graph's own verification
+  remain separate prerequisites.
+
+### Breaking
+
+- [major] Advance the public provider cohort on unpublished 0.13.0:
+  Eunomia 0.10/0.11, Mnemosyne-memory 0.10, Hermes 0.9.1,
+  Leto >=0.46.3,<0.48, Hephaestus 0.25 and Apollo FFT 0.29.3. The Cargo-managed lock selects their integrated defaults;
+  final native, API, package and hosted acceptance remain release gates.
+
+- [major] `coeus_autograd::mean` and `MeanOp` require `FloatElement`, matching
+  provider mean and `mean_axis`. Integer callers explicitly choose a floating
+  tensor or integer sum; generic callers (including `coeus_nn::mse_loss`)
+  add the floating-point bound. See [ADR 0084](docs/adr/0084-autograd-mean-float-contract.md#migration).
 
 - [major] `coeus-leto` is renamed `coeus-cpu` and `coeus-hephaestus` is
   renamed `coeus-accelerator`: crate names now state the concern each
@@ -23,6 +79,31 @@
   default; 65,536 for WGPU and 1,048,576 for CUDA, both caller-measured
   on RTX 5080 hardware). Values are unchanged: staged reductions run the
   same host kernel as the CPU reference.
+
+### Fixed
+
+- [patch] NN-layer finite-difference regressions live in the NN test package,
+  removing the autograd-to-NN versioned dev-dependency cycle. All 16 convolution,
+  pooling and cross-entropy test bodies, f32/f64 instantiations, fixtures and
+  tolerances are retained.
+
+- [patch] Whole-tensor autograd mean and its gradient use the canonical
+  directly rounded reciprocal count. F16 one-hot length 65536 returns exact
+  2^-16 (`0x0100`) instead of zero from count overflow. Sum and scaling
+  remain in the native element type; empty mean retains NaN.
+
+- [patch] F16 `Float::MIN_POSITIVE` uses Eunomia's named constant, bits
+  `0x0400` (2^-14), the smallest positive normal binary16 value.
+
+- [patch] Native Python binding tests retain PyO3's Python-library linkage;
+  Maturin wheel builds select `pyo3/extension-module` from `pyproject.toml`.
+  Workspace native CI includes the bindings with CPython 3.13, preserving
+  TCP coverage and existing test/job deadlines.
+
+## [Unreleased]
+
+### Changed
+
 - [major] `Communicator` collectives return `Result<(), Self::Error>`.
   `TcpCommunicator` returns `TcpMeshError` instead of panicking on peer I/O
   failure, and a failed collective poisons all of that rank's links so every
@@ -112,6 +193,11 @@
   wrapper is retained.
 
 ### Fixed
+
+- [patch] Correct the sign of autograd `pow` derivatives for negative integer
+  exponents at finite nonzero inputs. Preserve the negative exponent coefficient
+  in `n / x^(1-n)`. Add exact f32/f64/F16/Bf16 seeded-gradient regressions for
+  odd/even negative powers, both base signs and contiguous/strided layouts.
 
 - [patch] GPU unary activations decode single parameters from their public
   `f64` bit encoding. Staggered preparation rejects invalid spacing before

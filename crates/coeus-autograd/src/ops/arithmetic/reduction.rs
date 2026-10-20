@@ -59,6 +59,19 @@ impl<T: Scalar, B: coeus_ops::BackendOps<T> + Default> ReductionAutogradOp<T, B>
 }
 
 /// ZST tag for mean reduction autograd.
+///
+/// Direct dispatch also requires a floating-point element:
+///
+/// ```compile_fail,E0277
+/// use coeus_autograd::{ops::arithmetic::{MeanOp, reduction_op}, Var};
+/// use coeus_core::SequentialBackend;
+/// use coeus_tensor::Tensor;
+/// let input = Var::new(
+///     Tensor::<i32, SequentialBackend>::from_slice([2], &[1, 2]).unwrap(),
+///     true,
+/// ).unwrap();
+/// let _ = reduction_op::<i32, SequentialBackend, MeanOp>(&input, None);
+/// ```
 pub struct MeanOp;
 impl<T: Scalar + FloatElement + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>
     ReductionAutogradOp<T, B> for MeanOp
@@ -72,8 +85,11 @@ impl<T: Scalar + FloatElement + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + 
         backend: &B,
     ) -> Result<Tensor<T, B>, B::Error> {
         let total = coeus_ops::sum(a, backend)?;
-        let n = a.numel();
-        Tensor::from_slice_on([1], &[total / T::from_count(n)], backend)
+        // Form 1/N directly in T: N itself can overflow a supported format
+        // while its reciprocal remains representable (F16 at N = 65536).
+        // Sum and scaling retain native T arithmetic; empty input yields NaN.
+        let scale = T::from_count_reciprocal(a.numel());
+        Tensor::from_slice_on([1], &[total * scale], backend)
     }
 
     #[inline(always)]
@@ -82,10 +98,9 @@ impl<T: Scalar + FloatElement + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + 
         _param: Option<usize>,
         backend: &B,
     ) -> Result<Option<Tensor<T, B>>, B::Error> {
-        let n = a.numel();
         Ok(Some(Tensor::full_on(
             [1],
-            <T as FloatElement>::from_f64(1.0 / n as f64),
+            T::from_count_reciprocal(a.numel()),
             backend,
         )?))
     }
@@ -136,6 +151,22 @@ pub fn sum<T: Scalar + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
 }
 
 /// Tracked mean reduction of all elements.
+///
+/// Computes native-precision sum times the directly rounded reciprocal count.
+/// Backward applies that same scale to each element; empty input yields NaN.
+///
+/// Integer inputs are unsupported, consistently with provider mean:
+///
+/// ```compile_fail,E0277
+/// use coeus_autograd::{mean, Var};
+/// use coeus_core::SequentialBackend;
+/// use coeus_tensor::Tensor;
+/// let input = Var::new(
+///     Tensor::<i32, SequentialBackend>::from_slice([2], &[1, 2]).unwrap(),
+///     true,
+/// ).unwrap();
+/// let _ = mean(&input);
+/// ```
 #[inline]
 pub fn mean<T: Scalar + FloatElement + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
