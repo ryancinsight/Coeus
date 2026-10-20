@@ -1,7 +1,10 @@
 use coeus_core::{Backend, BackendError, ComputeBackend, CpuStorage, Scalar, SequentialBackend};
 
 /// Scalar types supported by the CUDA backend and Hephaestus fusion.
-pub trait CudaScalar: Scalar + leto_ops::Scalar + hephaestus_cuda::CudaFusionScalar {}
+pub trait CudaScalar:
+    Scalar + leto_ops::Scalar + hephaestus_core::FusionScalar<hephaestus_core::CudaC>
+{
+}
 
 impl CudaScalar for f32 {}
 impl CudaScalar for f64 {}

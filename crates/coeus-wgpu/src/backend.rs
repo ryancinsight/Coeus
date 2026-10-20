@@ -25,7 +25,7 @@ pub use error::WgpuBackendError;
 /// assert_eq!(u32::WGSL_TYPE, "u32");
 /// assert_eq!(u32::WGSL_ZERO, "0u");
 /// ```
-pub trait WgpuScalar: Scalar + hephaestus_wgpu::WgpuFusionScalar {
+pub trait WgpuScalar: Scalar + hephaestus_core::FusionScalar<hephaestus_core::Wgsl> {
     /// WGSL type name string (e.g. `"f32"`).
     const WGSL_TYPE: &'static str;
     /// WGSL zero literal string (e.g. `"0.0"`).
