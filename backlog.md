@@ -5,6 +5,17 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
+<a id="coeus-provider-0271-compatibility"></a>
+## COEUS-PROVIDER-0271-COMPATIBILITY — Version the repaired public provider boundary
+
+- Status: blocked (private preparation only); priority: verification; [major]; owner: private compatibility renewal from accepted #611.
+- Target: lockstep 0.14.0; all five Hephaestus floors ^0.27.1, Apollo FFT ^0.30.0 and matching internal path requirements. Public provider/device/buffer types require a new pre-1.0 compatibility line; [ADR 0085](docs/adr/0085-versioned-provider-0271-admission.md) remains Proposed pending independent exact-head review and sign-off.
+- Preservation: all accepted #611 Rust/tests/profiles/workflows/assertions and #585 evidence remain unchanged. No competing numerical implementation or public branch update occurs.
+- Verification: [current preparation record](docs/verification/hephaestus-0271-compatibility.md) and the external exact-head receipt distinguish executed locked-source checks from pending ordinary Git/default, normalized package/API, registry, MSRV and hosted backend gates. [Preparation checklist](checklist.md) records the current target.
+- Blocker: draft provider #509 and the private Apollo 0.30 candidate are not merged/published. Source-less diagnostic locks cannot be promoted; source-cache imports establish only the recorded exact-source private graph. Keep upstream-first release order and the unchanged automatic publish-pending hold.
+- Retain every numerical-tail/portable-bound, performance, physical-hardware, broader-cohort, deferred Miri and service hold. No public action is authorized by this preparation.
+
+
 <a id="coeus-pow-negative-integer-gradient"></a>
 ## COEUS-POW-NEGATIVE-INTEGER-GRADIENT — Preserve the negative derivative coefficient
 

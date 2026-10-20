@@ -39,3 +39,16 @@ Re-open trigger: the artifact reappears (add a pre-test cleanup or a `.gitignore
 zero gradient, which is correct pending the upstream capability.
 Owning item: none in this repo (upstream Eunomia capability gap).
 Re-open trigger: Eunomia exposes `digamma`, then wire the CPU/Leto backward path.
+
+
+## 0.27.1 compatibility preparation does not establish release availability
+
+[major] The tracked private 0.14 preparation has Proposed ADR 0085 and an
+explicit [backlog owner](backlog.md#coeus-provider-0271-compatibility). Draft
+Hephaestus #509 and private Apollo 0.30 are not merged/published. An imported
+exact Git object permits locked-source verification only; it does not prove
+remote default or normalized registry resolution. Re-open trigger: intended
+upstream Git/registry artifacts are available and final-head review plus all
+applicable consumer/backend/package/API/performance gates complete. Numerical
+tail/portable bounds, physical hardware, broader cohort, deferred Miri and
+service holds remain; no gate or automatic publication trigger is changed.

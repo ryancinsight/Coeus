@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.14.0] - Unreleased
+
+### Breaking
+
+- [major] Prepare the lockstep 16-package cohort for Hephaestus ^0.27.1 and
+  Apollo FFT ^0.30.0. Public accelerator device/buffer/provider types cross a
+  pre-1.0 compatibility boundary. Update Coeus dependencies together to
+  ^0.14.0, update direct provider dependencies together, and renew locks to
+  one reviewed Git source identity; old provider types are not interchangeable.
+  See [ADR 0085](docs/adr/0085-versioned-provider-0271-admission.md).
+- [major] Python's dynamic Cargo metadata follows workspace 0.14.0. This does
+  not establish wheel runtime/ABI or full platform compatibility.
+
+### Changed
+
+- Preserve all #611 numerical/NN/native-linkage repairs, #585 reviewed evidence,
+  provider features, Rust implementations, assertions, CI gates and budgets.
+  Version every internal path edge atomically. The Hephaestus floor excludes
+  0.27.0 and untested 0.28 lines; canonical Git URLs remain unchanged.
+- This private preparation remains subject to ADR sign-off and independent
+  final-head review. Hephaestus #509 is draft/unmerged/unpublished; the Apollo
+  candidate is private. Real-source locked checks do not establish remote
+  default or registry availability. Normalized package/ordinary registry and
+  hosted backend gates remain explicit before any public lifecycle action.
+
+
 ## [Numeric provider compatibility] - Unreleased
 
 ### Changed
