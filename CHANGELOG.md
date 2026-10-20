@@ -6,8 +6,10 @@
 
 - [patch] Require published Hermes 0.9.1, Leto/Leto-ops >=0.46.1,<0.48,
   Apollo FFT 0.29.3 and Hephaestus 0.22.2. Retain admission for Eunomia
-  0.10/0.11 and Moirai 0.9/0.10. Ordinary Cargo renewal selects the canonical
-  provider bridges and Moirai 0.10; final package, native, API and hosted
+  0.10/0.11. Preserve merged PR #613's Moirai runtime/async 0.10 minimum
+  and complete registry renewal while reconciling the private 0.13 workspace.
+  Ordinary Cargo renewal selects the canonical provider bridges; final
+  package, native, API and hosted
   acceptance remain gates. Complete future backend/Python acceptance remains
   separate from these source-range admissions.
 - Preserve the existing 0.13 numerical, native/wheel linkage and downstream

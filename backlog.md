@@ -98,7 +98,7 @@ verification, tightening, feature}.
 - Status: todo; priority: verification; [arch].
 - Outcome: fresh lock generation and default/all-feature locked resolution agree, including against current upstream (not only offline idempotence).
 - Evidence: a frozen tree regenerates the same offline lock twice and both activation checks pass — this proves closure/idempotence, not remote freshness against the current upstream state.
-- Bridge renewal: after the published Apollo 0.29.3 / Leto 0.46.1 / Hephaestus 0.22.2 / Hermes 0.9.1 prerequisites, ordinary targeted Cargo update renews 38 first-party Git records, including Aequitas 0.3.1, Mnemosyne-memory 0.10.1 and Moirai 0.10.0. Registry package records remain unchanged. Final locked default/all-feature resolution, standard packages and actual-head gates remain pending.
+- Bridge renewal: after the published Apollo 0.29.3 / Leto 0.46.1 / Hephaestus 0.22.2 / Hermes 0.9.1 prerequisites, ordinary targeted Cargo update renews 38 first-party Git records, including Aequitas 0.3.1, Mnemosyne-memory 0.10.1 and Moirai 0.10.0. The subsequent [PR #613](https://github.com/ryancinsight/Coeus/pull/613) reconciliation preserves its Moirai runtime/async 0.10 minimum and complete registry renewal rather than replacing the concurrent owner graph. Acceptance requires final locked default/all-feature resolution, standard packages and actual-head gates; their revision-scoped outcomes belong to the external review packet.
 - Acceptance: standalone regeneration is idempotent and all configured gates pass against a freshly fetched upstream.
 - Next step: re-run `cargo update` against current remotes and confirm the lock still resolves after any upstream version alignment since the last check.
 
