@@ -23,6 +23,13 @@
 
 ## [0.13.0] - Unreleased
 
+### Dependency safety floor
+
+- [patch] Require Leto and LetoOps 0.46.3 while retaining the planned 0.47
+  admission. This excludes the 0.46.2 finite-input CSR NaN regression.
+  The prepared graph uses the provisional [Leto repair PR #376](https://github.com/ryancinsight/leto/pull/376);
+  independent native acceptance and publication remain required.
+
 ### Breaking
 
 - [major] Advance the public provider cohort on unpublished 0.13.0:
