@@ -40,3 +40,22 @@ cohort, performance/allocations and physical hardware stay explicit.
 Normal-final/subnormal-erfc accuracy, six portable composition countermodels,
 deferred Coeus Miri and service/process holds remain. The service-blocked
 initial Apollo LaneBuffer acquisition is not retried or routed around.
+
+
+## Reviewed-provider source renewal
+
+The subsequent private continuation renews the exact Git lock to the separately
+reviewed current provider and the primary Apollo compatibility continuation.
+The external revision-scoped receipt binds the selected commits, accepted
+provider receipt, unchanged package versions/floors and renewed consumer checks.
+The earlier ec650-bound source and its acceptance receipt remain immutable.
+
+Keep consumer Leto/LetoOps at reviewed 0.46.3 source 5051cd95. The provider's
+own workspace lock records a separate graph and is not copied into this
+consumer lock. All 235 registry and 33 unrelated Git records, every consumer
+Rust/test/workflow byte, features, numerical targets and budgets remain intact.
+This renewal selects the primary Apollo source for continuity of the accepted
+private proposal; the final owner source and ADR adoption decisions remain
+pending. It grants no release or public-update authority and inherits every
+remaining Linux/full-feature, numerical-tail, portable-bound, physical-device,
+performance, broader-cohort, deferred Miri and service hold above.
