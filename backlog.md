@@ -11,9 +11,29 @@ verification, tightening, feature}.
 - Status: blocked (private preparation only); priority: verification; [major]; owner: private compatibility renewal from accepted #611.
 - Target: lockstep 0.14.0; all five Hephaestus floors ^0.27.1, Apollo FFT ^0.30.0 and matching internal path requirements. Public provider/device/buffer types require a new pre-1.0 compatibility line; [ADR 0085](docs/adr/0085-versioned-provider-0271-admission.md) remains Proposed pending independent exact-head review and sign-off.
 - Preservation: all accepted #611 Rust/tests/profiles/workflows/assertions and #585 evidence remain unchanged. No competing numerical implementation or public branch update occurs.
-- Verification: [current preparation record](docs/verification/hephaestus-0271-compatibility.md) and the external exact-head receipt distinguish executed locked-source checks from pending ordinary Git/default, normalized package/API, registry, MSRV and hosted backend gates. [Preparation checklist](checklist.md) records the current target.
+- Verification: [current preparation record](docs/verification/hephaestus-0271-compatibility.md) and the external exact-head receipt distinguish executed locked-source checks from pending ordinary Git/default, normalized package/API, registry, MSRV and hosted backend gates. The preparation checklist below records the current target.
 - Blocker: draft provider #509 and the private Apollo 0.30 candidate are not merged/published. Source-less diagnostic locks cannot be promoted; source-cache imports establish only the recorded exact-source private graph. Keep upstream-first release order and the unchanged automatic publish-pending hold.
 - Retain every numerical-tail/portable-bound, performance, physical-hardware, broader-cohort, deferred Miri and service hold. No public action is authorized by this preparation.
+
+### Coeus compatibility preparation checklist
+
+Target: 0.14.0 (private proposal; no release acceptance).
+
+#### Authorized private preparation
+
+- [x] [major] Classify public Hephaestus device/buffer/provider identity migration in Proposed ADR 0085 and the Breaking changelog.
+- [x] [major] Prepare all 16 workspace versions and all internal path requirements atomically with Hephaestus ^0.27.1 and Apollo FFT ^0.30.0.
+- [x] [patch] Preserve #611 and #585 owners, all Rust/tests/profiles/workflows, numerical assertions and existing time budgets.
+- [x] [major] Regenerate a Cargo-written lock with exact Git identities; locked default/all-feature metadata accepts the private graph without a path overlay.
+- [ ] [major] Complete current CPU, strict/docs/doctest, MSRV and API/package evidence recorded in the external receipt.
+
+#### Adoption and release prerequisites (not opened implementation items)
+
+- [ ] [major] Obtain ADR 0085 sign-off and independent final exact-head review before adoption or public updates.
+- [ ] [major] Verify intended upstream Git defaults, registry artifacts and one provider/Apollo type-bearing graph, then regenerate ordinary locks/fresh consumers and standard packages.
+- [ ] [major] Complete all applicable hosted backend, physical-device, performance, complete Python/wheel/cohort and release gates without changing skips, assertions, features, baselines or budgets.
+- [ ] [patch] Retain numerical-tail, six portable countermodel, deferred Coeus Miri and service holds; do not retry the service-blocked initial Apollo LaneBuffer task.
+- [ ] [major] Coordinate upstream-first availability and automatic publish-pending side effects under separate public lifecycle authorization.
 
 
 <a id="coeus-pow-negative-integer-gradient"></a>
