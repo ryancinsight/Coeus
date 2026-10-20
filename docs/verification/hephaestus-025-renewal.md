@@ -52,8 +52,8 @@ switch, merge or publication occurs during this local preparation.
 
 CUDA compilation and test collection do not prove device execution; all three
 storage unit tests and the full suite require a real supported NVIDIA device.
-The existing hardware workflow's filter omits those unit names. ROCm current
-feature/API extraction requires Linux; physical ROCm contracts require AMD
+The manual required-device jobs run full unfiltered CUDA and ROCm suites.
+ROCm current feature/API extraction requires Linux; physical ROCm contracts require AMD
 hardware. Identify the supported paths without changing coverage or limits.
 
 Common PyO3 0.23-to-0.30, future Leto 0.47 stored-order policy, complete wheel/

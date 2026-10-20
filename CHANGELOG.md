@@ -4,6 +4,9 @@
 
 ### Changed
 
+- [patch] Run the full CUDA and ROCm suites in manual required-device jobs,
+  including CUDA storage tests; preserve runner labels, device flags and limits.
+
 - [patch] Require published Hermes 0.9.1, Leto/Leto-ops >=0.46.3,<0.48,
   Apollo FFT 0.29.3 and Hephaestus 0.25.0. Retain admission for Eunomia
   0.10/0.11. Preserve merged PR #613's Moirai runtime/async 0.10 minimum
