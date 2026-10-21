@@ -50,7 +50,7 @@ pub fn var_mean<
     let ssum = crate::ops::arithmetic::sum(&sq)?;
     let v = crate::ops::arithmetic::scalar_div(
         &ssum,
-        <T as coeus_core::FloatElement>::from_f64(denom as f64),
+        <T as coeus_core::FloatElement>::from_count(denom),
     )?;
     Ok((v, mu))
 }
@@ -132,7 +132,7 @@ pub fn var_mean_axis<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendO
     let ssum = crate::ops::arithmetic::sum_axis(&sq, axis)?;
     let v = crate::ops::arithmetic::scalar_div(
         &ssum,
-        <T as coeus_core::FloatElement>::from_f64(denom as f64),
+        <T as coeus_core::FloatElement>::from_count(denom),
     )?;
     Ok((v, mu))
 }

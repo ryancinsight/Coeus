@@ -109,7 +109,7 @@ where
         .to_contiguous_on(&backend)?
         .as_slice()
         .iter()
-        .map(|&x| <T as coeus_core::FloatElement>::from_f64(x as f64))
+        .map(|&x| <T as coeus_core::FloatElement>::from_integer(x))
         .collect();
     let top_indices = Tensor::from_slice_on(idx_i64.shape().to_vec(), &idx_data, &backend)?;
 

@@ -57,11 +57,8 @@ fn ensure_cache<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T>
         let ln_weight = Var::new(Tensor::ones_on([spatial], &backend)?, false)?;
         let ln_bias = Var::new(Tensor::zeros_on([spatial], &backend)?, false)?;
         let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend)?;
-        let d_const = Tensor::full_on(
-            [1],
-            coeus_core::FloatElement::from_f64(spatial as f64),
-            &backend,
-        )?;
+        let d_const =
+            Tensor::full_on([1], coeus_core::FloatElement::from_count(spatial), &backend)?;
         *cache = Some(InstanceNormCache {
             spatial,
             ln_weight,

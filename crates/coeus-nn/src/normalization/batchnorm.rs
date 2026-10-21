@@ -223,7 +223,7 @@ impl<
                 return Ok((cached_m_const.clone(), cached_corr_t.clone()));
             }
         }
-        let m_const = Tensor::full_on([1], coeus_core::FloatElement::from_f64(m as f64), backend)?;
+        let m_const = Tensor::full_on([1], coeus_core::FloatElement::from_count(m), backend)?;
         let correction = if m > 1 {
             m as f64 / (m - 1) as f64
         } else {

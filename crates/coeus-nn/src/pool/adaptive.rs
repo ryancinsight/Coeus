@@ -33,7 +33,7 @@ where
     for o in 0..out_len {
         let start = o * in_len / out_len;
         let end = ((o + 1) * in_len).div_ceil(out_len);
-        let inv = <T as coeus_core::FloatElement>::from_f64(1.0 / (end - start) as f64);
+        let inv = <T as coeus_core::FloatElement>::from_count_reciprocal(end - start);
         // Column `o`, rows `start..end`: flat index `l * out_len + o`.
         for slot in pt
             .iter_mut()
