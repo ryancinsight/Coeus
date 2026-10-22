@@ -156,7 +156,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
         let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend)?;
         let d_const = Tensor::full_on(
             [1],
-            coeus_core::FloatElement::from_f64(weight.tensor.numel() as f64),
+            coeus_core::FloatElement::from_count(weight.tensor.numel()),
             &backend,
         )?;
         Ok(Self {
@@ -175,7 +175,7 @@ impl<T: coeus_core::FloatElement + Float, B: coeus_ops::BackendOps<T> + Default>
         let eps_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(eps), &backend)?;
         let d_const = Tensor::full_on(
             [1],
-            coeus_core::FloatElement::from_f64(weight.tensor.numel() as f64),
+            coeus_core::FloatElement::from_count(weight.tensor.numel()),
             &backend,
         )?;
         Ok(Self {

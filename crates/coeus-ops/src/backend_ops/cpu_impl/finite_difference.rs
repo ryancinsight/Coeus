@@ -19,12 +19,9 @@ use super::error::map_leto_error;
 
 /// Scalars a CPU finite-difference kernel accepts: Coeus's element vocabulary
 /// intersected with the real-field arithmetic the stencils execute in.
-pub trait FdScalar: coeus_core::Scalar + eunomia::RealField + eunomia::FloatElement + Copy {}
+pub trait FdScalar: coeus_core::Scalar + eunomia::RealField {}
 
-impl<T> FdScalar for T where
-    T: coeus_core::Scalar + eunomia::RealField + eunomia::FloatElement + Copy
-{
-}
+impl<T> FdScalar for T where T: coeus_core::Scalar + eunomia::RealField {}
 
 /// A rank-3 contiguous row-major layout, or the error saying why it is not one.
 ///

@@ -99,7 +99,7 @@ impl<
                 Tensor::full_on([1], coeus_core::FloatElement::from_f64(self.eps), &backend)?;
             let d_const = Tensor::full_on(
                 [1],
-                coeus_core::FloatElement::from_f64(group_size as f64),
+                coeus_core::FloatElement::from_count(group_size),
                 &backend,
             )?;
             *cache = Some(GroupNormCache {

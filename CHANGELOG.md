@@ -4,6 +4,14 @@
 
 ### Changed
 
+- [patch] Count conversions state their intent: loss, normalization,
+  pooling, and variance denominators convert through
+  `FloatElement::from_count`/`from_count_reciprocal` and the top-k index
+  through `from_integer`, replacing `from_f64(n as f64)`. Values are
+  identical for `f64`, correctly rounded for narrower formats, and
+  huge-count `F16` reciprocals now return the correct subnormal instead
+  of 0. `FdScalar` drops its redundant `FloatElement + Copy` bounds.
+
 - [major] `coeus-leto` is renamed `coeus-cpu` and `coeus-hephaestus` is
   renamed `coeus-accelerator`: crate names now state the concern each
   crate owns instead of the stack member it adapts. Update manifests,

@@ -62,7 +62,7 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
                 grad_out,
                 &Tensor::full_on(
                     [1],
-                    T::ONE / <T as coeus_core::FloatElement>::from_f64((self.n * self.c) as f64),
+                    <T as coeus_core::FloatElement>::from_count_reciprocal(self.n * self.c),
                     &backend,
                 )?,
                 &backend,
@@ -183,7 +183,7 @@ where
         &loss_sum,
         &Tensor::full_on(
             [1],
-            T::ONE / <T as coeus_core::FloatElement>::from_f64((n * c) as f64),
+            <T as coeus_core::FloatElement>::from_count_reciprocal(n * c),
             &backend,
         )?,
         &backend,
