@@ -99,7 +99,7 @@ where
         a.as_slice(),
         axis,
         c_layout,
-        backend.as_mut_slice_i64(c)?,
+        backend.as_mut_index_buffer(c)?,
     )
     .map_err(|error| map_leto_error("argmax", error))
 }
@@ -124,7 +124,7 @@ where
         a.as_slice(),
         axis,
         c_layout,
-        backend.as_mut_slice_i64(c)?,
+        backend.as_mut_index_buffer(c)?,
     )
     .map_err(|error| map_leto_error("argmin", error))
 }
@@ -155,7 +155,7 @@ where
         axis,
         largest,
         values.as_mut_slice()?,
-        backend.as_mut_slice_i64(indices)?,
+        backend.as_mut_index_buffer(indices)?,
     );
     Ok(())
 }

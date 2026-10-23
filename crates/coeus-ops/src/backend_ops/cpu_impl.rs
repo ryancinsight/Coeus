@@ -44,8 +44,13 @@ mod unfold_fold;
 /// private sealing layer. CPU-addressable emulation backends can therefore use
 /// the same canonical operation implementations instead of cloning them.
 pub trait CpuBackend: Backend<Error = BackendError> {
-    /// Borrow an `i64` device buffer as a mutable slice.
-    fn as_mut_slice_i64<'a>(
+    /// Borrow the backend's index buffer (an `i64` word buffer) as a mutable
+    /// slice.
+    ///
+    /// Indices are the one element type whose width Coeus fixes across
+    /// backends, so the CPU realization exposes them through a single named
+    /// borrow rather than a per-width family of accessors.
+    fn as_mut_index_buffer<'a>(
         &self,
         buf: &'a mut Self::DeviceBuffer<i64>,
     ) -> Result<&'a mut [i64], BackendError>;
@@ -53,7 +58,7 @@ pub trait CpuBackend: Backend<Error = BackendError> {
 
 impl CpuBackend for coeus_core::SequentialBackend {
     #[inline]
-    fn as_mut_slice_i64<'a>(
+    fn as_mut_index_buffer<'a>(
         &self,
         buf: &'a mut Self::DeviceBuffer<i64>,
     ) -> Result<&'a mut [i64], BackendError> {
@@ -64,7 +69,7 @@ impl CpuBackend for coeus_core::SequentialBackend {
 
 impl CpuBackend for coeus_core::MoiraiBackend {
     #[inline]
-    fn as_mut_slice_i64<'a>(
+    fn as_mut_index_buffer<'a>(
         &self,
         buf: &'a mut Self::DeviceBuffer<i64>,
     ) -> Result<&'a mut [i64], BackendError> {
