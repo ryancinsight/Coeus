@@ -5,6 +5,33 @@ use crate::{
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+// Keep each const-generic decoder array in its own frame. Inlining every
+// dispatch arm makes the Windows test-thread stack reserve all variants
+// (a single-layer decoder then needs >8 MiB and overflows a 1 MiB thread).
+#[inline(never)]
+fn build_layers<const H: usize, const N: usize>(
+    py: Python<'_>,
+    d_model: usize,
+    d_ff: usize,
+    dropout_p: f64,
+) -> PyResult<Vec<Py<PyTransformerDecoderLayer>>> {
+    use coeus_autograd::{CausalMask, NullMask};
+    use coeus_nn::transformer::decoder::TransformerDecoder;
+
+    let decoder =
+        TransformerDecoder::<f64, coeus_core::MoiraiBackend, H, N, CausalMask, NullMask>::new(
+            d_model, d_ff, dropout_p,
+        )
+        .map_err(map_initialization_error)?;
+    decoder
+        .layers
+        .into_iter()
+        .map(|layer| {
+            PyTransformerDecoderLayer::from_rust_layer::<H>(py, layer, d_model, d_ff, dropout_p)
+        })
+        .collect()
+}
+
 /// Stack of `TransformerDecoderLayer`s forming the decoder half of a
 /// transformer (encoder–decoder architecture).
 ///
@@ -55,19 +82,7 @@ impl PyTransformerDecoder {
         macro_rules! build {
             ($(($h:literal, $n:literal)),*) => {
                 match (num_heads, num_layers) {
-                    $(($h, $n) => {
-                        use coeus_nn::transformer::decoder::TransformerDecoder;
-                        use coeus_autograd::{CausalMask, NullMask};
-                        let dec = TransformerDecoder::<
-                            f64, coeus_core::MoiraiBackend, $h, $n, CausalMask, NullMask,
-                        >::new(d_model, d_ff, dropout_p)
-                            .map_err(map_initialization_error)?;
-                        dec.layers.into_iter()
-                            .map(|layer| PyTransformerDecoderLayer::from_rust_layer::<$h>(
-                                py, layer, d_model, d_ff, dropout_p,
-                            ))
-                            .collect::<PyResult<Vec<_>>>()?
-                    },)*
+                    $(($h, $n) => build_layers::<$h, $n>(py, d_model, d_ff, dropout_p)?,)*
                     _ => return Err(PyValueError::new_err(format!(
                         "TransformerDecoder: unsupported (num_heads={num_heads}, \
                          num_layers={num_layers}); supported heads: 1,2,4,8,16,32 \
