@@ -209,9 +209,10 @@ verification, tightening, feature}.
 
 - Status: todo; priority: tightening; [patch]; owner: unclaimed.
 - Outcome: the 14 files currently over 500 lines (worst: `pytensor.rs` 933) split into leaf modules by operation family.
-- Scope: repo-wide scan (`coeus-python/src/tensor/pyimpl/pytensor.rs` first).
+- Delivered: `coeus-python/src/tensor/pyimpl/pytensor.rs` (985 lines) is now `pytensor/{mod,construct,protocol,arithmetic,unary,reduction,shape,indexing,compare,inplace,cast,grad}.rs`, largest 152, one `#[pymethods]` section per file (pyo3's `multiple-pymethods` feature); `coeus-ops/src/shape/einsum.rs` (688 lines) is now `einsum/{mod,dispatch,subscript,binary,ternary,single}.rs` plus its `tests`. Remaining scan excludes those two.
+- Scope: repo-wide scan for the rest.
 - Acceptance: each split file's module retains domain cohesion; no file regresses over 500 lines.
-- Next step: split `pytensor.rs` first since COEUS-PYTHON-ELEMENTWISE-DEDUP touches it anyway.
+- Next step: re-run the oversized-file scan against the current tree and take the next largest.
 
 <a id="coeus-cuda-safety-comment"></a>
 ## COEUS-CUDA-SAFETY-COMMENT — Correct misleading SAFETY comment on CudaBackend::parallel_for
