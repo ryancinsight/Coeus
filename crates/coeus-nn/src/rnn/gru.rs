@@ -196,6 +196,19 @@ where
         })
     }
 
+    /// Wrap an existing cell, taking the sizes from the cell itself.
+    ///
+    /// Used by bindings that own the weights as Python tensors and rebuild the
+    /// cell around them on each call, so the unrolled forward runs over the
+    /// caller's parameters rather than a fresh initialization.
+    pub fn from_cell(cell: GRUCell<T, B>) -> Self {
+        Self {
+            input_size: cell.input_size,
+            hidden_size: cell.hidden_size,
+            cell,
+        }
+    }
+
     /// Unroll over the sequence dimension with zero initial hidden state.
     ///
     /// Returns `(output, h_n)`:
