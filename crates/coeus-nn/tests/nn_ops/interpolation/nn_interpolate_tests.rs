@@ -8,8 +8,8 @@
 //! assertions use `assert_eq!` without epsilon.
 //!
 //! Tests cover: nearest upsample, nearest downsample, bilinear same-size
-//! (identity), bilinear upsample, both 1-D and 2-D spatial variants,
-//! multi-batch and multi-channel shapes.
+//! (identity), bilinear upsample (including the 1-D clamped border weight), both
+//! 1-D and 2-D spatial variants, multi-batch and multi-channel shapes.
 
 use coeus_core::SequentialBackend;
 use coeus_nn::interpolate::{interpolate_1d, interpolate_2d, InterpolateMode};
@@ -67,6 +67,21 @@ fn check_1d_bilinear_identity() {
     let out = interpolate_1d(&inp, 3, InterpolateMode::Bilinear)
         .expect("invariant: test operation succeeds");
     assert_eq!(out.as_slice(), inp.as_slice(), "1d bilinear identity");
+}
+
+fn check_1d_bilinear_upsample() {
+    // [1, 2] -> 4 (align_corners=False). The border output has source -0.25,
+    // clamped to 0 with weight 1, so it must NOT blend any of the second
+    // element in: src = -0.25 -> 1.00, 0.25 -> 1.25, 0.75 -> 1.75, 1.25 -> 2.00.
+    let inp = t1d(&[1.0, 2.0], 2);
+    let out = interpolate_1d(&inp, 4, InterpolateMode::Bilinear)
+        .expect("invariant: test operation succeeds");
+    assert_eq!(out.shape(), &[1, 1, 4], "1d bilinear upsample shape");
+    assert_eq!(
+        out.as_slice(),
+        &[1.0_f64, 1.25, 1.75, 2.0],
+        "1d bilinear upsample border weight"
+    );
 }
 
 fn check_2d_nearest_upsample() {
@@ -170,6 +185,11 @@ fn interpolate_1d_nearest_identity() {
 #[test]
 fn interpolate_1d_bilinear_identity() {
     check_1d_bilinear_identity();
+}
+
+#[test]
+fn interpolate_1d_bilinear_upsample() {
+    check_1d_bilinear_upsample();
 }
 
 #[test]
