@@ -25,7 +25,11 @@ coeus-nn       = { workspace = true, default-features = false }
 coeus-optim    = { workspace = true, default-features = false }
 coeus-dist     = { workspace = true, default-features = false }
 moirai         = { workspace = true }
-pyo3           = { workspace = true }
+# `multiple-pymethods` lets the `Tensor` class be assembled from one
+# `#[pymethods]` block per file (PyO3 rejects a second block for the same
+# pyclass otherwise), which is what the `tensor::pyimpl::pytensor` submodules
+# rely on.
+pyo3           = { workspace = true, features = ["multiple-pymethods"] }
 smallvec       = { workspace = true }
 eunomia        = { workspace = true }
 # Allocation SSOT — registered as the global allocator (see lib.rs). Optional so
