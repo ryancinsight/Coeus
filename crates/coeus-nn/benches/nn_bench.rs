@@ -143,6 +143,8 @@ criterion_group!(
     bench_interpolate1d_nearest_forward,
     bench_interpolate2d_nearest_forward,
     bench_interpolate2d_bilinear_forward,
+    bench_interpolate2d_bicubic_forward,
+    bench_interpolate2d_area_forward,
     bench_bilinear_forward,
     bench_conv1d_forward,
     bench_conv1d_forward_backward,
