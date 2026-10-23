@@ -3331,13 +3331,13 @@ def test_swapaxes_bwd_matches_jax() -> None:
     _allclose("swapaxes_bwd", list(x_pyc.grad), exp.flatten().tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "norm_p"), reason="pycoeus.norm_p not available")
-def test_norm_p1_bwd_matches_jax() -> None:
-    """jax.grad L1 norm vs pycoeus norm_p(1) backward."""
+@pytest.mark.skipif(not hasattr(pycoeus, "vector_norm"), reason="pycoeus.vector_norm not available")
+def test_vector_norm_p1_bwd_matches_jax() -> None:
+    """jax.grad L1 norm vs pycoeus vector_norm(ord=1) backward."""
     import jax
     data = [-3.0, 4.0, -1.0, 2.0]
     x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
-    pycoeus.norm_p(x_pyc, 1.0).backward()
+    pycoeus.vector_norm(x_pyc, 1.0).backward()
     grad_fn = jax.grad(lambda x: jnp.sum(jnp.abs(x)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("norm_p1_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
@@ -3486,13 +3486,13 @@ def test_log_sum_exp_bwd_dim0_matches_jax() -> None:
     _allclose("lse0_bwd", list(x_pyc.grad), exp.flatten().tolist(), atol=1e-9)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "norm_p"), reason="pycoeus.norm_p not available")
-def test_norm_p2_bwd_matches_jax() -> None:
-    """jax.grad L2 norm_p(p=2) vs pycoeus norm_p backward."""
+@pytest.mark.skipif(not hasattr(pycoeus, "vector_norm"), reason="pycoeus.vector_norm not available")
+def test_vector_norm_p2_bwd_matches_jax() -> None:
+    """jax.grad L2 norm vs pycoeus vector_norm(ord=2) backward."""
     import jax
     data = [3.0, 4.0, 5.0, 2.0]
     x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
-    pycoeus.norm_p(x_pyc, 2.0).backward()
+    pycoeus.vector_norm(x_pyc, 2.0).backward()
     grad_fn = jax.grad(lambda x: jnp.sqrt(jnp.sum(x**2)))
     exp = grad_fn(jnp.array(data, dtype=jnp.float64))
     _allclose("norm_p2_bwd", list(x_pyc.grad), exp.tolist(), atol=1e-10)
@@ -3510,13 +3510,13 @@ def test_diff_bwd_2d_matches_jax() -> None:
     _allclose("diff2d_bwd", list(x_pyc.grad), exp.flatten().tolist(), atol=1e-10)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "var_axis"), reason="pycoeus.var_axis not available")
+@pytest.mark.skipif(not hasattr(pycoeus, "var"), reason="pycoeus.var not available")
 def test_var_axis0_bwd_matches_jax() -> None:
-    """jax.grad var(axis=0) vs pycoeus var_axis backward."""
+    """jax.grad var(axis=0) vs pycoeus var backward."""
     import jax
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
     x_pyc = pycoeus.Tensor(data, [4, 2], requires_grad=True)
-    pycoeus.var_axis(x_pyc, 0).backward()
+    pycoeus.var(x_pyc, True, 0).backward()
     n = 4
     def jax_var(x):
         x2 = x.reshape(4, 2)

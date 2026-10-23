@@ -14,10 +14,14 @@ mod elementwise;
 mod indexing;
 #[path = "operations/layout.rs"]
 mod layout;
+#[path = "operations/mutators.rs"]
+mod mutators;
 #[path = "operations/nn/mod.rs"]
 mod nn;
 #[path = "operations/optim.rs"]
 mod optim;
+#[path = "operations/protocol.rs"]
+mod protocol;
 #[path = "operations/reductions.rs"]
 mod reductions;
 #[path = "operations/statistics.rs"]

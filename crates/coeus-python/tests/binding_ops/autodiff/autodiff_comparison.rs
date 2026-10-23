@@ -139,7 +139,7 @@ def main():
         
         # Extract weight & bias to synchronize with PyTorch
         w_data = linear_pyc.weight.data
-        b_data = linear_pyc.bias.data if linear_pyc.bias else [0.0] * 64
+        b_data = linear_pyc.bias.data if linear_pyc.bias is not None else [0.0] * 64
 
         # Create PyTorch inputs
         x_torch = torch.tensor(data_x, dtype=torch.float64).reshape(128, 256).requires_grad_(True)
@@ -173,7 +173,9 @@ def main():
         # Verify gradients
         x_pyc_grad = x_pyc.grad
         linear_pyc_w_grad = linear_pyc.weight.grad
-        linear_pyc_b_grad = linear_pyc.bias.grad if linear_pyc.bias else None
+        linear_pyc_b_grad = (
+            linear_pyc.bias.grad if linear_pyc.bias is not None else None
+        )
 
         # Check parity of B's gradients
         for i in range(len(linear_pyc_b_grad)):
