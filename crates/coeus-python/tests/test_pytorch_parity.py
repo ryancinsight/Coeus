@@ -7896,6 +7896,53 @@ def test_interpolate_area_scale_down_matches_pytorch() -> None:
     _allclose("area_scale", list(out_pyc.data), exp.flatten().tolist(), atol=1e-12)
 
 
+def test_interpolate_nearest_noninteger_matches_pytorch() -> None:
+    """nearest at 5x5 -> 7x3: torch copies `floor(i * in/out)`, not the half pixel.
+
+    An integer ratio hides the difference between `nearest` and
+    `nearest-exact`; a fractional one exposes which kernel is implemented.
+    """
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 5, 5
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.interpolate(x_pyc, size=[7, 3], mode="nearest")
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    out_t = _F.interpolate(t, size=(7, 3), mode="nearest")
+    out_t.sum().backward()
+    _allclose("nearest_frac_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-12)
+    _allclose("nearest_frac_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-12)
+
+
+def test_interpolate_bilinear_noninteger_matches_pytorch() -> None:
+    """bilinear at 5x5 -> 7x3: fractional source steps and the clamped border."""
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 5, 5
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.interpolate(x_pyc, size=[7, 3], mode="bilinear")
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    out_t = _F.interpolate(t, size=(7, 3), mode="bilinear", align_corners=False)
+    out_t.sum().backward()
+    _allclose("bilinear_frac_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("bilinear_frac_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_interpolate_nearest_scale_fractional_matches_pytorch() -> None:
+    """nearest with `scale_factor=1.5`: floor sizing and `1 / factor` sampling."""
+    import torch.nn.functional as _F
+    n, c, h, w = 1, 2, 5, 5
+    data = [float(i) * 0.25 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, scale_factor=1.5, mode="nearest")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = _F.interpolate(t, scale_factor=1.5, mode="nearest")
+    assert out_pyc.shape == list(exp.shape), f"shape {out_pyc.shape} != {list(exp.shape)}"
+    _allclose("nearest_scale", list(out_pyc.data), exp.flatten().tolist(), atol=1e-12)
+
+
 def test_interpolate_nearest_bwd_matches_pytorch() -> None:
     """nearest 2x backward scatters each gradient onto the pixel it copied."""
     import torch.nn.functional as _F

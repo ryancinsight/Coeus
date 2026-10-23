@@ -13,7 +13,11 @@
 //!
 //! The modes differ only in how the taps are chosen:
 //!
-//! - [`ResizeMode::Nearest`] — one tap: `floor((i + 0.5) * scale)`.
+//! - [`ResizeMode::Nearest`] — one tap: `floor(i * scale)`, which is torch's
+//!   `nearest`. It does **not** half-pixel-correct: that is `nearest-exact`,
+//!   whose `floor((i + 0.5) * scale)` gives different indices for a
+//!   non-integer size ratio (`3 → 5` picks `0,1,1,2,2` instead of
+//!   `0,0,1,1,2`).
 //! - [`ResizeMode::Bilinear`] — two taps around the half-pixel source
 //!   coordinate, which is clamped at 0 first, so a border output reuses the edge
 //!   element with weight 1.
@@ -100,7 +104,11 @@ impl TapTable {
         let half_pixel = (out_index as f64 + 0.5) * scale;
         match mode {
             ResizeMode::Nearest => {
-                let source = (half_pixel as usize).min(in_len - 1);
+                // `floor(i * scale)` — no `+ 0.5`. torch's `nearest` kernel
+                // copies the cell the output cell *starts* in, so the two
+                // agree on every integer ratio and diverge as soon as the
+                // ratio is fractional.
+                let source = ((out_index as f64 * scale) as usize).min(in_len - 1);
                 self.index.push(source);
                 self.weight.push(1.0);
             }

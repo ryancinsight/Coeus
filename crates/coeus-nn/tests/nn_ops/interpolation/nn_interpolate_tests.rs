@@ -1,8 +1,12 @@
 //! Analytical-reference tests for `interpolate_1d` and `interpolate_2d`.
 //!
-//! Both functions use align-half-pixel convention (PyTorch align_corners=False):
+//! Both functions follow PyTorch's `align_corners=False` sampling:
 //!   src_coord = (dst_coord + 0.5) * (src_size / dst_size) - 0.5   (bilinear)
-//!   src_idx   = floor((dst_coord + 0.5) * src_size / dst_size)     (nearest)
+//!   src_idx   = floor(dst_coord * src_size / dst_size)            (nearest)
+//!
+//! `nearest` is torch's `nearest`, which copies the cell an output cell starts
+//! in; `nearest-exact` is the mode that half-pixel-corrects, and it is not
+//! implemented here. The two agree only when the size ratio is an integer.
 //!
 //! Reference values are chosen so results are IEEE-exact integers, so all
 //! assertions use `assert_eq!` without epsilon.
@@ -40,13 +44,13 @@ fn check_1d_nearest_upsample() {
 
 fn check_1d_nearest_downsample() {
     // Input [1,1,4] = [1,2,3,4], downsample to new_l=2.
-    // src_idx = floor((xi+0.5)*4/2)
-    //   xi=0: 1.0->1->2  xi=1: 3.0->3->4
+    // src_idx = floor(xi*4/2)
+    //   xi=0: 0.0->0->1  xi=1: 2.0->2->3
     let inp = t1d(&[1.0, 2.0, 3.0, 4.0], 4);
     let out = interpolate_1d(&inp, 2, InterpolateMode::Nearest)
         .expect("invariant: test operation succeeds");
     assert_eq!(out.shape(), &[1, 1, 2], "1d nearest downsample shape");
-    assert_eq!(out.as_slice(), &[2.0_f64, 4.0], "1d nearest downsample");
+    assert_eq!(out.as_slice(), &[1.0_f64, 3.0], "1d nearest downsample");
 }
 
 fn check_1d_nearest_identity() {
@@ -104,10 +108,10 @@ fn check_2d_nearest_upsample() {
 
 fn check_2d_nearest_downsample() {
     // Input [1,1,4,4] integers 0..15, downsample to [2,2].
-    // src_y = floor((yi+0.5)*4/2): yi=0->1  yi=1->3
-    // src_x = floor((xi+0.5)*4/2): xi=0->1  xi=1->3
-    // out[0,0]=in[1,1]=5  out[0,1]=in[1,3]=7
-    // out[1,0]=in[3,1]=13 out[1,1]=in[3,3]=15
+    // src_y = floor(yi*4/2): yi=0->0  yi=1->2
+    // src_x = floor(xi*4/2): xi=0->0  xi=1->2
+    // out[0,0]=in[0,0]=0  out[0,1]=in[0,2]=2
+    // out[1,0]=in[2,0]=8  out[1,1]=in[2,2]=10
     let data: Vec<f64> = (0u64..16).map(|i| i as f64).collect();
     let inp = t2d(&data, 4, 4);
     let out = interpolate_2d(&inp, 2, 2, InterpolateMode::Nearest)
@@ -115,7 +119,7 @@ fn check_2d_nearest_downsample() {
     assert_eq!(out.shape(), &[1, 1, 2, 2], "2d nearest downsample shape");
     assert_eq!(
         out.as_slice(),
-        &[5.0_f64, 7.0, 13.0, 15.0],
+        &[0.0_f64, 2.0, 8.0, 10.0],
         "2d nearest downsample"
     );
 }

@@ -1,7 +1,9 @@
 // ── Interpolate — spatial resize / upsample / downsample ──
 //
 // Supported modes:
-//   `nearest`  — map each output pixel to the nearest input pixel (floor)
+//   `nearest`  — copy the input cell each output cell starts in,
+//                `floor(i * in/out)` (torch's `nearest`; `nearest-exact`
+//                half-pixel-corrects and is a different mode)
 //   `bilinear` — bilinear interpolation (2-neighbour per axis; linear in 1-D)
 //   `bicubic`  — cubic convolution, a = -0.75 (4-neighbour per axis)
 //   `area`     — average of every source element inside the output's box
