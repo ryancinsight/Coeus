@@ -30,7 +30,7 @@ fn weighted<T: Float + FloatElement + leto_ops::RealScalar>(
     evaluation_unit: f64,
     absolute: [f64; 4],
 ) {
-    let _arrange = tracing::info_span!("arrange", scalar = core::any::type_name::<T>()).entered();
+    let arrange = tracing::info_span!("arrange", scalar = core::any::type_name::<T>()).entered();
     let data = [0.5, 1.0, 2.0, -0.5];
     let weights = [2.0, -3.0, 0.25, -2.0];
     let input: Vec<T> = data.into_iter().map(T::from_f64).collect();
@@ -40,7 +40,7 @@ fn weighted<T: Float + FloatElement + leto_ops::RealScalar>(
         true,
     )
     .unwrap();
-    drop(_arrange);
+    drop(arrange);
     let _act = tracing::info_span!("act").entered();
     let y = lgamma(&x).unwrap();
     y.backward_with_seed(Tensor::from_slice([4], &seed).unwrap())
@@ -129,14 +129,14 @@ fn gammaln_native_and_reduced_cpu_gradients_use_nonunit_seed() {
 #[test]
 fn gammaln_shared_accumulation_and_transposed_layout() {
     let _trace = trace();
-    let _arrange = tracing::info_span!("arrange").entered();
+    let arrange = tracing::info_span!("arrange").entered();
     let x = Var::new(
         Tensor::<f64, SequentialBackend>::from_slice([2, 2], &[0.5, 1.0, 2.0, -0.5]).unwrap(),
         true,
     )
     .unwrap();
     let transposed = permute(&x, &[1, 0]).unwrap();
-    drop(_arrange);
+    drop(arrange);
     let _act = tracing::info_span!("act").entered();
     let a = lgamma(&transposed).unwrap();
     let b = lgamma(&transposed).unwrap();
@@ -158,7 +158,7 @@ fn gammaln_shared_accumulation_and_transposed_layout() {
 #[test]
 fn gammaln_sliced_offset_and_broadcast_gradients() {
     let _trace = trace();
-    let _arrange = tracing::info_span!("arrange").entered();
+    let arrange = tracing::info_span!("arrange").entered();
     let x = Var::new(
         Tensor::<f64, SequentialBackend>::from_slice([2, 3], &[9.0, 0.5, 1.0, 9.0, 2.0, -0.5])
             .unwrap(),
@@ -166,7 +166,7 @@ fn gammaln_sliced_offset_and_broadcast_gradients() {
     )
     .unwrap();
     let selected = slice(&x, &[(0, 2), (1, 3)]).unwrap();
-    drop(_arrange);
+    drop(arrange);
     let _act = tracing::info_span!("act").entered();
     lgamma(&selected).unwrap().backward().unwrap();
     let gamma = 0.577_215_664_901_532_9;
@@ -201,13 +201,13 @@ fn gammaln_sliced_offset_and_broadcast_gradients() {
 #[test]
 fn gammaln_scalar_and_empty_layouts() {
     let _trace = trace();
-    let _arrange = tracing::info_span!("arrange").entered();
+    let arrange = tracing::info_span!("arrange").entered();
     let scalar = Var::new(
         Tensor::<f64, SequentialBackend>::from_slice([], &[0.5]).unwrap(),
         true,
     )
     .unwrap();
-    drop(_arrange);
+    drop(arrange);
     let _act = tracing::info_span!("act").entered();
     let y = lgamma(&scalar).unwrap();
     y.backward_with_seed(Tensor::from_slice([], &[-2.5]).unwrap())
