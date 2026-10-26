@@ -24,9 +24,9 @@ pub mod var_ops;
 pub use activation::{
     abs, acos, acosh, asin, asinh, atan, atanh, ceil, celu, clamp, cos, cosh, elu, erf, erfc, exp,
     exp2, expm1, floor, gelu, gelu_tanh, hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu,
-    lgamma_forward, log, log10, log1p, log2, mish, neg, pack_pairs, pow, prelu, recip, relu, round,
-    selu, sigmoid, sign, silu, sin, sinh, softplus, softshrink, softsign, sqrt, tan, tanh,
-    threshold, trunc,
+    lgamma, lgamma_forward, log, log10, log1p, log2, mish, neg, pack_pairs, pow, prelu, recip,
+    relu, round, selu, sigmoid, sign, silu, sin, sinh, softplus, softshrink, softsign, sqrt, tan,
+    tanh, threshold, trunc,
 };
 pub use arithmetic::{
     add, div, eq, ge, gt, le, lt, maximum, mean, mean_axis, minimum, mul, nanmean, nansum, ne,

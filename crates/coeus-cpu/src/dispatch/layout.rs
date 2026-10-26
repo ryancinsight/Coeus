@@ -75,6 +75,7 @@ fn reshape_layout_n_m<const N: usize, const M: usize>(
 
 fn reshape_layout_n<const N: usize>(layout: &CoeusLayout, shape: &[usize]) -> Result<CoeusLayout> {
     match shape.len() {
+        0 => reshape_layout_n_m::<N, 0>(layout, shape),
         1 => reshape_layout_n_m::<N, 1>(layout, shape),
         2 => reshape_layout_n_m::<N, 2>(layout, shape),
         3 => reshape_layout_n_m::<N, 3>(layout, shape),
@@ -82,7 +83,7 @@ fn reshape_layout_n<const N: usize>(layout: &CoeusLayout, shape: &[usize]) -> Re
         5 => reshape_layout_n_m::<N, 5>(layout, shape),
         6 => reshape_layout_n_m::<N, 6>(layout, shape),
         n => Err(LetoError::StorageError {
-            reason: format!("coeus-cpu dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+            reason: format!("coeus-cpu dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"),
         }),
     }
 }
@@ -123,6 +124,7 @@ fn reshape_layout_n<const N: usize>(layout: &CoeusLayout, shape: &[usize]) -> Re
 /// ```
 pub fn reshape_layout(layout: &CoeusLayout, shape: &[usize]) -> Result<CoeusLayout> {
     match layout.ndim() {
+        0 => reshape_layout_n::<0>(layout, shape),
         1 => reshape_layout_n::<1>(layout, shape),
         2 => reshape_layout_n::<2>(layout, shape),
         3 => reshape_layout_n::<3>(layout, shape),
@@ -130,7 +132,7 @@ pub fn reshape_layout(layout: &CoeusLayout, shape: &[usize]) -> Result<CoeusLayo
         5 => reshape_layout_n::<5>(layout, shape),
         6 => reshape_layout_n::<6>(layout, shape),
         n => Err(LetoError::StorageError {
-            reason: format!("coeus-cpu dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+            reason: format!("coeus-cpu dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"),
         }),
     }
 }

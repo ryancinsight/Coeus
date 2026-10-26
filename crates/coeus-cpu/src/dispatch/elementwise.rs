@@ -59,6 +59,7 @@ pub fn elementwise_add_into<T: LetoScalar>(
     out: &mut [T],
 ) -> Result<()> {
     match out_layout.ndim() {
+        0 => add_n::<T, 0>(a_layout, a, b_layout, b, out_layout, out),
         1 => add_n::<T, 1>(a_layout, a, b_layout, b, out_layout, out),
         2 => add_n::<T, 2>(a_layout, a, b_layout, b, out_layout, out),
         3 => add_n::<T, 3>(a_layout, a, b_layout, b, out_layout, out),
@@ -66,7 +67,7 @@ pub fn elementwise_add_into<T: LetoScalar>(
         5 => add_n::<T, 5>(a_layout, a, b_layout, b, out_layout, out),
         6 => add_n::<T, 6>(a_layout, a, b_layout, b, out_layout, out),
         n => Err(LetoError::StorageError {
-            reason: format!("coeus-cpu dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+            reason: format!("coeus-cpu dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"),
         }),
     }
 }
@@ -144,6 +145,7 @@ pub fn elementwise_binary_into<T: LetoScalar>(
     out: &mut [T],
 ) -> Result<()> {
     match out_layout.ndim() {
+        0 => binary_n::<T, 0>(op, a_layout, a, b_layout, b, out_layout, out),
         1 => binary_n::<T, 1>(op, a_layout, a, b_layout, b, out_layout, out),
         2 => binary_n::<T, 2>(op, a_layout, a, b_layout, b, out_layout, out),
         3 => binary_n::<T, 3>(op, a_layout, a, b_layout, b, out_layout, out),
@@ -151,7 +153,7 @@ pub fn elementwise_binary_into<T: LetoScalar>(
         5 => binary_n::<T, 5>(op, a_layout, a, b_layout, b, out_layout, out),
         6 => binary_n::<T, 6>(op, a_layout, a, b_layout, b, out_layout, out),
         n => Err(LetoError::StorageError {
-            reason: format!("coeus-cpu dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+            reason: format!("coeus-cpu dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"),
         }),
     }
 }
@@ -215,6 +217,7 @@ pub fn elementwise_binary_assign<T: LetoScalar + CoeusScalar>(
     b: &[T],
 ) -> Result<()> {
     match a_layout.ndim() {
+        0 => binary_assign_n::<T, 0>(op, a_layout, a, b_layout, b),
         1 => binary_assign_n::<T, 1>(op, a_layout, a, b_layout, b),
         2 => binary_assign_n::<T, 2>(op, a_layout, a, b_layout, b),
         3 => binary_assign_n::<T, 3>(op, a_layout, a, b_layout, b),
@@ -223,7 +226,7 @@ pub fn elementwise_binary_assign<T: LetoScalar + CoeusScalar>(
         6 => binary_assign_n::<T, 6>(op, a_layout, a, b_layout, b),
         rank => Err(LetoError::StorageError {
             reason: format!(
-                "coeus-cpu binary assign supports rank 1..={MAX_DISPATCH_RANK}, got {rank}"
+                "coeus-cpu binary assign supports rank 0..={MAX_DISPATCH_RANK}, got {rank}"
             ),
         }),
     }
@@ -358,6 +361,7 @@ pub fn elementwise_unary_into<T: LetoScalar + CoeusScalar + CpuUnaryDispatch>(
     out: &mut [T],
 ) -> Result<()> {
     match out_layout.ndim() {
+        0 => unary_n::<T, 0>(op, a_layout, a, out_layout, out),
         1 => unary_n::<T, 1>(op, a_layout, a, out_layout, out),
         2 => unary_n::<T, 2>(op, a_layout, a, out_layout, out),
         3 => unary_n::<T, 3>(op, a_layout, a, out_layout, out),
@@ -365,7 +369,7 @@ pub fn elementwise_unary_into<T: LetoScalar + CoeusScalar + CpuUnaryDispatch>(
         5 => unary_n::<T, 5>(op, a_layout, a, out_layout, out),
         6 => unary_n::<T, 6>(op, a_layout, a, out_layout, out),
         n => Err(LetoError::StorageError {
-            reason: format!("coeus-cpu dispatch supports rank 1..={MAX_DISPATCH_RANK}, got {n}"),
+            reason: format!("coeus-cpu dispatch supports rank 0..={MAX_DISPATCH_RANK}, got {n}"),
         }),
     }
 }

@@ -181,9 +181,9 @@ unary_autograd!(Log1pOp, "log1p", log1p, |g, x, _y, b| {
 
 /// Forward-only natural logarithm of the absolute gamma function.
 ///
-/// This is not exported as a differentiable autograd node because the
-/// derivative is `digamma(x)`, which is not available in the current
-/// datatype-law surface.
+/// Retained for callers that need only a plain tensor. Use
+/// [`super::gamma::lgamma`] for a tracked variable when the backend supplies
+/// the provider-owned digamma capability.
 #[inline]
 pub fn lgamma_forward<T: Float, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,
