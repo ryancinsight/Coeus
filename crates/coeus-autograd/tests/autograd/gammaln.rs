@@ -110,8 +110,8 @@ fn gammaln_native_and_reduced_cpu_gradients_use_nonunit_seed() {
         f64::from(f32::EPSILON) / 2.0,
         bounds::SINGLE,
     );
-    // Narrowed derivative plus one target-format multiplication: <=2u relative
-    // in addition to the provider's single-precision error envelope.
+    // Result narrowing and target-format multiplication are bounded by the
+    // propagated primary budget, including cross terms.
     weighted::<eunomia::F16>(
         2.0 * 2.0_f64.powi(-11) + 128.0 * f64::from(f32::EPSILON) / 2.0,
         2.0_f64.powi(-11),
@@ -218,6 +218,14 @@ fn gammaln_scalar_and_empty_layouts() {
         128.0 * f64::EPSILON,
     );
     assert_eq!(y.tensor.shape(), &[]);
+    scalar.zero_grad().unwrap();
+    let scaled = coeus_autograd::scalar_mul(&lgamma(&scalar).unwrap(), -2.5).unwrap();
+    scaled.backward().unwrap();
+    close(
+        scalar.grad().unwrap().as_slice()[0],
+        -2.5 * (-0.577_215_664_901_532_9 - 2.0 * core::f64::consts::LN_2),
+        128.0 * f64::EPSILON,
+    );
     let empty = Var::new(
         Tensor::<f64, SequentialBackend>::from_slice([0, 3], &[]).unwrap(),
         true,

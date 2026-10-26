@@ -253,3 +253,16 @@ fn view_over_cpu_storage_reads_logical_values() {
     assert_eq!(view.shape(), [2, 3]);
     assert_eq!(*view.get([1, 2]).unwrap(), 6.0);
 }
+
+#[test]
+fn scalar_reshape_round_trip_preserves_offset_and_rank() {
+    let scalar = Layout::from_shape_strides(Shape::from(vec![]), Strides::from_slice(&[]), 2);
+    let matrix = reshape_layout(&scalar, &[1, 1]).unwrap();
+    assert_eq!(matrix.shape(), &[1, 1]);
+    assert_eq!(matrix.strides(), &[1, 1]);
+    assert_eq!(matrix.offset(), 2);
+    let restored = reshape_layout(&matrix, &[]).unwrap();
+    assert_eq!(restored.shape(), &[]);
+    assert_eq!(restored.strides(), &[]);
+    assert_eq!(restored.offset(), 2);
+}

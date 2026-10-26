@@ -3,6 +3,8 @@
 This additive CPU slice uses Eunomia's real digamma scalar contract and Leto's
 DigammaOp traversal. Coeus only allocates tensors, dispatches the operation,
 records the node and multiplies upstream gradients by digamma(saved input).
+Rank-zero support includes the existing reshape adapter used by scalar
+broadcast-gradient reduction, so weighted scalar backward completes.
 
 Use an optional DigammaOps capability, like ScalarPowerOps, rather than adding
 a variant to the public exhaustive CpuUnaryOp enum or adding a required method

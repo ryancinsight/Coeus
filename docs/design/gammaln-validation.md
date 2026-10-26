@@ -51,3 +51,9 @@ uses canonical Git sources, with no path patch. Locked offline fetch succeeds
 with locally available candidate commit objects; remote fresh-consumer delivery
 remains pending branch publication. Current Moirai is 4bb7d2d (0.11.0),
 Hephaestus 13dad9cd, Hermes f9b6322e and Mnemosyne b40870ea.
+
+The default-feature Python wheel exposed one more rank-zero reshape exclusion
+when reducing a weighted scalar's broadcast gradient. Both Python scalar
+regressions fail on that path before the repair. The shared reshape adapter
+now admits zero source and target ranks through Leto, with offset-preserving
+round-trip and weighted scalar native regressions. Final gates rerun after it.
