@@ -98,8 +98,7 @@ pub fn erfc<T: Float, B: BackendOps<T>>(
 
 /// Element-wise natural logarithm of the absolute gamma function: `ln|Γ(x)|`.
 ///
-/// Autograd for this operation requires `digamma(x)`, which is not exposed by
-/// the current datatype-law provider.
+/// Tracked gamma-log uses the optional provider-owned digamma capability.
 #[inline]
 pub fn lgamma<T: Float, B: BackendOps<T>>(
     input: &Tensor<T, B>,

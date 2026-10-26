@@ -48,6 +48,9 @@ The import name is `pycoeus`; the distribution is `coeus-python`.
   operators accepting either a tensor (elementwise) or a Python float (scalar
   broadcast), plus reductions, indexing, and layout operations.
 - **Autograd** — `requires_grad`, `backward`, `grad`, and no-grad contexts.
+  CPU `gammaln` and `lgamma` both propagate `upstream * digamma(input)` with
+  native double precision, including negative nonintegers. Negative integer
+  poles produce NaN gradients; signed zeros use the one-sided `-1/x` limit.
 - **Layers** — linear, convolution, normalization, pooling, attention,
   dropout, bilinear.
 - **Training** — optimizers and learning-rate schedulers, losses,

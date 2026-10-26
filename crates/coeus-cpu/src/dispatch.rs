@@ -36,8 +36,11 @@ pub(crate) fn shape_n<const N: usize>(shape: &[usize]) -> Result<[usize; N]> {
 pub mod attention;
 /// Provider-owned regular and transposed convolution dispatch.
 pub mod convolution;
+/// Provider-owned real digamma dispatch.
+pub mod digamma;
 /// Elementwise binary and unary operation dispatch (add, sub, mul, div, map).
 pub mod elementwise;
+pub use digamma::elementwise_digamma_into;
 /// Tensor initialization dispatch (from_shape_fn, uniform, normal).
 pub mod init;
 /// Layout metadata dispatch (reshape, permute, broadcast, contiguous).

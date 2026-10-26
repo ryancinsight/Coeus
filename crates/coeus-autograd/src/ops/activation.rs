@@ -225,6 +225,8 @@ macro_rules! unary_autograd {
 /// Softshrink, Softsign, Threshold, Celu). See `ext.rs` for subgradient
 /// contracts at kink points.
 pub mod ext;
+/// Gamma-log forward and reverse-mode operations.
+pub mod gamma;
 /// GELU activation forward/backward nodes.
 pub mod gelu;
 /// Mathematical unary ops (abs, floor, round, sign, sqrt, etc.).
@@ -241,6 +243,7 @@ pub mod tanh_act;
 pub mod trig;
 
 // ── Re-exports ──
+pub use gamma::{lgamma, LgammaOp};
 pub use gelu::{gelu, gelu_tanh, GeluOp, GeluTanhOp};
 pub use math::{
     abs, ceil, clamp, floor, neg, pow, recip, round, sign, sqrt, trunc, AbsOp, CeilOp, ClampNode,

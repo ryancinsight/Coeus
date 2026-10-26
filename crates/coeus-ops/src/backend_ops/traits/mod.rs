@@ -41,6 +41,7 @@ pub mod conv;
 pub mod cross;
 pub mod cross_entropy;
 pub mod ctc;
+pub mod digamma;
 pub mod elementwise;
 /// Three-dimensional first-derivative stencils.
 pub mod finite_difference;
@@ -58,6 +59,7 @@ pub use conv::{ConvOps, ConvolutionBackward, ConvolutionForward};
 pub use cross::CrossOps;
 pub use cross_entropy::CrossEntropyOps;
 pub use ctc::{CtcBatch, CtcOps};
+pub use digamma::DigammaOps;
 pub use elementwise::{ElementwiseOps, ScalarPowerOps};
 pub use finite_difference::{
     Axis, FiniteDifference3DOps, FiniteDifference3DScheme, StaggeredPairOps,

@@ -19,3 +19,5 @@ mod shape_ops;
 mod sparse;
 mod unary_failure;
 mod unary_math;
+
+mod gammaln;

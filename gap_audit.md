@@ -1,3 +1,12 @@
+## Real gamma-log gradient provider slice — October 26, 2026 [minor]
+
+Current source confirms the missing scalar/API chain. The compiled Coeus
+baseline rejects both tracked Python aliases at invocation. The additive
+provider-first CPU implementation is under validation. CPU results cannot
+establish device parity. No scalar formula or device-to-host fallback exists
+in the Coeus consumer. Fresh canonical resolution and exact-head review/CI
+remain required; no publication is approved.
+
 # Coeus Gap Audit
 
 Risks nobody is actively fixing. A risk with a planned fix is a backlog item
@@ -31,11 +40,19 @@ Mitigation: keep built extensions out of `tests/`; the canonical module is the
 site-packages install.
 Re-open trigger: the artifact reappears (add a pre-test cleanup or a `.gitignore`/CI check if it recurs).
 
-## G-049 residual: `gammaln` backward blocked on upstream `digamma`
+## G-049: provider-owned gamma-log backward [minor]
 
-`d/dx lgamma(x) = digamma(x)`, and Eunomia (pinned `0.8.0`) does not expose
-`digamma` yet — verified absent from the workspace. Python raises
-`NotImplementedError` for grad-tracked `gammaln` inputs rather than a fake or
-zero gradient, which is correct pending the upstream capability.
-Owning item: none in this repo (upstream Eunomia capability gap).
-Re-open trigger: Eunomia exposes `digamma`, then wire the CPU/Leto backward path.
+At base `57f7c459`, the actual lock uses Eunomia 0.10 (`f263446f`), Leto
+0.46.4 (`6778a0cc`) and Hephaestus 0.27 (`6f4dd9b9`). The old 0.8 wording
+was stale. A compiled base wheel rejects both tracked aliases with the missing
+digamma error; non-gradient forward works. The new provider chain adds real
+Eunomia digamma, Leto DigammaOp, optional CPU dispatch and the derivative
+`grad_out * digamma(input)`. Native weighted/accumulation/layout tests pass.
+Python differential acceptance and exact final-head review/gates are pending.
+
+Owner: task-4, `feat/gammaln-autograd`. Design and remaining acceptance:
+[contract](docs/design/gammaln-autograd.md) and
+[validation](docs/design/gammaln-validation.md). Current Apollo's separate
+Moirai 0.11 admission prerequisite is owned by existing PR #696. Device parity
+remains partial until Hephaestus implements and validates digamma; no device
+fallback or complete-1.0 claim follows from CPU progress.

@@ -2192,11 +2192,12 @@ def test_gammaln_forward_matches_torch_special() -> None:
 
 
 @pytest.mark.skipif(not hasattr(pycoeus, "gammaln"), reason="pycoeus.gammaln not available")
-def test_gammaln_requires_digamma_for_backward() -> None:
-    """gammaln backward is rejected until digamma is available."""
+def test_gammaln_backward_matches_torch_digamma() -> None:
+    """The real gamma-log node propagates its non-unit upstream gradient."""
     x_pyc = pycoeus.Tensor([0.5, 1.0, 2.0], [3], requires_grad=True)
-    with pytest.raises(NotImplementedError, match="digamma"):
-        pycoeus.gammaln(x_pyc)
+    (pycoeus.gammaln(x_pyc) * 2.5).sum().backward()
+    expected = 2.5 * torch.digamma(torch.tensor([0.5, 1.0, 2.0], dtype=torch.float64))
+    _allclose("gammaln_bwd", list(x_pyc.grad), expected.tolist(), atol=2e-14)
 
 
 # ── ConvTranspose3d PyTorch parity (MS-183) ─────────────────────────────────

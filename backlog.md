@@ -1,3 +1,14 @@
+## COEUS-GAMMALN-GRADIENT [minor] — in progress
+
+Owner: task-4, branch `feat/gammaln-autograd`.
+Provider order: Eunomia 0.11 real digamma, Leto 0.47 CPU operation, Coeus 0.13
+optional backend capability and gamma-log reverse mode. CPU acceptance is
+in progress; hardware remains partial until Hephaestus implements and validates
+its own device kernels. Existing private candidates and other owners are untouched.
+Design: [contract](docs/design/gammaln-autograd.md).
+Integration, independent review, exact-head CI and canonical dependency delivery
+remain gates. Source publication and automatic release side effects are held.
+
 # Coeus Development Backlog
 
 Open-work queue only. Delivered items are compacted away at the commit/PR that

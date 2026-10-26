@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.0] - Unreleased
+
+### Added
+
+- `DigammaOps` is an optional backend capability with provider-owned CPU
+  dispatch through Leto 0.47 / Eunomia 0.11. The additive tracked `lgamma`
+  node computes `grad_out * digamma(input)`. Both Python gamma-log aliases
+  now accept tracked inputs; the public plain-tensor helper remains available.
+  No accelerator support or fallback is added.
+
+
 ## [Unreleased]
 
 ### Changed

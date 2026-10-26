@@ -1,10 +1,12 @@
 // ── Unary ops module ──
 
 mod activation;
+mod digamma;
 mod kernel;
 /// Element-wise math functions (exp, log, sin, cos, sqrt, abs, neg, etc.).
 pub mod math;
 mod power;
+pub use digamma::digamma;
 
 pub use activation::{
     causal_softmax, elu, elu_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu,
