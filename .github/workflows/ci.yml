@@ -54,6 +54,80 @@ jobs:
     permissions:
       contents: read
 
+  package-plan:
+    name: Release package plan
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      CARGO_BUILD_JOBS: "1"
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install the pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      # A successful empty/subset plan still leaves the omitted packages
+      # blocked. Only its post-verification ready set qualifies for release.
+      - name: Verify the pending workspace package cohort
+        uses: ryancinsight/atlas/.github/actions/crates-pending@0e074f34e4ca63423c4e4ba86a39734269492555
+        with:
+          command: plan
+          owner: ryancinsight
+
+  python-gamma:
+    name: Python gamma-log CPU contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      CARGO_BUILD_JOBS: "1"
+      RAYON_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      JAX_PLATFORMS: cpu
+      JAX_ENABLE_X64: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13.13"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # Match the independently recorded CPU witness. Framework observations
+      # supplement the unchanged high-precision bounds; they do not set them.
+      - name: Install pinned CPU acceptance dependencies
+        run: |
+          python -m pip install --disable-pip-version-check maturin==1.14.1 pytest==8.4.2 numpy==2.5.4 scipy==1.18.1 jax==0.12.0.1 jaxlib==0.12.0.1
+          python -m pip install --disable-pip-version-check torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+      - name: Build the locked default-feature extension
+        run: maturin build --profile dev --locked --interpreter python --out dist --manifest-path crates/coeus-python/Cargo.toml
+      - name: Install the built extension
+        run: python -m pip install --disable-pip-version-check --no-deps --force-reinstall dist/*.whl
+      - name: Record wheel and framework identities
+        run: |
+          sha256sum dist/*.whl
+          python -c "import importlib.metadata as m; import pycoeus; print({'extension': pycoeus.__file__, 'versions': {name: m.version(name) for name in ('coeus-python', 'numpy', 'scipy', 'torch', 'jax', 'jaxlib')}})"
+      - name: Exercise both aliases and scalar/empty backward
+        run: >-
+          timeout 60s python -m pytest --import-mode=importlib -p no:cacheprovider -q
+          crates/coeus-python/tests/test_gammaln_gradients.py
+          crates/coeus-python/tests/test_pytorch_parity.py
+          crates/coeus-python/tests/test_jax_parity.py
+          -k 'gammaln or lgamma'
+
   adr-index:
     name: ADR index is current
     # atlas owns the one generator (ATLAS-ADR-FORM-NORMALIZATION-2026-09-02); strict: the ADRs carry the canonical heading form and numbering.

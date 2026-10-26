@@ -815,7 +815,7 @@ dependencies = [
 [[package]]
 name = "eunomia"
 version = "0.11.0"
-source = "git+https://github.com/ryancinsight/eunomia#ebb1923feed7e416cbb97a9fcb19423922ae09d2"
+source = "git+https://github.com/ryancinsight/eunomia#5ae27c75c153304f4f9fb3a0cbaf6320a4c59098"
 dependencies = [
  "bytemuck",
  "eunomia-derive",
@@ -826,7 +826,7 @@ dependencies = [
 [[package]]
 name = "eunomia-derive"
 version = "0.11.0"
-source = "git+https://github.com/ryancinsight/eunomia#ebb1923feed7e416cbb97a9fcb19423922ae09d2"
+source = "git+https://github.com/ryancinsight/eunomia#5ae27c75c153304f4f9fb3a0cbaf6320a4c59098"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1241,7 +1241,7 @@ checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
 [[package]]
 name = "leto"
 version = "0.47.0"
-source = "git+https://github.com/ryancinsight/leto.git#93e2a8c653252dfc943339c1bcec143a663a77d6"
+source = "git+https://github.com/ryancinsight/leto.git#bd0696cd1641c9df98ff744257ed8227b2e0321b"
 dependencies = [
  "aequitas",
  "eunomia",
@@ -1253,7 +1253,7 @@ dependencies = [
 [[package]]
 name = "leto-ops"
 version = "0.47.0"
-source = "git+https://github.com/ryancinsight/leto.git#93e2a8c653252dfc943339c1bcec143a663a77d6"
+source = "git+https://github.com/ryancinsight/leto.git#bd0696cd1641c9df98ff744257ed8227b2e0321b"
 dependencies = [
  "eunomia",
  "hermes-simd",

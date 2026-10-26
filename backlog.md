@@ -8,9 +8,17 @@ Hardware remains partial until Hephaestus implements and validates
 its own device kernels. Existing private candidates and other owners are untouched.
 Design: [contract](docs/design/gammaln-autograd.md).
 Independent source review clears the implementation, including rank-zero
-reshape, multiplication and accumulation. Integration, exact-head hosted CI,
-API/release gates and canonical remote dependency delivery remain open.
-Source publication and automatic release side effects are held.
+reshape, multiplication and accumulation. The locked strict-minor API comparison
+passes for five selected Coeus packages and both Leto packages. Eunomia 0.11.0
+is published from `5ae27c75c153304f4f9fb3a0cbaf6320a4c59098`; the lock now
+uses that source and reviewed remote Leto `bd0696cd` without path patches.
+Final-head hosted checks, release gates and provider delivery remain open.
+Native CI fails the existing runtime dependency policy on Tokio through
+Quinn/Moirai QUIC; the native owner holds that repair. Leto's plan verifies
+`leto`, while `leto-ops` waits for unpublished Moirai 0.11. Apollo #696 also
+remains an owned prerequisite with failed version/license checks. Preserve
+those policies and provider versions. Existing authorization covers conditional
+integration/publication after gates; no new general approval is required.
 
 # Coeus Development Backlog
 

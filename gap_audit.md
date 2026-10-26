@@ -4,8 +4,9 @@ Current source confirms the missing scalar/API chain. The compiled Coeus
 baseline rejects both tracked Python aliases at invocation. The additive
 provider-first CPU implementation is under validation. CPU results cannot
 establish device parity. No scalar formula or device-to-host fallback exists
-in the Coeus consumer. Fresh canonical resolution and exact-head review/CI
-remain required; no publication is approved.
+in the Coeus consumer. Eunomia 0.11.0 is published with verified source receipts.
+Fresh canonical resolution, final-head review/CI and provider release gates
+remain required under the existing conditional publication authorization.
 
 # Coeus Gap Audit
 
@@ -50,11 +51,19 @@ Eunomia digamma, Leto DigammaOp, optional CPU dispatch and the derivative
 `grad_out * digamma(input)`. Local acceptance passes 254 autograd cases,
 42 CPU adapter cases and 20 Python alias cases, including weighted scalar and
 empty backward. Strict Clippy/docs pass and independent source review clears
-the implementation. Hosted/API/release gates and remote delivery remain open.
+the implementation. Locked strict-minor API checks pass for the selected
+consumer packages; final-head hosted/release gates remain open. The current
+lock advances only Eunomia to published merge `5ae27c75` and Leto to reviewed
+remote `bd0696cd`. Native tests expose the existing forbidden Tokio dependency
+through Quinn/Moirai QUIC. The native owner holds that prerequisite; do not
+relax the dependency policy. Leto's `leto-ops` packaging also waits for Moirai
+0.11 to reach the registry.
 
 Owner: task-4, `feat/gammaln-autograd`. Design and remaining acceptance:
 [contract](docs/design/gammaln-autograd.md) and
 [validation](docs/design/gammaln-validation.md). Current Apollo's separate
-Moirai 0.11 admission prerequisite is owned by existing PR #696. Device parity
+Moirai 0.11 admission prerequisite is owned by existing PR #696, whose version
+bump and license checks remain red. No license policy change is part of this
+slice. Existing publication authorization applies after final gates. Device parity
 remains partial until Hephaestus implements and validates digamma; no device
 fallback or complete-1.0 claim follows from CPU progress.
