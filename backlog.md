@@ -2,12 +2,15 @@
 
 Owner: task-4, branch `feat/gammaln-autograd`.
 Provider order: Eunomia 0.11 real digamma, Leto 0.47 CPU operation, Coeus 0.13
-optional backend capability and gamma-log reverse mode. CPU acceptance is
-in progress; hardware remains partial until Hephaestus implements and validates
+optional backend capability and gamma-log reverse mode. Local CPU diagnostics,
+254 autograd cases, 42 CPU adapter cases and 20 Python alias cases pass.
+Hardware remains partial until Hephaestus implements and validates
 its own device kernels. Existing private candidates and other owners are untouched.
 Design: [contract](docs/design/gammaln-autograd.md).
-Integration, independent review, exact-head CI and canonical dependency delivery
-remain gates. Source publication and automatic release side effects are held.
+Independent source review clears the implementation, including rank-zero
+reshape, multiplication and accumulation. Integration, exact-head hosted CI,
+API/release gates and canonical remote dependency delivery remain open.
+Source publication and automatic release side effects are held.
 
 # Coeus Development Backlog
 

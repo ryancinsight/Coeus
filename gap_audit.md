@@ -47,8 +47,10 @@ At base `57f7c459`, the actual lock uses Eunomia 0.10 (`f263446f`), Leto
 was stale. A compiled base wheel rejects both tracked aliases with the missing
 digamma error; non-gradient forward works. The new provider chain adds real
 Eunomia digamma, Leto DigammaOp, optional CPU dispatch and the derivative
-`grad_out * digamma(input)`. Native weighted/accumulation/layout tests pass.
-Python differential acceptance and exact final-head review/gates are pending.
+`grad_out * digamma(input)`. Local acceptance passes 254 autograd cases,
+42 CPU adapter cases and 20 Python alias cases, including weighted scalar and
+empty backward. Strict Clippy/docs pass and independent source review clears
+the implementation. Hosted/API/release gates and remote delivery remain open.
 
 Owner: task-4, `feat/gammaln-autograd`. Design and remaining acceptance:
 [contract](docs/design/gammaln-autograd.md) and

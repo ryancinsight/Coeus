@@ -9,8 +9,9 @@ Sprint phase: Execution
 - [x] Inspect ownership and isolate current source; preserve other lanes.
 - [x] Reproduce missing capability and define provider/domain contracts.
 - [x] Implement provider-owned CPU operation and additive consumer capability.
-- [x] Initial four native gradient cases pass, including scalar/empty layouts.
-- [ ] Complete canonical final-head CPU diagnostics/native/Python acceptance.
-- [ ] Complete independent review, canonical dependency delivery and hosted CI.
+- [x] Complete local CPU diagnostics, 254 autograd and 42 CPU adapter cases.
+- [x] Pass 20 Python alias cases, including weighted scalar/empty backward.
+- [x] Independently review scalar providers and consumer rank-zero adapters.
+- [ ] Complete canonical remote dependency delivery, API/release gates and hosted CI.
 - [ ] Implement and validate Hephaestus device capability in a separate slice.
 - [ ] Obtain source-publication approval before any auto-release merge.
