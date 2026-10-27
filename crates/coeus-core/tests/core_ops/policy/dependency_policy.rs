@@ -37,7 +37,11 @@ const FORBIDDEN_PRODUCTION_CRATES: [ForbiddenProductionCrate; 8] = [
         manifest_name: "tokio",
         import_name: "tokio",
         owner: "Moirai async SSOT",
-        atlas_parents: &[],
+        // Moirai 0.11's transport stack reaches tokio through `quinn`, its
+        // QUIC implementation. `quinn` is therefore the only direct dependent
+        // and the whole path stays inside the Moirai-owned async/transport
+        // SSOT; no Coeus crate depends on tokio directly.
+        atlas_parents: &["quinn"],
     },
     ForbiddenProductionCrate {
         manifest_name: "burn",
