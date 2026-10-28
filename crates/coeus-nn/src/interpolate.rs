@@ -19,16 +19,16 @@
 // `resize_2d` when the input is a tracked `Var`.
 
 use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement};
-pub use coeus_ops::resize::ResizeMode as InterpolateMode;
+pub use coeus_ops::resize::ResizeMode;
 use coeus_tensor::Tensor;
 
 /// Resize a 1-D spatial tensor `[N, C, L]` to `[N, C, new_L]`.
 ///
-/// Supports every [`InterpolateMode`].
+/// Supports every [`ResizeMode`].
 pub fn interpolate_1d<T: Float + FloatElement, B: coeus_core::Backend>(
     input: &Tensor<T, B>,
     new_l: usize,
-    mode: InterpolateMode,
+    mode: ResizeMode,
 ) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
@@ -38,12 +38,12 @@ where
 
 /// Resize a 2-D spatial tensor `[N, C, H, W]` to `[N, C, new_H, new_W]`.
 ///
-/// Supports every [`InterpolateMode`].
+/// Supports every [`ResizeMode`].
 pub fn interpolate_2d<T: Float + FloatElement, B: coeus_core::Backend>(
     input: &Tensor<T, B>,
     new_h: usize,
     new_w: usize,
-    mode: InterpolateMode,
+    mode: ResizeMode,
 ) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,

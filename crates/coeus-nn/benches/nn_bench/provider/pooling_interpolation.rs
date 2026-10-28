@@ -226,7 +226,7 @@ pub(crate) fn bench_avgpool3d_forward(c: &mut Criterion) {
 pub(crate) fn bench_interpolate2d_forward(
     c: &mut Criterion,
     label: &str,
-    coeus_mode: CoeusInterpolateMode,
+    coeus_mode: CoeusResizeMode,
 ) {
     const IN_N: usize = 8;
     const IN_C: usize = 16;
@@ -270,7 +270,7 @@ pub(crate) fn bench_interpolate2d_nearest_forward(c: &mut Criterion) {
     bench_interpolate2d_forward(
         c,
         "Coeus — interpolate_2d nearest forward (8x16x32x32 -> 64x64)",
-        CoeusInterpolateMode::Nearest,
+        CoeusResizeMode::Nearest,
     );
 }
 
@@ -278,7 +278,7 @@ pub(crate) fn bench_interpolate2d_bilinear_forward(c: &mut Criterion) {
     bench_interpolate2d_forward(
         c,
         "Coeus — interpolate_2d bilinear forward (8x16x32x32 -> 64x64)",
-        CoeusInterpolateMode::Bilinear,
+        CoeusResizeMode::Bilinear,
     );
 }
 
@@ -286,7 +286,7 @@ pub(crate) fn bench_interpolate2d_bicubic_forward(c: &mut Criterion) {
     bench_interpolate2d_forward(
         c,
         "Coeus — interpolate_2d bicubic forward (8x16x32x32 -> 64x64)",
-        CoeusInterpolateMode::Bicubic,
+        CoeusResizeMode::Bicubic,
     );
 }
 
@@ -294,7 +294,7 @@ pub(crate) fn bench_interpolate2d_area_forward(c: &mut Criterion) {
     bench_interpolate2d_forward(
         c,
         "Coeus — interpolate_2d area forward (8x16x32x32 -> 64x64)",
-        CoeusInterpolateMode::Area,
+        CoeusResizeMode::Area,
     );
 }
 
@@ -317,7 +317,7 @@ pub(crate) fn bench_interpolate1d_nearest_forward(c: &mut Criterion) {
     group.bench_function("Coeus Sequential", |b| {
         b.iter(|| {
             black_box(
-                interpolate_1d(black_box(&x_seq), OUT_L, CoeusInterpolateMode::Nearest)
+                interpolate_1d(black_box(&x_seq), OUT_L, CoeusResizeMode::Nearest)
                     .expect("invariant: test operation succeeds"),
             )
         })
@@ -325,7 +325,7 @@ pub(crate) fn bench_interpolate1d_nearest_forward(c: &mut Criterion) {
     group.bench_function("Coeus Moirai", |b| {
         b.iter(|| {
             black_box(
-                interpolate_1d(black_box(&x_moirai), OUT_L, CoeusInterpolateMode::Nearest)
+                interpolate_1d(black_box(&x_moirai), OUT_L, CoeusResizeMode::Nearest)
                     .expect("invariant: test operation succeeds"),
             )
         })

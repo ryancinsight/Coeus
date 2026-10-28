@@ -84,7 +84,7 @@ pub use dropout::Dropout;
 pub use embedding::Embedding;
 pub use embeddingbag::{EmbeddingBag, EmbeddingBagMode};
 pub use init::{kaiming_uniform, xavier_uniform};
-pub use interpolate::{interpolate_1d, interpolate_2d, InterpolateMode};
+pub use interpolate::{interpolate_1d, interpolate_2d, ResizeMode};
 pub use linear::Linear;
 pub use loss::{
     bce_with_logits, binary_cross_entropy, cosine_embedding_loss, cosine_similarity,

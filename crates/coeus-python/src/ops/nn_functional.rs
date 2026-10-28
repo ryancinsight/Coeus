@@ -122,10 +122,10 @@ pub fn interpolate(
     py: Python<'_>,
 ) -> PyResult<PyTensor> {
     let imode = match mode {
-        "nearest" => coeus_nn::InterpolateMode::Nearest,
-        "bilinear" => coeus_nn::InterpolateMode::Bilinear,
-        "bicubic" => coeus_nn::InterpolateMode::Bicubic,
-        "area" => coeus_nn::InterpolateMode::Area,
+        "nearest" => coeus_nn::ResizeMode::Nearest,
+        "bilinear" => coeus_nn::ResizeMode::Bilinear,
+        "bicubic" => coeus_nn::ResizeMode::Bicubic,
+        "area" => coeus_nn::ResizeMode::Area,
         other => {
             return Err(PyValueError::new_err(format!(
                 "interpolate: unknown mode '{other}'; expected 'nearest', 'bilinear', \

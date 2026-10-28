@@ -18,9 +18,9 @@ use coeus_nn::{
     AvgPool2d, AvgPool3d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Bidirectional, Bilinear, Conv1d,
     Conv2d, Conv3d, ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag,
     EmbeddingBagMode, FeatureAlphaDropout, GaussianNoise, GroupNorm, Gru as CoeusGru,
-    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, InterpolateMode as CoeusInterpolateMode,
-    LayerNorm, Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt,
-    MultiHeadAttention, NullMask, RMSNorm, RNNCell, ReLU, Rnn, RnnNonlinearity, RotaryEmbedding,
+    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, Linear, LocalResponseNorm, Lstm,
+    MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt, MultiHeadAttention, NullMask, RMSNorm,
+    RNNCell, ReLU, ResizeMode as CoeusResizeMode, Rnn, RnnNonlinearity, RotaryEmbedding,
     Sequential, SinusoidalEncoding, SwiGlu, TransformerDecoder, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
