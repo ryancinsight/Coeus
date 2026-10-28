@@ -1,6 +1,6 @@
 //! Elementwise comparisons, plus the grad/detach surface and the data setter.
 
-use super::CompareOp;
+use super::dispatch::CompareOp;
 use super::PyTensor;
 use crate::error::map_backend_error;
 use coeus_autograd::Var;

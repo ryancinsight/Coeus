@@ -1,6 +1,6 @@
 //! Arithmetic and reverse-arithmetic operators, with scalar broadcasting.
 
-use super::BinOp;
+use super::dispatch::BinOp;
 use super::PyTensor;
 use crate::error::map_backend_error;
 use pyo3::prelude::*;
