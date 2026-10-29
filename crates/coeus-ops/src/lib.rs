@@ -6,6 +6,8 @@
 //! - **Reductions** — [`reduction`]: `sum`, `mean`, `max/min`, `argmax/argmin`, `topk`, cumulative sum/product scans, plus vector arithmetic `dot` (flat inner product) and `cross` (per-channel 3-vector cross along `dim`), plus matrix norms `frobenius_norm` / `frobenius_norm_batched` (compose on `norm` for `torch.linalg.matrix_norm(A, ord='fro')`).
 //! - **Convolution** — 1-D/2-D/3-D forward+backward routed through `BackendOps::conv1d`/`conv2d`/`conv3d`.
 //! - **Pooling** — max and average pooling (2-D/3-D) with backward gradients.
+//! - **Resize** — nearest/bilinear/bicubic/area spatial resize (1-D/2-D) in [`resize`], with
+//!   the matching reverse-mode scatter.
 //! - **Attention** — [`attention::scaled_dot_product_attention`] with causal/padding mask support.
 //! - **Fused expressions** — [`fuse`] lazy expression DAG evaluated in a single pass on CPU.
 //! - **Optimizer steps** — provider-dispatched `sgd_step`, `adam_step`,
@@ -35,6 +37,8 @@ pub mod interpolation;
 pub mod matmul;
 /// Reduction operations (sum, mean, max, min, norms, variance).
 pub mod reduction;
+/// Spatial resize (nearest / bilinear / bicubic / area) forward and reverse mode.
+pub mod resize;
 /// Provider-selected half-vector rotation.
 pub mod rotate_half;
 /// Shape manipulation operations (cat, stack, reshape, flip, sort, etc.).
@@ -71,6 +75,10 @@ pub use reduction::{
     frobenius_norm_batched, max_axis, mean, mean_axis, min_axis, norm, norm_p, norm_p_axis,
     norm_p_tensor, prod, prod_axis, prod_tensor, std_dev, std_dev_axis, std_mean, std_mean_axis,
     suffix_prod, suffix_sum, sum, sum_axis, topk, var, var_axis, var_mean, var_mean_axis,
+};
+pub use resize::{
+    resize_1d, resize_1d_backward, resize_1d_backward_with_scale, resize_1d_with_scale, resize_2d,
+    resize_2d_backward, resize_2d_backward_with_scale, resize_2d_with_scale, ResizeMode,
 };
 pub use rotate_half::rotate_half;
 pub use shape::{

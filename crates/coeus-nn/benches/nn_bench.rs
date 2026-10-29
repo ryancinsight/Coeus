@@ -18,9 +18,9 @@ use coeus_nn::{
     AvgPool2d, AvgPool3d, BatchNorm1d, BatchNorm2d, BatchNorm3d, Bidirectional, Bilinear, Conv1d,
     Conv2d, Conv3d, ConvTranspose1d, ConvTranspose3d, Dropout, Embedding, EmbeddingBag,
     EmbeddingBagMode, FeatureAlphaDropout, GaussianNoise, GroupNorm, Gru as CoeusGru,
-    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, InterpolateMode as CoeusInterpolateMode,
-    LayerNorm, Linear, LocalResponseNorm, Lstm, MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt,
-    MultiHeadAttention, NullMask, RMSNorm, RNNCell, ReLU, Rnn, RnnNonlinearity, RotaryEmbedding,
+    InstanceNorm1d, InstanceNorm2d, InstanceNorm3d, LayerNorm, Linear, LocalResponseNorm, Lstm,
+    MaxPool1d, MaxPool2d, MaxPool3d, Module, ModuleExt, MultiHeadAttention, NullMask, RMSNorm,
+    RNNCell, ReLU, ResizeMode as CoeusResizeMode, Rnn, RnnNonlinearity, RotaryEmbedding,
     Sequential, SinusoidalEncoding, SwiGlu, TransformerDecoder, TransformerEncoderLayer,
 };
 use coeus_tensor::Tensor;
@@ -143,6 +143,8 @@ criterion_group!(
     bench_interpolate1d_nearest_forward,
     bench_interpolate2d_nearest_forward,
     bench_interpolate2d_bilinear_forward,
+    bench_interpolate2d_bicubic_forward,
+    bench_interpolate2d_area_forward,
     bench_bilinear_forward,
     bench_conv1d_forward,
     bench_conv1d_forward_backward,

@@ -6,6 +6,7 @@ use crate::{
     error::{map_backend_error, map_module_error},
     tensor::PyTensor,
 };
+use eunomia::{convert::IntegerTarget, FloatElement};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -95,7 +96,7 @@ pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyRe
 }
 
 #[pyfunction]
-/// `F.interpolate(x, size=None, scale_factor=None, mode='nearest'|'bilinear')`.
+/// `F.interpolate(x, size=None, scale_factor=None, mode='nearest'|'bilinear'|'bicubic'|'area')`.
 ///
 /// Mirrors the PyTorch signature allowlist used in parity tests:
 /// - `interpolate(x, [new_L], mode=...)` — explicit `size` for 1-D outputs.
@@ -103,6 +104,13 @@ pub fn dropout(input: &PyTensor, p: f64, training: bool, py: Python<'_>) -> PyRe
 ///   outputs.
 /// - `interpolate(x, scale_factor=2.0, mode=...)` — uniform scale factor
 ///   applied to every spatial dim.
+///
+/// All four modes use `align_corners=False`. `scale_factor` sizes the output
+/// with `floor(input * factor)` and samples at `1 / factor`, matching torch for
+/// a fractional factor as well. `bicubic` is accepted for 1-D
+/// inputs too, where torch only offers it for 4-D `[N, C, H, W]` (this binding
+/// names the 1-D mode `bilinear` for `linear`, and `bicubic` for the cubic
+/// kernel).
 ///
 /// Exactly one of `size` or `scale_factor` must be supplied; passing both or
 /// neither returns a typed `ValueError`.
@@ -115,11 +123,14 @@ pub fn interpolate(
     py: Python<'_>,
 ) -> PyResult<PyTensor> {
     let imode = match mode {
-        "nearest" => coeus_nn::InterpolateMode::Nearest,
-        "bilinear" => coeus_nn::InterpolateMode::Bilinear,
+        "nearest" => coeus_nn::ResizeMode::Nearest,
+        "bilinear" => coeus_nn::ResizeMode::Bilinear,
+        "bicubic" => coeus_nn::ResizeMode::Bicubic,
+        "area" => coeus_nn::ResizeMode::Area,
         other => {
             return Err(PyValueError::new_err(format!(
-                "interpolate: unknown mode '{other}'; expected 'nearest' or 'bilinear'"
+                "interpolate: unknown mode '{other}'; expected 'nearest', 'bilinear', \
+                 'bicubic', or 'area'"
             )));
         }
     };
@@ -128,23 +139,42 @@ pub fn interpolate(
     // Resolve the per-spatial-dim target shape — `size` takes precedence, then
     // `scale_factor`.  Cross-validate the option-pair so a caller passing both
     // / neither gets a typed error.
-    let out_spatial: Vec<usize> = match (size.as_ref(), scale_factor) {
-        (Some(s), None) => s.clone(),
+    //
+    // The same match also yields the sampling step per axis, in source units
+    // per output position. An explicit `size` samples at `in / out`, but a
+    // `scale_factor` samples at `1 / factor`: torch keeps the requested factor
+    // instead of deriving it from the rounded output size, so `5 -> 7` at
+    // factor 1.5 still steps by 2/3, not by 5/7.
+    let in_spatial = &in_shape[2..];
+    let (out_spatial, scales): (Vec<usize>, Vec<f64>) = match (size.as_ref(), scale_factor) {
+        (Some(s), None) => {
+            let scales: Vec<f64> = s
+                .iter()
+                .zip(in_spatial)
+                .map(|(&out, &input)| f64::from_count(input) / f64::from_count(out))
+                .collect();
+            (s.clone(), scales)
+        }
         (None, Some(sf)) => {
             if !(sf > 0.0 && sf.is_finite()) {
                 return Err(PyValueError::new_err(format!(
                     "interpolate: scale_factor must be a positive finite number, got {sf}"
                 )));
             }
-            in_shape[2..]
+            let out: Vec<usize> = in_spatial
                 .iter()
-                .map(|&d| {
-                    // PyTorch uses ceil(input * scale_factor) (matching the
-                    // documented int-rounding for backward-compatible code).
-                    let scaled = d as f64 * sf;
-                    scaled.ceil() as usize
-                })
-                .collect()
+                // PyTorch truncates: `int(math.floor(input * scale_factor))`.
+                // A fractional factor must round *down* to match it —
+                // `5 * 1.5` gives 7 output cells, not 8.
+                .map(|&d| usize::from_floor(f64::from_count(d) * sf))
+                .collect();
+            if out.contains(&0) {
+                return Err(PyValueError::new_err(format!(
+                    "interpolate: scale_factor {sf} rounds a spatial dim of \
+                     {in_spatial:?} down to zero outputs"
+                )));
+            }
+            (out, vec![1.0 / sf; in_spatial.len()])
         }
         (Some(_), Some(_)) => {
             return Err(PyValueError::new_err(
@@ -168,7 +198,7 @@ pub fn interpolate(
                 )));
             }
             py.allow_threads(|| {
-                coeus_nn::interpolate_1d(&input.inner.tensor, out_spatial[0], imode)
+                coeus_autograd::resize_1d_with_scale(&input.inner, out_spatial[0], scales[0], imode)
             })
         }
         4 => {
@@ -179,7 +209,14 @@ pub fn interpolate(
                 )));
             }
             py.allow_threads(|| {
-                coeus_nn::interpolate_2d(&input.inner.tensor, out_spatial[0], out_spatial[1], imode)
+                coeus_autograd::resize_2d_with_scale(
+                    &input.inner,
+                    out_spatial[0],
+                    out_spatial[1],
+                    scales[0],
+                    scales[1],
+                    imode,
+                )
             })
         }
         _ => {
@@ -189,9 +226,7 @@ pub fn interpolate(
         }
     }
     .map_err(map_backend_error)?;
-    coeus_autograd::Var::new(t, false)
-        .map(PyTensor::from_var)
-        .map_err(map_backend_error)
+    Ok(PyTensor::from_var(t))
 }
 
 #[pyfunction]

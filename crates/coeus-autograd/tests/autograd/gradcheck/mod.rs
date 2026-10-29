@@ -71,6 +71,7 @@ mod new_ops;
 mod normalization;
 mod pooling;
 mod reduction;
+mod resize;
 mod shape;
 
 use coeus_autograd::{mul, sum, Var};

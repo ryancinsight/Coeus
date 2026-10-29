@@ -380,3 +380,69 @@ assert any(abs(v) > 1e-6 for v in pos.data), "sinusoidal output should contain p
 "#,
     );
 }
+
+#[test]
+fn test_transformer_decoder_stack_and_seq2seq() {
+    run_script(
+        r#"
+import math
+import pycoeus
+
+# Construction of the decoder stack must stay within the native test-thread
+# stack. Each (heads, layers) dispatch arm is built in its own frame; inlining
+# them into one function made a single-layer decoder reserve >8 MiB and overflow
+# the thread, which is why this asserts construction rather than only shapes.
+tgt = pycoeus.Tensor([0.1 * i - 0.3 for i in range(3 * 4)], [1, 3, 4])
+mem = pycoeus.Tensor([0.05 * i for i in range(5 * 4)], [1, 5, 4])
+
+for h, n in ((1, 1), (2, 2), (4, 1)):
+    dec = pycoeus.TransformerDecoder(d_model=4, d_ff=8, num_heads=h, num_layers=n, dropout_p=0.0)
+    assert dec.num_layers == n, f"decoder h={h} n={n} num_layers={dec.num_layers}"
+    assert len(dec.layers) == n
+    assert len(dec.parameters()) == 26 * n, f"decoder h={h} n={n} params={len(dec.parameters())}"
+    out = dec.forward(tgt, mem)
+    assert out.shape == [1, 3, 4], f"decoder h={h} n={n} shape={out.shape}"
+    # SSOT parity: the stack is exactly its layers applied in order.
+    manual = tgt
+    for layer in dec.layers:
+        manual = layer.forward(manual, mem)
+    assert out.data == manual.data, f"decoder h={h} n={n} stack != layered composition"
+
+# Validation mirrors the encoder stack: dropout range and dispatchable pairs.
+for bad in (1.0, -0.1):
+    try:
+        _ = pycoeus.TransformerDecoder(d_model=4, d_ff=8, num_heads=2, num_layers=2, dropout_p=bad)
+        raise AssertionError(f"decoder dropout_p={bad} should raise")
+    except ValueError:
+        pass
+try:
+    _ = pycoeus.TransformerDecoder(d_model=4, d_ff=8, num_heads=2, num_layers=3)
+    raise AssertionError("unsupported decoder layer count should raise")
+except ValueError:
+    pass
+
+# The largest supported specialization constructs and executes on the native
+# test-thread stack, matching the encoder's coverage of the same hazard.
+largest = pycoeus.TransformerDecoder(
+    d_model=32, d_ff=1, num_heads=32, num_layers=12, dropout_p=0.0
+)
+largest_tgt = pycoeus.Tensor([0.01 * (i + 1) for i in range(32)], [1, 1, 32])
+largest_mem = pycoeus.Tensor([0.02 * (i + 1) for i in range(32)], [1, 1, 32])
+largest_out = largest.forward(largest_tgt, largest_mem)
+assert largest.num_layers == 12
+assert largest_out.shape == [1, 1, 32]
+assert all(math.isfinite(v) for v in largest_out.data)
+
+# The seq2seq wrapper composes the two stacks: parameter count is the sum, and
+# forward is bitwise the encoder output fed to the decoder.
+model = pycoeus.Transformer(d_model=4, d_ff=8, num_heads=2, num_enc_layers=1, num_dec_layers=1)
+assert model.num_enc_layers == 1 and model.num_dec_layers == 1
+assert len(model.parameters()) == 16 * 1 + 26 * 1, f"seq2seq params={len(model.parameters())}"
+src = pycoeus.Tensor([0.03 * i for i in range(2 * 4)], [1, 2, 4])
+composed = model.forward(src, tgt)
+manual = model.decoder.forward(tgt, model.encoder.forward(src))
+assert composed.shape == [1, 3, 4], f"seq2seq shape={composed.shape}"
+assert composed.data == manual.data, "seq2seq forward != encoder -> decoder"
+"#,
+    );
+}

@@ -14,6 +14,8 @@ pub mod linalg;
 pub mod nn;
 /// Reduction operations (norm, log-sum-exp, min/max over axes).
 pub mod reduction;
+/// Differentiable spatial resize (nearest / bilinear / bicubic / area).
+pub mod resize;
 /// Differentiable selective scan (Mamba/S6 linear state-space recurrence).
 pub mod scan;
 /// Shape manipulation operations (reshape, permute, cat, split, etc.).
@@ -52,6 +54,7 @@ pub use nn::{
 
 pub use embedding::{embedding, embedding_with_padding_idx};
 pub use interpolation::{grid_sample_3d, linear_interpolation};
+pub use resize::{resize_1d, resize_1d_with_scale, resize_2d, resize_2d_with_scale};
 pub use scan::selective_scan;
 pub use shape::{
     broadcast_to, cat, contiguous, cumprod, cumsum, diag, diagonal, diff, einsum, einsum3, flatten,

@@ -591,10 +591,16 @@ def _torch_preln_layer_fwd(
     gamma2 = list(layer.norm2.weight.data)
     beta2 = list(layer.norm2.bias.data)
     wff1 = list(layer.ffn.linear1.weight.data)
-    bff1 = list(layer.ffn.linear1.bias.data) if layer.ffn.linear1.bias else [0.0] * d_ff
+    bff1 = (
+        list(layer.ffn.linear1.bias.data)
+        if layer.ffn.linear1.bias is not None
+        else [0.0] * d_ff
+    )
     wff2 = list(layer.ffn.linear2.weight.data)
     bff2 = (
-        list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
+        list(layer.ffn.linear2.bias.data)
+        if layer.ffn.linear2.bias is not None
+        else [0.0] * d_model
     )
 
     mha_t = torch.nn.MultiheadAttention(
@@ -766,10 +772,16 @@ def _torch_preln_decoder_layer_fwd(
     gamma3 = list(layer.norm3.weight.data)
     beta3 = list(layer.norm3.bias.data)
     wff1 = list(layer.ffn.linear1.weight.data)
-    bff1 = list(layer.ffn.linear1.bias.data) if layer.ffn.linear1.bias else [0.0] * d_ff
+    bff1 = (
+        list(layer.ffn.linear1.bias.data)
+        if layer.ffn.linear1.bias is not None
+        else [0.0] * d_ff
+    )
     wff2 = list(layer.ffn.linear2.weight.data)
     bff2 = (
-        list(layer.ffn.linear2.bias.data) if layer.ffn.linear2.bias else [0.0] * d_model
+        list(layer.ffn.linear2.bias.data)
+        if layer.ffn.linear2.bias is not None
+        else [0.0] * d_model
     )
 
     def _make_mha(wq, wk, wv, wo):
@@ -3379,27 +3391,40 @@ def test_gru_sequence_forward_matches_pytorch() -> None:
     gru_pyc = pycoeus.Gru(input_size, hidden_size)
     x_pyc = pycoeus.Tensor(data, [batch, seq, input_size])
     y_pyc = gru_pyc.forward(x_pyc)
-    # forward returns [batch, seq, hidden_size] — last timestep is y_pyc[-1]
     assert y_pyc.shape == [batch, seq, hidden_size], (
         f"GRU output shape mismatch: {y_pyc.shape}"
     )
+    _, h_n_pyc = gru_pyc.forward_seq(x_pyc)
+    assert h_n_pyc.shape == [batch, hidden_size], f"GRU h_n shape: {h_n_pyc.shape}"
 
-    # PyTorch: need to build GRU with same weights
+    # Copy the pycoeus weights into torch, so this is value parity and not only a
+    # shape check. Both implementations gate as (r, z, n) over one [3H] projection
+    # and add the input-hidden and hidden-hidden biases, so the layouts line up.
     gru_t = torch.nn.GRU(input_size, hidden_size, batch_first=True, dtype=torch.float64)
-    w_ih = gru_pyc.state_dict()
-    # Coeus stores W_ih and W_hh for r/u/n gates
-    # For forward parity we just verify the output shape; exact weight copying is complex.
-    # Simplified test: verify output is numerically stable and shape-correct.
+    state = gru_pyc.state_dict()
+    with torch.no_grad():
+        gru_t.weight_ih_l0.copy_(
+            torch.tensor(
+                state.get("weight_ih_l0").data, dtype=torch.float64
+            ).reshape(3 * hidden_size, input_size)
+        )
+        gru_t.weight_hh_l0.copy_(
+            torch.tensor(
+                state.get("weight_hh_l0").data, dtype=torch.float64
+            ).reshape(3 * hidden_size, hidden_size)
+        )
+        gru_t.bias_ih_l0.copy_(
+            torch.tensor(state.get("bias_ih_l0").data, dtype=torch.float64)
+        )
+        gru_t.bias_hh_l0.copy_(
+            torch.tensor(state.get("bias_hh_l0").data, dtype=torch.float64)
+        )
     x_t = torch.tensor(data, dtype=torch.float64).reshape(batch, seq, input_size)
     with torch.no_grad():
-        y_t, _ = gru_t(x_t)
+        y_t, h_n_t = gru_t(x_t)
 
-    assert list(y_t.shape) == [batch, seq, hidden_size], (
-        f"PyTorch GRU shape: {y_t.shape}"
-    )
-    # GRU output values depend on weights; verify shape and non-NaN
-    for v in y_pyc.data:
-        assert not (v != v), "GRU output contains NaN"  # NaN check
+    _allclose("gru_seq_fwd", list(y_pyc.data), y_t.flatten().tolist(), atol=1e-8)
+    _allclose("gru_h_n", list(h_n_pyc.data), h_n_t.flatten().tolist(), atol=1e-8)
 
 
 # ---------------------------------------------------------------------------
@@ -3560,19 +3585,18 @@ def test_bidirectional_shape_and_stability() -> None:
 
     data = [float(i % 7) * 0.1 - 0.3 for i in range(batch * seq * input_size)]
 
-    try:
-        # Attempt to construct Bidirectional(GRU)
-        gru = pycoeus.Gru(input_size, hidden_size)
-        bidi = pycoeus.Bidirectional(gru)
-        x_pyc = pycoeus.Tensor(data, [batch, seq, input_size])
-        y_pyc = bidi.forward(x_pyc)
-        assert y_pyc.shape == [batch, seq, hidden_size * 2], (
-            f"Bidirectional output shape: expected {[batch, seq, hidden_size * 2]}, got {y_pyc.shape}"
-        )
-        for v in y_pyc.data:
-            assert not (v != v), "Bidirectional output must not contain NaN"
-    except AttributeError:
-        pytest.skip("pycoeus.Bidirectional or pycoeus.Gru not available")
+    # Bidirectional is a two-direction LSTM wrapper: it is constructed from the
+    # two sizes and owns its own forward/backward directions. (A GRU-backed
+    # bidirectional is not exposed; `coeus_nn::rnn::Bidirectional::new` takes two
+    # Lstm halves.)
+    bidi = pycoeus.Bidirectional(input_size, hidden_size)
+    x_pyc = pycoeus.Tensor(data, [batch, seq, input_size])
+    y_pyc = bidi.forward(x_pyc)
+    assert y_pyc.shape == [batch, seq, hidden_size * 2], (
+        f"Bidirectional output shape: expected {[batch, seq, hidden_size * 2]}, got {y_pyc.shape}"
+    )
+    for v in y_pyc.data:
+        assert not (v != v), "Bidirectional output must not contain NaN"
 
 
 # ---------------------------------------------------------------------------
@@ -7509,48 +7533,50 @@ def test_masked_fill_bwd_matches_pytorch() -> None:
     _allclose("mfill_bwd", list(x_pyc.grad), t.grad.tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "var_axis"), reason="pycoeus.var_axis not available")
-def test_var_axis_bwd_dim1_matches_pytorch() -> None:
-    """var_axis(dim=1) backward: gradient along row variance."""
+@pytest.mark.skipif(not hasattr(pycoeus, "var"), reason="pycoeus.var not available")
+def test_var_bwd_dim1_matches_pytorch() -> None:
+    """var(axis=1) backward: gradient along row variance."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
     x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
-    out_pyc = pycoeus.var_axis(x_pyc, 1)
+    out_pyc = pycoeus.var(x_pyc, True, 1)
     out_pyc.backward()
     t = torch.tensor(data, dtype=torch.float64).reshape(2, 4).requires_grad_(True)
     torch.var(t, dim=1, unbiased=True, keepdim=True).sum().backward()
     _allclose("var_axis_bwd1", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-9)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "norm_p"), reason="pycoeus.norm_p not available")
-def test_norm_p_bwd_matches_pytorch() -> None:
-    """norm_p(p=1) (L1 norm) backward: grad = sign(x) / n."""
+@pytest.mark.skipif(not hasattr(pycoeus, "vector_norm"), reason="pycoeus.vector_norm not available")
+def test_vector_norm_p1_bwd_matches_pytorch() -> None:
+    """vector_norm(ord=1) (L1 norm) backward: grad = sign(x)."""
     data = [-3.0, 4.0, -1.0, 2.0]
     x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
-    out_pyc = pycoeus.norm_p(x_pyc, 1.0)
+    out_pyc = pycoeus.vector_norm(x_pyc, 1.0)
     out_pyc.backward()
     t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
     torch.norm(t, p=1).backward()
     _allclose("norm_p1_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "unfold1d"), reason="pycoeus.unfold1d not available")
-def test_unfold1d_bwd_matches_pytorch() -> None:
-    """unfold1d backward: gradient folds back (averages overlapping regions)."""
+@pytest.mark.skipif(not hasattr(pycoeus, "Unfold1d"), reason="pycoeus.Unfold1d not available")
+def test_unfold1d_module_bwd_matches_pytorch() -> None:
+    """Unfold1d(k=3) backward: gradient folds back (sums overlapping regions)."""
     n, c, l = 2, 3, 8
     data = [float(i) * 0.1 for i in range(n * c * l)]
     x_pyc = pycoeus.Tensor(data, [n, c, l], requires_grad=True)
-    pycoeus.unfold1d(x_pyc, 3, 1).backward()
+    pycoeus.Unfold1d(3, 1).forward(x_pyc).backward()
     t = torch.tensor(data, dtype=torch.float64).reshape(n, c, l).requires_grad_(True)
     t.unfold(2, 3, 1).sum().backward()
     _allclose("unfold1d_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-9)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "contiguous"), reason="pycoeus.contiguous not available")
+@pytest.mark.skipif(
+    not hasattr(pycoeus.Tensor, "contiguous"), reason="Tensor.contiguous not available"
+)
 def test_contiguous_bwd_matches_pytorch() -> None:
-    """contiguous() backward: pass-through gradient."""
+    """contiguous() backward: pass-through gradient (Tensor method)."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     x_pyc = pycoeus.Tensor(data, [2, 3], requires_grad=True)
-    out_pyc = pycoeus.contiguous(x_pyc)
+    out_pyc = x_pyc.contiguous()
     out_pyc.backward()
     t = torch.tensor(data, dtype=torch.float64).reshape(2, 3).requires_grad_(True)
     t.contiguous().sum().backward()
@@ -7722,9 +7748,9 @@ def test_index_put_bwd_matches_pytorch() -> None:
     _allclose("iput_values_bwd", list(v_pyc.grad), v_t.grad.tolist())
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "std_dev"), reason="pycoeus.std not available")
+@pytest.mark.skipif(not hasattr(pycoeus, "std"), reason="pycoeus.std not available")
 def test_std_axis_bwd_matches_pytorch() -> None:
-    """std_dev_axis(dim=1) backward: std along axis gradient."""
+    """std(axis=1) backward: std along axis gradient."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
     x_pyc = pycoeus.Tensor(data, [2, 4], requires_grad=True)
     pycoeus.std(x_pyc, True, 1).backward()
@@ -7769,29 +7795,164 @@ def test_conv3d_weight_grad_matches_pytorch() -> None:
     _allclose("conv3d_x", list(x_pyc.grad), x_t.grad.flatten().tolist(), atol=1e-5)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "var_axis"), reason="pycoeus.var_axis not available")
-def test_var_axis_keepdim_bwd_matches_pytorch() -> None:
-    """var_axis(dim=0, keepdim=True) backward: gradient w.r.t. rows."""
+@pytest.mark.skipif(not hasattr(pycoeus, "var"), reason="pycoeus.var not available")
+def test_var_keepdim_bwd_matches_pytorch() -> None:
+    """var(axis=0, keepdim=True) backward: gradient w.r.t. rows."""
     data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
     x_pyc = pycoeus.Tensor(data, [4, 2], requires_grad=True)
-    out_pyc = pycoeus.var_axis(x_pyc, 0)
+    out_pyc = pycoeus.var(x_pyc, True, 0)
     out_pyc.backward()
     t = torch.tensor(data, dtype=torch.float64).reshape(4, 2).requires_grad_(True)
     torch.var(t, dim=0, unbiased=True, keepdim=True).sum().backward()
     _allclose("var_axis0_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-9)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "interpolate_bilinear"), reason="pycoeus.interpolate_bilinear not available")
 def test_interpolate_bilinear_bwd_matches_pytorch() -> None:
     """bilinear upsample 2x backward matches torch.nn.functional.interpolate."""
     import torch.nn.functional as _F
     n, c, h, w = 2, 3, 4, 4
     data = [float(i) * 0.05 for i in range(n * c * h * w)]
     x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
-    pycoeus.interpolate_bilinear(x_pyc, 8, 8).backward()
+    pycoeus.interpolate(x_pyc, size=[8, 8], mode="bilinear").backward()
     t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
     _F.interpolate(t, size=(8, 8), mode="bilinear", align_corners=False).sum().backward()
     _allclose("bilinear_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-5)
+
+
+def test_interpolate_bicubic_matches_pytorch() -> None:
+    """Bicubic (a=-0.75, align_corners=False) fwd+bwd vs torch, 6x6 -> 4x5.
+
+    A non-integer, mixed up/down scale exercises the cubic far lobe and the
+    index clamping at both borders (torch keeps the negative source coordinate
+    for cubic and clamps the four indices instead).
+    """
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 6, 6
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.interpolate(x_pyc, size=[4, 5], mode="bicubic")
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    out_t = _F.interpolate(t, size=(4, 5), mode="bicubic", align_corners=False)
+    out_t.sum().backward()
+    _allclose("bicubic_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("bicubic_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_interpolate_area_matches_pytorch() -> None:
+    """area mode is adaptive_avg_pool: box mean, fwd+bwd at 6x6 -> 3x4."""
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 6, 6
+    data = [float(i) * 0.05 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.interpolate(x_pyc, size=[3, 4], mode="area")
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    out_t = _F.interpolate(t, size=(3, 4), mode="area")
+    out_t.sum().backward()
+    _allclose("area_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-12)
+    _allclose("area_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-12)
+
+
+def test_interpolate_area_upsample_matches_pytorch() -> None:
+    """area upsample 4x4 -> 6x6 (overlapping boxes, torch's adaptive pool)."""
+    import torch.nn.functional as _F
+    n, c, h, w = 1, 2, 4, 4
+    data = [float(i) * 0.25 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, size=[6, 6], mode="area")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = _F.interpolate(t, size=(6, 6), mode="area")
+    _allclose("area_up_fwd", list(out_pyc.data), exp.flatten().tolist(), atol=1e-12)
+
+
+def test_interpolate_bicubic_scale_fractional_matches_pytorch() -> None:
+    """bicubic with `scale_factor=1.5` on 5x5: shape and values.
+
+    A fractional factor pins the output-size rounding to torch's
+    `floor(input * scale_factor)`: 1.5 * 5 is 7 output cells, not 8.
+    """
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 5, 5
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, scale_factor=1.5, mode="bicubic")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = _F.interpolate(t, scale_factor=1.5, mode="bicubic", align_corners=False)
+    assert out_pyc.shape == list(exp.shape), f"shape {out_pyc.shape} != {list(exp.shape)}"
+    _allclose("bicubic_scale", list(out_pyc.data), exp.flatten().tolist(), atol=1e-10)
+
+
+def test_interpolate_area_scale_down_matches_pytorch() -> None:
+    """area with `scale_factor=0.6` on 5x5 downsamples to 3x3 in torch."""
+    import torch.nn.functional as _F
+    n, c, h, w = 1, 2, 5, 5
+    data = [float(i) * 0.25 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, scale_factor=0.6, mode="area")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = _F.interpolate(t, scale_factor=0.6, mode="area")
+    assert out_pyc.shape == list(exp.shape), f"shape {out_pyc.shape} != {list(exp.shape)}"
+    _allclose("area_scale", list(out_pyc.data), exp.flatten().tolist(), atol=1e-12)
+
+
+def test_interpolate_nearest_noninteger_matches_pytorch() -> None:
+    """nearest at 5x5 -> 7x3: torch copies `floor(i * in/out)`, not the half pixel.
+
+    An integer ratio hides the difference between `nearest` and
+    `nearest-exact`; a fractional one exposes which kernel is implemented.
+    """
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 5, 5
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.interpolate(x_pyc, size=[7, 3], mode="nearest")
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    out_t = _F.interpolate(t, size=(7, 3), mode="nearest")
+    out_t.sum().backward()
+    _allclose("nearest_frac_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-12)
+    _allclose("nearest_frac_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-12)
+
+
+def test_interpolate_bilinear_noninteger_matches_pytorch() -> None:
+    """bilinear at 5x5 -> 7x3: fractional source steps and the clamped border."""
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 5, 5
+    data = [float(i) * 0.05 - 1.0 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    out_pyc = pycoeus.interpolate(x_pyc, size=[7, 3], mode="bilinear")
+    out_pyc.backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    out_t = _F.interpolate(t, size=(7, 3), mode="bilinear", align_corners=False)
+    out_t.sum().backward()
+    _allclose("bilinear_frac_fwd", list(out_pyc.data), out_t.detach().flatten().tolist(), atol=1e-10)
+    _allclose("bilinear_frac_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
+
+
+def test_interpolate_nearest_scale_fractional_matches_pytorch() -> None:
+    """nearest with `scale_factor=1.5`: floor sizing and `1 / factor` sampling."""
+    import torch.nn.functional as _F
+    n, c, h, w = 1, 2, 5, 5
+    data = [float(i) * 0.25 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=False)
+    out_pyc = pycoeus.interpolate(x_pyc, scale_factor=1.5, mode="nearest")
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w)
+    exp = _F.interpolate(t, scale_factor=1.5, mode="nearest")
+    assert out_pyc.shape == list(exp.shape), f"shape {out_pyc.shape} != {list(exp.shape)}"
+    _allclose("nearest_scale", list(out_pyc.data), exp.flatten().tolist(), atol=1e-12)
+
+
+def test_interpolate_nearest_bwd_matches_pytorch() -> None:
+    """nearest 2x backward scatters each gradient onto the pixel it copied."""
+    import torch.nn.functional as _F
+    n, c, h, w = 2, 3, 4, 4
+    data = [float(i) * 0.05 for i in range(n * c * h * w)]
+    x_pyc = pycoeus.Tensor(data, [n, c, h, w], requires_grad=True)
+    pycoeus.interpolate(x_pyc, size=[8, 8], mode="nearest").backward()
+    t = torch.tensor(data, dtype=torch.float64).reshape(n, c, h, w).requires_grad_(True)
+    _F.interpolate(t, size=(8, 8), mode="nearest").sum().backward()
+    _allclose("nearest_bwd", list(x_pyc.grad), t.grad.flatten().tolist(), atol=1e-10)
 
 
 @pytest.mark.skipif(not hasattr(pycoeus, "nanmean"), reason="pycoeus.nanmean not available")
@@ -7806,12 +7967,12 @@ def test_nanmean_finite_bwd_matches_pytorch() -> None:
     _allclose("nanmean_fin_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-12)
 
 
-@pytest.mark.skipif(not hasattr(pycoeus, "norm_p"), reason="pycoeus.norm_p not available")
-def test_norm_p2_bwd_matches_pytorch() -> None:
-    """norm_p(p=2) same as L2 norm backward: grad = x / ||x||."""
+@pytest.mark.skipif(not hasattr(pycoeus, "vector_norm"), reason="pycoeus.vector_norm not available")
+def test_vector_norm_p2_bwd_matches_pytorch() -> None:
+    """vector_norm(ord=2) same as L2 norm backward: grad = x / ||x||."""
     data = [3.0, 4.0, 5.0, 2.0]
     x_pyc = pycoeus.Tensor(data, [4], requires_grad=True)
-    pycoeus.norm_p(x_pyc, 2.0).backward()
+    pycoeus.vector_norm(x_pyc, 2.0).backward()
     t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
     torch.norm(t, p=2).backward()
     _allclose("norm_p2_bwd", list(x_pyc.grad), t.grad.tolist(), atol=1e-10)

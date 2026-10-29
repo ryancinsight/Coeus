@@ -1,143 +1,52 @@
 // ── Interpolate — spatial resize / upsample / downsample ──
 //
 // Supported modes:
-//   `nearest`  — map each output pixel to the nearest input pixel (floor)
-//   `bilinear` — bilinear interpolation (4-neighbour weighted average)
+//   `nearest`  — copy the input cell each output cell starts in,
+//                `floor(i * in/out)` (torch's `nearest`; `nearest-exact`
+//                half-pixel-corrects and is a different mode)
+//   `bilinear` — bilinear interpolation (2-neighbour per axis; linear in 1-D)
+//   `bicubic`  — cubic convolution, a = -0.75 (4-neighbour per axis)
+//   `area`     — average of every source element inside the output's box
 //
 // Input conventions (matching PyTorch and Burn):
 //   1-D: `[N, C, L]`         → output `[N, C, new_L]`
 //   2-D: `[N, C, H, W]`      → output `[N, C, new_H, new_W]`
 //
-// Forward-only (no autograd in this implementation).  For training, wrap the
-// result in a `Var` with `requires_grad = false`.
+// The resize kernels live in `coeus_ops::resize`, together with their
+// reverse-mode scatter, so the differentiable layer (and the Python binding)
+// differentiate the same taps this forward pass applies. This module is the
+// raw-tensor face of those kernels; use `coeus_autograd`'s `resize_1d` /
+// `resize_2d` when the input is a tracked `Var`.
 
-use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement};
+pub use coeus_ops::resize::ResizeMode;
 use coeus_tensor::Tensor;
-
-/// Resize mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InterpolateMode {
-    /// Nearest-neighbour — zero-cost conceptually, no blending.
-    Nearest,
-    /// Bilinear — 4-neighbour weighted average; only valid for 2-D inputs.
-    Bilinear,
-}
 
 /// Resize a 1-D spatial tensor `[N, C, L]` to `[N, C, new_L]`.
 ///
-/// Supported modes: [`InterpolateMode::Nearest`].
-pub fn interpolate_1d<T: Float + coeus_core::FloatElement, B: coeus_core::Backend>(
+/// Supports every [`ResizeMode`].
+pub fn interpolate_1d<T: Float + FloatElement, B: coeus_core::Backend>(
     input: &Tensor<T, B>,
     new_l: usize,
-    mode: InterpolateMode,
+    mode: ResizeMode,
 ) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let shape = input.shape();
-    assert_eq!(shape.len(), 3, "interpolate_1d: expected [N,C,L] tensor");
-    let (n, c, l) = (shape[0], shape[1], shape[2]);
-
-    let in_cont = input.to_contiguous()?;
-    let in_s = in_cont.as_slice();
-
-    let out_numel = n * c * new_l;
-    let mut out = vec![T::ZERO; out_numel];
-
-    for bi in 0..n {
-        for ci in 0..c {
-            for xi in 0..new_l {
-                let val = match mode {
-                    InterpolateMode::Nearest => {
-                        let src_x = ((xi as f64 + 0.5) * l as f64 / new_l as f64) as usize;
-                        let src_x = src_x.min(l - 1);
-                        in_s[bi * c * l + ci * l + src_x]
-                    }
-                    InterpolateMode::Bilinear => {
-                        // 1-D bilinear = linear interpolation
-                        let frac = (xi as f64 + 0.5) * l as f64 / new_l as f64 - 0.5;
-                        let x0 = (frac.floor() as isize).max(0) as usize;
-                        let x1 = (x0 + 1).min(l - 1);
-                        let w1 = <T as coeus_core::FloatElement>::from_f64(frac - frac.floor());
-                        let w0 = <T as coeus_core::FloatElement>::from_f64(1.0) - w1;
-                        let v0 = in_s[bi * c * l + ci * l + x0];
-                        let v1 = in_s[bi * c * l + ci * l + x1];
-                        v0 * w0 + v1 * w1
-                    }
-                };
-                out[bi * c * new_l + ci * new_l + xi] = val;
-            }
-        }
-    }
-
-    Tensor::from_slice(vec![n, c, new_l], &out)
+    coeus_ops::resize_1d(input, new_l, mode)
 }
 
 /// Resize a 2-D spatial tensor `[N, C, H, W]` to `[N, C, new_H, new_W]`.
 ///
-/// Supported modes: [`InterpolateMode::Nearest`] and [`InterpolateMode::Bilinear`].
-pub fn interpolate_2d<T: Float + coeus_core::FloatElement, B: coeus_core::Backend>(
+/// Supports every [`ResizeMode`].
+pub fn interpolate_2d<T: Float + FloatElement, B: coeus_core::Backend>(
     input: &Tensor<T, B>,
     new_h: usize,
     new_w: usize,
-    mode: InterpolateMode,
+    mode: ResizeMode,
 ) -> Result<Tensor<T, B>, B::Error>
 where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    let shape = input.shape();
-    assert_eq!(shape.len(), 4, "interpolate_2d: expected [N,C,H,W] tensor");
-    let (n, c, h, w) = (shape[0], shape[1], shape[2], shape[3]);
-
-    let in_cont = input.to_contiguous()?;
-    let in_s = in_cont.as_slice();
-
-    let mut out = vec![T::ZERO; n * c * new_h * new_w];
-
-    for bi in 0..n {
-        for ci in 0..c {
-            for yi in 0..new_h {
-                for xi in 0..new_w {
-                    let val = match mode {
-                        InterpolateMode::Nearest => {
-                            let sy = ((yi as f64 + 0.5) * h as f64 / new_h as f64) as usize;
-                            let sx = ((xi as f64 + 0.5) * w as f64 / new_w as f64) as usize;
-                            let sy = sy.min(h - 1);
-                            let sx = sx.min(w - 1);
-                            in_s[bi * c * h * w + ci * h * w + sy * w + sx]
-                        }
-                        InterpolateMode::Bilinear => {
-                            // Half-pixel convention (PyTorch `align_corners=False`).
-                            // The source coordinate is clamped to `>= 0` BEFORE
-                            // taking the fractional weight: torch's
-                            // `area_pixel_compute_source_index` returns 0 for a
-                            // negative source, so the boundary output uses the
-                            // edge pixel with weight 1. Clamping only `y0`/`x0`
-                            // (while deriving the weight from the unclamped
-                            // coordinate) left `wy`/`wx` non-zero at the border
-                            // and blended the wrong neighbour.
-                            let fy = ((yi as f64 + 0.5) * h as f64 / new_h as f64 - 0.5).max(0.0);
-                            let fx = ((xi as f64 + 0.5) * w as f64 / new_w as f64 - 0.5).max(0.0);
-                            let y0 = fy.floor() as usize;
-                            let x0 = fx.floor() as usize;
-                            let y1 = (y0 + 1).min(h - 1);
-                            let x1 = (x0 + 1).min(w - 1);
-                            let wy = <T as coeus_core::FloatElement>::from_f64(fy - fy.floor());
-                            let wx = <T as coeus_core::FloatElement>::from_f64(fx - fx.floor());
-                            let wy0 = <T as coeus_core::FloatElement>::from_f64(1.0) - wy;
-                            let wx0 = <T as coeus_core::FloatElement>::from_f64(1.0) - wx;
-                            let base = bi * c * h * w + ci * h * w;
-                            in_s[base + y0 * w + x0] * wy0 * wx0
-                                + in_s[base + y0 * w + x1] * wy0 * wx
-                                + in_s[base + y1 * w + x0] * wy * wx0
-                                + in_s[base + y1 * w + x1] * wy * wx
-                        }
-                    };
-                    out[bi * c * new_h * new_w + ci * new_h * new_w + yi * new_w + xi] = val;
-                }
-            }
-        }
-    }
-
-    Tensor::from_slice(vec![n, c, new_h, new_w], &out)
+    coeus_ops::resize_2d(input, new_h, new_w, mode)
 }

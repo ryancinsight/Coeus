@@ -168,7 +168,7 @@ unsafe impl coeus_core::backend::Backend for CountingBackend {
 /// in this file rather than only to those whose bounds happen not to need it.
 impl coeus_ops::backend_ops::CpuBackend for CountingBackend {
     #[inline]
-    fn as_mut_slice_i64<'a>(
+    fn as_mut_index_buffer<'a>(
         &self,
         buf: &'a mut Self::DeviceBuffer<i64>,
     ) -> Result<&'a mut [i64], BackendError> {

@@ -54,6 +54,6 @@ pub use pool::{
     PyGlobalMaxPool2d, PyGlobalMaxPool3d, PyMaxPool1d, PyMaxPool2d, PyMaxPool3d,
 };
 pub use regularization::PyLocalResponseNorm;
-pub use rnn::{PyBidirectional, PyGRUCell, PyLSTMCell, PyRNNCell};
+pub use rnn::{PyBidirectional, PyGRUCell, PyGru, PyLSTMCell, PyRNNCell};
 pub use sequential::PySequential;
 pub use unfold_fold::{PyFold1d, PyFold2d, PyUnfold1d, PyUnfold2d};

@@ -163,6 +163,52 @@ impl Default for GradcheckConfig {
     }
 }
 
+/// A gradient Jacobian stored as one flat buffer plus per-input offsets.
+///
+/// The check compares two Jacobians element by element, so a `Vec<Vec<f64>>`
+/// per input buys no random access the comparison needs and costs one
+/// allocation plus one pointer hop per input. One allocation for the whole
+/// Jacobian keeps the values contiguous — the comparison then walks memory in
+/// order, and the offsets are the only per-input state.
+struct FlatJacobian {
+    /// Every component, concatenated in input order.
+    values: Vec<f64>,
+    /// `offsets[i]..offsets[i + 1]` is input `i`'s column; length is
+    /// `inputs + 1`.
+    offsets: Vec<usize>,
+}
+
+impl FlatJacobian {
+    /// Reserve one flat buffer sized by each input's element count.
+    fn with_capacity(numels: impl IntoIterator<Item = usize>) -> Self {
+        let mut offsets = vec![0usize];
+        for numel in numels {
+            let next = offsets[offsets.len() - 1] + numel;
+            offsets.push(next);
+        }
+        let total = offsets[offsets.len() - 1];
+        Self {
+            values: Vec::with_capacity(total),
+            offsets,
+        }
+    }
+
+    /// Input `index`'s column.
+    fn column(&self, index: usize) -> &[f64] {
+        &self.values[self.offsets[index]..self.offsets[index + 1]]
+    }
+
+    /// How many components input `index` contributes.
+    fn column_len(&self, index: usize) -> usize {
+        self.offsets[index + 1] - self.offsets[index]
+    }
+
+    /// Largest absolute component across every column.
+    fn max_abs(&self) -> f64 {
+        self.values.iter().fold(0.0f64, |acc, &v| acc.max(v.abs()))
+    }
+}
+
 /// Verify a backward pass against central finite differences of its forward.
 ///
 /// `loss_fn` receives one [`Var`] per entry of `inputs` and must return a
@@ -251,21 +297,20 @@ where
     loss.backward()
         .map_err(|error| GradcheckError::Backward(error.to_string()))?;
 
-    let analytic: Vec<Vec<f64>> = tracked
-        .iter()
-        .enumerate()
-        .map(|(index, var)| {
-            var.grad()
-                .map(|grad| {
-                    grad.as_slice()
-                        .iter()
-                        .copied()
-                        .map(NumericElement::to_f64)
-                        .collect()
-                })
-                .ok_or(GradcheckError::MissingGradient { input: index })
-        })
-        .collect::<Result<_, _>>()?;
+    let mut analytic = FlatJacobian::with_capacity(tracked.iter().map(|var| var.tensor.numel()));
+    for (index, var) in tracked.iter().enumerate() {
+        let grad = var
+            .grad()
+            .ok_or(GradcheckError::MissingGradient { input: index })?;
+        debug_assert_eq!(
+            analytic.column_len(index),
+            grad.as_slice().len(),
+            "gradient buffer and its input must agree in length"
+        );
+        analytic
+            .values
+            .extend(grad.as_slice().iter().copied().map(NumericElement::to_f64));
+    }
 
     // Absolute round-off of one finite-difference estimate scales with the loss
     // magnitude: ε·|f|/h = ε^(2/3)·|f|/s, and s = max(|x|,1) >= 1.
@@ -274,7 +319,7 @@ where
     let zero_floor = ZERO_FLOOR_SCALE * noise;
 
     // ── Numeric gradient: two untracked forwards per element ──
-    let mut numeric: Vec<Vec<f64>> = Vec::with_capacity(inputs.len());
+    let mut numeric = FlatJacobian::with_capacity(inputs.iter().map(|tensor| tensor.numel()));
     for (input_index, tensor) in inputs.iter().enumerate() {
         let perturber = Perturber {
             inputs,
@@ -284,7 +329,11 @@ where
             base: tensor.as_slice().to_vec(),
             shape: tensor.shape().to_vec(),
         };
-        let mut column = Vec::with_capacity(perturber.base.len());
+        debug_assert_eq!(
+            numeric.column_len(input_index),
+            perturber.base.len(),
+            "the finite-difference column must match its input's element count"
+        );
 
         for element in 0..perturber.base.len() {
             let center = perturber.base[element].to_f64();
@@ -306,20 +355,13 @@ where
             } else {
                 (plus.loss - minus.loss) / realized
             };
-            column.push(slope);
+            numeric.values.push(slope);
         }
-        numeric.push(column);
     }
 
     // ── Zero-gradient guard, then component comparison ──
-    let max_of = |values: &[Vec<f64>]| {
-        values
-            .iter()
-            .flat_map(|column| column.iter())
-            .fold(0.0f64, |acc, &v| acc.max(v.abs()))
-    };
-    let max_analytic = max_of(&analytic);
-    let max_numeric = max_of(&numeric);
+    let max_analytic = analytic.max_abs();
+    let max_numeric = numeric.max_abs();
     if max_analytic < zero_floor && max_numeric < zero_floor {
         return Err(GradcheckError::TriviallyZero {
             max_analytic,
@@ -328,9 +370,9 @@ where
         });
     }
 
-    for (input_index, (analytic_column, numeric_column)) in
-        analytic.iter().zip(numeric.iter()).enumerate()
-    {
+    for input_index in 0..inputs.len() {
+        let analytic_column = analytic.column(input_index);
+        let numeric_column = numeric.column(input_index);
         for (element, (&a, &n)) in analytic_column
             .iter()
             .zip(numeric_column.iter())

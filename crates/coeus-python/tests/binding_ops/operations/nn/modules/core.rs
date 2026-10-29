@@ -146,3 +146,65 @@ assert abs(out2.data[0] - 11.0) < 1e-5, f"state_dict roundtrip: {out2.data[0]}"
 "#,
     );
 }
+
+#[test]
+fn test_nn_dispatch_fits_a_small_thread_stack() {
+    run_script(
+        r#"
+import threading
+import pycoeus
+
+# Every const-generic entry point below dispatches through a macro whose arms
+# instantiate a different specialization. Built inline in one function, the arms'
+# temporaries sum into a single frame: the transformer decoder needed >8 MiB that
+# way and overflowed a default 1 MiB thread, killing the interpreter. Each entry
+# point is therefore built on a deliberately small thread, which is the only
+# stack whose size this test controls — the test harness thread is far larger and
+# would hide the regression.
+results = []
+
+
+def build_everything():
+    try:
+        x = pycoeus.Tensor([0.01 * (i + 1) for i in range(64)], [1, 1, 64])
+
+        mha = pycoeus.MultiHeadAttention(d_model=64, num_heads=32)
+        mha.forward(x)
+        mha.forward_cross(x, x, x)
+
+        enc_layer = pycoeus.TransformerEncoderLayer(d_model=64, d_ff=2, num_heads=32)
+        enc_layer.forward(x)
+        dec_layer = pycoeus.TransformerDecoderLayer(d_model=64, d_ff=2, num_heads=32)
+        dec_layer.forward(x, x)
+
+        enc = pycoeus.TransformerEncoder(
+            d_model=64, d_ff=2, num_heads=32, num_layers=12
+        )
+        enc.forward(x)
+        dec = pycoeus.TransformerDecoder(
+            d_model=64, d_ff=2, num_heads=32, num_layers=12
+        )
+        dec.forward(x, x)
+        model = pycoeus.Transformer(
+            d_model=64, d_ff=2, num_heads=32, num_enc_layers=12, num_dec_layers=12
+        )
+        model.forward(x, x)
+
+        # GroupNorm dispatches on its group count, the largest arm being 64.
+        gn = pycoeus.GroupNorm(num_groups=64, num_channels=64)
+        gn.forward(pycoeus.Tensor([0.01 * (i + 1) for i in range(64)], [1, 64, 1]))
+
+        results.append("ok")
+    except BaseException as error:  # noqa: BLE001 - surface any failure to the assert
+        results.append(f"{type(error).__name__}: {error}")
+
+
+threading.stack_size(1024 * 1024)
+worker = threading.Thread(target=build_everything)
+worker.start()
+worker.join()
+
+assert results == ["ok"], f"const-generic dispatch exceeded the 1 MiB stack: {results}"
+"#,
+    );
+}

@@ -42,7 +42,7 @@ def run_pytorch_comparison():
     x_pyc = pycoeus.Tensor(data_x, [128, 256], requires_grad=True)
     linear_pyc = pycoeus.Linear(256, 64)
     w_data = linear_pyc.weight.data
-    b_data = linear_pyc.bias.data if linear_pyc.bias else [0.0] * 64
+    b_data = linear_pyc.bias.data if linear_pyc.bias is not None else [0.0] * 64
 
     x_torch = torch.tensor(data_x, dtype=torch.float64).reshape(128, 256).requires_grad_(True)
     w_torch = torch.tensor(w_data, dtype=torch.float64).reshape(64, 256).requires_grad_(True)
@@ -69,7 +69,7 @@ def run_pytorch_comparison():
         assert abs(x_pyc.grad[i] - x_torch.grad.flatten()[i].item()) < 1e-5
     for i in range(len(linear_pyc.weight.grad)):
         assert abs(linear_pyc.weight.grad[i] - w_torch.grad.flatten()[i].item()) < 1e-5
-    if linear_pyc.bias:
+    if linear_pyc.bias is not None:
         for i in range(len(linear_pyc.bias.grad)):
             assert abs(linear_pyc.bias.grad[i] - b_torch.grad[i].item()) < 1e-5
 
@@ -196,7 +196,7 @@ def run_pytorch_comparison():
 
     conv1d_pyc = pycoeus.Conv1d(2, 3, 3, 1, 0, 1, True)
     conv1d_pyc.weight.data = w_conv1d_data
-    if conv1d_pyc.bias:
+    if conv1d_pyc.bias is not None:
         conv1d_pyc.bias.data = b_conv1d_data
     x_conv1d_pyc = pycoeus.Tensor(data_x_1d, [1, 2, 4], requires_grad=True)
     out_conv1d_pyc = conv1d_pyc.forward(x_conv1d_pyc)
@@ -218,7 +218,7 @@ def run_pytorch_comparison():
         assert abs(x_conv1d_pyc.grad[i] - x_conv1d_torch.grad.flatten()[i].item()) < 1e-4
     for i in range(len(conv1d_pyc.weight.grad)):
         assert abs(conv1d_pyc.weight.grad[i] - conv1d_torch.weight.grad.flatten()[i].item()) < 1e-4
-    if conv1d_pyc.bias:
+    if conv1d_pyc.bias is not None:
         for i in range(len(conv1d_pyc.bias.grad)):
             assert abs(conv1d_pyc.bias.grad[i] - conv1d_torch.bias.grad[i].item()) < 1e-4
 
@@ -239,7 +239,7 @@ def run_pytorch_comparison():
 
     conv2d_pyc = pycoeus.Conv2d(2, 2, 2, 1, 0, 1, True)
     conv2d_pyc.weight.data = w_conv2d_data
-    if conv2d_pyc.bias:
+    if conv2d_pyc.bias is not None:
         conv2d_pyc.bias.data = b_conv2d_data
     x_conv2d_pyc = pycoeus.Tensor(data_x_2d, [1, 2, 3, 3], requires_grad=True)
     out_conv2d_pyc = conv2d_pyc.forward(x_conv2d_pyc)
@@ -261,7 +261,7 @@ def run_pytorch_comparison():
         assert abs(x_conv2d_pyc.grad[i] - x_conv2d_torch.grad.flatten()[i].item()) < 1e-4
     for i in range(len(conv2d_pyc.weight.grad)):
         assert abs(conv2d_pyc.weight.grad[i] - conv2d_torch.weight.grad.flatten()[i].item()) < 1e-4
-    if conv2d_pyc.bias:
+    if conv2d_pyc.bias is not None:
         for i in range(len(conv2d_pyc.bias.grad)):
             assert abs(conv2d_pyc.bias.grad[i] - conv2d_torch.bias.grad[i].item()) < 1e-4
 
@@ -274,7 +274,7 @@ def run_pytorch_comparison():
 
     conv3d_pyc = pycoeus.Conv3d(1, 1, 2, 1, 0, 1, True)
     conv3d_pyc.weight.data = w_conv3d_data
-    if conv3d_pyc.bias:
+    if conv3d_pyc.bias is not None:
         conv3d_pyc.bias.data = b_conv3d_data
     x_conv3d_pyc = pycoeus.Tensor(data_x_3d, [1, 1, 2, 2, 2], requires_grad=True)
     out_conv3d_pyc = conv3d_pyc.forward(x_conv3d_pyc)
@@ -296,7 +296,7 @@ def run_pytorch_comparison():
         assert abs(x_conv3d_pyc.grad[i] - x_conv3d_torch.grad.flatten()[i].item()) < 1e-4
     for i in range(len(conv3d_pyc.weight.grad)):
         assert abs(conv3d_pyc.weight.grad[i] - conv3d_torch.weight.grad.flatten()[i].item()) < 1e-4
-    if conv3d_pyc.bias:
+    if conv3d_pyc.bias is not None:
         for i in range(len(conv3d_pyc.bias.grad)):
             assert abs(conv3d_pyc.bias.grad[i] - conv3d_torch.bias.grad[i].item()) < 1e-4
 
@@ -428,7 +428,7 @@ def run_pytorch_comparison():
     for _ in range(iters):
         x_pyc.zero_grad()
         linear_pyc.weight.zero_grad()
-        if linear_pyc.bias:
+        if linear_pyc.bias is not None:
             linear_pyc.bias.zero_grad()
         out = linear_pyc.forward(x_pyc)
         act = pycoeus.relu(out)
@@ -457,7 +457,7 @@ def run_jax_comparison():
     x_pyc = pycoeus.Tensor(data_x, [128, 256])
     linear_pyc = pycoeus.Linear(256, 64)
     w_data = linear_pyc.weight.data
-    b_data = linear_pyc.bias.data if linear_pyc.bias else [0.0] * 64
+    b_data = linear_pyc.bias.data if linear_pyc.bias is not None else [0.0] * 64
 
     # JAX inputs
     x_jax = jnp.array(data_x).reshape(128, 256)
@@ -503,7 +503,7 @@ def run_mlx_comparison():
     x_pyc = pycoeus.Tensor(data_x, [128, 256])
     linear_pyc = pycoeus.Linear(256, 64)
     w_data = linear_pyc.weight.data
-    b_data = linear_pyc.bias.data if linear_pyc.bias else [0.0] * 64
+    b_data = linear_pyc.bias.data if linear_pyc.bias is not None else [0.0] * 64
 
     # MLX inputs
     x_mlx = mx.array(data_x).reshape(128, 256)
