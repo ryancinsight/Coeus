@@ -4,6 +4,18 @@ use super::PyTensor;
 use crate::error::map_backend_error;
 use pyo3::prelude::*;
 
+/// Normalize a Python index against `len`, refusing one outside the axis.
+///
+/// Python counts from `-len` (that element) through `len - 1`, so a negative
+/// index wraps once and any other out-of-range value gets `None` rather than a
+/// wrapped `usize`.
+fn resolve_index(index: i64, len: usize) -> Option<usize> {
+    let signed_len = i64::try_from(len).ok()?;
+    let normalized = if index < 0 { signed_len + index } else { index };
+    let resolved = usize::try_from(normalized).ok()?;
+    (resolved < len).then_some(resolved)
+}
+
 #[pymethods]
 impl PyTensor {
     fn __getitem__(&self, index: &pyo3::Bound<'_, pyo3::PyAny>, py: Python<'_>) -> PyResult<Self> {
@@ -15,14 +27,12 @@ impl PyTensor {
         }
 
         if let Ok(i) = index.extract::<i64>() {
-            let n = shape[0] as i64;
-            let normalized = if i < 0 { n + i } else { i };
-            if !(0..n).contains(&normalized) {
+            let Some(idx) = resolve_index(i, shape[0]) else {
                 return Err(pyo3::exceptions::PyIndexError::new_err(format!(
-                    "__getitem__: index {i} out of range for dim 0 size {n}"
+                    "__getitem__: index {i} out of range for dim 0 size {}",
+                    shape[0]
                 )));
-            }
-            let idx = normalized as usize;
+            };
             let ranges: Vec<(usize, usize)> = shape
                 .iter()
                 .enumerate()
@@ -49,8 +59,14 @@ impl PyTensor {
                     indices.step
                 )));
             }
-            let start = indices.start.max(0) as usize;
-            let stop = (indices.stop.max(0) as usize).min(n);
+            // `PySlice::indices` reports bounds within `[-slice_len, slice_len]`,
+            // and `slice_len` came from the axis length, so a non-negative bound
+            // fits `usize` and needs no further check.
+            let start = usize::try_from(indices.start.max(0))
+                .expect("invariant: a non-negative slice bound fits usize");
+            let stop = usize::try_from(indices.stop.max(0))
+                .expect("invariant: a non-negative slice bound fits usize")
+                .min(n);
             if start >= stop {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!(
                     "__getitem__: empty slice [{start}:{stop}]"
@@ -86,13 +102,12 @@ impl PyTensor {
         let n = shape[0];
 
         let idx = if let Ok(i) = index.extract::<i64>() {
-            let normalized = if i < 0 { n as i64 + i } else { i };
-            if normalized < 0 || normalized as usize >= n {
+            let Some(idx) = resolve_index(i, n) else {
                 return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                     "__setitem__: index {i} out of range for dim 0 size {n}"
                 )));
-            }
-            normalized as usize
+            };
+            idx
         } else {
             return Err(pyo3::exceptions::PyTypeError::new_err(
                 "__setitem__: index must be an int",

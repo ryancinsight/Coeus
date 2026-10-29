@@ -36,6 +36,7 @@
 
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement};
 use coeus_tensor::Tensor;
+use eunomia::convert::IntegerTarget;
 
 /// Cubic convolution coefficient `a` used by torch's bicubic resize.
 const CUBIC_COEFFICIENT: f64 = -0.75;
@@ -101,14 +102,15 @@ impl TapTable {
     ) {
         self.index.clear();
         self.weight.clear();
-        let half_pixel = (out_index as f64 + 0.5) * scale;
+        let half_pixel = (f64::from_count(out_index) + 0.5) * scale;
         match mode {
             ResizeMode::Nearest => {
                 // `floor(i * scale)` — no `+ 0.5`. torch's `nearest` kernel
                 // copies the cell the output cell *starts* in, so the two
                 // agree on every integer ratio and diverge as soon as the
                 // ratio is fractional.
-                let source = ((out_index as f64 * scale) as usize).min(in_len - 1);
+                let source =
+                    usize::from_truncated(f64::from_count(out_index) * scale).min(in_len - 1);
                 self.index.push(source);
                 self.weight.push(1.0);
             }
@@ -119,7 +121,7 @@ impl TapTable {
                 // weight 1 instead of blending against it fractionally.
                 let source = (half_pixel - 0.5).max(0.0);
                 let lower = source.floor();
-                let lower_index = lower as usize;
+                let lower_index = usize::from_truncated(lower);
                 let upper_weight = source - lower;
                 self.index.push(lower_index);
                 self.weight.push(1.0 - upper_weight);
@@ -132,17 +134,23 @@ impl TapTable {
                 let source = half_pixel - 0.5;
                 let lower = source.floor();
                 let fraction = source - lower;
-                for tap in 0..4 {
-                    let index = lower as isize - 1 + tap as isize;
-                    self.index
-                        .push(index.clamp(0, in_len as isize - 1) as usize);
-                    self.weight.push(cubic(fraction + 1.0 - tap as f64));
+                let lower_index = isize::from_truncated(lower);
+                let last_index =
+                    isize::try_from(in_len).expect("invariant: an axis length fits isize") - 1;
+                for tap in 0..4_usize {
+                    let offset = isize::try_from(tap).expect("invariant: four taps fit isize");
+                    let index = (lower_index - 1 + offset).clamp(0, last_index);
+                    self.index.push(
+                        usize::try_from(index).expect("invariant: a clamped index is non-negative"),
+                    );
+                    self.weight
+                        .push(cubic(fraction + 1.0 - f64::from_count(tap)));
                 }
             }
             ResizeMode::Area => {
                 let start = out_index * in_len / out_len;
                 let end = ((out_index + 1) * in_len).div_ceil(out_len);
-                let weight = 1.0 / (end - start) as f64;
+                let weight = 1.0 / f64::from_count(end - start);
                 for index in start..end {
                     self.index.push(index);
                     self.weight.push(weight);
@@ -173,7 +181,7 @@ where
 {
     let shape = input.shape();
     assert_eq!(shape.len(), 3, "resize_1d: expected [N,C,L] tensor");
-    let scale = shape[2] as f64 / new_l as f64;
+    let scale = f64::from_count(shape[2]) / f64::from_count(new_l);
     resize_1d_with_scale(input, new_l, scale, mode)
 }
 
@@ -255,8 +263,8 @@ where
         input,
         new_h,
         new_w,
-        h as f64 / new_h as f64,
-        w as f64 / new_w as f64,
+        f64::from_count(h) / f64::from_count(new_h),
+        f64::from_count(w) / f64::from_count(new_w),
         mode,
     )
 }
@@ -345,7 +353,7 @@ where
         3,
         "resize_1d_backward: expected [N,C,L] input shape"
     );
-    let scale = input_shape[2] as f64 / new_l as f64;
+    let scale = f64::from_count(input_shape[2]) / f64::from_count(new_l);
     resize_1d_backward_with_scale(input_shape, new_l, scale, mode, grad_output)
 }
 
@@ -425,8 +433,8 @@ where
         input_shape,
         new_h,
         new_w,
-        h as f64 / new_h as f64,
-        w as f64 / new_w as f64,
+        f64::from_count(h) / f64::from_count(new_h),
+        f64::from_count(w) / f64::from_count(new_w),
         mode,
         grad_output,
     )

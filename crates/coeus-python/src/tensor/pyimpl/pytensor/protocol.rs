@@ -2,6 +2,7 @@
 
 use super::PyTensor;
 use crate::error::map_backend_error;
+use eunomia::{convert::IntegerTarget, FloatElement};
 use pyo3::prelude::*;
 
 #[pymethods]
@@ -22,7 +23,7 @@ impl PyTensor {
             let formatted: Vec<String> = vals
                 .iter()
                 .map(|&v| {
-                    if v == (v as i64) as f64 && v.abs() < 1e6 {
+                    if v == f64::from_integer(i64::from_truncated(v)) && v.abs() < 1e6 {
                         format!("{:.1}", v)
                     } else {
                         format!("{:.4}", v)
@@ -89,7 +90,7 @@ impl PyTensor {
     }
 
     fn __int__(&self) -> PyResult<i64> {
-        self.item().map(|v| v as i64)
+        self.item().map(i64::from_truncated)
     }
 
     fn __len__(&self) -> PyResult<usize> {

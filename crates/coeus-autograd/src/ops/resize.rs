@@ -137,7 +137,12 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let l = input.tensor.shape()[2];
-    resize_1d_with_scale(input, new_l, l as f64 / new_l as f64, mode)
+    resize_1d_with_scale(
+        input,
+        new_l,
+        f64::from_count(l) / f64::from_count(new_l),
+        mode,
+    )
 }
 
 /// [`resize_1d`] with an explicit sampling step of `scale` source units per
@@ -195,8 +200,8 @@ where
         input,
         new_h,
         new_w,
-        shape[2] as f64 / new_h as f64,
-        shape[3] as f64 / new_w as f64,
+        f64::from_count(shape[2]) / f64::from_count(new_h),
+        f64::from_count(shape[3]) / f64::from_count(new_w),
         mode,
     )
 }

@@ -38,17 +38,32 @@ impl PyTensor {
 
     #[pyo3(signature = (start_dim = 0, end_dim = -1))]
     fn flatten(&self, start_dim: i64, end_dim: i64, py: Python<'_>) -> PyResult<Self> {
-        let ndim = self.inner.tensor.ndim() as i64;
-        let start = if start_dim < 0 {
+        let rank = self.inner.tensor.ndim();
+        let ndim = i64::try_from(rank).expect("invariant: a tensor rank fits i64");
+        let start_dim = if start_dim < 0 {
             (ndim + start_dim).max(0)
         } else {
             start_dim
-        } as usize;
-        let end = if end_dim < 0 {
+        };
+        let end_dim = if end_dim < 0 {
             (ndim + end_dim).max(0)
         } else {
             end_dim.min(ndim - 1)
-        } as usize;
+        };
+        let axes = |dim: i64| {
+            usize::try_from(dim).map_err(|_| {
+                pyo3::exceptions::PyValueError::new_err(format!(
+                    "flatten: axis {dim} is out of range for a {rank}-D tensor"
+                ))
+            })
+        };
+        let start = axes(start_dim)?;
+        let end = axes(end_dim)?;
+        if start > end || end >= rank {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "flatten: dim range {start}..={end} is empty for a {rank}-D tensor"
+            )));
+        }
         let shape = self.inner.tensor.shape();
         let mut new_shape: Vec<usize> = shape[..start].to_vec();
         new_shape.push(shape[start..=end].iter().product());

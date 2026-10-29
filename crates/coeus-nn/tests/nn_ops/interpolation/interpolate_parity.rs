@@ -13,7 +13,8 @@
 //! SequentialBackend and MoiraiBackend must return bitwise-identical results.
 
 use coeus_core::{
-    Backend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend, SequentialBackend,
+    Backend, CpuAddressableStorage, CpuAddressableStorageMut, FloatElement, MoiraiBackend,
+    SequentialBackend,
 };
 use coeus_nn::interpolate::{interpolate_1d, interpolate_2d, ResizeMode};
 use coeus_tensor::Tensor;
@@ -122,7 +123,7 @@ where
 
     // 2-D nearest with a non-integer ratio: 5×5 integers 0..24 → [2,2].
     // floor(yi*5/2): 0, 2 — the same for x.
-    let data6: Vec<f64> = (0u64..25).map(|i| i as f64).collect();
+    let data6: Vec<f64> = (0usize..25).map(f64::from_count).collect();
     let inp8 = t2d(&data6, 5, 5, backend);
     let out8 = interpolate_2d(&inp8, 2, 2, ResizeMode::Nearest)
         .expect("invariant: test operation succeeds");

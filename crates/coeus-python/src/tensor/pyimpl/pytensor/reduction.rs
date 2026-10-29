@@ -22,7 +22,12 @@ impl PyTensor {
     }
 
     fn softmax(&self, dim: i64, py: Python<'_>) -> PyResult<Self> {
-        self.unary_dispatch(py, |x| coeus_autograd::softmax(x, dim as isize))
+        let axis = isize::try_from(dim).map_err(|_| {
+            pyo3::exceptions::PyOverflowError::new_err(format!(
+                "softmax: dim {dim} exceeds the axis range"
+            ))
+        })?;
+        self.unary_dispatch(py, |x| coeus_autograd::softmax(x, axis))
     }
 
     fn log_softmax(&self, dim: usize, py: Python<'_>) -> PyResult<Self> {

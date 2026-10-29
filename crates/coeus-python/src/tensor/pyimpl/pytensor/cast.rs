@@ -3,6 +3,7 @@
 use super::PyTensor;
 use crate::error::map_backend_error;
 use coeus_autograd::Var;
+use eunomia::{convert::IntegerTarget, FloatElement};
 use pyo3::prelude::*;
 
 #[pymethods]
@@ -24,7 +25,7 @@ impl PyTensor {
         let data: Vec<f64> = contiguous
             .as_slice()
             .iter()
-            .map(|&v| (v as i64) as f64)
+            .map(|&v| f64::from_integer(i64::from_truncated(v)))
             .collect();
         let shape = self.inner.tensor.shape().to_vec();
         let t = coeus_tensor::Tensor::from_slice(shape, &data).map_err(map_backend_error)?;

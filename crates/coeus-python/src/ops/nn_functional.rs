@@ -6,6 +6,7 @@ use crate::{
     error::{map_backend_error, map_module_error},
     tensor::PyTensor,
 };
+use eunomia::{convert::IntegerTarget, FloatElement};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -150,7 +151,7 @@ pub fn interpolate(
             let scales: Vec<f64> = s
                 .iter()
                 .zip(in_spatial)
-                .map(|(&out, &input)| input as f64 / out as f64)
+                .map(|(&out, &input)| f64::from_count(input) / f64::from_count(out))
                 .collect();
             (s.clone(), scales)
         }
@@ -165,7 +166,7 @@ pub fn interpolate(
                 // PyTorch truncates: `int(math.floor(input * scale_factor))`.
                 // A fractional factor must round *down* to match it —
                 // `5 * 1.5` gives 7 output cells, not 8.
-                .map(|&d| (d as f64 * sf).floor() as usize)
+                .map(|&d| usize::from_floor(f64::from_count(d) * sf))
                 .collect();
             if out.contains(&0) {
                 return Err(PyValueError::new_err(format!(
