@@ -53,7 +53,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 [[package]]
 name = "aequitas"
 version = "0.3.1"
-source = "git+https://github.com/ryancinsight/aequitas#38c9c85215a42746d2f60860a5fdc94aa3b6c8c6"
+source = "git+https://github.com/ryancinsight/aequitas#9dc2a9aaca1c57353bbf8cbddf662ece60f81117"
 dependencies = [
  "eunomia",
  "typenum",
@@ -2566,7 +2566,7 @@ dependencies = [
 [[package]]
 name = "themis-topology"
 version = "0.11.3"
-source = "git+https://github.com/ryancinsight/themis.git#a6d0620b99d5d5518ed4e7225aa47eac66e5add2"
+source = "git+https://github.com/ryancinsight/themis.git#5b9141b0442a8b66939556b1ef369c296dcec2bd"
 dependencies = [
  "libc",
  "melinoe",
