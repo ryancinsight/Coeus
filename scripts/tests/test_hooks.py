@@ -23,6 +23,7 @@ judged by the checker's own tests (atlas `scripts/tests/test_lockfile_*.py`).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -30,6 +31,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.request
 from pathlib import Path
 
 
@@ -46,6 +48,12 @@ _HOOK_COMMANDS = (
 REPOSITORY = Path(__file__).resolve().parents[2]
 HOOKS = ("pre-commit", "pre-push")
 ZERO = "0" * 40
+ATLAS_RUNTIME_REVISION = "d59e295ac41dffc34084126583b259dfa49a3117"
+ATLAS_RUNTIME_FILES = {
+    "process_tree.py": "f03b2d94caced534ce6dab89b040a9efb4c89d87",
+    "windows_process.py": "3072bd44412a463ed5eb5a11f3cab5f7170ddcd3",
+    "darwin_process.py": "60f0ff8f7dedbdfc22d9d5f9fcb0d601322434f1",
+}
 
 # A first-party git source in the lock, and a manifest declaring the matching
 # dependency: the fixture member is the shape the checker's flattened-lock
@@ -60,8 +68,9 @@ MANIFEST = (
 )
 
 # The fixture stack's `scripts/lockfile.py`. It appends one JSON record per call
-# (arguments, working directory, the `Cargo.lock` beside a `--manifest-path`,
-# and the skip variable it inherited) to `LOCKFILE_CALLS_LOG`, then answers by
+# (arguments, working directory, every lock in a `--check-tree`, its immutable
+# source, and the skip variable it inherited) to `LOCKFILE_CALLS_LOG`, then
+# answers by
 # `LOCKFILE_STUB`: `pass` (default), `fail`, or `cargo` -- `--check` then runs
 # real `cargo metadata --locked` on the manifest and forwards its stderr and
 # status, as the stack checker's resolution step does, so a stale lock is
@@ -72,15 +81,30 @@ import json, os, pathlib, subprocess, sys
 arguments = sys.argv[1:]
 lock = None
 manifest = None
-if "--manifest-path" in arguments:
+locks = {}
+tree_source = None
+if "--check-tree" in arguments:
+    tree = pathlib.Path(arguments[arguments.index("--check-tree") + 1])
+    manifest = tree / "Cargo.toml"
+    locks = {
+        path.relative_to(tree).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(tree.rglob("Cargo.lock"))
+    }
+    lock = locks.get("Cargo.lock")
+elif "--manifest-path" in arguments:
     manifest = pathlib.Path(arguments[arguments.index("--manifest-path") + 1])
     beside = manifest.with_name("Cargo.lock")
     lock = beside.read_text(encoding="utf-8") if beside.is_file() else None
+if "--tree-source" in arguments:
+    source_index = arguments.index("--tree-source")
+    tree_source = arguments[source_index + 1:source_index + 3]
 record = {
     "arguments": arguments,
     "cwd": os.getcwd(),
     "lock": lock,
+    "locks": locks,
     "skip": os.environ.get("SKIP_LOCKFILE_CHECK"),
+    "tree_source": tree_source,
 }
 with open(os.environ["LOCKFILE_CALLS_LOG"], "a", encoding="utf-8") as log:
     log.write(json.dumps(record) + "\\n")
@@ -124,6 +148,72 @@ class HookInstallationTests(unittest.TestCase):
 
 
 class LockHookTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        configured = os.environ.get("ATLAS_HOOK_RUNTIME")
+        if configured:
+            cls.runtime = Path(configured).resolve()
+        else:
+            directory = tempfile.TemporaryDirectory(prefix="coeus-hook-runtime-")
+            cls.addClassCleanup(directory.cleanup)
+            cls.runtime = Path(directory.name)
+            base = (
+                "https://api.github.com/repos/ryancinsight/atlas/"
+                "contents/scripts"
+            )
+            for name in ATLAS_RUNTIME_FILES:
+                request = urllib.request.Request(
+                    f"{base}/{name}?ref={ATLAS_RUNTIME_REVISION}",
+                    headers={
+                        "Accept": "application/vnd.github.raw+json",
+                        "User-Agent": "coeus-hook-tests",
+                    },
+                )
+                with urllib.request.urlopen(
+                    request, timeout=30
+                ) as response:
+                    (cls.runtime / name).write_bytes(response.read())
+        missing = [
+            name
+            for name in ATLAS_RUNTIME_FILES
+            if not (cls.runtime / name).is_file()
+        ]
+        if missing:
+            raise RuntimeError(f"Atlas hook runtime is missing {', '.join(missing)}")
+        for name, expected in ATLAS_RUNTIME_FILES.items():
+            content = (cls.runtime / name).read_bytes().replace(b"\r\n", b"\n")
+            header = f"blob {len(content)}\0".encode("ascii")
+            observed = hashlib.sha1(
+                header + content, usedforsecurity=False
+            ).hexdigest()
+            if observed != expected:
+                raise RuntimeError(
+                    f"Atlas hook runtime {name} is {observed}, expected {expected}"
+                )
+        probe_code = (
+            "import sys;"
+            f"sys.path.insert(0, {str(cls.runtime)!r});"
+            "import process_tree;"
+            "result=process_tree.run("
+            "[sys.executable,'-c',\"print('coeus-runtime')\"],timeout=30);"
+            "sys.stdout.buffer.write(result.stdout or b'');"
+            "sys.stderr.buffer.write(result.stderr or b'');"
+            "raise SystemExit(result.returncode)"
+        )
+        probe = subprocess.run(
+            [sys.executable, "-I", "-c", probe_code],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+        output = probe.stdout.replace(b"\r\n", b"\n")
+        if probe.returncode != 0 or output != b"coeus-runtime\n":
+            raise RuntimeError(
+                "Atlas process-tree runtime probe failed: "
+                f"exit {probe.returncode}, stdout {probe.stdout!r}, "
+                f"stderr {probe.stderr!r}"
+            )
+
     def setUp(self) -> None:
         # The synthetic stack must not sit inside the Coeus repository: the
         # hooks reject a candidate stack nested in another repository because
@@ -228,6 +318,10 @@ class LockHookTests(unittest.TestCase):
             (self.stack / "scripts" / "lockfile.py").write_text(
                 checker, encoding="utf-8", newline="\n"
             )
+            for name in ATLAS_RUNTIME_FILES:
+                shutil.copyfile(
+                    self.runtime / name, self.stack / "scripts" / name
+                )
         self.run_git(self.stack, "add", ".gitmodules", "scripts")
         self.run_git(self.stack, "commit", "-qm", "Publish the stack scripts")
         head = self.run_git(self.stack, "rev-parse", "HEAD").stdout.strip()
@@ -296,6 +390,21 @@ class LockHookTests(unittest.TestCase):
         lines = self.calls_log.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines]
 
+    def assert_pushed_tree(self, call: dict, member: Path | None = None) -> None:
+        member = self.member if member is None else member
+        arguments = call["arguments"]
+        self.assertEqual(arguments[:2], ["--check", "--check-tree"])
+        exported = Path(arguments[2])
+        self.assertEqual(Path(call["cwd"]).resolve(), exported.resolve())
+        self.assertFalse(
+            exported.resolve().is_relative_to(member.resolve()),
+            "the checked tree is the export's, never the checkout's",
+        )
+        source_repository, source_commit = call["tree_source"]
+        self.assertEqual(Path(source_repository).resolve(), member.resolve())
+        expected = self.run_git(member, "rev-parse", "HEAD").stdout.strip()
+        self.assertEqual(source_commit, expected)
+
     def test_pre_commit_runs_the_stack_checker_on_the_index(self) -> None:
         self.publish_stack(STACK_CHECKER)
         self.make_member(self.member)
@@ -325,6 +434,10 @@ class LockHookTests(unittest.TestCase):
     def test_pre_push_checks_an_export_of_the_pushed_revision(self) -> None:
         self.publish_stack(STACK_CHECKER)
         self.make_member(self.member)
+        nested = self.member / "nested"
+        nested.mkdir()
+        (nested / "Cargo.lock").write_text("# nested lock\n", encoding="utf-8")
+        self.commit_all(self.member, "Add a nested lock owner")
         # The working lock is not the push: a peer's tree, or a cargo run inside
         # a stack, leaves it flattened while the pushed commit stays sound.
         (self.member / "Cargo.lock").write_text("# flattened\n", encoding="utf-8")
@@ -333,15 +446,12 @@ class LockHookTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         (call,) = self.calls()
-        self.assertEqual(call["arguments"][:2], ["--check", "--manifest-path"])
-        manifest = Path(call["arguments"][2])
-        self.assertEqual(manifest.name, "Cargo.toml")
-        self.assertEqual(Path(call["cwd"]).resolve(), manifest.parent.resolve())
-        self.assertFalse(
-            manifest.resolve().is_relative_to(self.member.resolve()),
-            "the manifest is the export's, never the checkout's",
-        )
+        self.assert_pushed_tree(call)
         self.assertEqual(call["lock"], LOCK, "the checker read the pushed lock")
+        self.assertEqual(
+            call["locks"],
+            {"Cargo.lock": LOCK, "nested/Cargo.lock": "# nested lock\n"},
+        )
         self.assertEqual(
             (self.member / "Cargo.lock").read_text(encoding="utf-8"), "# flattened\n"
         )
@@ -528,7 +638,7 @@ class LockHookTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.member / "Cargo.lock").read_bytes(), before)
         pushed = self.calls()[-1]
-        self.assertEqual(pushed["arguments"][:2], ["--check", "--manifest-path"])
+        self.assert_pushed_tree(pushed)
         self.assertEqual(pushed["lock"].encode("utf-8"), before)
 
         # A manifest/lock mismatch must be part of the checked revision: the
