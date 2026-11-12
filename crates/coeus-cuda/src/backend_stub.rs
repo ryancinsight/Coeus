@@ -97,7 +97,10 @@ unsafe impl ComputeBackend for CudaBackend {
     }
 }
 
-// SAFETY: the feature-disabled backend delegates to synchronous CPU dispatch.
+// SAFETY: the feature-disabled backend delegates to the sequential CPU
+// dispatch, which calls the closure exactly once for each index in
+// `[start, end)` and for no other index, and returns only after every call
+// has completed.
 unsafe impl Backend for CudaBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, operation: F)

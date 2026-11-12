@@ -135,7 +135,9 @@ unsafe impl ComputeBackend for MoiraiBackend {
     }
 }
 
-// SAFETY: `for_each_index_with` joins all policy tasks before returning.
+// SAFETY: `for_each_index_with` calls the closure exactly once for each
+// offset in `0..len` and joins every task before returning, so `f` runs
+// exactly once for each index in `[start, end)` and for no other index.
 unsafe impl Backend for MoiraiBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)
