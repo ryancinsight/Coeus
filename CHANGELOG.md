@@ -4,14 +4,15 @@
 
 ### Changed
 
-- [patch] Advance the provider cohort: Eunomia 0.12, Leto 0.48, and
-  Leto-ops 0.48. The lock is regenerated outside the Atlas dependency
-  overlay and resolves Eunomia 0.12.0, Apollo 0.29.5, Aequitas 0.3.2,
-  Hephaestus 0.28, Moirai 0.11.3, and Hermes 0.9.2 at their fetched
-  default heads. The Leto and Leto-ops requirements widen to
-  `>=0.47.1, <0.49.0` and `>=0.47.0, <0.49.0` so the 0.48 line resolves.
-  No Coeus computation, signature, or numeric behavior changes with the
-  provider move.
+- [patch] Advance the provider cohort: Eunomia 0.12, Leto 0.48, Leto-ops
+  0.48, and Moirai 0.11.4. The lock is regenerated outside the Atlas
+  dependency overlay and resolves Eunomia 0.12.0, Apollo 0.29.5, Aequitas
+  0.3.2, Hephaestus 0.28.0, Hermes 0.9.2, Melinoe 0.10.0,
+  Mnemosyne-memory 0.10.1, Moirai 0.11.4, and Themis 0.11.5 at their
+  fetched default heads, one source per provider repository. The Leto and
+  Leto-ops requirements widen to `>=0.47.1, <0.49.0` and
+  `>=0.47.0, <0.49.0` so the 0.48 line resolves. No Coeus computation,
+  signature, or numeric behavior changes with the provider move.
 - [patch] Count conversions state their intent: loss, normalization,
   pooling, and variance denominators convert through
   `FloatElement::from_count`/`from_count_reciprocal` and the top-k index
