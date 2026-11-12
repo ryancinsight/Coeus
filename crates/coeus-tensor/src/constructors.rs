@@ -110,6 +110,12 @@ where
     /// Computes natively in `T` (no `f64` widen-compute-narrow detour); valid
     /// for any [`Scalar`], including integer types (exact-division steps).
     ///
+    /// The first sample is `start` and the last is exactly `end`; interior
+    /// samples advance by the uniform step `(end - start) / (n - 1)`. For
+    /// integer elements the step truncates when the division is inexact, and
+    /// the final sample is still exactly `end`, so the sequence reaches the
+    /// inclusive bound.
+    ///
     /// # Errors
     ///
     /// Returns `B::Error` when backend allocation fails, or when `T` is an
@@ -124,10 +130,15 @@ where
         } else {
             T::ZERO
         };
-        let values = (0..n)
+        let mut values = (0..n)
             .map(|index| T::try_from_count(index).map(|count| start + step * count))
             .collect::<Result<Vec<T>, _>>()
             .map_err(|error| generation_error::<B>("Tensor::linspace_on", error))?;
+        if n > 1 {
+            if let Some(last) = values.last_mut() {
+                *last = end;
+            }
+        }
         Self::from_slice_on([n], &values, backend)
     }
 }
@@ -151,11 +162,14 @@ where
     /// Logspace: `n` values from `base^start` to `base^end` (inclusive)
     /// on the given backend.
     ///
-    /// Computes natively in `T` (no `f64` widen-compute-narrow detour).
+    /// Computes natively in `T` (no `f64` widen-compute-narrow detour). The
+    /// first sample is `base^start` and the last is exactly `base^end`, both
+    /// evaluated from the endpoint exponents rather than from the
+    /// interpolated ones.
     #[inline]
     pub fn logspace_on(start: T, end: T, n: usize, base: T, backend: &B) -> Result<Self, B::Error> {
         let n_minus_1 = T::from_count(if n > 1 { n - 1 } else { 1 });
-        let values = coeus_cpu::from_shape_fn_values(&[n], |index| {
+        let mut values = coeus_cpu::from_shape_fn_values(&[n], |index| {
             let exp = if n > 1 {
                 start + (end - start) * T::from_count(index[0]) / n_minus_1
             } else {
@@ -164,6 +178,11 @@ where
             Float::powf(base, exp)
         })
         .map_err(|error| generation_error::<B>("Tensor::logspace_on", error))?;
+        if n > 1 {
+            if let Some(last) = values.last_mut() {
+                *last = Float::powf(base, end);
+            }
+        }
         Self::from_slice_on([n], &values, backend)
     }
 
@@ -171,7 +190,9 @@ where
     /// on the given backend.
     ///
     /// Requires non-zero endpoints with the same sign. Computes natively in
-    /// `T` (no `f64` widen-compute-narrow detour).
+    /// `T` (no `f64` widen-compute-narrow detour). The first sample is
+    /// `start` and the last is exactly `end`; interior samples advance by
+    /// the uniform ratio `(end / start)^(1 / (n - 1))`.
     #[inline]
     pub fn geomspace_on(start: T, end: T, n: usize, backend: &B) -> Result<Self, B::Error> {
         let zero = T::ZERO;
@@ -192,7 +213,7 @@ where
         } else {
             one
         };
-        let values = coeus_cpu::from_shape_fn_values(&[n], |index| {
+        let mut values = coeus_cpu::from_shape_fn_values(&[n], |index| {
             if n > 1 {
                 sign * start_abs * Float::powf(ratio, T::from_count(index[0]))
             } else {
@@ -200,6 +221,11 @@ where
             }
         })
         .map_err(|error| generation_error::<B>("Tensor::geomspace_on", error))?;
+        if n > 1 {
+            if let Some(last) = values.last_mut() {
+                *last = end;
+            }
+        }
         Self::from_slice_on([n], &values, backend)
     }
 }

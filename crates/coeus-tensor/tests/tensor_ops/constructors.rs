@@ -2,6 +2,8 @@
 
 #[path = "constructors/arange_leto_diff.rs"]
 mod arange_leto_diff;
+#[path = "constructors/endpoint_contract.rs"]
+mod endpoint_contract;
 #[path = "constructors/from_fn_leto_diff.rs"]
 mod from_fn_leto_diff;
 #[path = "constructors/identity_leto_diff.rs"]
