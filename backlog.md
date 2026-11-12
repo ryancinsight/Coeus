@@ -149,15 +149,6 @@ verification, tightening, feature}.
 - Next step: draft the batched Jacobian/normal-equations layout (SoA over the batch axis) and its `Scalar`-generic contract before implementation.
 - Links: meta ATLAS-COEUS-NLLS-004.
 
-<a id="coeus-linspace-fake-generic"></a>
-## COEUS-LINSPACE-FAKE-GENERIC — Native-T linspace/logspace/geomspace
-
-- Status: todo; priority: correctness; [patch]; owner: unclaimed.
-- Outcome: `linspace`/`logspace`/`geomspace` compute in `T: Scalar` natively; no `to_f64`/`from_f64` widen-compute-narrow.
-- Scope: `coeus-ops/src/constructors.rs:20-118`, `coeus-tensor/src/constructors.rs:84-155` (duplicated implementation — consolidate to one).
-- Acceptance: `cargo asm`/source review shows no `f64` intermediate for `f32` instantiation; value-semantic test against analytical endpoints/ratios per dtype.
-- Next step: derive the native-T step/ratio formula, implement once, delete the duplicate.
-
 <a id="coeus-expect-swallowed-results"></a>
 ## COEUS-EXPECT-SWALLOWED-RESULTS — Propagate typed errors instead of `.expect()`
 

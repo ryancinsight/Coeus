@@ -25,6 +25,11 @@ let lin = Tensor::<f32>::linspace(0.0, 1.0, 101)?; // 101 evenly spaced values
 let rng = Tensor::<f32>::arange(10)?;              // [0.0, 1.0, ..., 9.0]
 ```
 
+`linspace`, `logspace`, and `geomspace` compute in the element type `T`
+without an `f64` detour. The first sample is the start value and the last
+is exactly the end value, matching NumPy and PyTorch; the interior samples
+advance by the uniform step or ratio.
+
 ## From Existing Data
 
 ```rust,ignore

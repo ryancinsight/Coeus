@@ -82,77 +82,46 @@ mod tests {
 
     #[test]
     fn linspace_endpoints_inclusive() {
-        let b = SequentialBackend::new();
-        let t = linspace(0.0f32, 1.0, 5, &b).expect("invariant: test operation succeeds");
-        let s = t.as_slice();
-        assert!((s[0] - 0.0).abs() < 1e-6);
-        assert!((s[4] - 1.0).abs() < 1e-6);
-        assert!((s[2] - 0.5).abs() < 1e-6);
+        let backend = SequentialBackend::new();
+        let values =
+            linspace(0.0f32, 1.0, 5, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[0.0f32, 0.25, 0.5, 0.75, 1.0]);
+        let values =
+            linspace(0.0f64, 1.0, 5, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[0.0f64, 0.25, 0.5, 0.75, 1.0]);
     }
 
     #[test]
     fn logspace_base10() {
-        let b = SequentialBackend::new();
-        let t = logspace(0.0f32, 2.0, 3, 10.0, &b).expect("invariant: test operation succeeds");
-        let s = t.as_slice();
-        assert!((s[0] - 1.0).abs() < 1e-4);
-        assert!((s[1] - 10.0).abs() < 1e-4);
-        assert!((s[2] - 100.0).abs() < 1e-4);
+        let backend = SequentialBackend::new();
+        let values =
+            logspace(0.0f32, 2.0, 3, 10.0, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[1.0f32, 10.0, 100.0]);
+        let values =
+            logspace(0.0f64, 2.0, 3, 10.0, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[1.0f64, 10.0, 100.0]);
     }
 
     #[test]
     fn geomspace_doubling() {
-        let b = SequentialBackend::new();
-        let t = geomspace(1.0f32, 16.0, 5, &b).expect("invariant: test operation succeeds");
-        let s = t.as_slice();
-        for (i, &v) in s.iter().enumerate() {
-            let expected = 2.0f32.powi(i as i32);
-            assert!(
-                (v - expected).abs() < 1e-4,
-                "geomspace[{i}]={v} vs {expected}"
-            );
-        }
+        let backend = SequentialBackend::new();
+        let values =
+            geomspace(1.0f32, 16.0, 5, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[1.0f32, 2.0, 4.0, 8.0, 16.0]);
+        let values =
+            geomspace(1.0f64, 16.0, 5, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[1.0f64, 2.0, 4.0, 8.0, 16.0]);
     }
 
     #[test]
-    fn linspace_n1_returns_start() {
-        let b = SequentialBackend::new();
-        // Use 3.5 (exactly representable in f32) to avoid PI-approximation lint.
-        let t = linspace(3.5f32, 99.0, 1, &b).expect("invariant: test operation succeeds");
-        assert!((t.as_slice()[0] - 3.5_f32).abs() < 1e-5);
-    }
-
-    #[test]
-    fn linspace_endpoints_inclusive_f64() {
-        let b = SequentialBackend::new();
-        let t = linspace(0.0f64, 1.0, 5, &b).expect("invariant: test operation succeeds");
-        let s = t.as_slice();
-        assert!((s[0] - 0.0).abs() < 1e-12);
-        assert!((s[4] - 1.0).abs() < 1e-12);
-        assert!((s[2] - 0.5).abs() < 1e-12);
-    }
-
-    #[test]
-    fn logspace_base10_f64() {
-        let b = SequentialBackend::new();
-        let t = logspace(0.0f64, 2.0, 3, 10.0, &b).expect("invariant: test operation succeeds");
-        let s = t.as_slice();
-        assert!((s[0] - 1.0).abs() < 1e-12);
-        assert!((s[1] - 10.0).abs() < 1e-12);
-        assert!((s[2] - 100.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn geomspace_doubling_f64() {
-        let b = SequentialBackend::new();
-        let t = geomspace(1.0f64, 16.0, 5, &b).expect("invariant: test operation succeeds");
-        let s = t.as_slice();
-        for (i, &v) in s.iter().enumerate() {
-            let expected = 2.0f64.powi(i as i32);
-            assert!(
-                (v - expected).abs() < 1e-12,
-                "geomspace[{i}]={v} vs {expected}"
-            );
-        }
+    fn linspace_single_sample_returns_start() {
+        let backend = SequentialBackend::new();
+        // 3.5 is exactly representable in f32 and f64.
+        let values =
+            linspace(3.5f32, 99.0, 1, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[3.5f32]);
+        let values =
+            linspace(3.5f64, 99.0, 1, &backend).expect("invariant: test operation succeeds");
+        assert_eq!(values.as_slice(), &[3.5f64]);
     }
 }

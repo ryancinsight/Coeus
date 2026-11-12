@@ -130,6 +130,13 @@
 
 ### Fixed
 
+- [patch] `linspace`, `logspace`, and `geomspace` now take their final
+  sample from the endpoint instead of the accumulated step or ratio, so the
+  inclusive bound is exact as NumPy and PyTorch define it. The interior
+  samples are unchanged, the values stay in the element type `T`, and the
+  Python bindings now call the same constructors instead of a duplicated
+  `f64` copy; `pycoeus.linspace(..., 0)` returns an empty tensor.
+
 - [patch] GPU unary activations decode single parameters from their public
   `f64` bit encoding. Staggered preparation rejects invalid spacing before
   device acquisition; dispatch rejects unequal shapes, offsets, and strides

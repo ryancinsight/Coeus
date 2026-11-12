@@ -62,32 +62,19 @@ pub fn arange(start: f64, end: f64, step: f64) -> PyResult<PyTensor> {
 
 #[pyfunction]
 pub fn linspace(start: f64, end: f64, steps: usize) -> PyResult<PyTensor> {
-    let data: Vec<f64> = if steps <= 1 {
-        vec![start]
-    } else {
-        (0..steps)
-            .map(|i| start + (end - start) * i as f64 / (steps - 1) as f64)
-            .collect()
-    };
-    create_tensor(Tensor::from_slice(vec![steps], &data), false)
+    create_tensor(
+        Tensor::<f64, MoiraiBackend>::linspace(start, end, steps),
+        false,
+    )
 }
 
 #[pyfunction]
 #[pyo3(signature = (start, end, steps, base = 10.0))]
 pub fn logspace(start: f64, end: f64, steps: usize, base: f64) -> PyResult<PyTensor> {
-    let data: Vec<f64> = if steps == 0 {
-        vec![]
-    } else if steps == 1 {
-        vec![base.powf(start)]
-    } else {
-        (0..steps)
-            .map(|i| {
-                let exp = start + (end - start) * i as f64 / (steps - 1) as f64;
-                base.powf(exp)
-            })
-            .collect()
-    };
-    create_tensor(Tensor::from_slice(vec![steps], &data), false)
+    create_tensor(
+        Tensor::<f64, MoiraiBackend>::logspace(start, end, steps, base),
+        false,
+    )
 }
 
 #[pyfunction]
@@ -102,24 +89,10 @@ pub fn geomspace(start: f64, end: f64, steps: usize) -> PyResult<PyTensor> {
             "geomspace requires start/end to have the same sign",
         ));
     }
-    let sign = start.signum();
-    let start_abs = start.abs();
-    let end_abs = end.abs();
-    let ratio = if steps > 1 {
-        (end_abs / start_abs).powf(1.0 / (steps - 1) as f64)
-    } else {
-        1.0
-    };
-    let data: Vec<f64> = if steps == 0 {
-        vec![]
-    } else if steps == 1 {
-        vec![start]
-    } else {
-        (0..steps)
-            .map(|i| sign * start_abs * ratio.powf(i as f64))
-            .collect()
-    };
-    create_tensor(Tensor::from_slice(vec![steps], &data), false)
+    create_tensor(
+        Tensor::<f64, MoiraiBackend>::geomspace(start, end, steps),
+        false,
+    )
 }
 
 #[pyfunction]
