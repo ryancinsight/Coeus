@@ -6,6 +6,10 @@ Accepted (2026-11-13). Rewrites the 2026-11-12 three-milestone draft in place:
 that draft named quality states and a release act as milestones and omitted
 `coeus-sparse`, `coeus-dist` and `coeus-fft`.
 
+Revised 2026-11-13: adds the three seam exits, the `oversized_files` standing
+target and the release-act classification, because the ladder must prove
+every seam the scope names and state a conformance target.
+
 ## Context
 
 Coeus is the Atlas differentiation substrate: strided tensors, kernels,
@@ -25,7 +29,13 @@ scope** (required before 1.0 and served by a ladder exit check), **non-goal**
 Coeus 1.0 is the delivered surface below plus one in-scope capability: the
 `PyTensor` comparison operators `<`, `<=`, `>`, `>=`, `==`, `!=`. One milestone,
 `M-tensor-stack`, carries 1.0.0 because no other capability is missing. Its
-exits pin the new capability and four delivered end-to-end paths.
+nine exits pin the new capability (exits 1 and 2), four delivered end-to-end
+paths (matmul, classifier, nonlinear fit, batched fit) and the three delivered
+integration seams (`HephaestusProvider`, `Communicator`, Apollo FFT). Exits 1
+and 2 need an interpreter-capable host: CI's native tests exclude
+`coeus-python` because its `extension-module` build leaves libpython unlinked
+(`.github/workflows/ci.yml:178-182`), so they run on a host whose build links
+libpython, such as the Windows development host.
 
 ### Foundation and CPU stack
 
@@ -46,16 +56,16 @@ exits pin the new capability and four delivered end-to-end paths.
 
 | Package | Area | Status | Witness |
 | --- | --- | --- | --- |
-| `coeus-accelerator` | vendor-neutral device storage, transfer, layout validation and dispatch over `HephaestusProvider` | delivered | `src/{storage,backend,layout,seam}.rs` |
+| `coeus-accelerator` | vendor-neutral device storage, transfer, layout validation and dispatch over `HephaestusProvider` | delivered | `src/{storage,backend,layout,seam}.rs`; exit 7 |
 | `coeus-accelerator` | staggered gradient/divergence dispatch | delivered | `src/staggered/` |
 | `coeus-wgpu` | WebGPU backend over provider operations | delivered | `src/{backend,storage,fusion}.rs` |
 | `coeus-cuda` | CUDA backend over provider operations | delivered | `src/{backend,storage,fusion}.rs` |
 | `coeus-rocm`, `coeus-metal` | provider wiring | delivered | `src/backend/` |
 | `coeus-cuda`, `coeus-metal` | `StaggeredPairOps` binding verified on real devices | non-goal | hardware evidence cannot be a runnable exit on the development host; item COEUS-STAGGERED-VENDOR-WIRING stays open |
 | `coeus-rocm` | staggered kernels | non-goal | blocked on upstream Hephaestus kernels |
-| `coeus-dist` | `Communicator`, thread-local and TCP collectives, gradient reduction | delivered | `src/{communicator,local,tcp,gradients}` |
+| `coeus-dist` | `Communicator`, thread-local and TCP collectives, gradient reduction | delivered | `src/{communicator,local,tcp,gradients}`; exit 8 |
 | `coeus-dist` | transports beyond thread-local and TCP | non-goal | no source asks for one |
-| `coeus-fft` | tensor and autograd FFT wrappers over Apollo | delivered | `src/{fft,autograd}.rs` |
+| `coeus-fft` | tensor and autograd FFT wrappers over Apollo | delivered | `src/{fft,autograd}.rs`; exit 9 |
 | `coeus-fft` | FFT math owned by Coeus | non-goal | README invariant 5: Apollo owns it |
 
 ### Bindings and release
@@ -75,8 +85,12 @@ Each follows the recommended option; the user's veto redirects it.
 1. One milestone at 1.0.0 rather than a pre-1.0 verification milestone: a
    quality-state milestone is forbidden, and no second capability is missing.
 2. MS-445 and COEUS-REGISTRY-PACKAGE-1 are release acts, not user-named in the
-   meta board: kept as `blocked` verification items, not exits.
-3. `coeus-sparse` kernels, `coeus-dist` transports, ROCm staggered kernels and
+   meta board: kept as `blocked` items outside the ladder (blocker: release
+   authority), carrying no milestone and no exit.
+3. The conformance standing target is `oversized_files` at or below 7, half the
+   current 14 (`scripts/conformance-baseline.json` at meta
+   `e0f893530eb2efe3de5918471bb2d18ad8cb2279`), the largest Coeus row.
+4. `coeus-sparse` kernels, `coeus-dist` transports, ROCm staggered kernels and
    device-hosted CUDA/Metal staggered evidence are non-goals.
 
 ## Alternatives
@@ -88,7 +102,8 @@ Each follows the recommended option; the user's veto redirects it.
 
 ## Consequences
 
-- Items carry `milestone: M-tensor-stack`; feature items name the exit they serve.
+- Items carry `milestone: M-tensor-stack` except the two blocked release acts;
+  feature items name the exit they serve.
 - The milestone closes when its exits pass at a fetched default commit; the
   1.0.0 release stays gated on release authority.
 - This record is rewritten in place when scope changes.

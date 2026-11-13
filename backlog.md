@@ -5,10 +5,12 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
+<a id="milestone-ladder"></a>
 ## Milestone ladder
 
 Scope and non-goals: [ADR 0083](docs/adr/0083-release-scope.md). Every open
-item below carries `milestone: M-tensor-stack`.
+item below carries `milestone: M-tensor-stack`, except the blocked release acts
+(publication needs release authority and no exit serves it).
 
 <a id="M-tensor-stack"></a>
 ## M-tensor-stack — Compare tensors in Python and train and fit models on the CPU stack
@@ -21,8 +23,12 @@ item below carries `milestone: M-tensor-stack`.
 - exit: train a classifier through autograd, nn and optim and check its accuracy: `cargo run -p coeus-optim --example mlp_classifier`.
 - exit: fit a nonlinear decay model and recover its parameters: `cargo nextest run -p coeus-optim --no-tests=fail -E 'test(=least_squares::tests::double_precision::decay_model_recovers_known_parameters)'`.
 - exit: fit a batch of independent problems and recover each minimum: `cargo nextest run -p coeus-optim --no-tests=fail -E 'test(=least_squares::tests::double_precision::batched_linear_problems_recover_independent_minima)'`.
-- None of the first two exits exists at `dde904709ddbc04d215c3d6a834f0475a45339f9`; COEUS-PYTHON-COMPARISON-DUNDERS writes them. The other four pass there (delivered capabilities).
-- standing: no open `correctness` item; the conformance scan's installed-state assertions pass; the SemVer gate, the publish dry run, and the README, example and book builds pass.
+- exit: allocate, fill and read back device storage through the `HephaestusProvider` seam: `cargo nextest run -p coeus-accelerator --no-tests=fail -E 'test(=storage::tests::backend_routes_allocation_by_initialization_contract)'`.
+- exit: average gradients across two workers through the `Communicator` seam: `cargo nextest run -p coeus-dist --no-tests=fail -E 'binary_id(=coeus-dist::dist_ops) & test(=local::collectives::test_gradient_synchronization)'`.
+- exit: differentiate an FFT energy through the Apollo wrappers and match the Parseval gradient: `cargo nextest run -p coeus-fft --no-tests=fail -E 'binary_id(=coeus-fft::fft) & test(=fft_energy_gradient_matches_parseval_oracle)'`.
+- Exits 1 and 2 do not exist at `dde904709ddbc04d215c3d6a834f0475a45339f9`; the feature item serving them writes both. Exits 3 to 9 pass there (delivered capabilities).
+- Runner: exits 1 and 2 need an interpreter-capable host. CI's native tests exclude `coeus-python` because its `extension-module` build leaves libpython unlinked (`.github/workflows/ci.yml:178-182`); run them on a host whose build links libpython, such as the Windows development host. Exits 5 to 9 are nextest tests that the CI native-test job runs; exits 3 and 4 run with `cargo run`.
+- standing: no open `correctness` item; the conformance scan's installed-state assertions pass; the scan's `oversized_files` count for Coeus is at or below 7 (14 in `scripts/conformance-baseline.json` at meta `e0f893530eb2efe3de5918471bb2d18ad8cb2279`); the SemVer gate, the publish dry run, and the README, example and book builds pass.
 - non-goals: crates.io publication and PyPI upload without release authority; new model families; Python API beyond comparison operators; sparse kernels in `coeus-sparse`; new `coeus-dist` transports; ROCm staggered kernels; hardware-hosted CUDA and Metal staggered evidence as a gate.
 
 <a id="coeus-count-conv-spelling"></a>
@@ -144,7 +150,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="ms-445-python-release-wheels"></a>
 ## MS-445 — Python release wheels
 
-- Status: blocked; priority: verification; milestone: M-tensor-stack; [patch]; owner: root.
+- Status: blocked; priority: feature; [patch]; owner: root. Release act outside the ladder: no exit serves it.
 - Blocker: release authority; publication is a non-goal of the 1.0 ladder ([ADR 0083](docs/adr/0083-release-scope.md)). Re-open trigger: the user grants release authority after the milestone closes.
 - Outcome: a GitHub Release tagged `coeus-python-v<version>` builds locked Linux/Windows/macOS wheels for CPython 3.9-3.13, installs and imports each as `pycoeus`, attests and attaches artifacts, then publishes to the `coeus-python` PyPI project through OIDC.
 - Delivered: the release workflow (`.github/workflows/python-release.yml`) and distribution contract are implemented; GitHub environment `pypi` accepts only `coeus-python-v*` tags; a locked CPython 3.13 wheel builds, installs, and imports as `pycoeus`.
@@ -154,7 +160,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-registry-package-1"></a>
 ## COEUS-REGISTRY-PACKAGE-1 — Publish reusable crates through Trusted Publishing
 
-- Status: blocked; priority: verification; milestone: M-tensor-stack; [patch]; owner: root.
+- Status: blocked; priority: feature; [patch]; owner: root. Release act outside the ladder: no exit serves it.
 - Blocker: release authority; publication is a non-goal of the 1.0 ladder ([ADR 0083](docs/adr/0083-release-scope.md)). Re-open trigger: the user grants release authority after the milestone closes.
 - Outcome: Coeus's publishable Rust crates (currently all `publish = false` or unset) release to crates.io in dependency order via OIDC trusted publishing.
 - Delivered: Moirai/Mnemosyne/Themis imports bind to their published packages (no `rev =` pin — verified in `Cargo.toml`); the exact external lock graph is refreshed after the Apollo/Hephaestus/Moirai/Mnemosyne merges it depended on.
