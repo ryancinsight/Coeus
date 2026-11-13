@@ -6,9 +6,9 @@ Accepted (2026-11-13). Rewrites the 2026-11-12 three-milestone draft in place:
 that draft named quality states and a release act as milestones and omitted
 `coeus-sparse`, `coeus-dist` and `coeus-fft`.
 
-Revised 2026-11-13: adds the three seam exits, the `oversized_files` standing
-target, because the ladder must prove
-every seam the scope names and state a conformance target.
+Revised 2026-11-13: adds the three seam exits and the `oversized_files`
+standing target, because the ladder must prove every seam the scope names and
+state a conformance target.
 
 ## Context
 
@@ -16,9 +16,9 @@ Coeus is the Atlas differentiation substrate: strided tensors, kernels,
 reverse-mode autograd, neural-network layers, optimizers, vendor backends and
 Python bindings over provider kernels (README, "Crate Structure"). The workspace
 holds 16 member packages at 0.12.0. The only open capability gap is Python
-comparison operators; every other open item is verification, architecture or
-tightening work on delivered areas. The ladder at the top of `backlog.md`
-is checked against this record.
+comparison operators; every other open item is correctness, verification,
+architecture or tightening work on delivered areas. The ladder at the top of
+`backlog.md` is checked against this record.
 
 Classification: **delivered** (on the default branch, witness given), **in
 scope** (required before 1.0 and served by a ladder exit check), **non-goal**
