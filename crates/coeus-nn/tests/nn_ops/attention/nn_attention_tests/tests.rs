@@ -75,6 +75,18 @@ fn sdpa_forward_shape_null_mask() {
             .expect("valid attention fixture");
 
     assert_eq!(out.tensor.shape(), &[batch, seq_q, d_v]);
+    // Uniform Q,K,V with no mask: softmax gives 1/seq_k per key, so output equals V (all ones).
+    let out_data = out
+        .tensor
+        .storage()
+        .try_as_slice()
+        .expect("test: attention output must be CPU-addressable");
+    for (index, &value) in out_data.iter().enumerate() {
+        assert!(
+            (value - 1.0_f32).abs() < EPS,
+            "sdpa uniform fixture: output[{index}]={value}, expected 1.0"
+        );
+    }
 }
 
 // ── SDPA: causal mask ────────────────────────────────────────────────────
