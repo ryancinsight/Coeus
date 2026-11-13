@@ -9,8 +9,7 @@ verification, tightening, feature}.
 ## Milestone ladder
 
 Scope and non-goals: [ADR 0083](docs/adr/0083-release-scope.md). Every open
-item below carries `milestone: M-tensor-stack`, except the blocked release acts
-(publication needs release authority and no exit serves it).
+item below carries `milestone: M-tensor-stack`.
 
 <a id="M-tensor-stack"></a>
 ## M-tensor-stack — Compare tensors in Python and train and fit models on the CPU stack
@@ -150,7 +149,7 @@ item below carries `milestone: M-tensor-stack`, except the blocked release acts
 <a id="ms-445-python-release-wheels"></a>
 ## MS-445 — Python release wheels
 
-- Status: blocked; priority: feature; [patch]; owner: root. Release act outside the ladder: no exit serves it.
+- Status: blocked; priority: verification; milestone: M-tensor-stack; [patch]; owner: root.
 - Blocker: release authority; publication is a non-goal of the 1.0 ladder ([ADR 0083](docs/adr/0083-release-scope.md)). Re-open trigger: the user grants release authority after the milestone closes.
 - Outcome: a GitHub Release tagged `coeus-python-v<version>` builds locked Linux/Windows/macOS wheels for CPython 3.9-3.13, installs and imports each as `pycoeus`, attests and attaches artifacts, then publishes to the `coeus-python` PyPI project through OIDC.
 - Delivered: the release workflow (`.github/workflows/python-release.yml`) and distribution contract are implemented; GitHub environment `pypi` accepts only `coeus-python-v*` tags; a locked CPython 3.13 wheel builds, installs, and imports as `pycoeus`.
@@ -160,7 +159,7 @@ item below carries `milestone: M-tensor-stack`, except the blocked release acts
 <a id="coeus-registry-package-1"></a>
 ## COEUS-REGISTRY-PACKAGE-1 — Publish reusable crates through Trusted Publishing
 
-- Status: blocked; priority: feature; [patch]; owner: root. Release act outside the ladder: no exit serves it.
+- Status: blocked; priority: verification; milestone: M-tensor-stack; [patch]; owner: root.
 - Blocker: release authority; publication is a non-goal of the 1.0 ladder ([ADR 0083](docs/adr/0083-release-scope.md)). Re-open trigger: the user grants release authority after the milestone closes.
 - Outcome: Coeus's publishable Rust crates (currently all `publish = false` or unset) release to crates.io in dependency order via OIDC trusted publishing.
 - Delivered: Moirai/Mnemosyne/Themis imports bind to their published packages (no `rev =` pin — verified in `Cargo.toml`); the exact external lock graph is refreshed after the Apollo/Hephaestus/Moirai/Mnemosyne merges it depended on.
