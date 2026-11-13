@@ -164,7 +164,9 @@ unsafe impl ComputeBackend for CudaBackend {
     }
 }
 
-// SAFETY: CPU fallback dispatch joins every invocation before returning.
+// SAFETY: the sequential CPU fallback calls the closure exactly once for
+// each index in `[start, end)` and for no other index, and returns only
+// after every call has completed.
 unsafe impl Backend for CudaBackend {
     #[inline]
     fn parallel_for<F>(&self, start: usize, end: usize, f: F)

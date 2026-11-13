@@ -205,15 +205,6 @@ verification, tightening, feature}.
 - Acceptance: each split file's module retains domain cohesion; no file regresses over 500 lines.
 - Next step: re-run the oversized-file scan against the current tree and take the next largest.
 
-<a id="coeus-cuda-safety-comment"></a>
-## COEUS-CUDA-SAFETY-COMMENT — Correct misleading SAFETY comment on CudaBackend::parallel_for
-
-- Status: todo; priority: correctness; [patch]; owner: unclaimed.
-- Outcome: the `# Safety`/`// SAFETY:` comment on `CudaBackend::parallel_for` accurately states the invariants it relies on.
-- Scope: coeus-cuda backend `parallel_for`.
-- Acceptance: comment reviewed against the actual unsafe preconditions; miri/sanitizer coverage unaffected.
-- Next step: re-derive the actual safety obligation from the call site and rewrite the comment.
-
 <a id="coeus-accelerator-padops-adoption"></a>
 ## COEUS-ACCELERATOR-PADOPS-ADOPTION — Adopt hephaestus's PadOps<D, T> seam
 
