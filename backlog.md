@@ -166,15 +166,6 @@ item below carries `milestone: M-tensor-stack`.
 - Residual: exact-head provider CI on the release-preparation branch, then publish in dependency order through Trusted Publishing (engineering_gates: publish pipelines).
 - Next step: run the hosted gate on the release branch, then execute the publish sequence.
 
-<a id="coeus-expect-swallowed-results"></a>
-## COEUS-EXPECT-SWALLOWED-RESULTS — Propagate typed errors instead of `.expect()`
-
-- Status: todo; priority: correctness; milestone: M-tensor-stack; [patch]; owner: unclaimed.
-- Outcome: public elementwise ops and device/alloc paths return typed `Result` instead of panicking via `.expect()` on backend/allocator failure.
-- Scope: `coeus-ops/src/unary/math.rs` (69 ops via `.expect("<opname>")`), `coeus-autograd/src/ops/activation/{ext,gelu,math}.rs`, `coeus-cuda/src/backend/mod.rs:21,101-120`, `coeus-accelerator/src/storage.rs:56,63`, `coeus-accelerator/src/reduction.rs:279,285`, `coeus-tensor/src/tensor.rs:438,452`, `coeus-core/src/storage/cpu.rs:131`.
-- Acceptance: no bare `.expect()` on backend-Result in listed files; failure surfaces as a typed error to the caller; existing behavior tests still pass.
-- Next step: start with `coeus-ops/src/unary/math.rs` (highest count), thread the `Result` through its callers.
-
 <a id="coeus-gradcheck-generic-scalar"></a>
 ## COEUS-GRADCHECK-GENERIC-SCALAR — Generic finite-difference gradcheck over f32/f64
 
