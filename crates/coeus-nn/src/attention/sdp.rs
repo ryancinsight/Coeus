@@ -61,7 +61,11 @@ impl<
             1,
         )?;
         let scale = scale.unwrap_or_else(|| {
-            T::ONE / <T as coeus_core::FloatElement>::from_f64((dimensions.d_k as f64).sqrt())
+            // The scale is `1/sqrt(d_k)`: the count is exact at f64 precision and
+            // the root is rounded once into the element type, so a narrow format
+            // never squares a count it could not represent.
+            let d_k = <f64 as coeus_core::FloatElement>::from_count(dimensions.d_k);
+            T::ONE / <T as coeus_core::FloatElement>::from_f64(d_k.sqrt())
         });
         let (out, _attn_weights) =
             coeus_autograd::sdp_attention::<T, B, M>(query, key, value, key_padding_mask, scale)

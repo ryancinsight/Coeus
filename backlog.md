@@ -5,15 +5,6 @@ closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
 verification, tightening, feature}.
 
-<a id="coeus-count-conv-spelling"></a>
-## COEUS-COUNT-CONV-SPELLING — Count-typed spelling for `from_f64(n as f64)` sites
-
-- Status: todo; priority: tightening; [patch].
-- Finding: the COEUS-SCALAR-VOCAB slices (closed) retargeted count conversions to `<T as FloatElement>::from_f64(n as f64)`; the item's "Also" clause (migrate them to `from_count`/`try_from_count`) was not executed — `from_count` does not exist, and the exactness contract above 2^53 (exact vs rounded vs rejected) is undecided. Values are correct today (`n as f64` is exact below 2^53); only the spelling misstates intent.
-- Scope: decide the contract, add the spelling (upstream if it belongs to eunomia), migrate the ~50 count sites.
-- Acceptance: every count-typed conversion names the count spelling; values unchanged; gates green.
-- Next step: decide exact-vs-rounded-vs-rejected for counts above 2^53.
-
 <a id="atlas-coeus-backend-045"></a>
 ## ATLAS-COEUS-BACKEND-045 — Unseal ComputeBackend and unify matmul (residual)
 

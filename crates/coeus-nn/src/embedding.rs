@@ -114,7 +114,7 @@ fn validate_indices<I: Scalar, B: coeus_core::ComputeBackend + Default>(
         if !value.is_finite()
             || value < 0.0
             || value.trunc() != value
-            || value >= num_embeddings as f64
+            || value >= coeus_core::FloatElement::from_count(num_embeddings)
         {
             return Err(ModuleError::ShapeMismatch {
                 module,

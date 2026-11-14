@@ -39,7 +39,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let data: Vec<T> = (1..=6)
-        .map(|value| <T as coeus_core::FloatElement>::from_f64(value as f64))
+        .map(|value| <T as coeus_core::FloatElement>::from_count(value))
         .collect();
     let tensor = tensor_from_slice::<T, B>(&[2, 3], &data, backend);
 

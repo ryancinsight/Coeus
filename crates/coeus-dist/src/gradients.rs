@@ -84,7 +84,7 @@ pub fn synchronize_gradients<
         return Ok(());
     }
     let backend = B::default();
-    let scale_val = <T as coeus_core::FloatElement>::from_f64(1.0 / size as f64);
+    let scale_val = <T as coeus_core::FloatElement>::from_count_reciprocal(size);
     let scale_tensor =
         Tensor::full_on([1], scale_val, &backend).map_err(GradientSyncError::Backend)?;
 

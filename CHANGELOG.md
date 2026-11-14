@@ -13,6 +13,17 @@
   Leto-ops requirements widen to `>=0.47.1, <0.49.0` and
   `>=0.47.0, <0.49.0` so the 0.48 line resolves. No Coeus computation,
   signature, or numeric behavior changes with the provider move.
+- [patch] The remaining count conversions name the count spelling: the
+  mean and mean-axis scalers, the distributed gradient-sync scale, the
+  attention scales, the batch-norm correction, the local-response
+  normalization scale, and the embedding-vocabulary bounds convert
+  through `FloatElement::from_count`/`from_count_reciprocal` instead of
+  `from_f64(n as f64)`. Values are unchanged: every count is exact at
+  f64 precision, each derived scalar is rounded once into the element
+  type, and `from_count_reciprocal` is the correctly rounded reciprocal
+  of the exact count for every element format. A count above `2^53` now
+  takes its reciprocal from the exact count rather than from the
+  f64-rounded one.
 - [patch] Count conversions state their intent: loss, normalization,
   pooling, and variance denominators convert through
   `FloatElement::from_count`/`from_count_reciprocal` and the top-k index

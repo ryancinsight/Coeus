@@ -224,12 +224,19 @@ impl<
             }
         }
         let m_const = Tensor::full_on([1], coeus_core::FloatElement::from_count(m), backend)?;
+        // The unbiased correction `m/(m-1)`: both counts are exact at f64
+        // precision and the quotient is rounded once into the element type.
         let correction = if m > 1 {
-            m as f64 / (m - 1) as f64
+            <f64 as coeus_core::FloatElement>::from_count(m)
+                / <f64 as coeus_core::FloatElement>::from_count(m - 1)
         } else {
             1.0
         };
-        let corr_t = Tensor::full_on([1], coeus_core::FloatElement::from_f64(correction), backend)?;
+        let corr_t = Tensor::full_on(
+            [1],
+            <T as coeus_core::FloatElement>::from_f64(correction),
+            backend,
+        )?;
         *cache = Some((m, m_const.clone(), corr_t.clone()));
         Ok((m_const, corr_t))
     }

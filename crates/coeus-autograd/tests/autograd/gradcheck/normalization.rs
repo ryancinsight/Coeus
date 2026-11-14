@@ -161,7 +161,7 @@ fn batchnorm1d_case<T: GradcheckScalar>() {
                 istdev,
                 m_const: Tensor::<T, MoiraiBackend>::full_on(
                     [1],
-                    <T as coeus_core::FloatElement>::from_f64(M as f64),
+                    <T as coeus_core::FloatElement>::from_count(M),
                     &backend,
                 )
                 .expect("invariant: test backend operation succeeds"),

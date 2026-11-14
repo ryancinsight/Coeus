@@ -85,7 +85,7 @@ impl<T: Scalar + FloatElement + leto_ops::Scalar, B: coeus_ops::BackendOps<T> + 
         let n = a.numel();
         Ok(Some(Tensor::full_on(
             [1],
-            <T as FloatElement>::from_f64(1.0 / n as f64),
+            <T as FloatElement>::from_count_reciprocal(n),
             backend,
         )?))
     }
@@ -118,10 +118,10 @@ impl<T: Scalar + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default
         backend: &B,
     ) -> Result<Option<Tensor<T, B>>, B::Error> {
         let axis = param.expect("invariant: MeanAxisOp::scaler always receives Some(axis)");
-        let axis_len = a.shape()[axis] as f64;
+        let axis_len = a.shape()[axis];
         Ok(Some(Tensor::full_on(
             [1],
-            <T as coeus_core::FloatElement>::from_f64(1.0 / axis_len),
+            <T as coeus_core::FloatElement>::from_count_reciprocal(axis_len),
             backend,
         )?))
     }
@@ -303,6 +303,66 @@ mod nan_reduction_tests {
         assert!(
             (s.tensor.as_slice()[0] - 9.0).abs() < 1e-10,
             "nansum value should be 9.0"
+        );
+    }
+}
+
+#[cfg(test)]
+mod count_spelling_tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "test assertions surface failures immediately by design"
+    )]
+    use super::*;
+    use coeus_core::SequentialBackend;
+    use coeus_tensor::Tensor;
+
+    type B = SequentialBackend;
+
+    fn var(data: &[f64]) -> Var<f64, B> {
+        Var::new(
+            Tensor::<f64, B>::from_slice(vec![data.len()], data)
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds")
+    }
+
+    #[test]
+    fn mean_scale_is_the_count_reciprocal() {
+        // The mean scale is the reciprocal of the element count, named with the
+        // count spelling: the scale is `1/n`, not `n`, and it is the correctly
+        // rounded reciprocal of the exact count for the element format.
+        let x = var(&[2.0, 4.0, 6.0]);
+        let m = mean(&x).expect("invariant: test operation succeeds");
+        m.backward()
+            .expect("invariant: valid autograd fixture completes backward");
+        let grad = x.grad().unwrap();
+        assert_eq!(
+            grad.as_slice()[0].to_bits(),
+            f64::from_count_reciprocal(3).to_bits(),
+            "mean gradient scale must be the count spelling's reciprocal"
+        );
+    }
+
+    #[test]
+    fn mean_axis_scale_is_the_axis_length_reciprocal() {
+        // The axis mean scales by the reciprocal of the axis length, not by the
+        // element count of the tensor.
+        let x = Var::new(
+            Tensor::<f64, B>::from_slice(vec![2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .expect("invariant: test backend operation succeeds"),
+            true,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let m = mean_axis(&x, 1).expect("invariant: test operation succeeds");
+        m.backward()
+            .expect("invariant: valid autograd fixture completes backward");
+        let grad = x.grad().unwrap();
+        assert_eq!(
+            grad.as_slice()[0].to_bits(),
+            f64::from_count_reciprocal(3).to_bits(),
+            "mean-axis gradient scale must be the axis length's reciprocal"
         );
     }
 }
