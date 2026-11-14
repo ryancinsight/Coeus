@@ -136,6 +136,47 @@ assert result.data == [10.0, -2.0, 30.0, -4.0], f"where_fn failed: {result.data}
 }
 
 #[test]
+fn test_comparison_operators_return_masks() {
+    run_script(
+        r#"
+import pycoeus
+
+a = pycoeus.Tensor([1.0, 2.0, 3.0, 4.0], [4])
+b = pycoeus.Tensor([2.0, 2.0, 1.0, 5.0], [4])
+
+eq = a == b
+assert eq.data == [0.0, 1.0, 0.0, 0.0], f"eq failed: {eq.data}"
+
+ne = a != b
+assert ne.data == [1.0, 0.0, 1.0, 1.0], f"ne failed: {ne.data}"
+
+lt = a < b
+assert lt.data == [1.0, 0.0, 0.0, 1.0], f"lt failed: {lt.data}"
+
+le = a <= b
+assert le.data == [1.0, 1.0, 0.0, 1.0], f"le failed: {le.data}"
+
+gt = a > b
+assert gt.data == [0.0, 0.0, 1.0, 0.0], f"gt failed: {gt.data}"
+
+ge = a >= b
+assert ge.data == [0.0, 1.0, 1.0, 0.0], f"ge failed: {ge.data}"
+
+# Scalar broadcast on the right-hand side
+assert (a == 2.0).data == [0.0, 1.0, 0.0, 0.0]
+assert (a < 3.0).data == [1.0, 1.0, 0.0, 0.0]
+assert (a > 2.0).data == [0.0, 0.0, 1.0, 1.0]
+assert (a >= 3.0).data == [0.0, 0.0, 1.0, 1.0]
+assert (a <= 2.0).data == [1.0, 1.0, 0.0, 0.0]
+assert (a != 4.0).data == [1.0, 1.0, 1.0, 0.0]
+
+# Integer scalar operands
+assert (a == 2).data == [0.0, 1.0, 0.0, 0.0]
+"#,
+    );
+}
+
+#[test]
 fn test_softmax_cumsum_flip() {
     run_script(
         r#"

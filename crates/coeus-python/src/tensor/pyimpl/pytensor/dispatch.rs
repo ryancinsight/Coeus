@@ -110,20 +110,48 @@ impl PyTensor {
     }
 
     #[inline]
-    pub(super) fn comparison_dispatch(
+    pub(super) fn comparison_dispatch<'py>(
         &self,
-        py: Python<'_>,
-        other: &PyTensor,
+        py: Python<'py>,
+        op_label: &str,
+        other: &Bound<'py, PyAny>,
         op: CompareOp,
     ) -> PyResult<Self> {
-        let inner = py.allow_threads(|| match op {
-            CompareOp::Eq => coeus_autograd::eq(&self.inner, &other.inner),
-            CompareOp::Lt => coeus_autograd::lt(&self.inner, &other.inner),
-            CompareOp::Gt => coeus_autograd::gt(&self.inner, &other.inner),
-            CompareOp::Ne => coeus_autograd::ne(&self.inner, &other.inner),
-            CompareOp::Ge => coeus_autograd::ge(&self.inner, &other.inner),
-            CompareOp::Le => coeus_autograd::le(&self.inner, &other.inner),
-        });
-        inner.map(|inner| Self { inner }).map_err(map_backend_error)
+        let self_inner = self.inner.clone();
+        if let Ok(tensor) = other.downcast::<PyTensor>() {
+            let other_inner = tensor.borrow().inner.clone();
+            let inner = py.allow_threads(|| match op {
+                CompareOp::Eq => coeus_autograd::eq(&self_inner, &other_inner),
+                CompareOp::Lt => coeus_autograd::lt(&self_inner, &other_inner),
+                CompareOp::Gt => coeus_autograd::gt(&self_inner, &other_inner),
+                CompareOp::Ne => coeus_autograd::ne(&self_inner, &other_inner),
+                CompareOp::Ge => coeus_autograd::ge(&self_inner, &other_inner),
+                CompareOp::Le => coeus_autograd::le(&self_inner, &other_inner),
+            });
+            return inner.map(Self::from_var).map_err(map_backend_error);
+        }
+        if let Ok(scalar) = other.extract::<f64>() {
+            let shape = self_inner.tensor.shape().to_vec();
+            let backend = coeus_core::MoiraiBackend::new();
+            let scalar_tensor = coeus_tensor::Tensor::<f64, coeus_core::MoiraiBackend>::full_on(
+                shape, scalar, &backend,
+            )
+            .map_err(map_backend_error)?;
+            let other_inner =
+                coeus_autograd::Var::new(scalar_tensor, false).map_err(map_backend_error)?;
+            let inner = py.allow_threads(|| match op {
+                CompareOp::Eq => coeus_autograd::eq(&self_inner, &other_inner),
+                CompareOp::Lt => coeus_autograd::lt(&self_inner, &other_inner),
+                CompareOp::Gt => coeus_autograd::gt(&self_inner, &other_inner),
+                CompareOp::Ne => coeus_autograd::ne(&self_inner, &other_inner),
+                CompareOp::Ge => coeus_autograd::ge(&self_inner, &other_inner),
+                CompareOp::Le => coeus_autograd::le(&self_inner, &other_inner),
+            });
+            return inner.map(Self::from_var).map_err(map_backend_error);
+        }
+        Err(pyo3::exceptions::PyTypeError::new_err(format!(
+            "{op_label}: unsupported operand type for Tensor and {}",
+            other.get_type().name()?
+        )))
     }
 }

@@ -8,28 +8,58 @@ use pyo3::prelude::*;
 
 #[pymethods]
 impl PyTensor {
-    fn eq(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        self.comparison_dispatch(py, other, CompareOp::Eq)
+    fn __eq__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.comparison_dispatch(py, "__eq__", other, CompareOp::Eq)
     }
 
-    fn lt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        self.comparison_dispatch(py, other, CompareOp::Lt)
+    fn __lt__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.comparison_dispatch(py, "__lt__", other, CompareOp::Lt)
     }
 
-    fn gt(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        self.comparison_dispatch(py, other, CompareOp::Gt)
+    fn __gt__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.comparison_dispatch(py, "__gt__", other, CompareOp::Gt)
     }
 
-    fn ne(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        self.comparison_dispatch(py, other, CompareOp::Ne)
+    fn __ne__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.comparison_dispatch(py, "__ne__", other, CompareOp::Ne)
     }
 
-    fn ge(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        self.comparison_dispatch(py, other, CompareOp::Ge)
+    fn __ge__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.comparison_dispatch(py, "__ge__", other, CompareOp::Ge)
     }
 
-    fn le(&self, other: &PyTensor, py: Python<'_>) -> PyResult<Self> {
-        self.comparison_dispatch(py, other, CompareOp::Le)
+    fn __le__(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.comparison_dispatch(py, "__le__", other, CompareOp::Le)
+    }
+
+    /// Tensor method form for equality comparison.
+    fn eq(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.__eq__(other, py)
+    }
+
+    /// Tensor method form for less-than comparison.
+    fn lt(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.__lt__(other, py)
+    }
+
+    /// Tensor method form for greater-than comparison.
+    fn gt(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.__gt__(other, py)
+    }
+
+    /// Tensor method form for inequality comparison.
+    fn ne(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.__ne__(other, py)
+    }
+
+    /// Tensor method form for greater-or-equal comparison.
+    fn ge(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.__ge__(other, py)
+    }
+
+    /// Tensor method form for less-or-equal comparison.
+    fn le(&self, other: &Bound<'_, PyAny>, py: Python<'_>) -> PyResult<Self> {
+        self.__le__(other, py)
     }
 
     fn backward(&self, py: Python<'_>) -> PyResult<()> {
