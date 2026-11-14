@@ -48,6 +48,13 @@ pub(super) fn fixture_upstream(length: u32) -> Vec<f64> {
         .collect()
 }
 
+/// Index groups of `size` consecutive elements covering `total` elements.
+pub(super) fn contiguous_groups(total: usize, size: usize) -> Vec<Vec<usize>> {
+    (0..total / size)
+        .map(|group| (group * size..(group + 1) * size).collect())
+        .collect()
+}
+
 /// Index groups of one channel across the batch for `[N, C, spatial...]` data.
 pub(super) fn channel_groups(batch: usize, channels: usize, spatial: usize) -> Vec<Vec<usize>> {
     (0..channels)

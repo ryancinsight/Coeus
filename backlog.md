@@ -199,9 +199,9 @@ item below carries `milestone: M-tensor-stack`.
 
 - Status: todo; priority: verification; milestone: M-tensor-stack; [patch]; owner: unclaimed.
 - Outcome: the remaining existence-only nn tests assert computed values against a derived reference.
-- Scope: `coeus-nn` `nn_normalization_tests.rs` (GroupNorm, InstanceNorm1d/2d: assert only that gradients exist) and attention `nn_attention_tests/tests.rs` (`sdpa_forward_shape_null_mask`, `sinusoidal_encoding_shape_and_values`, `sdpa_gradient_flow_qkv`, `mha_gradient_flow_params`: shape, non-zero or finite only).
-- Acceptance: each listed test asserts values against a derived reference. GroupNorm and InstanceNorm reuse `normalization/value_oracle.rs` (statistic groups are contiguous index runs); SDPA and MHA gradients compare against the softmax-attention Jacobian in f64 with tolerances derived from `f32` rounding.
-- Next step: add `contiguous_groups` to the oracle and convert the three norm tests, then the attention tests.
+- Scope: `coeus-nn` attention `nn_attention_tests/tests.rs`: `sdpa_gradient_flow_qkv` (asserts only `any_nonzero` and finite) and `mha_gradient_flow_params` (via `assert_parameters_received_signal`, which asserts finite and non-zero over the set).
+- Acceptance: each listed test asserts the SDPA and projection gradients against a reference derived from the softmax-attention Jacobian, with tolerances derived from `f32` rounding as in `normalization/value_oracle.rs`.
+- Next step: write the f64 reference `dQ`, `dK`, `dV` for `sum(sdpa(Q, K, V))` on the existing 3-by-4 fixture and compare.
 - basis: cf793e2173c2afe56ab0e46619780efc0d619e9c
 
 <a id="coeus-python-elementwise-dedup"></a>
