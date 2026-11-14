@@ -6,3 +6,5 @@ mod nn_norm_tests;
 mod nn_normalization_tests;
 #[path = "normalization/norm_parity.rs"]
 mod norm_parity;
+#[path = "normalization/value_oracle.rs"]
+mod value_oracle;
