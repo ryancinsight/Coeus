@@ -61,7 +61,7 @@ integer, and complex impls) after retargeting every call site:
   (`NumericElement`, `Pod`); backend `Scalar` traits extend rather
   than redeclare the vocabulary.
 - Count-typed conversions spelled `from_f64(n as f64)` remain valid
-  but spell their intent as float conversion; migrating them to a
-  count-typed spelling is separate work (COEUS-COUNT-CONV-SPELLING),
-  since `from_count` does not exist yet and its exactness contract
-  (exact vs rounded vs rejected above 2^53) is undecided.
+  but spell their intent as float conversion; the count-typed spelling
+  (`FloatElement::from_count`/`from_count_reciprocal`) landed with PR
+  #641, which migrated every count site and fixed the values above
+  `2^53`.

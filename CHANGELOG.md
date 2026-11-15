@@ -4,11 +4,20 @@
 
 ### Changed
 
+- [major] Require Moirai 0.12.0. Moirai 0.12.0 removes the required
+  `StateWord::get_mut` method; Coeus implements no `StateWord` and calls no
+  removed method, so no Coeus source changes. The public contract moves with
+  the provider: `coeus-core` re-exports `moirai::MoiraiBackend`, so the
+  re-exported type's identity is now the Moirai 0.12 type. A consumer that
+  names `coeus_core::backend::MoiraiBackend` and also depends on Moirai 0.11
+  directly resolves two distinct types for the same name; move such a
+  consumer to Moirai 0.12 in the same change. See
+  [ADR 0084](docs/adr/0084-moirai-provider-contract-012.md).
 - [patch] Advance the provider cohort: Eunomia 0.12, Leto 0.48, Leto-ops
-  0.48, and Moirai 0.11.4. The lock is regenerated outside the Atlas
+  0.48, and Moirai 0.12.0. The lock is regenerated outside the Atlas
   dependency overlay and resolves Eunomia 0.12.0, Apollo 0.29.5, Aequitas
   0.3.2, Hephaestus 0.28.0, Hermes 0.9.2, Melinoe 0.10.0,
-  Mnemosyne-memory 0.10.1, Moirai 0.11.4, and Themis 0.11.5 at their
+  Mnemosyne-memory 0.10.1, Moirai 0.12.0, and Themis 0.11.5 at their
   fetched default heads, one source per provider repository. The Leto and
   Leto-ops requirements widen to `>=0.47.1, <0.49.0` and
   `>=0.47.0, <0.49.0` so the 0.48 line resolves. No Coeus computation,

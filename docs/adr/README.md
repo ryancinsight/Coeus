@@ -84,3 +84,4 @@
 | [0081](0081-scalar-from-f64-deletion.md) | Delete `Scalar::from_f64` in favor of the eunomia element vocabulary | Accepted |
 | [0082](0082-unified-fusion-dispatch.md) | Unified generic fusion dispatch for CUDA and WGPU | Accepted |
 | [0083](0083-release-scope.md) | Coeus 1.0 release scope | Accepted |
+| [0084](0084-moirai-provider-contract-012.md) | Advance the Moirai provider contract to 0.12.0 | Accepted |
