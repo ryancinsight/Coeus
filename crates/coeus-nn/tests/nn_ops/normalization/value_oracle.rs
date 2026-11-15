@@ -13,28 +13,24 @@
 //! none of the cancellation a single-pass `E[x^2] - mean^2` form would add.
 
 use coeus_autograd::Var;
+use coeus_core::FloatElement;
 use coeus_tensor::Tensor;
 
-/// Absolute tolerance for `f64` normalization outputs and gradients on the
-/// fixtures in this harness.
-///
-/// A `p`-term sum rounds to at most `(p - 1) * eps / 2` relative error and the
-/// mean, centered square, reciprocal square root and scale each add one
-/// rounding of `eps / 2`, with `eps = f64::EPSILON`; groups here hold `p <= 32`
-/// terms, so the layer and the oracle each stay under `(32 + 4) * eps / 2 =
-/// 18 * eps`. Cancellation in the layer's variance amplifies that by at most
-/// `1 + mean^2 / var`; the fixtures keep `|mean| <= sqrt(var)`, so the factor
-/// is at most 2 and the output differs by at most `2 * 2 * 18 * eps = 72 * eps`
-/// relative to values of magnitude at most 4. `256 * eps` covers the bound.
-pub(super) const NORMALIZATION_TOLERANCE: f64 = 256.0 * f64::EPSILON;
-
-/// Converts a fixture length to `f64`; fixture lengths are far below `2^24`.
-fn count_f64(length: usize) -> f64 {
-    f64::from(u32::try_from(length).expect("invariant: fixture length fits u32"))
-}
-
-/// Deterministic fixture values in `[-4.5, 5.5]` that do not repeat within a
-/// 32-element group, so no group is constant and no layout mix-up is hidden.
+/// Absolute tolerances for `f64` normalization assertions, derived per
+/// quantity at unit roundoff `u = eps / 2` (`eps = f64::EPSILON`). Sums use
+/// sequential bounds, covering every backend reduction order. Exact fixture
+/// facts: `p <= 12`, `|x| <= 5.5`, `sum|x| <= 34`, `|mean| <= 1.75`,
+/// `8.48 <= var <= 10.41`, `|xhat| <= 1.69`, `|g| <= 1.5`, `sum|g| <= 12`,
+/// `sum|g*xhat| <= 11.3`. Mean `<= 33u`; centered values `<= 38.5u`, whose
+/// shared shift cancels to first order in the two-pass variance (`<= 156u`);
+/// outputs agree within `37.4u`, input gradients within `63u`, bias sums
+/// within `264u`, weight sums within `980u` across both sides.
+pub(super) const NORMALIZATION_OUTPUT_TOLERANCE: f64 = 64.0 * f64::EPSILON;
+pub(super) const NORMALIZATION_GRADIENT_TOLERANCE: f64 = 256.0 * f64::EPSILON;
+pub(super) const NORMALIZATION_WEIGHT_TOLERANCE: f64 = 1024.0 * f64::EPSILON;
+/// Deterministic fixture values in `[-4.5, 5.5]`, repeating every 11 indices.
+/// Every group is non-constant and the channel means are pairwise distinct,
+/// so no layout mix-up is hidden.
 pub(super) fn fixture_values(length: u32) -> Vec<f64> {
     (0..length)
         .map(|index| f64::from((index * 7 + 3) % 11) - 4.5)
@@ -73,12 +69,12 @@ pub(super) struct Scenario {
     pub eps: f64,
 }
 
-fn assert_close(actual: &[f64], expected: &[f64], context: &str) {
+fn assert_close(actual: &[f64], expected: &[f64], context: &str, tolerance: f64) {
     assert_eq!(actual.len(), expected.len(), "{context}: length mismatch");
     for (index, (got, want)) in actual.iter().zip(expected).enumerate() {
         assert!(
-            (got - want).abs() <= NORMALIZATION_TOLERANCE,
-            "{context}[{index}]: got {got}, expected {want}, tolerance {NORMALIZATION_TOLERANCE}"
+            (got - want).abs() <= tolerance,
+            "{context}[{index}]: got {got}, expected {want}, tolerance {tolerance}"
         );
     }
 }
@@ -97,7 +93,7 @@ pub(super) fn assert_matches_reference(
     let mut xhat = vec![0.0; scenario.values.len()];
     let mut input_grad = vec![0.0; scenario.values.len()];
     for group in &scenario.statistic_groups {
-        let count = count_f64(group.len());
+        let count = f64::from_count(group.len());
         let mean = group.iter().map(|&i| scenario.values[i]).sum::<f64>() / count;
         let variance = group
             .iter()
@@ -147,6 +143,7 @@ pub(super) fn assert_matches_reference(
         output.tensor.as_slice(),
         &xhat,
         &format!("{context} output"),
+        NORMALIZATION_OUTPUT_TOLERANCE,
     );
 
     let upstream = Var::new(
@@ -168,6 +165,7 @@ pub(super) fn assert_matches_reference(
             .as_slice(),
         &input_grad,
         &format!("{context} input gradient"),
+        NORMALIZATION_GRADIENT_TOLERANCE,
     );
     assert_close(
         weight
@@ -176,6 +174,7 @@ pub(super) fn assert_matches_reference(
             .as_slice(),
         &weight_grad,
         &format!("{context} weight gradient"),
+        NORMALIZATION_WEIGHT_TOLERANCE,
     );
     assert_close(
         bias.grad()
@@ -183,5 +182,6 @@ pub(super) fn assert_matches_reference(
             .as_slice(),
         &bias_grad,
         &format!("{context} bias gradient"),
+        NORMALIZATION_GRADIENT_TOLERANCE,
     );
 }

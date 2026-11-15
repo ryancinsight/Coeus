@@ -1,6 +1,6 @@
 use crate::normalization::value_oracle::{
     assert_matches_reference, channel_groups, fixture_upstream, fixture_values, Scenario,
-    NORMALIZATION_TOLERANCE,
+    NORMALIZATION_OUTPUT_TOLERANCE,
 };
 use coeus_autograd::Var;
 use coeus_nn::{BatchNorm1d, BatchNorm2d, Module, ModuleError};
@@ -10,22 +10,6 @@ use coeus_tensor::Tensor;
 /// the sample variance of `[1, 2, 3, 4]` is `5 / 3`, so with momentum `0.1`
 /// and initial variance `1` the update is `0.9 * 1 + 0.1 * 5 / 3`.
 const RUNNING_VAR_AFTER_ONE_STEP: f64 = 0.9 + 0.1 * (5.0 / 3.0);
-
-#[test]
-fn test_batchnorm1d_forward_shape() {
-    let bn = BatchNorm1d::<f64>::new(4, 1e-5, 0.1).expect("invariant: test operation succeeds");
-    let input = Var::new(
-        Tensor::zeros(vec![2, 4, 10]).expect("invariant: test backend operation succeeds"),
-        true,
-    )
-    .expect("invariant: test backend operation succeeds");
-    let output = bn.forward(&input).expect("valid BatchNorm1d input");
-
-    assert_eq!(output.tensor.shape(), &[2, 4, 10]);
-
-    let params = bn.parameters();
-    assert_eq!(params.len(), 2); // weight + bias
-}
 
 #[test]
 fn test_batchnorm1d_running_stats_update() {
@@ -48,13 +32,13 @@ fn test_batchnorm1d_running_stats_update() {
     // Channel means are 2.5 and 6.5; momentum 0.1 from a zero start.
     let rm_after = bn.running_mean.borrow();
     assert_eq!(rm_after.as_slice().len(), 2);
-    assert!((rm_after.as_slice()[0] - 0.25).abs() <= NORMALIZATION_TOLERANCE);
-    assert!((rm_after.as_slice()[1] - 0.65).abs() <= NORMALIZATION_TOLERANCE);
+    assert!((rm_after.as_slice()[0] - 0.25).abs() <= NORMALIZATION_OUTPUT_TOLERANCE);
+    assert!((rm_after.as_slice()[1] - 0.65).abs() <= NORMALIZATION_OUTPUT_TOLERANCE);
     // Both channels hold four consecutive integers, so share one variance.
     let rv_after = bn.running_var.borrow();
     for (channel, &variance) in rv_after.as_slice().iter().enumerate() {
         assert!(
-            (variance - RUNNING_VAR_AFTER_ONE_STEP).abs() <= NORMALIZATION_TOLERANCE,
+            (variance - RUNNING_VAR_AFTER_ONE_STEP).abs() <= NORMALIZATION_OUTPUT_TOLERANCE,
             "channel {channel} running variance {variance}, expected {RUNNING_VAR_AFTER_ONE_STEP}"
         );
     }
@@ -126,22 +110,6 @@ fn batchnorm1d_state_borrow_failure_is_typed_and_transactional() {
 }
 
 #[test]
-fn test_batchnorm2d_forward_shape() {
-    let bn = BatchNorm2d::<f64>::new(4, 1e-5, 0.1).expect("invariant: test operation succeeds");
-    let input = Var::new(
-        Tensor::zeros(vec![2, 4, 3, 3]).expect("invariant: test backend operation succeeds"),
-        true,
-    )
-    .expect("invariant: test backend operation succeeds");
-    let output = bn.forward(&input).expect("valid BatchNorm2d input");
-
-    assert_eq!(output.tensor.shape(), &[2, 4, 3, 3]);
-
-    let params = bn.parameters();
-    assert_eq!(params.len(), 2);
-}
-
-#[test]
 fn test_batchnorm2d_running_stats_update() {
     let bn = BatchNorm2d::<f64>::new(2, 1e-5, 0.1).expect("invariant: test operation succeeds");
 
@@ -162,13 +130,13 @@ fn test_batchnorm2d_running_stats_update() {
     // Channel means are 2.5 and 6.5; momentum 0.1 from a zero start.
     let rm_after = bn.running_mean.borrow();
     assert_eq!(rm_after.as_slice().len(), 2);
-    assert!((rm_after.as_slice()[0] - 0.25).abs() <= NORMALIZATION_TOLERANCE);
-    assert!((rm_after.as_slice()[1] - 0.65).abs() <= NORMALIZATION_TOLERANCE);
+    assert!((rm_after.as_slice()[0] - 0.25).abs() <= NORMALIZATION_OUTPUT_TOLERANCE);
+    assert!((rm_after.as_slice()[1] - 0.65).abs() <= NORMALIZATION_OUTPUT_TOLERANCE);
     // Both channels hold four consecutive integers, so share one variance.
     let rv_after = bn.running_var.borrow();
     for (channel, &variance) in rv_after.as_slice().iter().enumerate() {
         assert!(
-            (variance - RUNNING_VAR_AFTER_ONE_STEP).abs() <= NORMALIZATION_TOLERANCE,
+            (variance - RUNNING_VAR_AFTER_ONE_STEP).abs() <= NORMALIZATION_OUTPUT_TOLERANCE,
             "channel {channel} running variance {variance}, expected {RUNNING_VAR_AFTER_ONE_STEP}"
         );
     }
@@ -193,10 +161,11 @@ fn batchnorm2d_known_values_match_hand_derivation() {
 
     let inv_std = 1.0 / (1.25_f64 + EPS).sqrt();
     let channel = [-1.5, -0.5, 0.5, 1.5].map(|centered| centered * inv_std);
+    assert_eq!(output.tensor.as_slice().len(), 8);
     for (index, &got) in output.tensor.as_slice().iter().enumerate() {
         let want = channel[index % 4];
         assert!(
-            (got - want).abs() <= NORMALIZATION_TOLERANCE,
+            (got - want).abs() <= NORMALIZATION_OUTPUT_TOLERANCE,
             "output[{index}] = {got}, expected {want}"
         );
     }

@@ -162,7 +162,10 @@ item below carries `milestone: M-tensor-stack`.
 
 - Status: todo; priority: verification; milestone: M-tensor-stack; [patch]; owner: unclaimed.
 - Outcome: the remaining existence-only nn tests assert computed values against a derived reference.
-- Scope: `coeus-nn` `nn_normalization_tests.rs` (GroupNorm, InstanceNorm1d/2d: assert only that gradients exist) and attention `nn_attention_tests/tests.rs` (`sdpa_forward_shape_null_mask`, `sinusoidal_encoding_shape_and_values`, `sdpa_gradient_flow_qkv`, `mha_gradient_flow_params`: shape, non-zero or finite only).
+- Scope: `coeus-nn` `nn_normalization_tests.rs` (GroupNorm, InstanceNorm1d/2d: assert only that gradients exist) and attention `nn_attention_tests/tests.rs` (`sdpa_forward_shape_null_mask`,
+`sinusoidal_encoding_shape_and_values`, `sdpa_gradient_flow_qkv`, `mha_gradient_flow_params`,
+`mha_output_shape`: shape, non-zero or finite only; the two BatchNorm forward-shape tests
+are deleted as superseded by the reference shape assertions).
 - Acceptance: each listed test asserts values against a derived reference. GroupNorm and InstanceNorm reuse `normalization/value_oracle.rs` (statistic groups are contiguous index runs); SDPA and MHA gradients compare against the softmax-attention Jacobian in f64 with tolerances derived from `f32` rounding.
 - Next step: add `contiguous_groups` to the oracle and convert the three norm tests, then the attention tests.
 - basis: cf793e2173c2afe56ab0e46619780efc0d619e9c
