@@ -147,6 +147,18 @@ class HookInstallationTests(unittest.TestCase):
         self.assertEqual(modes, {f".githooks/{hook}": "100755" for hook in HOOKS})
 
 
+class AtlasRuntimePinTests(unittest.TestCase):
+    """The workflow checks out the Atlas revision these tests pin."""
+
+    def test_workflow_checks_out_the_revision_the_tests_pin(self) -> None:
+        workflow = (REPOSITORY / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            f"ATLAS_RUNTIME_REVISION: {ATLAS_RUNTIME_REVISION}\n", workflow
+        )
+
+
 class LockHookTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
