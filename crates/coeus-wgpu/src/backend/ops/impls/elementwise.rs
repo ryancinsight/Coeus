@@ -39,7 +39,7 @@ unsafe impl ScalarPowerProvider<f32> for WgpuBackend {
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
 unsafe impl<T> coeus_ops::ElementwiseOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
+    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
     WgpuBackend: ElementwiseProvider<T>,
 {
     #[inline]

@@ -21,7 +21,6 @@ leto         = { workspace = true }
 smallvec     = { workspace = true }
 thiserror    = { workspace = true }
 eunomia      = { workspace = true }
-bytemuck     = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

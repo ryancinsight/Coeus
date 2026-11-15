@@ -16,9 +16,9 @@ path = "src/lib.rs"
 [dependencies]
 coeus-core  = { workspace = true }
 coeus-cpu  = { version = "0.12.0", path = "../coeus-cpu" }
+eunomia     = { workspace = true }
 smallvec    = { workspace = true }
 thiserror   = { workspace = true }
-bytemuck    = { workspace = true }
 rkyv        = { workspace = true }
 
 
@@ -27,7 +27,6 @@ criterion = { workspace = true }
 coeus-ops = { path = "../coeus-ops" }
 coeus-nn = { path = "../coeus-nn" }
 coeus-autograd = { path = "../coeus-autograd", default-features = false }
-eunomia = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 bincode = { version = "=2.0.0-rc.3", features = ["serde"] }

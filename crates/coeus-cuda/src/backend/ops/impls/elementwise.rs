@@ -41,7 +41,7 @@ unsafe impl ScalarPowerProvider<f64> for CudaBackend {
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
 unsafe impl<T> coeus_ops::ElementwiseOps<T> for CudaBackend
 where
-    T: CudaScalar + DialectScalar<CudaC> + bytemuck::Pod,
+    T: CudaScalar + DialectScalar<CudaC>,
     CudaBackend: ElementwiseProvider<T>,
 {
     #[inline]
@@ -75,7 +75,7 @@ where
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
 unsafe impl<T> coeus_ops::ScalarPowerOps<T> for CudaBackend
 where
-    T: Float + CudaScalar + DialectScalar<CudaC> + bytemuck::Pod,
+    T: Float + CudaScalar + DialectScalar<CudaC>,
     CudaBackend: ScalarPowerProvider<T>,
 {
     #[inline]

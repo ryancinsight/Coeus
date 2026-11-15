@@ -154,7 +154,12 @@ impl StateArchive<'_> {
                     ),
                 ));
             }
-            let values = bytemuck::pod_collect_to_vec::<u8, T>(archived.bytes.as_slice());
+            let values = archived
+                .bytes
+                .as_slice()
+                .chunks_exact(std::mem::size_of::<T>())
+                .map(eunomia::layout::pod_read_unaligned::<T>)
+                .collect::<Vec<T>>();
             tensors.insert(
                 name.to_owned(),
                 Tensor::from_slice_on(shape, &values, &backend).map_err(Error::other)?,
@@ -259,13 +264,14 @@ impl<T: Scalar, B: ComputeBackend + Default> StateDict<T, B> {
                 .map_err(Error::other)?;
             let payload = if let Some(slice) = contiguous.storage().try_as_slice() {
                 let offset = contiguous.layout().offset();
-                bytemuck::cast_slice(&slice[offset..offset + contiguous.numel()]).to_vec()
+                eunomia::layout::cast_slice::<T, u8>(&slice[offset..offset + contiguous.numel()])
+                    .to_vec()
             } else {
                 let mut host = vec![T::ZERO; contiguous.numel()];
                 backend
                     .copy_to_host(contiguous.storage(), &mut host)
                     .map_err(Error::other)?;
-                bytemuck::cast_slice(&host).to_vec()
+                eunomia::layout::cast_slice::<T, u8>(&host).to_vec()
             };
             let elements = validate_tensor(name, contiguous.shape(), payload.len(), limits)?;
             let expected_bytes =

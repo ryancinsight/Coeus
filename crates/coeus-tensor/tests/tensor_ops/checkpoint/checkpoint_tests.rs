@@ -81,7 +81,10 @@ fn archived_tensor_view_borrows_payload_and_shape() {
     assert_eq!(archive.scalar_type(), "f64");
     let archived = archive.tensor("field.x").unwrap();
     assert_eq!(archived.shape().collect::<Vec<_>>(), [2]);
-    assert_eq!(archived.bytes(), bytemuck::cast_slice(&[1.5_f64, 2.5]));
+    assert_eq!(
+        archived.bytes(),
+        eunomia::layout::cast_slice::<f64, u8>(&[1.5_f64, 2.5])
+    );
     let archive_range = bytes.as_ptr_range();
     assert!(archive_range.contains(&archived.bytes().as_ptr()));
 }

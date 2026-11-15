@@ -420,7 +420,6 @@ dependencies = [
 name = "coeus-accelerator"
 version = "0.12.0"
 dependencies = [
- "bytemuck",
  "coeus-core",
  "coeus-ops",
  "coeus-tensor",
@@ -454,7 +453,6 @@ dependencies = [
 name = "coeus-core"
 version = "0.12.0"
 dependencies = [
- "bytemuck",
  "eunomia",
  "hermes-simd",
  "mnemosyne-memory",
@@ -477,7 +475,6 @@ dependencies = [
 name = "coeus-cuda"
 version = "0.12.0"
 dependencies = [
- "bytemuck",
  "coeus-accelerator",
  "coeus-autograd",
  "coeus-core",
@@ -558,7 +555,6 @@ dependencies = [
 name = "coeus-ops"
 version = "0.12.0"
 dependencies = [
- "bytemuck",
  "coeus-core",
  "coeus-cpu",
  "coeus-sparse",
@@ -637,7 +633,6 @@ name = "coeus-tensor"
 version = "0.12.0"
 dependencies = [
  "bincode",
- "bytemuck",
  "coeus-autograd",
  "coeus-core",
  "coeus-cpu",
@@ -658,7 +653,6 @@ dependencies = [
 name = "coeus-wgpu"
 version = "0.12.0"
 dependencies = [
- "bytemuck",
  "coeus-accelerator",
  "coeus-autograd",
  "coeus-core",

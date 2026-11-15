@@ -19,7 +19,6 @@ hephaestus-core = { workspace = true }
 eunomia = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
-bytemuck = { workspace = true }
 themis = { workspace = true }
 thiserror = { workspace = true }
 
