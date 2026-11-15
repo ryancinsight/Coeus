@@ -68,15 +68,6 @@ item below carries `milestone: M-tensor-stack`.
 - Acceptance: compiler timing/codegen evidence identifies the dominant work; an evidence-backed structural change preserves the enumerated test matrix and lowers its attributed compile cost, or records why the proposed partition does not help.
 - Needs: [kernel output correction](#coeus-device-output-ownership); keep compiler flags and shared target policy fixed for comparison.
 
-<a id="coeus-provider-resolution-2026-09-07"></a>
-## COEUS-PROVIDER-RESOLUTION-2026-09-07 — Restore fresh provider resolution after upstream alignment
-
-- Status: todo; priority: verification; milestone: M-tensor-stack; [arch].
-- Outcome: fresh lock generation and default/all-feature locked resolution agree, including against current upstream (not only offline idempotence).
-- Evidence: a frozen tree regenerates the same offline lock twice and both activation checks pass — this proves closure/idempotence, not remote freshness against the current upstream state.
-- Acceptance: standalone regeneration is idempotent and all configured gates pass against a freshly fetched upstream.
-- Next step: re-run `cargo update` against current remotes and confirm the lock still resolves after any upstream version alignment since the last check.
-
 <a id="coeus-autograd-l1-provider-001"></a>
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Collect hosted evidence for the provider-owned L1 loss
 
