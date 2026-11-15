@@ -100,6 +100,10 @@ jobs:
           components: rustfmt
       - run: cargo fmt --all -- --check
       - name: Lockfile tool contracts
+        # The hook tests fetch the hash-pinned Atlas runtime from the hosting
+        # API; the workflow token lifts the shared-address anonymous quota.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 -m unittest discover -s scripts/tests -v
 
   # Wall-time history: the single Tests job was compile-bound (Native tests
@@ -154,6 +158,7 @@ jobs:
         # Runs on shard 1 only: one invocation covers the hook suite.
         env:
           RUSTC_WRAPPER: ""
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 -B -m unittest scripts.tests.test_hooks -v
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
         if: needs.changed_scope.outputs.test_path == 'native'

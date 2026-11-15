@@ -31,6 +31,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -54,6 +56,60 @@ ATLAS_RUNTIME_FILES = {
     "windows_process.py": "3072bd44412a463ed5eb5a11f3cab5f7170ddcd3",
     "darwin_process.py": "60f0ff8f7dedbdfc22d9d5f9fcb0d601322434f1",
 }
+
+ATLAS_RUNTIME_BASE = (
+    "https://api.github.com/repos/ryancinsight/atlas/contents/scripts"
+)
+
+
+class AtlasRuntimeFetchError(RuntimeError):
+    """The pinned Atlas runtime could not be fetched from the hosting API."""
+
+
+def atlas_runtime_token() -> str | None:
+    """Return the hosting token the environment provides, if any."""
+
+    return os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
+
+
+def fetch_atlas_runtime_file(
+    name: str, token: str | None, urlopen=urllib.request.urlopen
+) -> bytes:
+    """Fetch one runtime file at `ATLAS_RUNTIME_REVISION`.
+
+    The contents API admits 60 unauthenticated requests per hour per client
+    address, and hosted runners share addresses, so an unauthenticated fetch
+    fails on quota exhaustion unrelated to the commit under test. A token
+    raises the quota to the token's own. Any failure is a typed error that
+    names the file, the revision and the authentication state; the token value
+    never appears in it.
+    """
+
+    headers = {
+        "Accept": "application/vnd.github.raw+json",
+        "User-Agent": "coeus-hook-tests",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(
+        f"{ATLAS_RUNTIME_BASE}/{name}?ref={ATLAS_RUNTIME_REVISION}",
+        headers=headers,
+    )
+    state = "authenticated" if token else "unauthenticated (set GITHUB_TOKEN)"
+    try:
+        with urlopen(request, timeout=30) as response:
+            return response.read()
+    except urllib.error.HTTPError as error:
+        raise AtlasRuntimeFetchError(
+            f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}: "
+            f"HTTP {error.code} {error.reason}, {state}"
+        ) from error
+    except urllib.error.URLError as error:
+        raise AtlasRuntimeFetchError(
+            f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}: "
+            f"{error.reason}, {state}"
+        ) from error
+
 
 # A first-party git source in the lock, and a manifest declaring the matching
 # dependency: the fixture member is the shape the checker's flattened-lock
@@ -147,6 +203,99 @@ class HookInstallationTests(unittest.TestCase):
         self.assertEqual(modes, {f".githooks/{hook}": "100755" for hook in HOOKS})
 
 
+class AtlasRuntimeFetchTests(unittest.TestCase):
+    """The runtime fetch authenticates when it can and fails closed when not."""
+
+    class _Response:
+        def __init__(self, body: bytes) -> None:
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exception) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return self.body
+
+    def _recording_opener(self, body: bytes):
+        seen = []
+
+        def opener(request, timeout):
+            seen.append((request, timeout))
+            return self._Response(body)
+
+        return opener, seen
+
+    def test_token_is_sent_as_bearer_authorization_for_the_pinned_revision(
+        self,
+    ) -> None:
+        opener, seen = self._recording_opener(b"payload")
+        body = fetch_atlas_runtime_file("process_tree.py", "secret-token", opener)
+        self.assertEqual(body, b"payload")
+        ((request, timeout),) = seen
+        self.assertEqual(request.get_header("Authorization"), "Bearer secret-token")
+        self.assertEqual(
+            request.full_url,
+            f"{ATLAS_RUNTIME_BASE}/process_tree.py?ref={ATLAS_RUNTIME_REVISION}",
+        )
+        self.assertEqual(timeout, 30)
+
+    def test_absent_token_sends_no_authorization_header(self) -> None:
+        opener, seen = self._recording_opener(b"payload")
+        fetch_atlas_runtime_file("process_tree.py", None, opener)
+        self.assertIsNone(seen[0][0].get_header("Authorization"))
+
+    def test_quota_refusal_is_a_typed_error_naming_file_and_auth_state(self) -> None:
+        def refuse(request, timeout):
+            raise urllib.error.HTTPError(
+                request.full_url, 403, "rate limit exceeded", {}, None
+            )
+
+        with self.assertRaises(AtlasRuntimeFetchError) as raised:
+            fetch_atlas_runtime_file("windows_process.py", None, refuse)
+        message = str(raised.exception)
+        self.assertIn("windows_process.py", message)
+        self.assertIn(ATLAS_RUNTIME_REVISION, message)
+        self.assertIn("HTTP 403 rate limit exceeded", message)
+        self.assertIn("unauthenticated", message)
+
+    def test_error_never_echoes_the_token(self) -> None:
+        def refuse(request, timeout):
+            raise urllib.error.HTTPError(
+                request.full_url, 401, "Bad credentials", {}, None
+            )
+
+        with self.assertRaises(AtlasRuntimeFetchError) as raised:
+            fetch_atlas_runtime_file("process_tree.py", "secret-token", refuse)
+        message = str(raised.exception)
+        self.assertNotIn("secret-token", message)
+        self.assertIn("authenticated", message)
+        self.assertNotIn("unauthenticated", message)
+
+    def test_network_failure_is_a_typed_error(self) -> None:
+        def unreachable(request, timeout):
+            raise urllib.error.URLError("name resolution failed")
+
+        with self.assertRaises(AtlasRuntimeFetchError) as raised:
+            fetch_atlas_runtime_file("darwin_process.py", "t", unreachable)
+        self.assertIn("name resolution failed", str(raised.exception))
+
+    def test_environment_token_prefers_github_token_over_gh_token(self) -> None:
+        with unittest.mock.patch.dict(
+            os.environ, {"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}
+        ):
+            self.assertEqual(atlas_runtime_token(), "a")
+        with unittest.mock.patch.dict(os.environ, {"GH_TOKEN": "b"}):
+            os.environ.pop("GITHUB_TOKEN", None)
+            self.assertEqual(atlas_runtime_token(), "b")
+        with unittest.mock.patch.dict(os.environ, {}):
+            os.environ.pop("GITHUB_TOKEN", None)
+            os.environ.pop("GH_TOKEN", None)
+            self.assertIsNone(atlas_runtime_token())
+
+
 class LockHookTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -157,22 +306,11 @@ class LockHookTests(unittest.TestCase):
             directory = tempfile.TemporaryDirectory(prefix="coeus-hook-runtime-")
             cls.addClassCleanup(directory.cleanup)
             cls.runtime = Path(directory.name)
-            base = (
-                "https://api.github.com/repos/ryancinsight/atlas/"
-                "contents/scripts"
-            )
+            token = atlas_runtime_token()
             for name in ATLAS_RUNTIME_FILES:
-                request = urllib.request.Request(
-                    f"{base}/{name}?ref={ATLAS_RUNTIME_REVISION}",
-                    headers={
-                        "Accept": "application/vnd.github.raw+json",
-                        "User-Agent": "coeus-hook-tests",
-                    },
+                (cls.runtime / name).write_bytes(
+                    fetch_atlas_runtime_file(name, token)
                 )
-                with urllib.request.urlopen(
-                    request, timeout=30
-                ) as response:
-                    (cls.runtime / name).write_bytes(response.read())
         missing = [
             name
             for name in ATLAS_RUNTIME_FILES
