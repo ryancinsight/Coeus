@@ -266,7 +266,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
     def test_quota_refusal_is_a_typed_error_naming_file_and_auth_state(self) -> None:
         def refuse(request, timeout):
             raise urllib.error.HTTPError(
-                request.full_url, 403, "rate limit exceeded", {}, None
+                request.full_url, 403, "rate limit exceeded", {}, io.BytesIO()
             )
 
         with self.assertRaises(AtlasRuntimeFetchError) as raised:
@@ -293,7 +293,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
     def test_error_never_echoes_the_token(self) -> None:
         def refuse(request, timeout):
             raise urllib.error.HTTPError(
-                request.full_url, 401, "Bad credentials", {}, None
+                request.full_url, 401, "Bad credentials", {}, io.BytesIO()
             )
 
         with self.assertRaises(AtlasRuntimeFetchError) as raised:
@@ -322,6 +322,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)
+        listener.settimeout(30)
         release = threading.Event()
 
         def serve() -> None:
