@@ -87,16 +87,6 @@ item below carries `milestone: M-tensor-stack`.
 - Links: [ADR 0056](adr/0056-provider-owned-lp-norms.md).
 - Next step: run the workspace doctest suite and `cargo-semver-checks` against the recorded baseline; record both in this item.
 
-<a id="coeus-frobenius-norm-provider-001"></a>
-## COEUS-FROBENIUS-NORM-PROVIDER-001 — Collect hosted provider contracts for provider-owned Frobenius norm
-
-- Status: todo (local implementation complete); priority: verification; milestone: M-tensor-stack; [patch] [arch].
-- Outcome: `coeus_ops::frobenius_norm_batched` composes provider elementwise/reduction/sqrt instead of a rank-3-and-higher host fold; rank-2 scalar behavior, batched output shape, and strided-input materialization preserved.
-- Local evidence: locked workspace all-targets check, warning-denied `coeus-ops` Clippy, full `coeus-ops` Nextest (209/209 including 7 Frobenius tests), 23 doctests pass.
-- Residual: exact-head hosted WGPU/CUDA/ROCm/Metal provider contracts not yet run.
-- Links: [ADR 0060](adr/0060-provider-owned-frobenius-norm.md).
-- Next step: run the hosted backend matrix and record the result here.
-
 <a id="coeus-benchmark-manifest-g043"></a>
 ## COEUS-BENCHMARK-MANIFEST-G043 — Close remaining partial rows in the every-family evidence manifest
 
