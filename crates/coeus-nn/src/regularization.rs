@@ -391,9 +391,13 @@ where
         let windowed = coeus_autograd::permute(&win_cns, &[1, 0, 2])?;
 
         // denom = (k + (alpha / size) * windowed)^beta;  y = x / denom.
+        // The count is exact at f64 precision and the quotient is rounded once
+        // into the element type.
         let scaled = coeus_autograd::scalar_mul(
             &windowed,
-            <T as coeus_core::FloatElement>::from_f64(self.alpha / self.size as f64),
+            <T as coeus_core::FloatElement>::from_f64(
+                self.alpha / <f64 as coeus_core::FloatElement>::from_count(self.size),
+            ),
         )?;
         let denom = coeus_autograd::pow(
             &coeus_autograd::scalar_add(

@@ -187,7 +187,7 @@ where
             if !value.is_finite()
                 || value < 0.0
                 || value.trunc() != value
-                || value >= self.num_embeddings as f64
+                || value >= coeus_core::FloatElement::from_count(self.num_embeddings)
                 || value > i64::MAX as f64
             {
                 return Err(ModuleError::ShapeMismatch {

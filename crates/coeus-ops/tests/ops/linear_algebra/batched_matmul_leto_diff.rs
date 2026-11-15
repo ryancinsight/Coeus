@@ -64,10 +64,10 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let a: Vec<T> = (1..=12)
-        .map(|value| <T as coeus_core::FloatElement>::from_f64(value as f64))
+        .map(|value| <T as coeus_core::FloatElement>::from_count(value))
         .collect();
     let b: Vec<T> = (1..=12)
-        .map(|value| <T as coeus_core::FloatElement>::from_f64((value + 20) as f64))
+        .map(|value| <T as coeus_core::FloatElement>::from_count(value + 20))
         .collect();
 
     let a_tensor = tensor_from_slice::<T, B>(&[2, 2, 3], &a, backend);
@@ -87,7 +87,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let a: Vec<T> = (1..=12)
-        .map(|value| <T as coeus_core::FloatElement>::from_f64(value as f64))
+        .map(|value| <T as coeus_core::FloatElement>::from_count(value))
         .collect();
     let b: Vec<T> = [2.0, 3.0, 5.0, 7.0, 11.0, 13.0]
         .into_iter()

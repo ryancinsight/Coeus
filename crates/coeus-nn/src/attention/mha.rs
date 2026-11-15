@@ -138,7 +138,10 @@ pub fn multi_head_attention_cross<
     }
 
     let d_head = d_model / H;
-    let scale = T::ONE / <T as coeus_core::FloatElement>::from_f64((d_head as f64).sqrt());
+    // The scale is `1/sqrt(d_head)`: the count is exact at f64 precision and the
+    // root is rounded once into the element type.
+    let d_head_f64 = <f64 as coeus_core::FloatElement>::from_count(d_head);
+    let scale = T::ONE / <T as coeus_core::FloatElement>::from_f64(d_head_f64.sqrt());
 
     let batch = dimensions.batch;
     let seq_q = dimensions.seq_q;

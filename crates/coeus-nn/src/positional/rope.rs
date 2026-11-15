@@ -52,8 +52,11 @@ impl<T: Float + coeus_core::FloatElement, B: coeus_ops::BackendOps<T> + Default>
         let half_dim = d_head / 2;
         for pos in 0..max_len {
             for i in 0..half_dim {
-                let theta = base.powf(-2.0 * (i as f64) / (d_head as f64));
-                let angle = (pos as f64) * theta;
+                let theta = base.powf(
+                    -2.0 * <f64 as coeus_core::FloatElement>::from_count(i)
+                        / <f64 as coeus_core::FloatElement>::from_count(d_head),
+                );
+                let angle = <f64 as coeus_core::FloatElement>::from_count(pos) * theta;
                 let c = <T as coeus_core::FloatElement>::from_f64(angle.cos());
                 let s = <T as coeus_core::FloatElement>::from_f64(angle.sin());
 

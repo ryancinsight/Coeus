@@ -132,7 +132,7 @@ fn layernorm_case<T: GradcheckScalar>() {
             istdev,
             Tensor::<T, MoiraiBackend>::full_on(
                 [1],
-                <T as coeus_core::FloatElement>::from_f64(WIDTH as f64),
+                <T as coeus_core::FloatElement>::from_count(WIDTH),
                 &backend,
             )
             .expect("invariant: test backend operation succeeds"),

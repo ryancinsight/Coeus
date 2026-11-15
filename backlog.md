@@ -30,15 +30,6 @@ item below carries `milestone: M-tensor-stack`.
 - standing: no open `correctness` item; the conformance scan's installed-state assertions pass; the scan's `oversized_files` count for Coeus is at or below 7 (14 in `scripts/conformance-baseline.json` at meta `e0f893530eb2efe3de5918471bb2d18ad8cb2279`); the SemVer gate, the publish dry run, and the README, example and book builds pass.
 - non-goals: crates.io publication and PyPI upload without release authority; new model families; Python API beyond comparison operators; sparse kernels in `coeus-sparse`; new `coeus-dist` transports; ROCm staggered kernels; hardware-hosted CUDA and Metal staggered evidence as a gate.
 
-<a id="coeus-count-conv-spelling"></a>
-## COEUS-COUNT-CONV-SPELLING — Count-typed spelling for `from_f64(n as f64)` sites
-
-- Status: todo; priority: tightening; milestone: M-tensor-stack; [patch].
-- Finding: the COEUS-SCALAR-VOCAB slices (closed) retargeted count conversions to `<T as FloatElement>::from_f64(n as f64)`; the item's "Also" clause (migrate them to `from_count`/`try_from_count`) was not executed — `from_count` does not exist, and the exactness contract above 2^53 (exact vs rounded vs rejected) is undecided. Values are correct today (`n as f64` is exact below 2^53); only the spelling misstates intent.
-- Scope: decide the contract, add the spelling (upstream if it belongs to eunomia), migrate the ~50 count sites.
-- Acceptance: every count-typed conversion names the count spelling; values unchanged; gates green.
-- Next step: decide exact-vs-rounded-vs-rejected for counts above 2^53.
-
 <a id="atlas-coeus-backend-045"></a>
 ## ATLAS-COEUS-BACKEND-045 — Unseal ComputeBackend and unify matmul (residual)
 
