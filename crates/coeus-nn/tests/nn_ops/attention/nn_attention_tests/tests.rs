@@ -180,8 +180,59 @@ fn sdpa_gradient_flow_qkv() {
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
-    // All three inputs must have non-None gradients
-    for (label, var) in [("q", &q), ("k", &k), ("v", &v)] {
+    // Analytical gradients for L = sum(softmax(scale * Q K^T) V):
+    // scores = scale * Q K^T, A = softmax(scores), dV = A^T 1,
+    // dA = 1 V^T, dS = A ⊙ (dA - rowsum(dA ⊙ A)), dQ = scale dS K, dK = scale dS^T Q.
+    // Derived for this fixture (f32 arithmetic, row-major [batch, seq, d]).
+    const SDPA_GRAD_TOL: f32 = 2e-5;
+    let expected_dq = [
+        0.0739400806_f32,
+        0.0739400787_f32,
+        0.073940087_f32,
+        0.073940087_f32,
+        0.0699472986_f32,
+        0.069947297_f32,
+        0.0699473054_f32,
+        0.0699473054_f32,
+        0.0632109155_f32,
+        0.0632109141_f32,
+        0.0632109221_f32,
+        0.0632109221_f32,
+    ];
+    let expected_dk = [
+        -0.149153698_f32,
+        -0.181793019_f32,
+        -0.21443234_f32,
+        -0.247071665_f32,
+        -0.0561836303_f32,
+        -0.0648686654_f32,
+        -0.0735537014_f32,
+        -0.0822387391_f32,
+        0.205337328_f32,
+        0.246661684_f32,
+        0.287986041_f32,
+        0.329310404_f32,
+    ];
+    let expected_dv = [
+        0.675145593_f32,
+        0.675145593_f32,
+        0.675145593_f32,
+        0.675145593_f32,
+        0.948240395_f32,
+        0.948240395_f32,
+        0.948240395_f32,
+        0.948240395_f32,
+        1.37661401_f32,
+        1.37661401_f32,
+        1.37661401_f32,
+        1.37661401_f32,
+    ];
+
+    for (label, var, expected) in [
+        ("q", &q, expected_dq.as_slice()),
+        ("k", &k, expected_dk.as_slice()),
+        ("v", &v, expected_dv.as_slice()),
+    ] {
         let grad = var
             .grad
             .as_ref()
@@ -191,10 +242,21 @@ fn sdpa_gradient_flow_qkv() {
             .storage()
             .try_as_slice()
             .expect("grad must be CPU-addressable");
-        let any_nonzero = slice.iter().any(|&x: &f32| x.abs() > EPS);
-        assert!(any_nonzero, "SDPA: {label}.grad is all-zero");
-        let any_nan = slice.iter().any(|x: &f32| x.is_nan() || x.is_infinite());
-        assert!(!any_nan, "SDPA: {label}.grad contains NaN/Inf");
+        assert_eq!(
+            slice.len(),
+            expected.len(),
+            "SDPA: {label}.grad length mismatch"
+        );
+        for (index, (&actual, &expected_value)) in slice.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (actual - expected_value).abs() <= SDPA_GRAD_TOL,
+                "SDPA: {label}.grad[{index}] = {actual}, expected {expected_value} (|Δ| <= {SDPA_GRAD_TOL})"
+            );
+            assert!(
+                actual.is_finite(),
+                "SDPA: {label}.grad[{index}] is not finite"
+            );
+        }
     }
 }
 
