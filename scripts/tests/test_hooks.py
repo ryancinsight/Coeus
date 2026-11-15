@@ -23,17 +23,22 @@ judged by the checker's own tests (atlas `scripts/tests/test_lockfile_*.py`).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import http.client
+import io
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
-import unittest.mock
 import urllib.error
 import urllib.request
+from collections.abc import Mapping
 from pathlib import Path
 
 
@@ -66,10 +71,10 @@ class AtlasRuntimeFetchError(RuntimeError):
     """The pinned Atlas runtime could not be fetched from the hosting API."""
 
 
-def atlas_runtime_token() -> str | None:
-    """Return the hosting token the environment provides, if any."""
+def atlas_runtime_token(environment: Mapping[str, str] = os.environ) -> str | None:
+    """Return the hosting token `environment` provides, if any."""
 
-    return os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
+    return environment.get("GITHUB_TOKEN") or environment.get("GH_TOKEN") or None
 
 
 def fetch_atlas_runtime_file(
@@ -77,12 +82,16 @@ def fetch_atlas_runtime_file(
 ) -> bytes:
     """Fetch one runtime file at `ATLAS_RUNTIME_REVISION`.
 
-    The contents API admits 60 unauthenticated requests per hour per client
-    address, and hosted runners share addresses, so an unauthenticated fetch
-    fails on quota exhaustion unrelated to the commit under test. A token
-    raises the quota to the token's own. Any failure is a typed error that
-    names the file, the revision and the authentication state; the token value
-    never appears in it.
+    Hosted CI does not call this: it checks the pinned revision out and sets
+    `ATLAS_HOOK_RUNTIME`. A local run without a checkout reaches the hosting
+    API, which admits 60 unauthenticated requests per hour per client address;
+    a token raises the quota to the token's own.
+
+    Every failure raises `AtlasRuntimeFetchError` naming the file, the revision
+    and the authentication state: an HTTP status, a connection or timeout
+    error (`OSError`, which covers `URLError`), and a truncated or malformed
+    response (`http.client.HTTPException`). The token value never appears in
+    the error.
     """
 
     headers = {
@@ -100,14 +109,21 @@ def fetch_atlas_runtime_file(
         with urlopen(request, timeout=30) as response:
             return response.read()
     except urllib.error.HTTPError as error:
+        error.close()
+        failure = f"HTTP {error.code} {error.reason}"
         raise AtlasRuntimeFetchError(
             f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}: "
-            f"HTTP {error.code} {error.reason}, {state}"
+            f"{failure}, {state}"
         ) from error
-    except urllib.error.URLError as error:
+    except (OSError, http.client.HTTPException) as error:
+        failure = (
+            error.reason
+            if isinstance(error, urllib.error.URLError)
+            else f"{type(error).__name__}: {error}"
+        )
         raise AtlasRuntimeFetchError(
             f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}: "
-            f"{error.reason}, {state}"
+            f"{failure}, {state}"
         ) from error
 
 
@@ -261,6 +277,19 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         self.assertIn("HTTP 403 rate limit exceeded", message)
         self.assertIn("unauthenticated", message)
 
+    def test_refusal_closes_the_error_response_body(self) -> None:
+        body = io.BytesIO(b"rate limit exceeded")
+
+        def refuse(request, timeout):
+            raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, body)
+
+        # `raised` keeps the error chain, and so the response body, alive:
+        # the body is closed by the fetch, not by collecting the chain.
+        with self.assertRaises(AtlasRuntimeFetchError) as raised:
+            fetch_atlas_runtime_file("process_tree.py", None, refuse)
+        self.assertIsInstance(raised.exception.__cause__, urllib.error.HTTPError)
+        self.assertTrue(body.closed)
+
     def test_error_never_echoes_the_token(self) -> None:
         def refuse(request, timeout):
             raise urllib.error.HTTPError(
@@ -282,18 +311,90 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
             fetch_atlas_runtime_file("darwin_process.py", "t", unreachable)
         self.assertIn("name resolution failed", str(raised.exception))
 
+    @contextlib.contextmanager
+    def _local_server(self, reply: bytes | None):
+        """Serve one connection on loopback; `None` never answers it.
+
+        Yields the port. The connection stays open until the context exits, so
+        a `None` reply makes the client's wait for a response time out.
+        """
+
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        release = threading.Event()
+
+        def serve() -> None:
+            connection, _ = listener.accept()
+            with connection:
+                connection.recv(65536)
+                if reply is None:
+                    release.wait(timeout=30)
+                else:
+                    connection.sendall(reply)
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        try:
+            yield listener.getsockname()[1]
+        finally:
+            release.set()
+            thread.join(timeout=30)
+            listener.close()
+
+    def _loopback_opener(self, port: int, wait: float):
+        """Send the fetch's own request through real `urllib` to loopback."""
+
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+        def open_loopback(request, timeout):
+            local = urllib.request.Request(
+                f"http://127.0.0.1:{port}/", headers=dict(request.header_items())
+            )
+            return opener.open(local, timeout=wait)
+
+        return open_loopback
+
+    def _assert_typed_failure(self, reply, cause: type[BaseException]) -> None:
+        with self._local_server(reply) as port:
+            with self.assertRaises(AtlasRuntimeFetchError) as raised:
+                fetch_atlas_runtime_file(
+                    "process_tree.py", None, self._loopback_opener(port, 0.5)
+                )
+        message = str(raised.exception)
+        self.assertIn("process_tree.py", message)
+        self.assertIn(ATLAS_RUNTIME_REVISION, message)
+        self.assertIn(cause.__name__, message)
+        self.assertIn("unauthenticated", message)
+        self.assertIsInstance(raised.exception.__cause__, cause)
+
+    def test_unanswered_request_times_out_as_a_typed_error(self) -> None:
+        self._assert_typed_failure(None, TimeoutError)
+
+    def test_connection_closed_without_a_response_is_a_typed_error(self) -> None:
+        self._assert_typed_failure(b"", http.client.RemoteDisconnected)
+
+    def test_truncated_body_is_a_typed_error(self) -> None:
+        reply = b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort"
+        self._assert_typed_failure(reply, http.client.IncompleteRead)
+
     def test_environment_token_prefers_github_token_over_gh_token(self) -> None:
-        with unittest.mock.patch.dict(
-            os.environ, {"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}
-        ):
-            self.assertEqual(atlas_runtime_token(), "a")
-        with unittest.mock.patch.dict(os.environ, {"GH_TOKEN": "b"}):
-            os.environ.pop("GITHUB_TOKEN", None)
-            self.assertEqual(atlas_runtime_token(), "b")
-        with unittest.mock.patch.dict(os.environ, {}):
-            os.environ.pop("GITHUB_TOKEN", None)
-            os.environ.pop("GH_TOKEN", None)
-            self.assertIsNone(atlas_runtime_token())
+        self.assertEqual(
+            atlas_runtime_token({"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}), "a"
+        )
+        self.assertEqual(atlas_runtime_token({"GH_TOKEN": "b"}), "b")
+        self.assertEqual(
+            atlas_runtime_token({"GITHUB_TOKEN": "", "GH_TOKEN": "b"}), "b"
+        )
+        self.assertIsNone(atlas_runtime_token({}))
+
+    def test_workflow_checks_out_the_revision_the_tests_pin(self) -> None:
+        workflow = (REPOSITORY / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            f"ATLAS_RUNTIME_REVISION: {ATLAS_RUNTIME_REVISION}\n", workflow
+        )
 
 
 class LockHookTests(unittest.TestCase):
@@ -375,7 +476,10 @@ class LockHookTests(unittest.TestCase):
         self.alone = self.root / "alone"
         self.calls_log = self.root / "checker-calls.jsonl"
         self.environment = os.environ.copy()
-        for variable in ("SKIP_LOCKFILE_CHECK", "LOCKFILE_STUB"):
+        # The hook, git and cargo children never need the hosting credential.
+        for variable in (
+            "SKIP_LOCKFILE_CHECK", "LOCKFILE_STUB", "GITHUB_TOKEN", "GH_TOKEN"
+        ):
             self.environment.pop(variable, None)
         self.environment["PYTHON"] = Path(sys.executable).as_posix()
         self.environment["GIT_CONFIG_NOSYSTEM"] = "1"
