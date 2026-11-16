@@ -24,6 +24,7 @@ judged by the checker's own tests (atlas `scripts/tests/test_lockfile_*.py`).
 from __future__ import annotations
 
 import contextlib
+import gc
 import hashlib
 import http.client
 import json
@@ -39,8 +40,10 @@ import traceback
 import unittest
 import urllib.error
 import urllib.request
+import warnings
 from collections.abc import Mapping
 from pathlib import Path
+from typing import NamedTuple
 
 
 # Every external command the hooks run before and inside their lock stage,
@@ -75,10 +78,27 @@ class AtlasRuntimeFetchError(RuntimeError):
     """The pinned Atlas runtime could not be fetched from the hosting API."""
 
 
-def atlas_runtime_token(environment: Mapping[str, str] = os.environ) -> str | None:
-    """Return the hosting token `environment` provides, if any."""
+class AtlasRuntimeToken(NamedTuple):
+    """A hosting token and the environment variable that held it."""
 
-    return environment.get("GITHUB_TOKEN") or environment.get("GH_TOKEN") or None
+    variable: str
+    value: str
+
+
+def atlas_runtime_token(
+    environment: Mapping[str, str] = os.environ,
+) -> AtlasRuntimeToken | None:
+    """Return the first non-blank `GITHUB_TOKEN`, then `GH_TOKEN`, in `environment`.
+
+    A value that is empty or only whitespace, a space or a bare line ending
+    included, counts as unset: it is skipped and never reaches a request header.
+    """
+
+    for variable in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = environment.get(variable)
+        if value is not None and value.strip():
+            return AtlasRuntimeToken(variable, value)
+    return None
 
 
 # Characters an Authorization token cannot carry: C0 controls other than tab,
@@ -101,8 +121,25 @@ def _read_bounded(response) -> bytes:
     return bytes(body)
 
 
+def _close_unreturned_responses(error: BaseException) -> None:
+    """Close each HTTP response still referenced by a frame `error` crossed.
+
+    `urllib` leaves the first-hop response open when its redirect handler
+    rejects a malformed `Location` with a `ValueError`: the caller never
+    receives the response, so only the traceback's frames (`fp` of
+    `http_error_302`, `response` of its callers) still reach its socket.
+    """
+
+    frame_trace = error.__traceback__
+    while frame_trace is not None:
+        for value in frame_trace.tb_frame.f_locals.values():
+            if isinstance(value, http.client.HTTPResponse):
+                value.close()
+        frame_trace = frame_trace.tb_next
+
+
 def fetch_atlas_runtime_file(
-    name: str, token: str | None, urlopen=urllib.request.urlopen
+    name: str, token: AtlasRuntimeToken | None, urlopen=urllib.request.urlopen
 ) -> bytes:
     """Fetch one runtime file at `ATLAS_RUNTIME_REVISION`.
 
@@ -111,11 +148,15 @@ def fetch_atlas_runtime_file(
     per client address; a token raises the quota.
 
     Raises `AtlasRuntimeFetchError` naming file, revision and authentication
-    state for: a token an HTTP header cannot carry (before any request); an
+    state for: a token an HTTP header cannot carry, whose message also names
+    the variable that held it (before any request); an
     HTTP status; an `OSError`; an `http.client.HTTPException`; a `ValueError`
     (malformed redirect `Location`, a body above `ATLAS_RUNTIME_MAX_BYTES`, a
     redirect `urllib` followed to a non-HTTP(S) URL such as ftp, refused
-    unread). Other exceptions propagate. The body is read in 64 KiB steps, so a
+    unread). Other exceptions propagate. A malformed redirect `Location`
+    leaves no socket open: `urllib` abandons the first-hop response, which
+    the fetch closes through the exception's traceback. The body is read in
+    64 KiB steps, so a
     declared length or chunk size never sizes a read: five oversized witnesses
     raise `OverflowError` or `MemoryError` from an unbounded read on CPython
     3.13.3.
@@ -132,11 +173,11 @@ def fetch_atlas_runtime_file(
     token, which a local-variable dump shows.
     """
 
-    state = "authenticated" if token else "unauthenticated (set GITHUB_TOKEN)"
+    state = "authenticated" if token is not None else "unauthenticated (set GITHUB_TOKEN)"
     where = f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}"
-    if token and _UNCARRIABLE_TOKEN_CHARACTER.search(token):
+    if token is not None and _UNCARRIABLE_TOKEN_CHARACTER.search(token.value):
         raise AtlasRuntimeFetchError(
-            f"{where}: the token (GITHUB_TOKEN or GH_TOKEN) holds a character "
+            f"{where}: the token in {token.variable} holds a character "
             f"an HTTP header cannot carry, {state}, no request sent"
         )
     request = urllib.request.Request(
@@ -146,8 +187,8 @@ def fetch_atlas_runtime_file(
             "User-Agent": "coeus-hook-tests",
         },
     )
-    if token:
-        request.add_unredirected_header("Authorization", f"Bearer {token}")
+    if token is not None:
+        request.add_unredirected_header("Authorization", f"Bearer {token.value}")
     try:
         with urlopen(request, timeout=30) as response:
             if not response.geturl().startswith(("http://", "https://")):
@@ -157,8 +198,9 @@ def fetch_atlas_runtime_file(
         error.close()
         failure, kind, cause = f"HTTP {error.code} {error.reason}", f"HTTP {error.code}", error
     except (OSError, http.client.HTTPException, ValueError) as error:
+        _close_unreturned_responses(error)
         failure, kind, cause = f"{type(error).__name__}: {error}", type(error).__name__, error
-    if token:
+    if token is not None:
         failure = kind
         if type(cause) is ValueError:
             cause.args, cause.__cause__, cause.__context__ = (), None, None
@@ -267,7 +309,8 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
     `test_a_token_clears_what_a_value_error_chains_to` inject openers that
     raise directly. `test_token_validation_rejects_everything_http_client_rejects`
     needs only an unconnected connection, and
-    `test_environment_token_prefers_github_token_over_gh_token` reads no network.
+    `test_environment_token_is_the_first_non_blank_of_github_token_then_gh_token`
+    reads no network.
     """
 
     SECRET = "fake-secret-token"
@@ -278,28 +321,33 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         self.reads: list[tuple] = []
 
     @contextlib.contextmanager
-    def _local_server(self, reply: bytes | None):
-        """Answer one loopback connection with `reply` (`None` holds it open).
+    def _local_server(self, reply: bytes | tuple[bytes | None, ...] | None):
+        """Answer loopback connections with `reply`, one connection per reply.
 
-        Yields the port and the request texts read.
+        `reply` is bytes, or a tuple of them answering consecutive connections;
+        `None` holds that connection open. Yields the port and the request
+        texts read.
         """
 
+        replies = reply if isinstance(reply, tuple) else (reply,)
         received: list[str] = []
         release = threading.Event()
         with socket.create_server(("127.0.0.1", 0)) as listener:
-            listener.settimeout(30)  # Backstop only: exit's connection ends it.
+            listener.settimeout(30)  # Backstop only: exit's connections end it.
 
             def serve() -> None:
                 with contextlib.suppress(OSError):
-                    connection, _ = listener.accept()
-                    with connection:
-                        request = connection.recv(65536)
-                        if request:
-                            received.append(request.decode("latin-1"))
-                        if reply is None:
-                            release.wait(timeout=30)
-                        else:
-                            connection.sendall(reply)
+                    for answer in replies:
+                        connection, _ = listener.accept()
+                        with connection:
+                            connection.settimeout(30)
+                            request = connection.recv(65536)
+                            if request:
+                                received.append(request.decode("latin-1"))
+                            if answer is None:
+                                release.wait(timeout=30)
+                            else:
+                                connection.sendall(answer)
 
             thread = threading.Thread(target=serve, daemon=True)
             thread.start()
@@ -308,14 +356,28 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                 yield port, received
             finally:
                 release.set()
-                if thread.is_alive():
+                for _ in replies:
+                    if not thread.is_alive():
+                        break
                     with contextlib.suppress(OSError):
                         socket.create_connection(("127.0.0.1", port), timeout=5).close()
                 thread.join(timeout=30)
 
-    def _fetch(self, reply, token=None, wait=0.5, name="process_tree.py"):
-        """Fetch from loopback (timeout `wait`): the body or error, and the requests."""
+    @staticmethod
+    def _environment_token(token):
+        """`token` as the environment lookup returns it, for a `str` value."""
 
+        if isinstance(token, str):
+            return atlas_runtime_token({"GITHUB_TOKEN": token})
+        return token
+
+    def _fetch(self, reply, token=None, wait=0.5, name="process_tree.py"):
+        """Fetch from loopback (timeout `wait`): the body or error, and the requests.
+
+        A `str` token is read as the value of `GITHUB_TOKEN`.
+        """
+
+        token = self._environment_token(token)
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         with self._local_server(reply) as (port, received):
 
@@ -394,7 +456,9 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
 
                     # `AtlasRuntimeFetchError` is a `RuntimeError`, so identity decides.
                     with self.assertRaises(type(failure)) as raised:
-                        fetch_atlas_runtime_file("process_tree.py", token, opener)
+                        fetch_atlas_runtime_file(
+                            "process_tree.py", self._environment_token(token), opener
+                        )
                     self.assertIs(raised.exception, failure)
 
     def test_quota_refusal_names_file_status_and_authentication(self) -> None:
@@ -525,7 +589,9 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         for opener, cause_type in ((chained, ValueError), (subclass, None)):
             with self.subTest(opener=opener.__name__):
                 with self.assertRaises(AtlasRuntimeFetchError) as raised:
-                    fetch_atlas_runtime_file("process_tree.py", secret, opener)
+                    fetch_atlas_runtime_file(
+                        "process_tree.py", self._environment_token(secret), opener
+                    )
                 self.assertIsNone(raised.exception.__context__)
                 self._assert_scrubbed_cause(raised.exception, cause_type)
                 if cause_type is not None:
@@ -618,8 +684,42 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         for carried in ("\xe9", "\xff", "\t", " "):
             self.assertIsNone(_UNCARRIABLE_TOKEN_CHARACTER.search(carried))
 
+    MALFORMED_LOCATIONS = ("http://[::1/x", "http://[zz]/x", "http://a]b/x", "http://[::1]x/y")
+
+    @staticmethod
+    def _resource_warnings_after(attempt) -> int:
+        """Run `attempt`, collect garbage, and count the `ResourceWarning`s emitted.
+
+        `attempt` must return nothing: a leaked socket warns only once the
+        objects holding it are collected, so none may outlive the call. Garbage
+        an earlier test left is collected first, outside the recording.
+        """
+
+        gc.collect()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            attempt()
+            gc.collect()
+        return sum(issubclass(item.category, ResourceWarning) for item in caught)
+
+    def test_malformed_redirect_location_leaves_no_socket_open(self) -> None:
+        def abandon_a_socket() -> None:
+            socket.socket()
+
+        # The recorder is live: it sees a socket dropped unclosed.
+        self.assertEqual(self._resource_warnings_after(abandon_a_socket), 1)
+        for location in self.MALFORMED_LOCATIONS:
+            reply = self.REDIRECT.format(location).encode()
+            for token in (None, self.SECRET):
+                with self.subTest(location=location, authenticated=token is not None):
+
+                    def fetch() -> None:
+                        self._assert_typed_failure(reply, ValueError, token=token, wait=2)
+
+                    self.assertEqual(self._resource_warnings_after(fetch), 0)
+
     def test_malformed_redirect_location_is_typed_with_a_value_error_cause(self) -> None:
-        for location in ("http://[::1/x", "http://[zz]/x", "http://a]b/x", "http://[::1]x/y"):
+        for location in self.MALFORMED_LOCATIONS:
             with self.subTest(location=location):
                 reply = self.REDIRECT.format(location).encode()
                 for token in (None, self.SECRET):
@@ -642,11 +742,75 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                 self.assertEqual(len(target_received), 1)
                 self._assert_request_headers(target_received[0], None)
 
-    def test_environment_token_prefers_github_token_over_gh_token(self) -> None:
+    def test_same_origin_redirect_drops_the_token(self) -> None:
+        # `urllib` copies no `Authorization` header to a redirect, same origin
+        # or not: the fetch's request sets it as an unredirected header.
+        final = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
+        for code in (301, 302, 303, 307, 308):
+            with self.subTest(code=code):
+                redirect = self.REDIRECT.replace("302", str(code)).format("/next")
+                body, received = self._fetch((redirect.encode(), final), self.SECRET, wait=2)
+                self.assertEqual(body, b"payload")
+                self.assertEqual(len(received), 2)
+                self.assertTrue(received[1].startswith("GET /next "), received[1])
+                self.assertIn(f"authorization: bearer {self.SECRET}", received[0].lower())
+                self._assert_request_headers(received[0], self.SECRET)
+                self._assert_request_headers(received[1], None)
+
+    def test_blank_environment_token_sends_no_authorization(self) -> None:
+        reply = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
+        for variable in ("GITHUB_TOKEN", "GH_TOKEN"):
+            for blank in (" ", "\r\n"):
+                with self.subTest(variable=variable, blank=repr(blank)):
+                    token = atlas_runtime_token({variable: blank})
+                    body, received = self._fetch(reply, token)
+                    self.assertEqual(body, b"payload")
+                    self._assert_request_headers(received[0], None)
+        with self.subTest(case="blank GITHUB_TOKEN beside GH_TOKEN"):
+            token = atlas_runtime_token({"GITHUB_TOKEN": " ", "GH_TOKEN": self.SECRET})
+            body, received = self._fetch(reply, token)
+            self.assertEqual(body, b"payload")
+            self.assertIn(f"authorization: bearer {self.SECRET}", received[0].lower())
+            self._assert_request_headers(received[0], self.SECRET)
+
+    def test_refused_token_names_the_variable_that_held_it(self) -> None:
+        stem = "fake-secret-stem"
+        refused = stem + "\x00"
+        cases = (
+            ("GITHUB_TOKEN", {"GITHUB_TOKEN": refused}),
+            ("GH_TOKEN", {"GH_TOKEN": refused}),
+            ("GITHUB_TOKEN", {"GITHUB_TOKEN": refused, "GH_TOKEN": "fake-secret-other"}),
+            ("GH_TOKEN", {"GITHUB_TOKEN": " ", "GH_TOKEN": refused}),
+        )
+        for variable, environment in cases:
+            other = "GH_TOKEN" if variable == "GITHUB_TOKEN" else "GITHUB_TOKEN"
+            with self.subTest(variable=variable, environment=sorted(environment)):
+                error, received = self._fetch(b"", atlas_runtime_token(environment))
+                self.assertIsInstance(error, AtlasRuntimeFetchError)
+                self.assertIn("no request sent", str(error))
+                self.assertIn(variable, str(error))
+                self.assertNotIn(other, str(error))
+                self.assertEqual(received, [])
+                self._assert_token_absent(error, stem)
+
+    def test_environment_token_is_the_first_non_blank_of_github_token_then_gh_token(self) -> None:
         both = {"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}
-        self.assertEqual(atlas_runtime_token(both), "a")
-        self.assertEqual(atlas_runtime_token({"GH_TOKEN": "b"}), "b")
-        self.assertEqual(atlas_runtime_token({"GITHUB_TOKEN": "", "GH_TOKEN": "b"}), "b")
+        self.assertEqual(atlas_runtime_token(both), AtlasRuntimeToken("GITHUB_TOKEN", "a"))
+        self.assertEqual(atlas_runtime_token({"GH_TOKEN": "b"}), AtlasRuntimeToken("GH_TOKEN", "b"))
+        for blank in ("", " ", "\r\n", "\t \n"):
+            with self.subTest(blank=repr(blank)):
+                self.assertEqual(
+                    atlas_runtime_token({"GITHUB_TOKEN": blank, "GH_TOKEN": "b"}),
+                    AtlasRuntimeToken("GH_TOKEN", "b"),
+                )
+                self.assertIsNone(atlas_runtime_token({"GITHUB_TOKEN": blank}))
+                self.assertIsNone(atlas_runtime_token({"GH_TOKEN": blank}))
+                self.assertIsNone(atlas_runtime_token({"GITHUB_TOKEN": blank, "GH_TOKEN": blank}))
+        # A token with a trailing line ending is not blank: it is kept, and the
+        # fetch refuses it naming its variable.
+        self.assertEqual(
+            atlas_runtime_token({"GITHUB_TOKEN": "a\n"}), AtlasRuntimeToken("GITHUB_TOKEN", "a\n")
+        )
         self.assertIsNone(atlas_runtime_token({}))
 
 
