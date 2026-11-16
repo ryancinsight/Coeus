@@ -35,6 +35,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import traceback
 import unittest
 import urllib.error
 import urllib.request
@@ -122,8 +123,12 @@ def fetch_atlas_runtime_file(
     The token is validated first, so no `http.client` header error echoes it,
     and is an unredirected header: `urllib` copies it to no redirect target
     (tested for another port; a redirect within the origin continues without
-    it). Not held: the message and `__cause__` carry server text as received,
-    so a server that echoes the token puts it in both.
+    it). With a token set the message carries no text the server chose: it
+    names file, revision, authentication state and the failure kind (the
+    exception type name, or `HTTP` and the status code), and `__cause__` is
+    dropped. Without a token the message carries the server text and the cause.
+    Not held: the traceback's frame locals hold the token, which a local-variable
+    dump shows.
     """
 
     state = "authenticated" if token else "unauthenticated (set GITHUB_TOKEN)"
@@ -149,9 +154,11 @@ def fetch_atlas_runtime_file(
             return _read_bounded(response)
     except urllib.error.HTTPError as error:
         error.close()
-        failure, cause = f"HTTP {error.code} {error.reason}", error
+        failure, kind, cause = f"HTTP {error.code} {error.reason}", f"HTTP {error.code}", error
     except (OSError, http.client.HTTPException, ValueError) as error:
-        failure, cause = f"{type(error).__name__}: {error}", error
+        failure, kind, cause = f"{type(error).__name__}: {error}", type(error).__name__, error
+    if token:
+        failure, cause = kind, None
     raise AtlasRuntimeFetchError(f"{where}: {failure}, {state}") from cause
 
 # A first-party git source in the lock, and a manifest declaring the matching
@@ -319,6 +326,22 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                 outcome = error
         return outcome, received
 
+    def _assert_token_absent(self, error: BaseException, token: str) -> None:
+        """No 8-character window of the token is in the message or either rendering.
+
+        A window of eight characters that holds no character `repr` or a parser
+        rewrites appears wherever the token does, whatever escaping is applied.
+        """
+
+        renderings = (
+            str(error),
+            "".join(traceback.format_exception(error)),
+            "".join(traceback.format_exception(type(error), error, error.__traceback__)),
+        )
+        for start in range(len(token) - 7):
+            for text in renderings:
+                self.assertNotIn(token[start : start + 8], text)
+
     def _assert_typed_failure(self, reply, cause: type[BaseException], **kwargs):
         error, received = self._fetch(reply, **kwargs)
         self.assertIsInstance(error, AtlasRuntimeFetchError)
@@ -341,13 +364,17 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
             with self.subTest(state=state):
                 error, received = self._fetch(reply, token, name="windows_process.py")
                 self.assertIsInstance(error, AtlasRuntimeFetchError)
-                for part in ("windows_process.py", "HTTP 403 rate limit exceeded", state):
+                for part in ("windows_process.py", "HTTP 403", state):
                     self.assertIn(part, str(error))
                 self.assertEqual("unauthenticated" in str(error), token is None)
                 self.assertEqual("authorization" in received[0].lower(), token is not None)
-                # The fetch closes the error response, not the garbage collector.
-                self.assertIsInstance(error.__cause__, urllib.error.HTTPError)
-                self.assertTrue(error.__cause__.fp.closed)
+                self.assertEqual("rate limit exceeded" in str(error), token is None)
+                if token is None:
+                    # The fetch closes the error response, not the collector.
+                    self.assertIsInstance(error.__cause__, urllib.error.HTTPError)
+                    self.assertTrue(error.__cause__.fp.closed)
+                else:
+                    self.assertIsNone(error.__cause__)
 
     def test_transport_failures_are_typed_with_their_cause(self) -> None:
         incomplete = http.client.IncompleteRead
@@ -383,6 +410,36 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         self.assertEqual(self._fetch(reply(at_bound), wait=5)[0], at_bound)
         error, _ = self._assert_typed_failure(reply(at_bound + b"x"), ValueError, wait=5)
         self.assertIn(str(ATLAS_RUNTIME_MAX_BYTES), str(error))
+
+    def test_a_token_keeps_server_text_and_the_cause_out_of_the_error(self) -> None:
+        # Each server text can hold the token; the chunk size holds it in the
+        # chain only. The tokens hold a backslash, both quote characters, and
+        # U+0085: characters `repr` escapes, and whose escaping depends on the
+        # text around them.
+        tokens = (
+            "fake-secret\\token-0123",
+            "fake-secret-'\"-token-0123",
+            "fake-secret-\x85-token-0123",
+        )
+        for secret in tokens:
+            cases = (
+                (f"HTTP/1.1 401 {secret}\r\nContent-Length: 0\r\n\r\n", "HTTP 401,"),
+                (self.REDIRECT.format(f"gopher://x/{secret}"), "HTTP 302,"),
+                (self.REDIRECT.format(f"http://[{secret}]/x"), "ValueError,"),
+                (self.REDIRECT.format(f'http://["{secret}]/x'), "ValueError,"),
+                (f"{secret}\r\n\r\n", "BadStatusLine,"),
+                (f"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{secret}\r\n", "IncompleteRead,"),
+            )
+            for reply, kind in cases:
+                with self.subTest(secret=secret, kind=kind, reply=reply[:60]):
+                    error, received = self._fetch(reply.encode("latin-1"), secret)
+                    self.assertIsInstance(error, AtlasRuntimeFetchError)
+                    self.assertIn(f"authorization: bearer {secret}".lower(), received[0].lower())
+                    expected = f"process_tree.py at {ATLAS_RUNTIME_REVISION}: {kind} authenticated"
+                    self.assertTrue(str(error).endswith(expected), str(error))
+                    self.assertIsNone(error.__cause__)
+                    self.assertIsNone(error.__context__)
+                    self._assert_token_absent(error, secret)
 
     @contextlib.contextmanager
     def _ftp_server(self, payload: bytes):
@@ -454,7 +511,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         for location in ("http://[::1/x", "http://[zz]/x", "http://a]b/x", "http://[::1]x/y"):
             with self.subTest(location=location):
                 reply = self.REDIRECT.format(location).encode()
-                self._assert_typed_failure(reply, ValueError, token=self.SECRET, wait=2)
+                self._assert_typed_failure(reply, ValueError, wait=2)
 
     def test_redirect_to_another_origin_never_receives_the_token(self) -> None:
         final = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
