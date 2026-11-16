@@ -58,8 +58,11 @@ fn test_mish_functional_cpu() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+    let grad_slice = input
+        .grad()
+        .expect("invariant: Mish input requires grad")
+        .as_slice()
+        .to_vec();
 
     // Gradient parity checks: tanh(softplus(x)) + x * (1 - tanh^2(softplus(x))) * sigmoid(x)
     assert_mish_grads("functional_backward", &grad_slice, &input_data);

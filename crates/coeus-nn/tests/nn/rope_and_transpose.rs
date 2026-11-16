@@ -32,9 +32,32 @@ fn test_rope_backward() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let g = input.grad().unwrap();
+    let g = input
+        .grad()
+        .expect("invariant: RotaryEmbedding input requires grad");
     assert_eq!(g.shape(), &[1, 2, 1, 4]);
+
+    // NeoX split-half layout duplicates each frequency: indices (i, i+d/2) form a pair.
+    // Forward: y_i = x_i*cosθ_i + rotate_half(x)_i*sinθ_i, rotate_half gives [-x2,-x3,x0,x1].
+    // With upstream grad ones, dx_i = cosθ_i + sinθ_i, dx_{i+d/2} = cosθ_i - sinθ_i.
+    // inv_freq = [1.0, 0.01], so θ = pos * inv_freq => pos0 [0,0], pos1 [1,0.01].
+    let expected = [
+        1.0_f64,                         // pos0, d0, θ=0: cos0+sin0
+        1.0_f64,                         // pos0, d1, θ=0
+        1.0_f64,                         // pos0, d2, θ=0: cos0-sin0
+        1.0_f64,                         // pos0, d3, θ=0
+        1.0_f64.cos() + 1.0_f64.sin(),   // pos1, d0, θ=1
+        0.01_f64.cos() + 0.01_f64.sin(), // pos1, d1, θ=0.01
+        1.0_f64.cos() - 1.0_f64.sin(),   // pos1, d2, θ=1
+        0.01_f64.cos() - 0.01_f64.sin(), // pos1, d3, θ=0.01
+    ];
+    let grad = g.as_slice();
+    for (index, (&actual, &expected_value)) in grad.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (actual - expected_value).abs() < 1e-6,
+            "RoPE grad[{index}] = {actual}, expected {expected_value}"
+        );
+    }
 }
 
 #[test]
@@ -99,8 +122,9 @@ fn test_general_transpose_autograd() {
     let sum = coeus_autograd::sum(&transposed).expect("invariant: test operation succeeds");
     sum.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let g = input.grad().unwrap();
+    let g = input
+        .grad()
+        .expect("invariant: transpose input requires grad");
     assert_eq!(g.shape(), &[2, 3, 4]);
     for &val in g.as_slice() {
         assert!((val - 1.0).abs() < 1e-6);

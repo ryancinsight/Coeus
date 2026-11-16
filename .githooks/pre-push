@@ -887,7 +887,8 @@ fi
 # lock while its per-ref re-entry takes it.
 if [ "$gate_phase" = "push" ] && [ "${#content_lines[@]}" -eq 1 ]; then
   read -r _push_local_ref _push_sha _push_remote_ref _push_remote_sha <<<"${content_lines[0]}"
-  push_lock_key="$(printf '%s' "$_push_remote_ref" | git hash-object --stdin | cut -c1-16)"
+  push_lock_hash="$(printf '%s' "$_push_remote_ref" | git hash-object --stdin)"
+  push_lock_key="${push_lock_hash:0:16}"
   push_lock_root="$repo_store/atlas-push-locks"
   push_lock="$push_lock_root/$push_lock_key"
   mkdir -p "$push_lock_root"
@@ -1318,7 +1319,8 @@ done
 # claims it with a lock naming its pid; while a live run holds it, this run
 # builds in a temporary export instead of waiting, and a dead holder's lock
 # is taken over.
-gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
+gate_hash="$(printf '%s' "$repo_root" | git hash-object --stdin)"
+gate_key="${gate_hash:0:10}"
 gate_root="$tmp_base/pg-$gate_key"
 claim_gate_root() {
   local staged="$gate_root.lock.$$"
