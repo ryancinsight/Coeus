@@ -48,9 +48,43 @@ fn test_layernorm() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    assert!(ln.weight.grad().is_some());
-    assert!(ln.bias.grad().is_some());
+    let input_grad = input
+        .grad()
+        .expect("invariant: LayerNorm input requires grad");
+    let weight_grad = ln
+        .weight
+        .grad()
+        .expect("invariant: LayerNorm weight requires grad");
+    let bias_grad = ln
+        .bias
+        .grad()
+        .expect("invariant: LayerNorm bias requires grad");
+    assert_eq!(input_grad.shape(), &[2, 4]);
+    assert_eq!(weight_grad.shape(), &[4]);
+    assert_eq!(bias_grad.shape(), &[4]);
+
+    // Upstream grad is ones: dL/dbias_i = sum_b 1 = batch_size.
+    for (i, &g) in bias_grad.as_slice().iter().enumerate() {
+        assert!(
+            (g - 2.0).abs() < 1e-6,
+            "LayerNorm bias grad[{i}] = {g}, expected 2.0"
+        );
+    }
+
+    // dL/dweight_i = sum_b xhat_{b,i}. Both rows have the same normalized pattern.
+    let xhat = [
+        -1.341_640_786_499_873_8,
+        -0.447_213_595_499_957_9,
+        0.447_213_595_499_957_9,
+        1.341_640_786_499_873_8,
+    ];
+    for (i, (&g, &xh)) in weight_grad.as_slice().iter().zip(xhat.iter()).enumerate() {
+        let expected = 2.0 * xh;
+        assert!(
+            (g - expected).abs() < 1e-5,
+            "LayerNorm weight grad[{i}] = {g}, expected {expected}"
+        );
+    }
 }
 
 #[test]
@@ -217,8 +251,31 @@ fn test_rmsnorm() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    assert!(rms.weight.grad().is_some());
+    let input_grad = input
+        .grad()
+        .expect("invariant: RMSNorm input requires grad");
+    let weight_grad = rms
+        .weight
+        .grad()
+        .expect("invariant: RMSNorm weight requires grad");
+    assert_eq!(input_grad.shape(), &[1, 3]);
+    assert_eq!(weight_grad.shape(), &[3]);
+
+    // RMSNorm: y_i = w_i * x_i / rms, rms = sqrt(mean(x^2)+eps).
+    // dL/dw_i = x_i / rms; with x=[1,2,3], rms=sqrt((1+4+9)/3 + eps)=sqrt(14/3+eps).
+    let rms_val = ((1.0_f64 + 4.0 + 9.0) / 3.0 + 1e-5).sqrt();
+    let expected_w_grad = [1.0 / rms_val, 2.0 / rms_val, 3.0 / rms_val];
+    for (i, (&g, &expected)) in weight_grad
+        .as_slice()
+        .iter()
+        .zip(expected_w_grad.iter())
+        .enumerate()
+    {
+        assert!(
+            (g - expected).abs() < 1e-6,
+            "RMSNorm weight grad[{i}] = {g}, expected {expected}"
+        );
+    }
 }
 
 #[test]
@@ -282,9 +339,28 @@ fn test_layernorm_various_shapes() {
         output
             .backward()
             .expect("invariant: valid autograd fixture completes backward");
-        assert!(input.grad().is_some());
-        assert!(ln.weight.grad().is_some());
-        assert!(ln.bias.grad().is_some());
+        let input_grad = input
+            .grad()
+            .expect("invariant: LayerNorm input requires grad");
+        let weight_grad = ln
+            .weight
+            .grad()
+            .expect("invariant: LayerNorm weight requires grad");
+        let bias_grad = ln
+            .bias
+            .grad()
+            .expect("invariant: LayerNorm bias requires grad");
+        assert_eq!(input_grad.shape(), &[batch, dim]);
+        assert_eq!(weight_grad.shape(), &[dim]);
+        assert_eq!(bias_grad.shape(), &[dim]);
+        // Upstream ones => dL/dbias_i = batch.
+        for (i, &g) in bias_grad.as_slice().iter().enumerate() {
+            assert!(
+                (g - batch as f64).abs() < 1e-6,
+                "LayerNorm bias grad[{i}] = {g}, expected {}",
+                batch
+            );
+        }
         assert_eq!(Module::<f64>::parameters(&ln).len(), 2);
     }
 }
@@ -311,5 +387,32 @@ fn test_layernorm_single_element() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
+    let input_grad = input
+        .grad()
+        .expect("invariant: single-element LayerNorm input requires grad");
+    let weight_grad = ln
+        .weight
+        .grad()
+        .expect("invariant: single-element LayerNorm weight requires grad");
+    let bias_grad = ln
+        .bias
+        .grad()
+        .expect("invariant: single-element LayerNorm bias requires grad");
+    assert_eq!(input_grad.shape(), &[2, 1]);
+    assert_eq!(weight_grad.shape(), &[1]);
+    assert_eq!(bias_grad.shape(), &[1]);
+    // Normalizing over a single element yields xhat=0, y=bias: dy/dx=0, dy/dw=0, dy/db=1.
+    for &g in input_grad.as_slice() {
+        assert!(g.abs() < 1e-6, "LayerNorm single-element input grad {g}");
+    }
+    assert!(
+        weight_grad.as_slice()[0].abs() < 1e-6,
+        "LayerNorm single-element weight grad {}",
+        weight_grad.as_slice()[0]
+    );
+    assert!(
+        (bias_grad.as_slice()[0] - 2.0).abs() < 1e-6,
+        "LayerNorm single-element bias grad {}",
+        bias_grad.as_slice()[0]
+    );
 }
