@@ -31,13 +31,20 @@ fn test_elu_activation() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+    let grad_slice = input
+        .grad()
+        .expect("invariant: ELU input requires grad")
+        .as_slice()
+        .to_vec();
 
     // ELU derivative: x >= 0 ? 1 : exp(x)
     for (i, &x) in input_data.iter().enumerate() {
         let expected_grad = if x >= 0.0 { 1.0 } else { x.exp() };
-        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+        assert!(
+            (grad_slice[i] - expected_grad).abs() < 1e-7,
+            "ELU grad[{i}] = {}, expected {expected_grad}",
+            grad_slice[i]
+        );
     }
 
     // Test Module
@@ -78,13 +85,20 @@ fn test_softplus_activation() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+    let grad_slice = input
+        .grad()
+        .expect("invariant: Softplus input requires grad")
+        .as_slice()
+        .to_vec();
 
     // Softplus derivative: sigmoid(x) = 1 / (1 + exp(-x))
     for (i, &x) in input_data.iter().enumerate() {
         let expected_grad = 1.0 / (1.0 + (-x).exp());
-        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+        assert!(
+            (grad_slice[i] - expected_grad).abs() < 1e-7,
+            "Softplus grad[{i}] = {}, expected {expected_grad}",
+            grad_slice[i]
+        );
     }
 
     // Test Module
@@ -133,8 +147,11 @@ fn test_gelu_tanh_activation() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+    let grad_slice = input
+        .grad()
+        .expect("invariant: GeLUTanh input requires grad")
+        .as_slice()
+        .to_vec();
 
     // GELU Tanh derivative:
     let c3 = 3.0 * c2;
@@ -143,7 +160,11 @@ fn test_gelu_tanh_activation() {
         let t = v.tanh();
         let dt = c1 * (1.0 + c3 * x * x);
         let expected_grad = 0.5 * (1.0 + t) + 0.5 * x * (1.0 - t * t) * dt;
-        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+        assert!(
+            (grad_slice[i] - expected_grad).abs() < 1e-7,
+            "GeLUTanh grad[{i}] = {}, expected {expected_grad}",
+            grad_slice[i]
+        );
     }
 
     // Test Module
@@ -190,8 +211,11 @@ fn test_leaky_relu_activation() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+    let grad_slice = input
+        .grad()
+        .expect("invariant: LeakyReLU input requires grad")
+        .as_slice()
+        .to_vec();
 
     // LeakyReLU derivative: x > 0 ? 1 : slope
     // (Coeus contract for both LeakyReLU and PReLU matches PyTorch: slope at
@@ -200,7 +224,11 @@ fn test_leaky_relu_activation() {
     // PyTorch's `F.leaky_relu(neg_slope)` / `F.prelu` reduce-at-zero regime.)
     for (i, &x) in input_data.iter().enumerate() {
         let expected_grad = if x > 0.0 { 1.0 } else { slope };
-        assert!((grad_slice[i] - expected_grad).abs() < 1e-7);
+        assert!(
+            (grad_slice[i] - expected_grad).abs() < 1e-7,
+            "LeakyReLU grad[{i}] = {}, expected {expected_grad}",
+            grad_slice[i]
+        );
     }
 
     // Test Module
@@ -235,7 +263,24 @@ fn test_non_contiguous_activations() {
     output_elu
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
+    let elu_grad = input
+        .grad()
+        .expect("invariant: transposed ELU input requires grad");
+    assert_eq!(elu_grad.shape(), &[3, 2]);
+    let input_vals = input
+        .tensor
+        .to_vec()
+        .expect("invariant: transposed ELU input materializes");
+    let elu_grad_vals = elu_grad
+        .to_vec()
+        .expect("invariant: transposed ELU grad materializes");
+    for (i, (&x, &g)) in input_vals.iter().zip(elu_grad_vals.iter()).enumerate() {
+        let expected_grad = if x >= 0.0 { 1.0 } else { x.exp() };
+        assert!(
+            (g - expected_grad).abs() < 1e-7,
+            "ELU transposed grad[{i}] = {g}, expected {expected_grad}"
+        );
+    }
 
     // Reset gradient for next test
     let input2 =
@@ -245,7 +290,24 @@ fn test_non_contiguous_activations() {
     output_leaky
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input2.grad().is_some());
+    let leaky_grad = input2
+        .grad()
+        .expect("invariant: transposed LeakyReLU input requires grad");
+    assert_eq!(leaky_grad.shape(), &[3, 2]);
+    let input2_vals = input2
+        .tensor
+        .to_vec()
+        .expect("invariant: transposed LeakyReLU input materializes");
+    let leaky_grad_vals = leaky_grad
+        .to_vec()
+        .expect("invariant: transposed LeakyReLU grad materializes");
+    for (i, (&x, &g)) in input2_vals.iter().zip(leaky_grad_vals.iter()).enumerate() {
+        let expected_grad = if x > 0.0 { 1.0 } else { 0.2 };
+        assert!(
+            (g - expected_grad).abs() < 1e-7,
+            "LeakyReLU transposed grad[{i}] = {g}, expected {expected_grad}"
+        );
+    }
 }
 
 #[test]
