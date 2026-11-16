@@ -151,8 +151,8 @@ class HookInstallationTests(unittest.TestCase):
 def _workflow_scalar(text: str) -> str:
     """Plain or quoted YAML scalar with its trailing comment removed.
 
-    Anchors, aliases and tags are refused: a value the reader cannot place
-    by itself could stand for any other value in the file.
+    A value starting with an anchor, alias or tag raises `ValueError`: the
+    reader cannot place it by itself.
     """
     text = re.split(r"\s#", text.strip(), maxsplit=1)[0].strip()
     if text.startswith("#"):
@@ -169,11 +169,12 @@ def _workflow_value(items: list[tuple[int, str]], at: int, indent: int):
 
     A reader for the subset of YAML that `ci.yml` uses: block mappings,
     block sequences, plain/quoted scalars, `|`/`>` block scalars (kept
-    opaque) and inline flow values (kept as text). Comment-only and blank
-    lines are dropped, so a commented-out key is not a key. Anchors, aliases,
-    tags and repeated keys raise `ValueError`. The test runs in
-    the Format job before any dependency install, where no YAML library is
-    guaranteed, so the reader lives here instead of importing one.
+    opaque) and inline flow values (kept as text, not parsed). Comment-only
+    and blank lines are dropped, so a commented-out key is not a key. A
+    block value starting with an anchor, alias or tag, and a repeated key in
+    a block mapping, raise `ValueError`. The test runs in the Format job
+    before any dependency install, where no YAML library is guaranteed, so
+    the reader lives here instead of importing one.
     """
     if items[at][1].startswith("- "):
         sequence = []
@@ -219,7 +220,7 @@ def _workflow_mapping(text: str) -> dict:
 
 
 def _folded(entries, owner: str) -> dict:
-    """`entries` keyed by upper-cased name, as GitHub reads env and input names.
+    """`entries` keyed by upper-cased name, so names compare ignoring case.
 
     An absent or empty block reads as no entries; flow text raises, since it
     is not parsed into names.
@@ -237,26 +238,29 @@ def _folded(entries, owner: str) -> dict:
 
 
 class AtlasRuntimePinTests(unittest.TestCase):
-    """The workflow pins the revision these tests pin and checks it out.
+    """The workflow pins the revision these tests pin and names it once.
 
     The parsed `ci.yml` must satisfy these, with env and input names, the
-    `uses` action and the repository compared ignoring case:
+    `uses` action and the repository compared ignoring case (the repository
+    also ignoring a trailing `.git`):
 
     - the workflow `env` holds `ATLAS_RUNTIME_REVISION` once, equal to the
       revision pinned here, and no `env` of a `format` or `tests` job or of
-      any step in them sets that name, so `env.ATLAS_RUNTIME_REVISION` means
-      the workflow value everywhere in those jobs;
+      any step in them sets that name;
     - every `actions/checkout` step in those jobs names its repository as a
       literal `owner/name` or not at all, never an expression;
-    - exactly one of them fetches `ryancinsight/atlas`, at that env
-      reference or at the pinned revision itself;
+    - exactly one of them names `ryancinsight/atlas`, with `ref` written as
+      that env reference or as the pinned revision itself;
     - exactly one step in the job sets `ATLAS_HOOK_RUNTIME`, to that
       checkout's `scripts/`.
 
-    The reader refuses anchors, aliases, tags and repeated keys. Step and job
-    keys are matched as written, and a checkout made any other way than an
-    `actions/checkout` step is not seen. The three runtime files are
-    separately held by blob hash in `LockHookTests`.
+    The reader raises on a block value starting with an anchor, alias or
+    tag, on a repeated block key, and on an `env` of those jobs or steps, or
+    a checkout's `with`, written as flow text. Not read: step and job keys
+    in another case, `run` text (so a value written to `$GITHUB_ENV` at run
+    time), a checkout made other than by an `actions/checkout` step, and the
+    runner's resolution of the `ref`. The three runtime files are separately
+    held by blob hash in `LockHookTests`.
     """
 
     CHECKOUT_JOBS = ("format", "tests")
@@ -265,7 +269,7 @@ class AtlasRuntimePinTests(unittest.TestCase):
     RUNTIME_REPOSITORY = "ryancinsight/atlas"
     LITERAL_REPOSITORY = re.compile(r"\A[\w.-]+/[\w.-]+\Z")
 
-    def test_workflow_pins_and_checks_out_the_tested_revision(self) -> None:
+    def test_workflow_names_the_pinned_revision_in_one_atlas_checkout(self) -> None:
         workflow = _workflow_mapping(
             (REPOSITORY / ".github" / "workflows" / "ci.yml").read_text(
                 encoding="utf-8"
@@ -300,7 +304,8 @@ class AtlasRuntimePinTests(unittest.TestCase):
                     self.LITERAL_REPOSITORY,
                     f"{job_id}: checkout repository is not a literal",
                 )
-                if repository.lower() == self.RUNTIME_REPOSITORY:
+                name = repository.lower().removesuffix(".git")
+                if name == self.RUNTIME_REPOSITORY:
                     checkouts.append(inputs)
             self.assertEqual(len(checkouts), 1, job_id)
             self.assertIn(
