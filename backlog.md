@@ -58,6 +58,22 @@ item below carries `milestone: M-tensor-stack`.
 - Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
 - Evidence: PR #409 Tests job `107824618717` ended with runner exit 143 after unconditionally entering the 45-minute native job on a hook-only change.
 
+<a id="coeus-hook-fetch-typed-errors"></a>
+## COEUS-HOOK-FETCH-TYPED-ERRORS — Type every local runtime fetch failure without leaking the token
+
+- Status: todo; priority: correctness; milestone: M-tensor-stack; [patch]; basis: 7db0beba8bce331defb78dd2a4da6265164833be.
+- Outcome: `fetch_atlas_runtime_file` (`scripts/tests/test_hooks.py`), the local fallback of the hook tests (CI uses a pinned checkout and never calls it), raises `AtlasRuntimeFetchError` naming file, revision and authentication state for every failure on every interpreter that runs it, and no error it raises carries the token in its message or chain.
+- Needs: COEUS-HOOK-RUNTIME-FETCH (slice A, the pinned-checkout CI cure, PR #652).
+- Scope: `scripts/tests/test_hooks.py`.
+- Start from: `refs/pull/653/head` (PR #653's head, 395 changed lines), restored with `git fetch origin pull/653/head:<branch>`. It fails G1 and G2 below; the claiming PR stays within the 400-line review budget.
+- Acceptance, each a test driving real `urllib` against loopback sockets, run on CPython 3.13.3 and 3.13.12:
+  - G1: a 200 with `Content-Length: 9223372036854775808` (also `99999999999999999999999999999`, `4611686018427387904`) or chunk size `FFFFFFFFFFFFFFFFFFFFFFFFFFFF` or `10000000000000000` raises the typed error; `OverflowError` and `MemoryError` escape untyped on 3.13.3 at the failed head (3.13.12 reads in bounded steps). The claim holds on every interpreter that runs it, or is narrowed to where it holds.
+  - G2: a first hop answering `401` with the token as status reason, and a 302 to `gopher://x/<token>`, leave the token out of `str(err)` and `traceback.format_exception`; docstring, commit and PR text state exactly what holds.
+  - Regression, closed at the failed head: tokens ending in CR, LF, CR LF, NUL, ESC, DEL, U+2019, U+1F512, U+D800 or U+0100 are refused before any request with the token absent; malformed `Location` (`http://[::1/x`, `http://[zz]/x`, `http://a]b/x`, `http://[::1]x/y`) is typed with a `ValueError` cause; a redirect target gets no `Authorization` for 301, 302, 303, 307 and 308; the validator rejects a superset of `http.client` `putheader`; timeout, closed connection and truncated body are typed.
+- Mutants, all killed at the failed head and re-run at delivery: validation removed; `ValueError` not caught; `add_header` for `add_unredirected_header`; validator limited to CR/LF; validator without the non-latin-1 class; `OSError`-only except.
+- Findings filed at the failed head, taken here or filed apart: F1 the malformed-redirect test leaves a socket open (ResourceWarning under `-X dev`); F2 a `URLError` with an empty reason gives ": , authenticated"; F3 a whitespace-only token counts as authenticated and is sent; F4 a same-host redirect drops `Authorization`, so a GitHub 301 continues anonymously; F5 `response.read()` has no size bound; F6 a literal U+2019 in source, where the other suffixes are escapes; F7 a refusal names `GITHUB_TOKEN or GH_TOKEN`, not the variable that held the token.
+- Next step: claim after slice A lands, restore the pull ref, add the G1 and G2 cases failing first, then fix.
+
 <a id="coeus-device-test-build-cost"></a>
 ## COEUS-DEVICE-TEST-BUILD-COST — Attribute device test compilation
 
