@@ -4,7 +4,7 @@ use super::taps::{ResizeMode, TapTable};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement};
 use coeus_tensor::Tensor;
 
-/// Gradient of [`resize_1d`] with respect to its input.
+/// Gradient of [`super::forward::resize_1d`] with respect to its input.
 ///
 /// `input_shape` is the shape of the resized input (`[N, C, L]`) and
 /// `grad_output` the `[N, C, new_L]` upstream gradient.
@@ -78,7 +78,7 @@ where
     Tensor::from_slice_on(input_shape.to_vec(), &gradient, &B::default())
 }
 
-/// Gradient of [`resize_2d`] with respect to its input.
+/// Gradient of [`super::forward::resize_2d`] with respect to its input.
 ///
 /// `input_shape` is the shape of the resized input (`[N, C, H, W]`) and
 /// `grad_output` the `[N, C, new_H, new_W]` upstream gradient.
