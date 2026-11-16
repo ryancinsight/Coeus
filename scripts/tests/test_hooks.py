@@ -125,10 +125,12 @@ def fetch_atlas_runtime_file(
     (tested for another port; a redirect within the origin continues without
     it). With a token set the message carries no text the server chose: it
     names file, revision, authentication state and the failure kind (the
-    exception type name, or `HTTP` and the status code), and `__cause__` is
-    dropped. Without a token the message carries the server text and the cause.
-    Not held: the traceback's frame locals hold the token, which a local-variable
-    dump shows.
+    exception type name, or `HTTP` and the status code). `__cause__` is the
+    original `ValueError`, scrubbed of its arguments and chain, when the
+    failure is exactly a `ValueError`, and `None` otherwise; its traceback
+    names code lines only. Without a token the message carries the server text
+    and the original cause. Not held: the traceback's frame locals hold the
+    token, which a local-variable dump shows.
     """
 
     state = "authenticated" if token else "unauthenticated (set GITHUB_TOKEN)"
@@ -158,7 +160,11 @@ def fetch_atlas_runtime_file(
     except (OSError, http.client.HTTPException, ValueError) as error:
         failure, kind, cause = f"{type(error).__name__}: {error}", type(error).__name__, error
     if token:
-        failure, cause = kind, None
+        failure = kind
+        if type(cause) is ValueError:
+            cause.args, cause.__cause__, cause.__context__ = (), None, None
+        else:
+            cause = None
     raise AtlasRuntimeFetchError(f"{where}: {failure}, {state}") from cause
 
 # A first-party git source in the lock, and a manifest declaring the matching
@@ -327,7 +333,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         return outcome, received
 
     def _assert_token_absent(self, error: BaseException, token: str) -> None:
-        """No 8-character window of the token is in the message or either rendering.
+        """No 8-character window of the token is in the message, repr or either traceback form.
 
         A window of eight characters that holds no character `repr` or a parser
         rewrites appears wherever the token does, whatever escaping is applied.
@@ -335,6 +341,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
 
         renderings = (
             str(error),
+            repr(error),
             "".join(traceback.format_exception(error)),
             "".join(traceback.format_exception(type(error), error, error.__traceback__)),
         )
@@ -375,6 +382,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                     self.assertTrue(error.__cause__.fp.closed)
                 else:
                     self.assertIsNone(error.__cause__)
+                    self._assert_token_absent(error, token)
 
     def test_transport_failures_are_typed_with_their_cause(self) -> None:
         incomplete = http.client.IncompleteRead
@@ -413,10 +421,12 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
 
     def test_a_token_keeps_server_text_and_the_cause_out_of_the_error(self) -> None:
         # Each server text can hold the token; the chunk size holds it in the
-        # chain only. The tokens hold a backslash, both quote characters, and
-        # U+0085: characters `repr` escapes, and whose escaping depends on the
-        # text around them.
+        # chain only. Beside a plain token, the tokens hold U+00A0, a backslash,
+        # both quote characters, and U+0085: characters `repr` escapes or a
+        # parser rewrites, and whose escaping depends on the text around them.
         tokens = (
+            "fake-secret-token-0123",
+            "fake-secret-\xa0-token-0123",
             "fake-secret\\token-0123",
             "fake-secret-'\"-token-0123",
             "fake-secret-\x85-token-0123",
@@ -437,13 +447,53 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                     self.assertIn(f"authorization: bearer {secret}".lower(), received[0].lower())
                     expected = f"process_tree.py at {ATLAS_RUNTIME_REVISION}: {kind} authenticated"
                     self.assertTrue(str(error).endswith(expected), str(error))
-                    self.assertIsNone(error.__cause__)
                     self.assertIsNone(error.__context__)
+                    self._assert_scrubbed_cause(error, ValueError if kind == "ValueError," else None)
                     self._assert_token_absent(error, secret)
+
+    def _assert_scrubbed_cause(self, error, cause_type) -> None:
+        """`__cause__` is the raised `cause_type` with no arguments or chain, or absent."""
+
+        cause = error.__cause__
+        if cause_type is None:
+            self.assertIsNone(cause)
+            return
+        self.assertIs(type(cause), cause_type)
+        self.assertEqual(cause.args, ())
+        self.assertIsNotNone(cause.__traceback__, "the cause was replaced by a new exception")
+        self.assertIsNone(cause.__cause__)
+        self.assertIsNone(cause.__context__)
+
+    def test_a_token_clears_what_a_value_error_chains_to(self) -> None:
+        # No server in the matrix above raises a chained `ValueError`, so the
+        # opener does: both links hold the token.
+        secret = self.SECRET
+
+        def chained(request, timeout):
+            try:
+                raise OSError(secret)
+            except OSError as inner:
+                raise ValueError(secret) from inner
+
+        def subclass(request, timeout):
+            raise UnicodeError(secret)
+
+        for opener, cause_type in ((chained, ValueError), (subclass, None)):
+            with self.subTest(opener=opener.__name__):
+                with self.assertRaises(AtlasRuntimeFetchError) as raised:
+                    fetch_atlas_runtime_file("process_tree.py", secret, opener)
+                self.assertIsNone(raised.exception.__context__)
+                self._assert_scrubbed_cause(raised.exception, cause_type)
+                self._assert_token_absent(raised.exception, secret)
 
     @contextlib.contextmanager
     def _ftp_server(self, payload: bytes):
-        """Serve `payload` to one FTP login and `RETR` on loopback; yield the port."""
+        """Serve `payload` to one FTP login and `RETR` on loopback.
+
+        Yields the port and the control lines received, complete once the block exits.
+        """
+
+        commands: list[str] = []
 
         with socket.create_server(("127.0.0.1", 0)) as control, socket.create_server(("127.0.0.1", 0)) as data:
             control.settimeout(10)
@@ -455,6 +505,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                     with connection:
                         connection.sendall(b"220 ready\r\n")
                         for line in connection.makefile("rb"):
+                            commands.append(line.decode("latin-1"))
                             if line.startswith(b"PASV"):
                                 high, low = divmod(data.getsockname()[1], 256)
                                 reply = f"227 Passive Mode (127,0,0,1,{high},{low})\r\n".encode()
@@ -469,15 +520,28 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
 
             thread = threading.Thread(target=serve, daemon=True)
             thread.start()
-            yield control.getsockname()[1]
+            yield control.getsockname()[1], commands
             thread.join(timeout=10)
 
     def test_redirect_to_a_served_ftp_file_is_typed_and_unread(self) -> None:
-        with self._ftp_server(b"print('x')\n") as ftp_port:
-            reply = self.REDIRECT.format(f"ftp://127.0.0.1:{ftp_port}/process_tree.py")
-            error, _ = self._assert_typed_failure(reply.encode(), ValueError, wait=5)
-        self.assertIn("non-HTTP(S)", str(error))
-        self.assertEqual(self.reads, [], "the ftp response body was read")
+        for token in (None, self.SECRET):
+            with self.subTest(authenticated=token is not None):
+                with self._ftp_server(b"print('x')\n") as (ftp_port, commands):
+                    reply = self.REDIRECT.format(f"ftp://127.0.0.1:{ftp_port}/process_tree.py")
+                    error, received = self._assert_typed_failure(
+                        reply.encode(), ValueError, token=token, wait=5
+                    )
+                self.assertEqual(self.reads, [], "the ftp response body was read")
+                self.assertEqual("non-HTTP(S)" in str(error), token is None)
+                # urllib has contacted the ftp host; the token went to the first hop only.
+                self.assertTrue(any(line.startswith("RETR") for line in commands), commands)
+                self.assertEqual("authorization" in received[0].lower(), token is not None)
+                for line in commands:
+                    self.assertNotIn("authorization", line.lower())
+                    self.assertNotIn(self.SECRET, line)
+                if token is not None:
+                    self._assert_scrubbed_cause(error, ValueError)
+                    self._assert_token_absent(error, token)
 
     def test_token_a_header_cannot_carry_is_refused_before_any_request(self) -> None:
         stem = "fake-secret-stem"
@@ -494,7 +558,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                 self.assertEqual(received, [])
                 self.assertIsNone(error.__cause__)
                 self.assertIsNone(error.__context__)
-                self.assertNotIn(stem, str(error))
+                self._assert_token_absent(error, stem)
 
     def test_token_validation_rejects_everything_http_client_rejects(self) -> None:
         connection = http.client.HTTPConnection("127.0.0.1")
@@ -511,7 +575,10 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         for location in ("http://[::1/x", "http://[zz]/x", "http://a]b/x", "http://[::1]x/y"):
             with self.subTest(location=location):
                 reply = self.REDIRECT.format(location).encode()
-                self._assert_typed_failure(reply, ValueError, wait=2)
+                for token in (None, self.SECRET):
+                    error, _ = self._assert_typed_failure(reply, ValueError, token=token, wait=2)
+                    if token is not None:
+                        self._assert_scrubbed_cause(error, ValueError)
 
     def test_redirect_to_another_origin_never_receives_the_token(self) -> None:
         final = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
