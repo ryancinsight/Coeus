@@ -1199,7 +1199,8 @@ done
 # claims it with a lock naming its pid; while a live run holds it, this run
 # builds in a temporary export instead of waiting, and a dead holder's lock
 # is taken over.
-gate_key="$(printf '%s' "$repo_root" | git hash-object --stdin | cut -c1-10)"
+gate_hash="$(printf '%s' "$repo_root" | git hash-object --stdin)"
+gate_key="${gate_hash:0:10}"
 gate_root="$tmp_base/pg-$gate_key"
 claim_gate_root() {
   local staged="$gate_root.lock.$$"
