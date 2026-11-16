@@ -47,7 +47,7 @@ items carry no milestone until then.
 
 - Status: todo; priority: correctness; milestone: none (no ladder; ADR 0085); [patch]; basis: 13a568429f68df687eaf7d689475b04272167edb.
 - Outcome: the local runtime fetch of `scripts/tests/test_hooks.py` leaves no first-hop socket open after a malformed redirect, skips a blank token, pins its same-origin redirect decision in a test, and names the variable that held a refused token.
-- Links: delivered by `COEUS-HOOK-FETCH-TYPED-ERRORS` (`git log --grep='^Item: COEUS-HOOK-FETCH-TYPED-ERRORS'`; PRs #659 and #660, split from #658 at `refs/pull/658/head`).
+- Links: delivered by `COEUS-HOOK-FETCH-TYPED-ERRORS` (`git log --grep='^Item: COEUS-HOOK-FETCH-TYPED-ERRORS'`; PRs #663 (successor of the closed #659) and #660, split from #658 at `refs/pull/658/head`).
 - Scope: `scripts/tests/test_hooks.py`.
 - Oracles, each a loopback test on CPython 3.13.3 and 3.13.12. `fetch_atlas_runtime_file` and `atlas_runtime_token` do not exist at the basis. F1, F3 and F7 fail against the code those PRs deliver and pass with their fix; F4's first option adds a test that passes against it:
   - F1: a malformed `Location` closes the first-hop socket. A test records warnings (`warnings.catch_warnings(record=True)`, `simplefilter("always")`) across the four malformed `Location` cases (`http://[::1/x`, `http://[zz]/x`, `http://a]b/x`, `http://[::1]x/y`) with `gc.collect()` after each, and asserts none is a `ResourceWarning`; it records 4, one per case, with a token set and without, on both interpreters.
@@ -55,6 +55,17 @@ items carry no milestone until then.
   - F4 (decision): a same-origin 301 drops `Authorization`, as the closed item's clause reads. Keep that and add a test pinning it, or send the token on the same origin and amend the clause.
   - F7: a refusal names the variable that held the token, `GITHUB_TOKEN` or `GH_TOKEN`.
 - Next step: F3 and F7 first; both change what `atlas_runtime_token` returns.
+
+<a id="coeus-hook-fetch-tls-test"></a>
+## COEUS-HOOK-FETCH-TLS-TEST — Test the runtime fetch's connect-phase failures, TLS included
+
+- Status: todo; priority: verification; needs: none; milestone: none (no ladder; ADR 0085); [patch]; basis: 261df8cb79a54be143e8bd8200e0718911e0c7b1.
+- Outcome: a test pins that a TLS handshake failure while fetching a pinned Atlas runtime file ends as `AtlasRuntimeFetchError`, with a token set and without, and that no test leaves `urllib.error.URLError` (the wrapper `urllib` puts around every connect-phase failure) unexercised.
+- Evidence (read at the basis): `fetch_atlas_runtime_file` (`scripts/tests/test_hooks.py:104`) types a connect-phase failure only through `except (OSError, http.client.HTTPException, ValueError)`. `git grep -n -i 'ssl\|certificate\|URLError' origin/main -- scripts/tests/test_hooks.py` prints nothing. The loopback matrix covers `HTTPError`, `HTTPException`, `ValueError`, `TimeoutError`; `_fetch` rewrites the URL to plain `http://127.0.0.1`, so no case reaches TLS. Probe, CPython 3.13.12: an `https://` request to a loopback listener that answers in plaintext raises `URLError` (an `OSError`) whose `reason` is an `ssl.SSLError`. Source: delivery residual of #658.
+- Links: [COEUS-HOOK-FETCH-RESIDUALS](#coeus-hook-fetch-residuals) holds the other findings of that delivery; both edit one file.
+- Scope: `scripts/tests/test_hooks.py`; `fetch_atlas_runtime_file` itself is unchanged.
+- Acceptance: with `urlopen` opening `https://127.0.0.1:<port>` against such a listener, unauthenticated, `__cause__` is a `URLError` whose `reason` is an `ssl.SSLError` and the message names file, revision, `URLError` and `unauthenticated`; with a token the message ends `URLError, authenticated` and `__cause__` is `None`. A mutant that re-raises `URLError` from that clause fails both cases; both pass on CPython 3.13.3 and 3.13.12.
+- Next step: add the two cases beside `test_transport_failures_are_typed_with_their_cause`, passing `urlopen` a callable that bypasses `_fetch`'s `http` rewrite.
 
 <a id="coeus-hook-runtime-pin-test"></a>
 ## COEUS-HOOK-RUNTIME-PIN-TEST — Test that CI pins one Atlas checkout at the tested revision
