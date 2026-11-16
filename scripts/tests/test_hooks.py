@@ -23,14 +23,19 @@ judged by the checker's own tests (atlas `scripts/tests/test_lockfile_*.py`).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import http.client
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -54,6 +59,68 @@ ATLAS_RUNTIME_FILES = {
     "windows_process.py": "3072bd44412a463ed5eb5a11f3cab5f7170ddcd3",
     "darwin_process.py": "60f0ff8f7dedbdfc22d9d5f9fcb0d601322434f1",
 }
+
+ATLAS_RUNTIME_BASE = (
+    "https://api.github.com/repos/ryancinsight/atlas/contents/scripts"
+)
+# Largest body accepted: 1 MiB against the largest pinned file's 29,490 bytes.
+ATLAS_RUNTIME_MAX_BYTES = 1 << 20
+_READ_STEP = 1 << 16
+
+
+class AtlasRuntimeFetchError(RuntimeError):
+    """The pinned Atlas runtime could not be fetched from the hosting API."""
+
+
+def _read_bounded(response) -> bytes:
+    """Read a body in bounded steps, so no declared length sizes a read."""
+
+    body = bytearray()
+    while chunk := response.read(_READ_STEP):
+        body += chunk
+        if len(body) > ATLAS_RUNTIME_MAX_BYTES:
+            raise ValueError(f"body exceeds {ATLAS_RUNTIME_MAX_BYTES} bytes")
+    if response.length:
+        raise http.client.IncompleteRead(bytes(body), response.length)
+    return bytes(body)
+
+
+def fetch_atlas_runtime_file(name: str, urlopen=urllib.request.urlopen) -> bytes:
+    """Fetch one runtime file at `ATLAS_RUNTIME_REVISION`.
+
+    Hosted CI checks the pinned revision out and never calls this. A local run
+    reaches the hosting API, which admits 60 unauthenticated requests per hour
+    per client address. The request carries no credential.
+
+    Raises `AtlasRuntimeFetchError` naming file and revision for: an HTTP
+    status; an `OSError`; an `http.client.HTTPException`; a `ValueError`
+    (malformed redirect `Location`, a body above `ATLAS_RUNTIME_MAX_BYTES`, a
+    redirect `urllib` followed to a non-HTTP(S) URL such as ftp, refused
+    unread). Other exceptions propagate. The body is read in 64 KiB steps, so a
+    declared length or chunk size never sizes a read: five oversized witnesses
+    raise `OverflowError` or `MemoryError` from an unbounded read on CPython
+    3.13.3. The message and `__cause__` carry server text as received.
+    """
+
+    where = f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}"
+    request = urllib.request.Request(
+        f"{ATLAS_RUNTIME_BASE}/{name}?ref={ATLAS_RUNTIME_REVISION}",
+        headers={
+            "Accept": "application/vnd.github.raw+json",
+            "User-Agent": "coeus-hook-tests",
+        },
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            if not response.geturl().startswith(("http://", "https://")):
+                raise ValueError("redirected to a non-HTTP(S) URL")
+            return _read_bounded(response)
+    except urllib.error.HTTPError as error:
+        error.close()
+        failure, cause = f"HTTP {error.code} {error.reason}", error
+    except (OSError, http.client.HTTPException, ValueError) as error:
+        failure, cause = f"{type(error).__name__}: {error}", error
+    raise AtlasRuntimeFetchError(f"{where}: {failure}") from cause
 
 # A first-party git source in the lock, and a manifest declaring the matching
 # dependency: the fixture member is the shape the checker's flattened-lock
@@ -147,6 +214,205 @@ class HookInstallationTests(unittest.TestCase):
         self.assertEqual(modes, {f".githooks/{hook}": "100755" for hook in HOOKS})
 
 
+class AtlasRuntimeFetchTests(unittest.TestCase):
+    """The runtime fetch sends no credential and raises typed errors.
+
+    Every case drives the real `urllib` stack against loopback sockets, except
+    `test_exceptions_outside_the_typed_kinds_propagate`, whose opener raises
+    directly.
+    """
+
+    # A 302 whose `Location` a test fills in.
+    REDIRECT = "HTTP/1.1 302 Moved\r\nContent-Length: 0\r\nLocation: {}\r\n\r\n"
+
+    def setUp(self) -> None:
+        self.reads: list[tuple] = []
+
+    @contextlib.contextmanager
+    def _local_server(self, reply: bytes | None):
+        """Answer one loopback connection with `reply` (`None` holds it open).
+
+        Yields the port and the request texts read.
+        """
+
+        received: list[str] = []
+        release = threading.Event()
+        with socket.create_server(("127.0.0.1", 0)) as listener:
+            listener.settimeout(30)  # Backstop only: exit's connection ends it.
+
+            def serve() -> None:
+                with contextlib.suppress(OSError):
+                    connection, _ = listener.accept()
+                    with connection:
+                        request = connection.recv(65536)
+                        if request:
+                            received.append(request.decode("latin-1"))
+                        if reply is None:
+                            release.wait(timeout=30)
+                        else:
+                            connection.sendall(reply)
+
+            thread = threading.Thread(target=serve, daemon=True)
+            thread.start()
+            port = listener.getsockname()[1]
+            try:
+                yield port, received
+            finally:
+                release.set()
+                if thread.is_alive():
+                    with contextlib.suppress(OSError):
+                        socket.create_connection(("127.0.0.1", port), timeout=5).close()
+                thread.join(timeout=30)
+
+    def _fetch(self, reply, wait=0.5, name="process_tree.py"):
+        """Fetch from loopback (timeout `wait`): the body or error, and the requests."""
+
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with self._local_server(reply) as (port, received):
+
+            def open_loopback(request, timeout):
+                self.assertEqual(timeout, 30)
+                url = request.full_url.replace(ATLAS_RUNTIME_BASE, f"http://127.0.0.1:{port}")
+                local = urllib.request.Request(url, headers=request.headers)
+                for key, value in request.unredirected_hdrs.items():
+                    local.add_unredirected_header(key, value)
+                response = opener.open(local, timeout=wait)
+                read = response.read
+                response.read = lambda *args: self.reads.append(args) or read(*args)
+                return response
+
+            try:
+                outcome = fetch_atlas_runtime_file(name, open_loopback)
+            except AtlasRuntimeFetchError as error:
+                outcome = error
+        return outcome, received
+
+    # The headers of a request that carries no credential: the two the fetch
+    # sets, the three `urllib` and `http.client` add.
+    REQUEST_HEADERS = ("accept", "accept-encoding", "connection", "host", "user-agent")
+
+    @staticmethod
+    def _header_names(request: str) -> list[str]:
+        return sorted(line.split(":")[0].lower() for line in request.split("\r\n")[1:] if ":" in line)
+
+    def _assert_typed_failure(self, reply, cause: type[BaseException], **kwargs):
+        error, received = self._fetch(reply, **kwargs)
+        self.assertIsInstance(error, AtlasRuntimeFetchError)
+        for part in ("process_tree.py", ATLAS_RUNTIME_REVISION, cause.__name__):
+            self.assertIn(part, str(error))
+        self.assertIsInstance(error.__cause__, cause)
+        return error, received
+
+    def test_exceptions_outside_the_typed_kinds_propagate(self) -> None:
+        for failure in (KeyError("k"), RuntimeError("r"), TypeError("t")):
+            with self.subTest(failure=type(failure).__name__):
+
+                def opener(request, timeout):
+                    raise failure
+
+                # `AtlasRuntimeFetchError` is a `RuntimeError`, so identity decides.
+                with self.assertRaises(type(failure)) as raised:
+                    fetch_atlas_runtime_file("process_tree.py", opener)
+                self.assertIs(raised.exception, failure)
+
+    def test_request_names_the_pinned_file_and_carries_no_credential(self) -> None:
+        reply = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
+        body, received = self._fetch(reply)
+        self.assertEqual(body, b"payload")
+        request = received[0].lower()
+        self.assertTrue(request.startswith(f"get /process_tree.py?ref={ATLAS_RUNTIME_REVISION} "))
+        self.assertEqual(self._header_names(request), list(self.REQUEST_HEADERS))
+
+    def test_quota_refusal_names_file_and_status(self) -> None:
+        reply = b"HTTP/1.1 403 rate limit exceeded\r\nContent-Length: 0\r\n\r\n"
+        error, received = self._fetch(reply, name="windows_process.py")
+        self.assertIsInstance(error, AtlasRuntimeFetchError)
+        for part in ("windows_process.py", "HTTP 403 rate limit exceeded"):
+            self.assertIn(part, str(error))
+        self.assertEqual(self._header_names(received[0]), list(self.REQUEST_HEADERS))
+        # The fetch closes the error response, not the garbage collector.
+        self.assertIsInstance(error.__cause__, urllib.error.HTTPError)
+        self.assertTrue(error.__cause__.fp.closed)
+
+    def test_transport_failures_are_typed_with_their_cause(self) -> None:
+        incomplete = http.client.IncompleteRead
+        cases = (
+            (None, TimeoutError),
+            (b"", http.client.RemoteDisconnected),
+            (b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort", incomplete),
+            (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nshort", incomplete),
+        )
+        for reply, cause in cases:
+            with self.subTest(cause=cause.__name__, reply=reply):
+                self._assert_typed_failure(reply, cause)
+
+    def test_declared_sizes_never_size_a_read(self) -> None:
+        # CPython 3.13.3 raises `OverflowError` or `MemoryError` from an
+        # unbounded read of these; 3.13.12 reads in bounded steps already.
+        lengths = ("9223372036854775808", "99999999999999999999999999999", "4611686018427387904")
+        sizes = ("FFFFFFFFFFFFFFFFFFFFFFFFFFFF", "10000000000000000")
+        framings = [f"Content-Length: {length}\r\n\r\n" for length in lengths] + [
+            f"Transfer-Encoding: chunked\r\n\r\n{size}\r\n" for size in sizes
+        ]
+        for framing in framings:
+            with self.subTest(framing=framing):
+                reply = f"HTTP/1.1 200 OK\r\n{framing}short".encode()
+                self._assert_typed_failure(reply, http.client.IncompleteRead)
+
+    def test_body_bound_is_inclusive(self) -> None:
+        def reply(body: bytes) -> bytes:
+            return f"HTTP/1.1 200 OK\r\nContent-Length: {len(body)}\r\n\r\n".encode() + body
+
+        at_bound = b"x" * ATLAS_RUNTIME_MAX_BYTES
+        self.assertEqual(self._fetch(reply(at_bound), wait=5)[0], at_bound)
+        error, _ = self._assert_typed_failure(reply(at_bound + b"x"), ValueError, wait=5)
+        self.assertIn(str(ATLAS_RUNTIME_MAX_BYTES), str(error))
+
+    @contextlib.contextmanager
+    def _ftp_server(self, payload: bytes):
+        """Serve `payload` to one FTP login and `RETR` on loopback; yield the port."""
+
+        with socket.create_server(("127.0.0.1", 0)) as control, socket.create_server(("127.0.0.1", 0)) as data:
+            control.settimeout(10)
+            data.settimeout(10)
+
+            def serve() -> None:
+                with contextlib.suppress(OSError):
+                    connection, _ = control.accept()
+                    with connection:
+                        connection.sendall(b"220 ready\r\n")
+                        for line in connection.makefile("rb"):
+                            if line.startswith(b"PASV"):
+                                high, low = divmod(data.getsockname()[1], 256)
+                                reply = f"227 Passive Mode (127,0,0,1,{high},{low})\r\n".encode()
+                            elif line.startswith(b"RETR"):
+                                connection.sendall(b"150 ok\r\n")
+                                with data.accept()[0] as peer:
+                                    peer.sendall(payload)
+                                reply = b"226 done\r\n"
+                            else:
+                                reply = b"200 ok\r\n"
+                            connection.sendall(reply)
+
+            thread = threading.Thread(target=serve, daemon=True)
+            thread.start()
+            yield control.getsockname()[1]
+            thread.join(timeout=10)
+
+    def test_redirect_to_a_served_ftp_file_is_typed_and_unread(self) -> None:
+        with self._ftp_server(b"print('x')\n") as ftp_port:
+            reply = self.REDIRECT.format(f"ftp://127.0.0.1:{ftp_port}/process_tree.py")
+            error, _ = self._assert_typed_failure(reply.encode(), ValueError, wait=5)
+        self.assertIn("non-HTTP(S)", str(error))
+        self.assertEqual(self.reads, [], "the ftp response body was read")
+
+    def test_malformed_redirect_location_is_typed_with_a_value_error_cause(self) -> None:
+        for location in ("http://[::1/x", "http://[zz]/x", "http://a]b/x", "http://[::1]x/y"):
+            with self.subTest(location=location):
+                reply = self.REDIRECT.format(location).encode()
+                self._assert_typed_failure(reply, ValueError, wait=2)
+
+
 class LockHookTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -157,22 +423,8 @@ class LockHookTests(unittest.TestCase):
             directory = tempfile.TemporaryDirectory(prefix="coeus-hook-runtime-")
             cls.addClassCleanup(directory.cleanup)
             cls.runtime = Path(directory.name)
-            base = (
-                "https://api.github.com/repos/ryancinsight/atlas/"
-                "contents/scripts"
-            )
             for name in ATLAS_RUNTIME_FILES:
-                request = urllib.request.Request(
-                    f"{base}/{name}?ref={ATLAS_RUNTIME_REVISION}",
-                    headers={
-                        "Accept": "application/vnd.github.raw+json",
-                        "User-Agent": "coeus-hook-tests",
-                    },
-                )
-                with urllib.request.urlopen(
-                    request, timeout=30
-                ) as response:
-                    (cls.runtime / name).write_bytes(response.read())
+                (cls.runtime / name).write_bytes(fetch_atlas_runtime_file(name))
         missing = [
             name
             for name in ATLAS_RUNTIME_FILES
