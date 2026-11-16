@@ -42,6 +42,18 @@ items carry no milestone until then.
 - Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
 - Evidence: PR #409 Tests job `107824618717` ended with runner exit 143 after unconditionally entering the 45-minute native job on a hook-only change.
 
+<a id="coeus-hook-fetch-residuals"></a>
+## COEUS-HOOK-FETCH-RESIDUALS — Close the findings the fetch typed-errors fix left open
+
+- Status: todo; priority: verification; milestone: none (no ladder; ADR 0085); [patch]; basis: 13a568429f68df687eaf7d689475b04272167edb.
+- Scope: `scripts/tests/test_hooks.py`.
+- Oracles, each a loopback test on CPython 3.13.3 and 3.13.12:
+  - F1: a malformed `Location` closes the first-hop socket; the malformed-redirect test passes under `python -X dev -W error::ResourceWarning`.
+  - F3: a blank `GITHUB_TOKEN` or `GH_TOKEN` (`" "`, `"\r\n"`) counts as unset: `atlas_runtime_token` skips it and the request carries no `Authorization`.
+  - F4 (decision): a same-origin 301 drops `Authorization`, as the closed item's clause reads. Keep that and add a test pinning it, or send the token on the same origin and amend the clause.
+  - F7: a refusal names the variable that held the token, `GITHUB_TOKEN` or `GH_TOKEN`.
+- Next step: F3 and F7 first; both change what `atlas_runtime_token` returns.
+
 <a id="coeus-hook-runtime-pin-test"></a>
 ## COEUS-HOOK-RUNTIME-PIN-TEST — Test that CI pins one Atlas checkout at the tested revision
 
