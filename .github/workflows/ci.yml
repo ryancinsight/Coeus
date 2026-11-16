@@ -39,6 +39,16 @@ env:
   # installed for the one that does not run. Same value and same mechanism as
   # backend-parity.yml.
   RUST_TOOLCHAIN: 1.97.0
+  # Atlas revision whose hook runtime the hook tests run against. The Format
+  # job and the hook-only steps of the Tests job each check out
+  # `ryancinsight/atlas` at this value into `.atlas-runtime` and set
+  # `ATLAS_HOOK_RUNTIME` to its `scripts/` directory, so
+  # `LockHookTests.setUpClass` skips its hosting-API fetch. That class still
+  # compares the git blob hash of each of the three runtime files with the
+  # hashes in `scripts/tests/test_hooks.py` and raises on a mismatch. Nothing
+  # compares this value with `ATLAS_RUNTIME_REVISION` in that file, which the
+  # fallback fetch uses; change both together.
+  ATLAS_RUNTIME_REVISION: d59e295ac41dffc34084126583b259dfa49a3117
 
 jobs:
   # Public-surface compatibility, informational on pull requests: the
@@ -99,7 +109,17 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt
       - run: cargo fmt --all -- --check
+      - name: Atlas hook runtime
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          ref: ${{ env.ATLAS_RUNTIME_REVISION }}
+          path: .atlas-runtime
+          sparse-checkout: scripts
+          persist-credentials: false
       - name: Lockfile tool contracts
+        env:
+          ATLAS_HOOK_RUNTIME: ${{ github.workspace }}/.atlas-runtime/scripts
         run: python3 -m unittest discover -s scripts/tests -v
 
   # Wall-time history: the single Tests job was compile-bound (Native tests
@@ -147,6 +167,15 @@ jobs:
       - name: Require changed-scope classification
         if: always()
         run: test -n "${{ needs.changed_scope.outputs.test_path }}"
+      - name: Atlas hook runtime
+        if: needs.changed_scope.outputs.test_path == 'hook-only' && matrix.shard == 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          ref: ${{ env.ATLAS_RUNTIME_REVISION }}
+          path: .atlas-runtime
+          sparse-checkout: scripts
+          persist-credentials: false
       - name: Hook-contract tests
         if: needs.changed_scope.outputs.test_path == 'hook-only' && matrix.shard == 1
         # The job-level wrapper names sccache, which only the native path
@@ -154,6 +183,7 @@ jobs:
         # Runs on shard 1 only: one invocation covers the hook suite.
         env:
           RUSTC_WRAPPER: ""
+          ATLAS_HOOK_RUNTIME: ${{ github.workspace }}/.atlas-runtime/scripts
         run: python3 -B -m unittest scripts.tests.test_hooks -v
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable action
         if: needs.changed_scope.outputs.test_path == 'native'
