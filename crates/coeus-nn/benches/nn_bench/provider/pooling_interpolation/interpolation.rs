@@ -2,6 +2,8 @@
 
 use super::*;
 
+use coeus_core::FloatElement;
+
 /// Native-provider `interpolate_2d` comparison on `[N,C,H,W]`
 /// upsampling to `2H x 2W`, parameterized by mode so every mode shares one
 /// body. The tap count and the tap arithmetic are the only per-mode differences
@@ -20,7 +22,7 @@ pub(crate) fn bench_interpolate2d_forward(
     const OUT_W: usize = 64;
 
     let input_data: Vec<f32> = (0..(IN_N * IN_C * IN_H * IN_W))
-        .map(|i| (i as f32 * 0.0021).sin())
+        .map(|i| (f32::from_count(i) * 0.0021).sin())
         .collect();
 
     let x_seq =
@@ -89,7 +91,7 @@ pub(crate) fn bench_interpolate1d_nearest_forward(c: &mut Criterion) {
     const OUT_L: usize = 256;
 
     let input_data: Vec<f32> = (0..(IN_N * IN_C * IN_L))
-        .map(|i| (i as f32 * 0.0021).sin())
+        .map(|i| (f32::from_count(i) * 0.0021).sin())
         .collect();
 
     let x_seq = Tensor::<f32, SequentialBackend>::from_slice(vec![IN_N, IN_C, IN_L], &input_data)

@@ -2,6 +2,8 @@
 
 use super::*;
 
+use coeus_core::FloatElement;
+
 pub(crate) fn bench_maxpool2d_forward(c: &mut Criterion) {
     // MaxPool2d forward on [N=8, C=16, H=32, W=32] with k=2, s=2.
     const MP_N: usize = 8;
@@ -12,7 +14,7 @@ pub(crate) fn bench_maxpool2d_forward(c: &mut Criterion) {
     const MP_S: usize = 2;
 
     let input_data: Vec<f32> = (0..(MP_N * MP_C * MP_H * MP_W))
-        .map(|i| (i as f32 * 0.0025).sin())
+        .map(|i| (f32::from_count(i) * 0.0025).sin())
         .collect();
 
     let pool_seq = MaxPool2d::<f32, SequentialBackend>::with_params(MP_K, MP_S, 0, 1);
@@ -62,7 +64,7 @@ pub(crate) fn bench_avgpool2d_forward(c: &mut Criterion) {
     const AP_S: usize = 2;
 
     let input_data: Vec<f32> = (0..(AP_N * AP_C * AP_H * AP_W))
-        .map(|i| (i as f32 * 0.0018).cos())
+        .map(|i| (f32::from_count(i) * 0.0018).cos())
         .collect();
 
     let pool_seq = AvgPool2d::<f32, SequentialBackend>::with_params(AP_K, AP_S, 0, 1);
@@ -114,7 +116,7 @@ pub(crate) fn bench_maxpool3d_forward(c: &mut Criterion) {
     const MP3_S: usize = 2;
 
     let input_data: Vec<f32> = (0..(MP3_N * MP3_C * MP3_D * MP3_H * MP3_W))
-        .map(|i| (i as f32 * 0.0013).sin())
+        .map(|i| (f32::from_count(i) * 0.0013).sin())
         .collect();
 
     let pool_seq = MaxPool3d::<f32, SequentialBackend>::with_params(MP3_K, MP3_S, 0, 1);
@@ -172,7 +174,7 @@ pub(crate) fn bench_avgpool3d_forward(c: &mut Criterion) {
     const AP3_S: usize = 2;
 
     let input_data: Vec<f32> = (0..(AP3_N * AP3_C * AP3_D * AP3_H * AP3_W))
-        .map(|i| (i as f32 * 0.0011).cos())
+        .map(|i| (f32::from_count(i) * 0.0011).cos())
         .collect();
 
     let pool_seq = AvgPool3d::<f32, SequentialBackend>::with_params(AP3_K, AP3_S, 0, 1);
@@ -225,7 +227,7 @@ pub(crate) fn bench_maxpool1d_forward(c: &mut Criterion) {
     const MP1_K: usize = 2;
     const MP1_S: usize = 2;
     let input_data: Vec<f32> = (0..(MP1_N * MP1_C * MP1_L))
-        .map(|i| (i as f32 * 0.0019).sin())
+        .map(|i| (f32::from_count(i) * 0.0019).sin())
         .collect();
     let pool_seq = MaxPool1d::<f32, SequentialBackend>::with_params(MP1_K, MP1_S, 0, 1);
     let pool_moirai = MaxPool1d::<f32, MoiraiBackend>::with_params(MP1_K, MP1_S, 0, 1);
@@ -270,7 +272,7 @@ pub(crate) fn bench_avgpool1d_forward(c: &mut Criterion) {
     const AP1_K: usize = 2;
     const AP1_S: usize = 2;
     let input_data: Vec<f32> = (0..(AP1_N * AP1_C * AP1_L))
-        .map(|i| (i as f32 * 0.0023).cos())
+        .map(|i| (f32::from_count(i) * 0.0023).cos())
         .collect();
     let pool_seq = CoeusAvgPool1d::<f32, SequentialBackend>::with_params(AP1_K, AP1_S, 0, 1);
     let pool_moirai = CoeusAvgPool1d::<f32, MoiraiBackend>::with_params(AP1_K, AP1_S, 0, 1);
@@ -317,7 +319,7 @@ pub(crate) fn bench_adaptive_avg_pool2d_forward(c: &mut Criterion) {
     const AAP_W: usize = 7;
 
     let input_data: Vec<f32> = (0..(AAP_N * AAP_C * AAP_H * AAP_W))
-        .map(|i| (i as f32 * 0.0021).sin())
+        .map(|i| (f32::from_count(i) * 0.0021).sin())
         .collect();
 
     // Coeus AdaptiveAvgPool2d.
@@ -367,7 +369,7 @@ pub(crate) fn bench_adaptive_max_pool2d_forward(c: &mut Criterion) {
     const AMP_W: usize = 7;
 
     let input_data: Vec<f32> = (0..(AMP_N * AMP_C * AMP_H * AMP_W))
-        .map(|i| (i as f32 * 0.0017).cos())
+        .map(|i| (f32::from_count(i) * 0.0017).cos())
         .collect();
 
     // Coeus AdaptiveMaxPool2d.
