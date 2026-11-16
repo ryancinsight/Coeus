@@ -41,11 +41,13 @@ env:
   RUST_TOOLCHAIN: 1.97.0
   # Atlas revision whose hook runtime the hook tests run against. The tests
   # pin the contents of each file by blob hash. `AtlasRuntimePinTests` fails
-  # when this value differs from the revision the tests pin, when the `format`
-  # or `tests` job does not hold exactly one `ryancinsight/atlas` checkout at
-  # this value or at that revision, or when that job's `ATLAS_HOOK_RUNTIME`
-  # does not point at the checkout's `scripts/`. Both jobs do, so the tests
-  # make no hosting-API request.
+  # when this value differs from the revision the tests pin, when a job or
+  # step `env` in the `format` or `tests` job sets this name, when either job
+  # lacks exactly one `actions/checkout` step for `ryancinsight/atlas` (any
+  # case) at this value or at that revision, when any checkout there names
+  # its repository by expression, or when that job's `ATLAS_HOOK_RUNTIME`
+  # does not point at the checkout's `scripts/`. Both jobs satisfy it, so the
+  # tests make no hosting-API request.
   ATLAS_RUNTIME_REVISION: d59e295ac41dffc34084126583b259dfa49a3117
 
 jobs:

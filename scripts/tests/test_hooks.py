@@ -149,10 +149,16 @@ class HookInstallationTests(unittest.TestCase):
 
 
 def _workflow_scalar(text: str) -> str:
-    """Plain or quoted YAML scalar with its trailing comment removed."""
+    """Plain or quoted YAML scalar with its trailing comment removed.
+
+    Anchors, aliases and tags are refused: a value the reader cannot place
+    by itself could stand for any other value in the file.
+    """
     text = re.split(r"\s#", text.strip(), maxsplit=1)[0].strip()
     if text.startswith("#"):
         return ""
+    if text[:1] in ("&", "*", "!"):
+        raise ValueError(f"unsupported anchor, alias or tag: {text!r}")
     if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
         return text[1:-1]
     return text
@@ -164,7 +170,8 @@ def _workflow_value(items: list[tuple[int, str]], at: int, indent: int):
     A reader for the subset of YAML that `ci.yml` uses: block mappings,
     block sequences, plain/quoted scalars, `|`/`>` block scalars (kept
     opaque) and inline flow values (kept as text). Comment-only and blank
-    lines are dropped, so a commented-out key is not a key. The test runs in
+    lines are dropped, so a commented-out key is not a key. Anchors, aliases,
+    tags and repeated keys raise `ValueError`. The test runs in
     the Format job before any dependency install, where no YAML library is
     guaranteed, so the reader lives here instead of importing one.
     """
@@ -185,6 +192,8 @@ def _workflow_value(items: list[tuple[int, str]], at: int, indent: int):
         if match is None:
             raise ValueError(f"unsupported workflow line: {items[at][1]!r}")
         key, rest = match.group(1), _workflow_scalar(match.group(2) or "")
+        if key in mapping:
+            raise ValueError(f"repeated workflow key: {key!r}")
         at += 1
         if rest in ("|", ">", "|-", ">-", "|+", ">+"):
             while at < len(items) and items[at][0] > indent:
@@ -209,20 +218,52 @@ def _workflow_mapping(text: str) -> dict:
     return mapping
 
 
+def _folded(entries, owner: str) -> dict:
+    """`entries` keyed by upper-cased name, as GitHub reads env and input names.
+
+    An absent or empty block reads as no entries; flow text raises, since it
+    is not parsed into names.
+    """
+    if entries == "":
+        return {}
+    if not isinstance(entries, dict):
+        raise ValueError(f"{owner}: expected a block mapping, got {entries!r}")
+    folded = {}
+    for name, value in entries.items():
+        if name.upper() in folded:
+            raise ValueError(f"{owner}: {name!r} repeats a name ignoring case")
+        folded[name.upper()] = value
+    return folded
+
+
 class AtlasRuntimePinTests(unittest.TestCase):
     """The workflow pins the revision these tests pin and checks it out.
 
-    The parsed `ci.yml` must satisfy three things: the workflow `env`
-    `ATLAS_RUNTIME_REVISION` equals the revision pinned here; in the `format`
-    and `tests` jobs exactly one `actions/checkout` step fetches
-    `ryancinsight/atlas`, at that env value or at the pinned revision itself;
-    and the one step in each of those jobs that sets `ATLAS_HOOK_RUNTIME`
-    points it at that checkout's `scripts/`. The three runtime files are
+    The parsed `ci.yml` must satisfy these, with env and input names, the
+    `uses` action and the repository compared ignoring case:
+
+    - the workflow `env` holds `ATLAS_RUNTIME_REVISION` once, equal to the
+      revision pinned here, and no `env` of a `format` or `tests` job or of
+      any step in them sets that name, so `env.ATLAS_RUNTIME_REVISION` means
+      the workflow value everywhere in those jobs;
+    - every `actions/checkout` step in those jobs names its repository as a
+      literal `owner/name` or not at all, never an expression;
+    - exactly one of them fetches `ryancinsight/atlas`, at that env
+      reference or at the pinned revision itself;
+    - exactly one step in the job sets `ATLAS_HOOK_RUNTIME`, to that
+      checkout's `scripts/`.
+
+    The reader refuses anchors, aliases, tags and repeated keys. Step and job
+    keys are matched as written, and a checkout made any other way than an
+    `actions/checkout` step is not seen. The three runtime files are
     separately held by blob hash in `LockHookTests`.
     """
 
     CHECKOUT_JOBS = ("format", "tests")
     ENV_REFERENCE = "${{ env.ATLAS_RUNTIME_REVISION }}"
+    REVISION_NAME = "ATLAS_RUNTIME_REVISION"
+    RUNTIME_REPOSITORY = "ryancinsight/atlas"
+    LITERAL_REPOSITORY = re.compile(r"\A[\w.-]+/[\w.-]+\Z")
 
     def test_workflow_pins_and_checks_out_the_tested_revision(self) -> None:
         workflow = _workflow_mapping(
@@ -231,30 +272,50 @@ class AtlasRuntimePinTests(unittest.TestCase):
             )
         )
         self.assertEqual(
-            workflow["env"]["ATLAS_RUNTIME_REVISION"], ATLAS_RUNTIME_REVISION
+            _folded(workflow["env"], "workflow")[self.REVISION_NAME],
+            ATLAS_RUNTIME_REVISION,
         )
         for job_id in self.CHECKOUT_JOBS:
             job = workflow["jobs"][job_id]
-            self.assertNotIn("ATLAS_RUNTIME_REVISION", job.get("env", {}), job_id)
+            self.assertNotIn(
+                self.REVISION_NAME, _folded(job.get("env", ""), job_id), job_id
+            )
             steps = job["steps"]
-            checkouts = [
-                step["with"]
-                for step in steps
-                if step.get("uses", "").startswith("actions/checkout@")
-                and step.get("with", {}).get("repository") == "ryancinsight/atlas"
-            ]
+            for step in steps:
+                self.assertNotIn(
+                    self.REVISION_NAME,
+                    _folded(step.get("env", ""), job_id),
+                    f"{job_id}: step env shadows the workflow revision",
+                )
+            checkouts = []
+            for step in steps:
+                if not step.get("uses", "").lower().startswith("actions/checkout@"):
+                    continue
+                inputs = _folded(step.get("with", ""), job_id)
+                repository = inputs.get("REPOSITORY")
+                if repository is None:
+                    continue
+                self.assertRegex(
+                    repository,
+                    self.LITERAL_REPOSITORY,
+                    f"{job_id}: checkout repository is not a literal",
+                )
+                if repository.lower() == self.RUNTIME_REPOSITORY:
+                    checkouts.append(inputs)
             self.assertEqual(len(checkouts), 1, job_id)
             self.assertIn(
-                checkouts[0]["ref"], (self.ENV_REFERENCE, ATLAS_RUNTIME_REVISION), job_id
+                checkouts[0].get("REF"),
+                (self.ENV_REFERENCE, ATLAS_RUNTIME_REVISION),
+                job_id,
             )
             runtimes = [
-                step["env"]["ATLAS_HOOK_RUNTIME"]
-                for step in steps
-                if "ATLAS_HOOK_RUNTIME" in step.get("env", {})
+                values["ATLAS_HOOK_RUNTIME"]
+                for values in (_folded(step.get("env", ""), job_id) for step in steps)
+                if "ATLAS_HOOK_RUNTIME" in values
             ]
             self.assertEqual(
                 runtimes,
-                ["${{ github.workspace }}/" + checkouts[0]["path"] + "/scripts"],
+                ["${{ github.workspace }}/" + checkouts[0]["PATH"] + "/scripts"],
                 job_id,
             )
 
