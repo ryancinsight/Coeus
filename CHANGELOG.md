@@ -4,6 +4,13 @@
 
 ### Changed
 
+- [patch] Admit Leto 0.50.0 and Leto-ops 0.50.0. The requirements widen to
+  `>=0.47.1, <0.51.0` and `>=0.47.0, <0.51.0`. Leto 0.50.0 removes the
+  unsafe `VecStorage::uninit` and zero-fills five allocating Leto-ops
+  wrappers; Coeus names neither, so no source changes. The lock moves
+  Leto and Leto-ops to 0.50.0, and the Apollo and Hephaestus entries to
+  the landed revisions whose requirements admit Leto below 0.51.0
+  (Apollo 0.29.5, Hephaestus 0.28.0 versions unchanged).
 - [major] Require Moirai 0.12.0. Moirai 0.12.0 removes the required
   `StateWord::get_mut` method; Coeus implements no `StateWord` and calls no
   removed method, so no Coeus source changes. The public contract moves with
