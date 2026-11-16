@@ -122,13 +122,12 @@ def fetch_atlas_runtime_file(
 
     The token is validated first, so no `http.client` header error echoes it,
     and is an unredirected header: `urllib` copies it to no redirect target
-    (tested for another port; a redirect within the origin continues without
-    it). With a token set the message carries no text the server chose: it
-    names file, revision, authentication state and the failure kind (the
-    exception type name, or `HTTP` and the status code). `__cause__` is the
-    original `ValueError`, scrubbed of its arguments and chain, when the
-    failure is exactly a `ValueError`, and `None` otherwise; its traceback
-    names code lines only. Without a token the message carries the server text
+    (tested for a redirect to another port). With a token set the message
+    carries no text the server chose: it names file, revision, authentication
+    state and the failure kind (the exception type name, or `HTTP` and the
+    status code). `__cause__` is the original `ValueError`, scrubbed of its
+    arguments, notes and chain, when the failure is exactly a `ValueError`, and
+    `None` otherwise; its traceback names code lines only. Without a token the message carries the server text
     and the original cause. Not held: the traceback's frame locals hold the
     token, which a local-variable dump shows.
     """
@@ -163,6 +162,7 @@ def fetch_atlas_runtime_file(
         failure = kind
         if type(cause) is ValueError:
             cause.args, cause.__cause__, cause.__context__ = (), None, None
+            vars(cause).pop("__notes__", None)
         else:
             cause = None
     raise AtlasRuntimeFetchError(f"{where}: {failure}, {state}") from cause
@@ -260,10 +260,14 @@ class HookInstallationTests(unittest.TestCase):
 
 
 class AtlasRuntimeFetchTests(unittest.TestCase):
-    """The runtime fetch authenticates when it can and fails closed when not.
+    """The runtime fetch's request, its token, and what the token stays out of.
 
     Every case drives the real `urllib` stack against loopback sockets, except
-    the validator comparison, which needs only an unconnected connection.
+    four. `test_exceptions_outside_the_typed_kinds_propagate` and
+    `test_a_token_clears_what_a_value_error_chains_to` inject openers that
+    raise directly. `test_token_validation_rejects_everything_http_client_rejects`
+    needs only an unconnected connection, and
+    `test_environment_token_prefers_github_token_over_gh_token` reads no network.
     """
 
     SECRET = "fake-secret-token"
@@ -349,6 +353,18 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
             for text in renderings:
                 self.assertNotIn(token[start : start + 8], text)
 
+    # The headers of a request without a token: the two the fetch sets, the
+    # three `urllib` and `http.client` add. A token adds `authorization` only.
+    REQUEST_HEADERS = ("accept", "accept-encoding", "connection", "host", "user-agent")
+
+    @staticmethod
+    def _header_names(request: str) -> list[str]:
+        return sorted(line.split(":")[0].lower() for line in request.split("\r\n")[1:] if ":" in line)
+
+    def _assert_request_headers(self, request: str, token: str | None) -> None:
+        expected = sorted((*self.REQUEST_HEADERS, *(("authorization",) if token else ())))
+        self.assertEqual(self._header_names(request), expected)
+
     def _assert_typed_failure(self, reply, cause: type[BaseException], **kwargs):
         error, received = self._fetch(reply, **kwargs)
         self.assertIsInstance(error, AtlasRuntimeFetchError)
@@ -357,13 +373,29 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         self.assertIsInstance(error.__cause__, cause)
         return error, received
 
-    def test_token_is_sent_as_bearer_authorization_for_the_pinned_file(self) -> None:
+    def test_request_names_the_pinned_file_and_sends_the_token_only_as_bearer(self) -> None:
         reply = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
-        body, received = self._fetch(reply, self.SECRET)
-        self.assertEqual(body, b"payload")
-        request = received[0].lower()
-        self.assertTrue(request.startswith(f"get /process_tree.py?ref={ATLAS_RUNTIME_REVISION} "))
-        self.assertIn(f"authorization: bearer {self.SECRET}", request)
+        for token in (None, self.SECRET):
+            with self.subTest(authenticated=token is not None):
+                body, received = self._fetch(reply, token)
+                self.assertEqual(body, b"payload")
+                request = received[0].lower()
+                self.assertTrue(request.startswith(f"get /process_tree.py?ref={ATLAS_RUNTIME_REVISION} "))
+                self._assert_request_headers(received[0], token)
+                self.assertEqual(f"authorization: bearer {self.SECRET}" in request, token is not None)
+
+    def test_exceptions_outside_the_typed_kinds_propagate(self) -> None:
+        for token in (None, self.SECRET):
+            for failure in (KeyError("k"), RuntimeError("r"), TypeError("t")):
+                with self.subTest(authenticated=token is not None, failure=type(failure).__name__):
+
+                    def opener(request, timeout):
+                        raise failure
+
+                    # `AtlasRuntimeFetchError` is a `RuntimeError`, so identity decides.
+                    with self.assertRaises(type(failure)) as raised:
+                        fetch_atlas_runtime_file("process_tree.py", token, opener)
+                    self.assertIs(raised.exception, failure)
 
     def test_quota_refusal_names_file_status_and_authentication(self) -> None:
         reply = b"HTTP/1.1 403 rate limit exceeded\r\nContent-Length: 0\r\n\r\n"
@@ -374,7 +406,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                 for part in ("windows_process.py", "HTTP 403", state):
                     self.assertIn(part, str(error))
                 self.assertEqual("unauthenticated" in str(error), token is None)
-                self.assertEqual("authorization" in received[0].lower(), token is not None)
+                self._assert_request_headers(received[0], token)
                 self.assertEqual("rate limit exceeded" in str(error), token is None)
                 if token is None:
                     # The fetch closes the error response, not the collector.
@@ -415,9 +447,17 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
             return f"HTTP/1.1 200 OK\r\nContent-Length: {len(body)}\r\n\r\n".encode() + body
 
         at_bound = b"x" * ATLAS_RUNTIME_MAX_BYTES
-        self.assertEqual(self._fetch(reply(at_bound), wait=5)[0], at_bound)
-        error, _ = self._assert_typed_failure(reply(at_bound + b"x"), ValueError, wait=5)
-        self.assertIn(str(ATLAS_RUNTIME_MAX_BYTES), str(error))
+        for token in (None, self.SECRET):
+            with self.subTest(authenticated=token is not None):
+                self.assertEqual(self._fetch(reply(at_bound), token, wait=5)[0], at_bound)
+                error, _ = self._assert_typed_failure(
+                    reply(at_bound + b"x"), ValueError, token=token, wait=5
+                )
+                # The bound is the fetch's own text, which a token drops with the rest.
+                self.assertEqual(str(ATLAS_RUNTIME_MAX_BYTES) in str(error), token is None)
+                if token is not None:
+                    self._assert_scrubbed_cause(error, ValueError)
+                    self._assert_token_absent(error, token)
 
     def test_a_token_keeps_server_text_and_the_cause_out_of_the_error(self) -> None:
         # Each server text can hold the token; the chunk size holds it in the
@@ -463,17 +503,21 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         self.assertIsNotNone(cause.__traceback__, "the cause was replaced by a new exception")
         self.assertIsNone(cause.__cause__)
         self.assertIsNone(cause.__context__)
+        self.assertFalse(hasattr(cause, "__notes__"))
 
     def test_a_token_clears_what_a_value_error_chains_to(self) -> None:
-        # No server in the matrix above raises a chained `ValueError`, so the
-        # opener does: both links hold the token.
+        # No server in the matrix above raises a chained or annotated
+        # `ValueError`, so the opener does: the exception, its note and the
+        # `OSError` it chains to all hold the token.
         secret = self.SECRET
+        held = ValueError(secret)
+        held.add_note(secret)
 
         def chained(request, timeout):
             try:
                 raise OSError(secret)
             except OSError as inner:
-                raise ValueError(secret) from inner
+                raise held from inner
 
         def subclass(request, timeout):
             raise UnicodeError(secret)
@@ -484,6 +528,9 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                     fetch_atlas_runtime_file("process_tree.py", secret, opener)
                 self.assertIsNone(raised.exception.__context__)
                 self._assert_scrubbed_cause(raised.exception, cause_type)
+                if cause_type is not None:
+                    # The cause is the exception the opener raised, scrubbed in place.
+                    self.assertIs(raised.exception.__cause__, held)
                 self._assert_token_absent(raised.exception, secret)
 
     @contextlib.contextmanager
@@ -579,6 +626,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                     error, _ = self._assert_typed_failure(reply, ValueError, token=token, wait=2)
                     if token is not None:
                         self._assert_scrubbed_cause(error, ValueError)
+                        self._assert_token_absent(error, token)
 
     def test_redirect_to_another_origin_never_receives_the_token(self) -> None:
         final = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
@@ -590,8 +638,9 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                     body, origin_received = self._fetch(redirect.encode(), self.SECRET, wait=2)
                 self.assertEqual(body, b"payload")
                 self.assertIn(f"authorization: bearer {self.SECRET}", origin_received[0].lower())
+                self._assert_request_headers(origin_received[0], self.SECRET)
                 self.assertEqual(len(target_received), 1)
-                self.assertNotIn("authorization", target_received[0].lower())
+                self._assert_request_headers(target_received[0], None)
 
     def test_environment_token_prefers_github_token_over_gh_token(self) -> None:
         both = {"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}

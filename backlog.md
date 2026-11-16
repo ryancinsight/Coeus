@@ -49,7 +49,7 @@ items carry no milestone until then.
 - Outcome: the local runtime fetch of `scripts/tests/test_hooks.py` leaves no first-hop socket open after a malformed redirect, skips a blank token, pins its same-origin redirect decision in a test, and names the variable that held a refused token.
 - Links: delivered by `COEUS-HOOK-FETCH-TYPED-ERRORS` (`git log --grep='^Item: COEUS-HOOK-FETCH-TYPED-ERRORS'`; PRs #659 and #660, split from #658 at `refs/pull/658/head`).
 - Scope: `scripts/tests/test_hooks.py`.
-- Oracles, each a loopback test on CPython 3.13.3 and 3.13.12. `fetch_atlas_runtime_file` and `atlas_runtime_token` do not exist at the basis, so each fails against the code those PRs deliver and passes with its fix:
+- Oracles, each a loopback test on CPython 3.13.3 and 3.13.12. `fetch_atlas_runtime_file` and `atlas_runtime_token` do not exist at the basis. F1, F3 and F7 fail against the code those PRs deliver and pass with their fix; F4's first option adds a test that passes against it:
   - F1: a malformed `Location` closes the first-hop socket. A test records warnings (`warnings.catch_warnings(record=True)`, `simplefilter("always")`) across the four malformed `Location` cases (`http://[::1/x`, `http://[zz]/x`, `http://a]b/x`, `http://[::1]x/y`) with `gc.collect()` after each, and asserts none is a `ResourceWarning`; it records 4, one per case, with a token set and without, on both interpreters.
   - F3: a blank `GITHUB_TOKEN` or `GH_TOKEN` (`" "`, `"\r\n"`) counts as unset: `atlas_runtime_token` skips it and the request carries no `Authorization`.
   - F4 (decision): a same-origin 301 drops `Authorization`, as the closed item's clause reads. Keep that and add a test pinning it, or send the token on the same origin and amend the clause.
