@@ -26,7 +26,6 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import http.client
-import io
 import json
 import os
 import re
@@ -36,7 +35,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import traceback
 import unittest
 import urllib.error
 import urllib.request
@@ -67,6 +65,9 @@ ATLAS_RUNTIME_FILES = {
 ATLAS_RUNTIME_BASE = (
     "https://api.github.com/repos/ryancinsight/atlas/contents/scripts"
 )
+# Largest body accepted: 1 MiB against the largest pinned file's 29,490 bytes.
+ATLAS_RUNTIME_MAX_BYTES = 1 << 20
+_READ_STEP = 1 << 16
 
 
 class AtlasRuntimeFetchError(RuntimeError):
@@ -81,10 +82,22 @@ def atlas_runtime_token(environment: Mapping[str, str] = os.environ) -> str | No
 
 # Characters an Authorization token cannot carry: C0 controls other than tab,
 # DEL, and anything outside latin-1, the encoding `http.client.putheader`
-# applies. That is a superset of what `putheader` rejects (a CR or LF, or a
-# non-latin-1 character); a test checks it against the running interpreter, so
-# no header error from `http.client` can echo a token that passed.
+# applies. A superset of what `putheader` rejects, checked by a test against
+# the running interpreter, so no header error can echo a token that passed.
 _UNCARRIABLE_TOKEN_CHARACTER = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]|[^\x00-\xff]")
+
+
+def _read_bounded(response) -> bytes:
+    """Read a body in bounded steps, so no declared length sizes a read."""
+
+    body = bytearray()
+    while chunk := response.read(_READ_STEP):
+        body += chunk
+        if len(body) > ATLAS_RUNTIME_MAX_BYTES:
+            raise ValueError(f"body exceeds {ATLAS_RUNTIME_MAX_BYTES} bytes")
+    if response.length:
+        raise http.client.IncompleteRead(bytes(body), response.length)
+    return bytes(body)
 
 
 def fetch_atlas_runtime_file(
@@ -92,34 +105,33 @@ def fetch_atlas_runtime_file(
 ) -> bytes:
     """Fetch one runtime file at `ATLAS_RUNTIME_REVISION`.
 
-    Hosted CI does not call this: it checks the pinned revision out and sets
-    `ATLAS_HOOK_RUNTIME`. A local run without a checkout reaches the hosting
-    API, which admits 60 unauthenticated requests per hour per client address;
-    a token raises the quota to the token's own.
+    Hosted CI checks the pinned revision out and never calls this. A local run
+    reaches the hosting API, which admits 60 unauthenticated requests per hour
+    per client address; a token raises the quota.
 
-    Every failure raises `AtlasRuntimeFetchError` naming the file, the revision
-    and the authentication state: a token an HTTP header cannot carry (refused
-    before any request is built), an HTTP status, a connection or timeout error
-    (`OSError`, which covers `URLError`), a truncated or malformed response
-    (`http.client.HTTPException`), and a malformed redirect `Location` or an
-    unencodable header (`ValueError`, which covers `UnicodeError`).
+    Raises `AtlasRuntimeFetchError` naming file, revision and authentication
+    state for: a token an HTTP header cannot carry (before any request); an
+    HTTP status; an `OSError`; an `http.client.HTTPException`; a `ValueError`
+    (malformed redirect `Location`, a body above `ATLAS_RUNTIME_MAX_BYTES`, a
+    redirect `urllib` followed to a non-HTTP(S) URL such as ftp, refused
+    unread). Other exceptions propagate. The body is read in 64 KiB steps, so a
+    declared length or chunk size never sizes a read: five oversized witnesses
+    raise `OverflowError` or `MemoryError` from an unbounded read on CPython
+    3.13.3.
 
-    No error this function raises carries the token, in its message or its
-    chain: the token is validated first, so no `http.client` header error
-    echoes it, and the messages are built from the file, the revision, the
-    state and the exception's own text. Text a server chooses (a status reason,
-    a `Location`) is embedded as received; a server holds the token already.
-    The token is an unredirected header: `redirect_request` builds a redirect's
-    headers from `req.headers` only (CPython 3.13.12
-    `Lib/urllib/request.py:650-651`), so a redirect target never receives it.
+    The token is validated first, so no `http.client` header error echoes it,
+    and is an unredirected header: `urllib` copies it to no redirect target
+    (tested for another port; a redirect within the origin continues without
+    it). Not held: the message and `__cause__` carry server text as received,
+    so a server that echoes the token puts it in both.
     """
 
     state = "authenticated" if token else "unauthenticated (set GITHUB_TOKEN)"
+    where = f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}"
     if token and _UNCARRIABLE_TOKEN_CHARACTER.search(token):
         raise AtlasRuntimeFetchError(
-            f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}: the token "
-            "(GITHUB_TOKEN or GH_TOKEN) holds a character an HTTP header "
-            f"cannot carry, {state}, no request sent"
+            f"{where}: the token (GITHUB_TOKEN or GH_TOKEN) holds a character "
+            f"an HTTP header cannot carry, {state}, no request sent"
         )
     request = urllib.request.Request(
         f"{ATLAS_RUNTIME_BASE}/{name}?ref={ATLAS_RUNTIME_REVISION}",
@@ -132,25 +144,15 @@ def fetch_atlas_runtime_file(
         request.add_unredirected_header("Authorization", f"Bearer {token}")
     try:
         with urlopen(request, timeout=30) as response:
-            return response.read()
+            if not response.geturl().startswith(("http://", "https://")):
+                raise ValueError("redirected to a non-HTTP(S) URL")
+            return _read_bounded(response)
     except urllib.error.HTTPError as error:
         error.close()
-        failure = f"HTTP {error.code} {error.reason}"
-        raise AtlasRuntimeFetchError(
-            f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}: "
-            f"{failure}, {state}"
-        ) from error
+        failure, cause = f"HTTP {error.code} {error.reason}", error
     except (OSError, http.client.HTTPException, ValueError) as error:
-        failure = (
-            error.reason
-            if isinstance(error, urllib.error.URLError)
-            else f"{type(error).__name__}: {error}"
-        )
-        raise AtlasRuntimeFetchError(
-            f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}: "
-            f"{failure}, {state}"
-        ) from error
-
+        failure, cause = f"{type(error).__name__}: {error}", error
+    raise AtlasRuntimeFetchError(f"{where}: {failure}, {state}") from cause
 
 # A first-party git source in the lock, and a manifest declaring the matching
 # dependency: the fixture member is the shape the checker's flattened-lock
@@ -245,216 +247,197 @@ class HookInstallationTests(unittest.TestCase):
 
 
 class AtlasRuntimeFetchTests(unittest.TestCase):
-    """The runtime fetch authenticates when it can and fails closed when not."""
+    """The runtime fetch authenticates when it can and fails closed when not.
 
-    class _Response:
-        def __init__(self, body: bytes) -> None:
-            self.body = body
+    Every case drives the real `urllib` stack against loopback sockets, except
+    the validator comparison, which needs only an unconnected connection.
+    """
 
-        def __enter__(self):
-            return self
+    SECRET = "fake-secret-token"
+    # A 302 whose `Location` a test fills in.
+    REDIRECT = "HTTP/1.1 302 Moved\r\nContent-Length: 0\r\nLocation: {}\r\n\r\n"
 
-        def __exit__(self, *exception) -> None:
-            return None
-
-        def read(self) -> bytes:
-            return self.body
-
-    def _recording_opener(self, body: bytes):
-        seen = []
-
-        def opener(request, timeout):
-            seen.append((request, timeout))
-            return self._Response(body)
-
-        return opener, seen
-
-    def test_token_is_sent_as_bearer_authorization_for_the_pinned_revision(
-        self,
-    ) -> None:
-        opener, seen = self._recording_opener(b"payload")
-        body = fetch_atlas_runtime_file("process_tree.py", "secret-token", opener)
-        self.assertEqual(body, b"payload")
-        ((request, timeout),) = seen
-        self.assertEqual(request.get_header("Authorization"), "Bearer secret-token")
-        self.assertEqual(
-            request.full_url,
-            f"{ATLAS_RUNTIME_BASE}/process_tree.py?ref={ATLAS_RUNTIME_REVISION}",
-        )
-        self.assertEqual(timeout, 30)
-
-    def test_absent_token_sends_no_authorization_header(self) -> None:
-        opener, seen = self._recording_opener(b"payload")
-        fetch_atlas_runtime_file("process_tree.py", None, opener)
-        self.assertIsNone(seen[0][0].get_header("Authorization"))
-
-    def test_quota_refusal_is_a_typed_error_naming_file_and_auth_state(self) -> None:
-        def refuse(request, timeout):
-            raise urllib.error.HTTPError(
-                request.full_url, 403, "rate limit exceeded", {}, io.BytesIO()
-            )
-
-        with self.assertRaises(AtlasRuntimeFetchError) as raised:
-            fetch_atlas_runtime_file("windows_process.py", None, refuse)
-        message = str(raised.exception)
-        self.assertIn("windows_process.py", message)
-        self.assertIn(ATLAS_RUNTIME_REVISION, message)
-        self.assertIn("HTTP 403 rate limit exceeded", message)
-        self.assertIn("unauthenticated", message)
-
-    def test_refusal_closes_the_error_response_body(self) -> None:
-        body = io.BytesIO(b"rate limit exceeded")
-
-        def refuse(request, timeout):
-            raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, body)
-
-        # `raised` keeps the error chain, and so the response body, alive:
-        # the body is closed by the fetch, not by collecting the chain.
-        with self.assertRaises(AtlasRuntimeFetchError) as raised:
-            fetch_atlas_runtime_file("process_tree.py", None, refuse)
-        self.assertIsInstance(raised.exception.__cause__, urllib.error.HTTPError)
-        self.assertTrue(body.closed)
-
-    def test_error_never_echoes_the_token(self) -> None:
-        def refuse(request, timeout):
-            raise urllib.error.HTTPError(
-                request.full_url, 401, "Bad credentials", {}, io.BytesIO()
-            )
-
-        with self.assertRaises(AtlasRuntimeFetchError) as raised:
-            fetch_atlas_runtime_file("process_tree.py", "secret-token", refuse)
-        message = str(raised.exception)
-        self.assertNotIn("secret-token", message)
-        self.assertIn("authenticated", message)
-        self.assertNotIn("unauthenticated", message)
-
-    def test_network_failure_is_a_typed_error(self) -> None:
-        def unreachable(request, timeout):
-            raise urllib.error.URLError("name resolution failed")
-
-        with self.assertRaises(AtlasRuntimeFetchError) as raised:
-            fetch_atlas_runtime_file("darwin_process.py", "t", unreachable)
-        self.assertIn("name resolution failed", str(raised.exception))
+    def setUp(self) -> None:
+        self.reads: list[tuple] = []
 
     @contextlib.contextmanager
     def _local_server(self, reply: bytes | None):
-        """Serve one connection on loopback; `None` never answers it.
+        """Answer one loopback connection with `reply` (`None` holds it open).
 
-        Yields the port and the request texts the server read. The connection
-        stays open until the context exits, so a `None` reply makes the
-        client's wait time out. Exit connects to the listener itself, so a
-        client that never connected does not hold the test for the accept
-        timeout.
+        Yields the port and the request texts read.
         """
 
-        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        listener.bind(("127.0.0.1", 0))
-        listener.listen(1)
-        port = listener.getsockname()[1]
-        # Backstop only: it ends the thread should the exit connection fail.
-        listener.settimeout(30)
-        release = threading.Event()
         received: list[str] = []
+        release = threading.Event()
+        with socket.create_server(("127.0.0.1", 0)) as listener:
+            listener.settimeout(30)  # Backstop only: exit's connection ends it.
 
-        def serve() -> None:
-            try:
-                connection, _ = listener.accept()
-            except TimeoutError:
-                return
-            with connection:
-                try:
-                    request = connection.recv(65536)
-                    if request:
-                        received.append(request.decode("latin-1"))
-                    if reply is None:
-                        release.wait(timeout=30)
-                    else:
-                        connection.sendall(reply)
-                except OSError:
-                    return
-
-        thread = threading.Thread(target=serve, daemon=True)
-        thread.start()
-        try:
-            yield port, received
-        finally:
-            release.set()
-            if thread.is_alive():
+            def serve() -> None:
                 with contextlib.suppress(OSError):
-                    socket.create_connection(("127.0.0.1", port), timeout=5).close()
-            thread.join(timeout=30)
-            listener.close()
+                    connection, _ = listener.accept()
+                    with connection:
+                        request = connection.recv(65536)
+                        if request:
+                            received.append(request.decode("latin-1"))
+                        if reply is None:
+                            release.wait(timeout=30)
+                        else:
+                            connection.sendall(reply)
 
-    def _loopback_opener(self, port: int, wait: float):
-        """Send the fetch's own request, headers kept as built, to loopback."""
+            thread = threading.Thread(target=serve, daemon=True)
+            thread.start()
+            port = listener.getsockname()[1]
+            try:
+                yield port, received
+            finally:
+                release.set()
+                if thread.is_alive():
+                    with contextlib.suppress(OSError):
+                        socket.create_connection(("127.0.0.1", port), timeout=5).close()
+                thread.join(timeout=30)
+
+    def _fetch(self, reply, token=None, wait=0.5, name="process_tree.py"):
+        """Fetch from loopback (timeout `wait`): the body or error, and the requests."""
 
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with self._local_server(reply) as (port, received):
 
-        def open_loopback(request, timeout):
-            local = urllib.request.Request(
-                f"http://127.0.0.1:{port}/", headers=request.headers
-            )
-            for key, value in request.unredirected_hdrs.items():
-                local.add_unredirected_header(key, value)
-            return opener.open(local, timeout=wait)
+            def open_loopback(request, timeout):
+                self.assertEqual(timeout, 30)
+                url = request.full_url.replace(ATLAS_RUNTIME_BASE, f"http://127.0.0.1:{port}")
+                local = urllib.request.Request(url, headers=request.headers)
+                for key, value in request.unredirected_hdrs.items():
+                    local.add_unredirected_header(key, value)
+                response = opener.open(local, timeout=wait)
+                read = response.read
+                response.read = lambda *args: self.reads.append(args) or read(*args)
+                return response
 
-        return open_loopback
+            try:
+                outcome = fetch_atlas_runtime_file(name, token, open_loopback)
+            except AtlasRuntimeFetchError as error:
+                outcome = error
+        return outcome, received
 
-    def _assert_token_absent(self, error: BaseException, token: str) -> None:
-        """The token is absent from the message and the whole rendered chain."""
+    def _assert_typed_failure(self, reply, cause: type[BaseException], **kwargs):
+        error, received = self._fetch(reply, **kwargs)
+        self.assertIsInstance(error, AtlasRuntimeFetchError)
+        for part in ("process_tree.py", ATLAS_RUNTIME_REVISION, cause.__name__):
+            self.assertIn(part, str(error))
+        self.assertIsInstance(error.__cause__, cause)
+        return error, received
 
-        self.assertNotIn(token, str(error))
-        self.assertNotIn(token, "".join(traceback.format_exception(error)))
+    def test_token_is_sent_as_bearer_authorization_for_the_pinned_file(self) -> None:
+        reply = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
+        body, received = self._fetch(reply, self.SECRET)
+        self.assertEqual(body, b"payload")
+        request = received[0].lower()
+        self.assertTrue(request.startswith(f"get /process_tree.py?ref={ATLAS_RUNTIME_REVISION} "))
+        self.assertIn(f"authorization: bearer {self.SECRET}", request)
 
-    def _assert_typed_failure(self, reply, cause: type[BaseException]) -> None:
-        with self._local_server(reply) as (port, _):
-            with self.assertRaises(AtlasRuntimeFetchError) as raised:
-                fetch_atlas_runtime_file(
-                    "process_tree.py", None, self._loopback_opener(port, 0.5)
-                )
-        message = str(raised.exception)
-        self.assertIn("process_tree.py", message)
-        self.assertIn(ATLAS_RUNTIME_REVISION, message)
-        self.assertIn(cause.__name__, message)
-        self.assertIn("unauthenticated", message)
-        self.assertIsInstance(raised.exception.__cause__, cause)
-
-    def test_unanswered_request_times_out_as_a_typed_error(self) -> None:
-        self._assert_typed_failure(None, TimeoutError)
-
-    def test_connection_closed_without_a_response_is_a_typed_error(self) -> None:
-        self._assert_typed_failure(b"", http.client.RemoteDisconnected)
-
-    def test_truncated_body_is_a_typed_error(self) -> None:
-        reply = b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort"
-        self._assert_typed_failure(reply, http.client.IncompleteRead)
-
-    def test_token_a_header_cannot_carry_is_refused_before_any_request(
-        self,
-    ) -> None:
-        stem = "fake-secret-stem"
-        # CR, LF, NUL and DEL, then characters outside latin-1.
-        for suffix in ("\r\n", "\r", "\n", "\x00", "\x7f", "’", "\U0001f512"):
-            with self.subTest(suffix=repr(suffix)):
-                with self._local_server(b"") as (port, received):
-                    with self.assertRaises(AtlasRuntimeFetchError) as raised:
-                        fetch_atlas_runtime_file(
-                            "process_tree.py",
-                            stem + suffix,
-                            self._loopback_opener(port, 0.5),
-                        )
-                error = raised.exception
-                for part in (
-                    "process_tree.py",
-                    ATLAS_RUNTIME_REVISION,
-                    "a character an HTTP header cannot carry",
-                    "authenticated",
-                ):
+    def test_quota_refusal_names_file_status_and_authentication(self) -> None:
+        reply = b"HTTP/1.1 403 rate limit exceeded\r\nContent-Length: 0\r\n\r\n"
+        for token, state in ((None, "unauthenticated"), (self.SECRET, "authenticated")):
+            with self.subTest(state=state):
+                error, received = self._fetch(reply, token, name="windows_process.py")
+                self.assertIsInstance(error, AtlasRuntimeFetchError)
+                for part in ("windows_process.py", "HTTP 403 rate limit exceeded", state):
                     self.assertIn(part, str(error))
+                self.assertEqual("unauthenticated" in str(error), token is None)
+                self.assertEqual("authorization" in received[0].lower(), token is not None)
+                # The fetch closes the error response, not the garbage collector.
+                self.assertIsInstance(error.__cause__, urllib.error.HTTPError)
+                self.assertTrue(error.__cause__.fp.closed)
+
+    def test_transport_failures_are_typed_with_their_cause(self) -> None:
+        incomplete = http.client.IncompleteRead
+        cases = (
+            (None, TimeoutError),
+            (b"", http.client.RemoteDisconnected),
+            (b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort", incomplete),
+            (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nshort", incomplete),
+        )
+        for reply, cause in cases:
+            with self.subTest(cause=cause.__name__, reply=reply):
+                error, _ = self._assert_typed_failure(reply, cause)
+                self.assertIn("unauthenticated", str(error))
+
+    def test_declared_sizes_never_size_a_read(self) -> None:
+        # CPython 3.13.3 raises `OverflowError` or `MemoryError` from an
+        # unbounded read of these; 3.13.12 reads in bounded steps already.
+        lengths = ("9223372036854775808", "99999999999999999999999999999", "4611686018427387904")
+        sizes = ("FFFFFFFFFFFFFFFFFFFFFFFFFFFF", "10000000000000000")
+        framings = [f"Content-Length: {length}\r\n\r\n" for length in lengths] + [
+            f"Transfer-Encoding: chunked\r\n\r\n{size}\r\n" for size in sizes
+        ]
+        for framing in framings:
+            with self.subTest(framing=framing):
+                reply = f"HTTP/1.1 200 OK\r\n{framing}short".encode()
+                self._assert_typed_failure(reply, http.client.IncompleteRead)
+
+    def test_body_bound_is_inclusive(self) -> None:
+        def reply(body: bytes) -> bytes:
+            return f"HTTP/1.1 200 OK\r\nContent-Length: {len(body)}\r\n\r\n".encode() + body
+
+        at_bound = b"x" * ATLAS_RUNTIME_MAX_BYTES
+        self.assertEqual(self._fetch(reply(at_bound), wait=5)[0], at_bound)
+        error, _ = self._assert_typed_failure(reply(at_bound + b"x"), ValueError, wait=5)
+        self.assertIn(str(ATLAS_RUNTIME_MAX_BYTES), str(error))
+
+    @contextlib.contextmanager
+    def _ftp_server(self, payload: bytes):
+        """Serve `payload` to one FTP login and `RETR` on loopback; yield the port."""
+
+        with socket.create_server(("127.0.0.1", 0)) as control, socket.create_server(("127.0.0.1", 0)) as data:
+            control.settimeout(10)
+            data.settimeout(10)
+
+            def serve() -> None:
+                with contextlib.suppress(OSError):
+                    connection, _ = control.accept()
+                    with connection:
+                        connection.sendall(b"220 ready\r\n")
+                        for line in connection.makefile("rb"):
+                            if line.startswith(b"PASV"):
+                                high, low = divmod(data.getsockname()[1], 256)
+                                reply = f"227 Passive Mode (127,0,0,1,{high},{low})\r\n".encode()
+                            elif line.startswith(b"RETR"):
+                                connection.sendall(b"150 ok\r\n")
+                                with data.accept()[0] as peer:
+                                    peer.sendall(payload)
+                                reply = b"226 done\r\n"
+                            else:
+                                reply = b"200 ok\r\n"
+                            connection.sendall(reply)
+
+            thread = threading.Thread(target=serve, daemon=True)
+            thread.start()
+            yield control.getsockname()[1]
+            thread.join(timeout=10)
+
+    def test_redirect_to_a_served_ftp_file_is_typed_and_unread(self) -> None:
+        with self._ftp_server(b"print('x')\n") as ftp_port:
+            reply = self.REDIRECT.format(f"ftp://127.0.0.1:{ftp_port}/process_tree.py")
+            error, _ = self._assert_typed_failure(reply.encode(), ValueError, wait=5)
+        self.assertIn("non-HTTP(S)", str(error))
+        self.assertEqual(self.reads, [], "the ftp response body was read")
+
+    def test_token_a_header_cannot_carry_is_refused_before_any_request(self) -> None:
+        stem = "fake-secret-stem"
+        suffixes = (
+            "\r\n", "\r", "\n", "\x00", "\x1b", "\x7f", "\u2019", "\U0001f512", "\ud800", "\u0100"
+        )
+        for suffix in suffixes:
+            with self.subTest(suffix=repr(suffix)):
+                error, received = self._fetch(b"", stem + suffix)
+                self.assertIsInstance(error, AtlasRuntimeFetchError)
+                for part in ("process_tree.py", ATLAS_RUNTIME_REVISION, "no request sent"):
+                    self.assertIn(part, str(error))
+                self.assertIn("a character an HTTP header cannot carry", str(error))
                 self.assertEqual(received, [])
                 self.assertIsNone(error.__cause__)
                 self.assertIsNone(error.__context__)
-                self._assert_token_absent(error, stem)
+                self.assertNotIn(stem, str(error))
 
     def test_token_validation_rejects_everything_http_client_rejects(self) -> None:
         connection = http.client.HTTPConnection("127.0.0.1")
@@ -467,55 +450,30 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         for carried in ("\xe9", "\xff", "\t", " "):
             self.assertIsNone(_UNCARRIABLE_TOKEN_CHARACTER.search(carried))
 
-    def test_malformed_redirect_location_is_a_typed_error(self) -> None:
-        token = "fake-redirect-secret"
-        reply = (
-            b"HTTP/1.1 302 Found\r\nLocation: http://[::1/x\r\n"
-            b"Content-Length: 0\r\n\r\n"
-        )
-        with self._local_server(reply) as (port, received):
-            with self.assertRaises(AtlasRuntimeFetchError) as raised:
-                fetch_atlas_runtime_file(
-                    "process_tree.py", token, self._loopback_opener(port, 2)
-                )
-        error = raised.exception
-        self.assertIn("ValueError", str(error))
-        self.assertIn(ATLAS_RUNTIME_REVISION, str(error))
-        self.assertIsInstance(error.__cause__, ValueError)
-        # The first hop carried the token, so its absence from the error is
-        # evidence about the error and not about a request never made.
-        self.assertIn(f"authorization: bearer {token}", received[0].lower())
-        self._assert_token_absent(error, token)
+    def test_malformed_redirect_location_is_typed_with_a_value_error_cause(self) -> None:
+        for location in ("http://[::1/x", "http://[zz]/x", "http://a]b/x", "http://[::1]x/y"):
+            with self.subTest(location=location):
+                reply = self.REDIRECT.format(location).encode()
+                self._assert_typed_failure(reply, ValueError, token=self.SECRET, wait=2)
 
-    def test_redirect_target_never_receives_the_token(self) -> None:
-        token = "fake-forwarded-secret"
-        final = (
-            b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n"
-            b"Connection: close\r\n\r\npayload"
-        )
-        with self._local_server(final) as (target_port, target_received):
-            redirect = (
-                "HTTP/1.1 302 Found\r\n"
-                f"Location: http://127.0.0.1:{target_port}/next\r\n"
-                "Content-Length: 0\r\nConnection: close\r\n\r\n"
-            ).encode("ascii")
-            with self._local_server(redirect) as (origin_port, origin_received):
-                body = fetch_atlas_runtime_file(
-                    "process_tree.py", token, self._loopback_opener(origin_port, 2)
-                )
-        self.assertEqual(body, b"payload")
-        self.assertIn(f"authorization: bearer {token}", origin_received[0].lower())
-        self.assertEqual(len(target_received), 1)
-        self.assertNotIn("authorization", target_received[0].lower())
+    def test_redirect_to_another_origin_never_receives_the_token(self) -> None:
+        final = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
+        for code in (301, 302, 303, 307, 308):
+            with self.subTest(code=code):
+                with self._local_server(final) as (target_port, target_received):
+                    location = f"http://127.0.0.1:{target_port}/next"
+                    redirect = self.REDIRECT.replace("302", str(code)).format(location)
+                    body, origin_received = self._fetch(redirect.encode(), self.SECRET, wait=2)
+                self.assertEqual(body, b"payload")
+                self.assertIn(f"authorization: bearer {self.SECRET}", origin_received[0].lower())
+                self.assertEqual(len(target_received), 1)
+                self.assertNotIn("authorization", target_received[0].lower())
 
     def test_environment_token_prefers_github_token_over_gh_token(self) -> None:
-        self.assertEqual(
-            atlas_runtime_token({"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}), "a"
-        )
+        both = {"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}
+        self.assertEqual(atlas_runtime_token(both), "a")
         self.assertEqual(atlas_runtime_token({"GH_TOKEN": "b"}), "b")
-        self.assertEqual(
-            atlas_runtime_token({"GITHUB_TOKEN": "", "GH_TOKEN": "b"}), "b"
-        )
+        self.assertEqual(atlas_runtime_token({"GITHUB_TOKEN": "", "GH_TOKEN": "b"}), "b")
         self.assertIsNone(atlas_runtime_token({}))
 
 
