@@ -85,3 +85,4 @@
 | [0082](0082-unified-fusion-dispatch.md) | Unified generic fusion dispatch for CUDA and WGPU | Accepted |
 | [0083](0083-release-scope.md) | Coeus 1.0 release scope | Accepted |
 | [0084](0084-moirai-provider-contract-012.md) | Advance the Moirai provider contract to 0.12.0 | Accepted |
+| [0085](0085-release-scope.md) | Coeus next-major release scope | Proposed |
