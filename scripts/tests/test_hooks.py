@@ -28,7 +28,6 @@ import hashlib
 import http.client
 import json
 import os
-import re
 import shutil
 import socket
 import subprocess
@@ -38,7 +37,6 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
-from collections.abc import Mapping
 from pathlib import Path
 
 
@@ -74,19 +72,6 @@ class AtlasRuntimeFetchError(RuntimeError):
     """The pinned Atlas runtime could not be fetched from the hosting API."""
 
 
-def atlas_runtime_token(environment: Mapping[str, str] = os.environ) -> str | None:
-    """Return the hosting token `environment` provides, if any."""
-
-    return environment.get("GITHUB_TOKEN") or environment.get("GH_TOKEN") or None
-
-
-# Characters an Authorization token cannot carry: C0 controls other than tab,
-# DEL, and anything outside latin-1, the encoding `http.client.putheader`
-# applies. A superset of what `putheader` rejects, checked by a test against
-# the running interpreter, so no header error can echo a token that passed.
-_UNCARRIABLE_TOKEN_CHARACTER = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]|[^\x00-\xff]")
-
-
 def _read_bounded(response) -> bytes:
     """Read a body in bounded steps, so no declared length sizes a read."""
 
@@ -100,39 +85,24 @@ def _read_bounded(response) -> bytes:
     return bytes(body)
 
 
-def fetch_atlas_runtime_file(
-    name: str, token: str | None, urlopen=urllib.request.urlopen
-) -> bytes:
+def fetch_atlas_runtime_file(name: str, urlopen=urllib.request.urlopen) -> bytes:
     """Fetch one runtime file at `ATLAS_RUNTIME_REVISION`.
 
     Hosted CI checks the pinned revision out and never calls this. A local run
     reaches the hosting API, which admits 60 unauthenticated requests per hour
-    per client address; a token raises the quota.
+    per client address. The request carries no credential.
 
-    Raises `AtlasRuntimeFetchError` naming file, revision and authentication
-    state for: a token an HTTP header cannot carry (before any request); an
-    HTTP status; an `OSError`; an `http.client.HTTPException`; a `ValueError`
+    Raises `AtlasRuntimeFetchError` naming file and revision for: an HTTP
+    status; an `OSError`; an `http.client.HTTPException`; a `ValueError`
     (malformed redirect `Location`, a body above `ATLAS_RUNTIME_MAX_BYTES`, a
     redirect `urllib` followed to a non-HTTP(S) URL such as ftp, refused
     unread). Other exceptions propagate. The body is read in 64 KiB steps, so a
     declared length or chunk size never sizes a read: five oversized witnesses
     raise `OverflowError` or `MemoryError` from an unbounded read on CPython
-    3.13.3.
-
-    The token is validated first, so no `http.client` header error echoes it,
-    and is an unredirected header: `urllib` copies it to no redirect target
-    (tested for another port; a redirect within the origin continues without
-    it). Not held: the message and `__cause__` carry server text as received,
-    so a server that echoes the token puts it in both.
+    3.13.3. The message and `__cause__` carry server text as received.
     """
 
-    state = "authenticated" if token else "unauthenticated (set GITHUB_TOKEN)"
     where = f"Atlas hook runtime {name} at {ATLAS_RUNTIME_REVISION}"
-    if token and _UNCARRIABLE_TOKEN_CHARACTER.search(token):
-        raise AtlasRuntimeFetchError(
-            f"{where}: the token (GITHUB_TOKEN or GH_TOKEN) holds a character "
-            f"an HTTP header cannot carry, {state}, no request sent"
-        )
     request = urllib.request.Request(
         f"{ATLAS_RUNTIME_BASE}/{name}?ref={ATLAS_RUNTIME_REVISION}",
         headers={
@@ -140,8 +110,6 @@ def fetch_atlas_runtime_file(
             "User-Agent": "coeus-hook-tests",
         },
     )
-    if token:
-        request.add_unredirected_header("Authorization", f"Bearer {token}")
     try:
         with urlopen(request, timeout=30) as response:
             if not response.geturl().startswith(("http://", "https://")):
@@ -152,7 +120,7 @@ def fetch_atlas_runtime_file(
         failure, cause = f"HTTP {error.code} {error.reason}", error
     except (OSError, http.client.HTTPException, ValueError) as error:
         failure, cause = f"{type(error).__name__}: {error}", error
-    raise AtlasRuntimeFetchError(f"{where}: {failure}, {state}") from cause
+    raise AtlasRuntimeFetchError(f"{where}: {failure}") from cause
 
 # A first-party git source in the lock, and a manifest declaring the matching
 # dependency: the fixture member is the shape the checker's flattened-lock
@@ -253,7 +221,6 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
     the validator comparison, which needs only an unconnected connection.
     """
 
-    SECRET = "fake-secret-token"
     # A 302 whose `Location` a test fills in.
     REDIRECT = "HTTP/1.1 302 Moved\r\nContent-Length: 0\r\nLocation: {}\r\n\r\n"
 
@@ -296,7 +263,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                         socket.create_connection(("127.0.0.1", port), timeout=5).close()
                 thread.join(timeout=30)
 
-    def _fetch(self, reply, token=None, wait=0.5, name="process_tree.py"):
+    def _fetch(self, reply, wait=0.5, name="process_tree.py"):
         """Fetch from loopback (timeout `wait`): the body or error, and the requests."""
 
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -314,10 +281,18 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                 return response
 
             try:
-                outcome = fetch_atlas_runtime_file(name, token, open_loopback)
+                outcome = fetch_atlas_runtime_file(name, open_loopback)
             except AtlasRuntimeFetchError as error:
                 outcome = error
         return outcome, received
+
+    # The headers of an unauthenticated request: the two the fetch sets, the
+    # three `urllib` and `http.client` add.
+    REQUEST_HEADERS = ("accept", "accept-encoding", "connection", "host", "user-agent")
+
+    @staticmethod
+    def _header_names(request: str) -> list[str]:
+        return sorted(line.split(":")[0].lower() for line in request.split("\r\n")[1:] if ":" in line)
 
     def _assert_typed_failure(self, reply, cause: type[BaseException], **kwargs):
         error, received = self._fetch(reply, **kwargs)
@@ -327,27 +302,24 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         self.assertIsInstance(error.__cause__, cause)
         return error, received
 
-    def test_token_is_sent_as_bearer_authorization_for_the_pinned_file(self) -> None:
+    def test_request_names_the_pinned_file_and_carries_no_credential(self) -> None:
         reply = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
-        body, received = self._fetch(reply, self.SECRET)
+        body, received = self._fetch(reply)
         self.assertEqual(body, b"payload")
         request = received[0].lower()
         self.assertTrue(request.startswith(f"get /process_tree.py?ref={ATLAS_RUNTIME_REVISION} "))
-        self.assertIn(f"authorization: bearer {self.SECRET}", request)
+        self.assertEqual(self._header_names(request), list(self.REQUEST_HEADERS))
 
-    def test_quota_refusal_names_file_status_and_authentication(self) -> None:
+    def test_quota_refusal_names_file_and_status(self) -> None:
         reply = b"HTTP/1.1 403 rate limit exceeded\r\nContent-Length: 0\r\n\r\n"
-        for token, state in ((None, "unauthenticated"), (self.SECRET, "authenticated")):
-            with self.subTest(state=state):
-                error, received = self._fetch(reply, token, name="windows_process.py")
-                self.assertIsInstance(error, AtlasRuntimeFetchError)
-                for part in ("windows_process.py", "HTTP 403 rate limit exceeded", state):
-                    self.assertIn(part, str(error))
-                self.assertEqual("unauthenticated" in str(error), token is None)
-                self.assertEqual("authorization" in received[0].lower(), token is not None)
-                # The fetch closes the error response, not the garbage collector.
-                self.assertIsInstance(error.__cause__, urllib.error.HTTPError)
-                self.assertTrue(error.__cause__.fp.closed)
+        error, received = self._fetch(reply, name="windows_process.py")
+        self.assertIsInstance(error, AtlasRuntimeFetchError)
+        for part in ("windows_process.py", "HTTP 403 rate limit exceeded"):
+            self.assertIn(part, str(error))
+        self.assertEqual(self._header_names(received[0]), list(self.REQUEST_HEADERS))
+        # The fetch closes the error response, not the garbage collector.
+        self.assertIsInstance(error.__cause__, urllib.error.HTTPError)
+        self.assertTrue(error.__cause__.fp.closed)
 
     def test_transport_failures_are_typed_with_their_cause(self) -> None:
         incomplete = http.client.IncompleteRead
@@ -359,8 +331,7 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         )
         for reply, cause in cases:
             with self.subTest(cause=cause.__name__, reply=reply):
-                error, _ = self._assert_typed_failure(reply, cause)
-                self.assertIn("unauthenticated", str(error))
+                self._assert_typed_failure(reply, cause)
 
     def test_declared_sizes_never_size_a_read(self) -> None:
         # CPython 3.13.3 raises `OverflowError` or `MemoryError` from an
@@ -422,59 +393,11 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
         self.assertIn("non-HTTP(S)", str(error))
         self.assertEqual(self.reads, [], "the ftp response body was read")
 
-    def test_token_a_header_cannot_carry_is_refused_before_any_request(self) -> None:
-        stem = "fake-secret-stem"
-        suffixes = (
-            "\r\n", "\r", "\n", "\x00", "\x1b", "\x7f", "\u2019", "\U0001f512", "\ud800", "\u0100"
-        )
-        for suffix in suffixes:
-            with self.subTest(suffix=repr(suffix)):
-                error, received = self._fetch(b"", stem + suffix)
-                self.assertIsInstance(error, AtlasRuntimeFetchError)
-                for part in ("process_tree.py", ATLAS_RUNTIME_REVISION, "no request sent"):
-                    self.assertIn(part, str(error))
-                self.assertIn("a character an HTTP header cannot carry", str(error))
-                self.assertEqual(received, [])
-                self.assertIsNone(error.__cause__)
-                self.assertIsNone(error.__context__)
-                self.assertNotIn(stem, str(error))
-
-    def test_token_validation_rejects_everything_http_client_rejects(self) -> None:
-        connection = http.client.HTTPConnection("127.0.0.1")
-        connection.putrequest("GET", "/")
-        for codepoint in (*range(0x300), 0x2019, 0xD800, 0xFFFF, 0x10FFFF):
-            token = f"a{chr(codepoint)}b"
-            if not _UNCARRIABLE_TOKEN_CHARACTER.search(token):
-                with self.subTest(codepoint=hex(codepoint)):
-                    connection.putheader("Authorization", f"Bearer {token}")
-        for carried in ("\xe9", "\xff", "\t", " "):
-            self.assertIsNone(_UNCARRIABLE_TOKEN_CHARACTER.search(carried))
-
     def test_malformed_redirect_location_is_typed_with_a_value_error_cause(self) -> None:
         for location in ("http://[::1/x", "http://[zz]/x", "http://a]b/x", "http://[::1]x/y"):
             with self.subTest(location=location):
                 reply = self.REDIRECT.format(location).encode()
-                self._assert_typed_failure(reply, ValueError, token=self.SECRET, wait=2)
-
-    def test_redirect_to_another_origin_never_receives_the_token(self) -> None:
-        final = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
-        for code in (301, 302, 303, 307, 308):
-            with self.subTest(code=code):
-                with self._local_server(final) as (target_port, target_received):
-                    location = f"http://127.0.0.1:{target_port}/next"
-                    redirect = self.REDIRECT.replace("302", str(code)).format(location)
-                    body, origin_received = self._fetch(redirect.encode(), self.SECRET, wait=2)
-                self.assertEqual(body, b"payload")
-                self.assertIn(f"authorization: bearer {self.SECRET}", origin_received[0].lower())
-                self.assertEqual(len(target_received), 1)
-                self.assertNotIn("authorization", target_received[0].lower())
-
-    def test_environment_token_prefers_github_token_over_gh_token(self) -> None:
-        both = {"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}
-        self.assertEqual(atlas_runtime_token(both), "a")
-        self.assertEqual(atlas_runtime_token({"GH_TOKEN": "b"}), "b")
-        self.assertEqual(atlas_runtime_token({"GITHUB_TOKEN": "", "GH_TOKEN": "b"}), "b")
-        self.assertIsNone(atlas_runtime_token({}))
+                self._assert_typed_failure(reply, ValueError, wait=2)
 
 
 class LockHookTests(unittest.TestCase):
@@ -487,11 +410,8 @@ class LockHookTests(unittest.TestCase):
             directory = tempfile.TemporaryDirectory(prefix="coeus-hook-runtime-")
             cls.addClassCleanup(directory.cleanup)
             cls.runtime = Path(directory.name)
-            token = atlas_runtime_token()
             for name in ATLAS_RUNTIME_FILES:
-                (cls.runtime / name).write_bytes(
-                    fetch_atlas_runtime_file(name, token)
-                )
+                (cls.runtime / name).write_bytes(fetch_atlas_runtime_file(name))
         missing = [
             name
             for name in ATLAS_RUNTIME_FILES
@@ -556,11 +476,7 @@ class LockHookTests(unittest.TestCase):
         self.alone = self.root / "alone"
         self.calls_log = self.root / "checker-calls.jsonl"
         self.environment = os.environ.copy()
-        # The hook, git and cargo processes these fixtures spawn never need the
-        # hosting credential. Other test modules' children are not covered.
-        for variable in (
-            "SKIP_LOCKFILE_CHECK", "LOCKFILE_STUB", "GITHUB_TOKEN", "GH_TOKEN"
-        ):
+        for variable in ("SKIP_LOCKFILE_CHECK", "LOCKFILE_STUB"):
             self.environment.pop(variable, None)
         self.environment["PYTHON"] = Path(sys.executable).as_posix()
         self.environment["GIT_CONFIG_NOSYSTEM"] = "1"
