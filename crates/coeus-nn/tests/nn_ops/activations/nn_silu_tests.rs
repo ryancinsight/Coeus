@@ -56,8 +56,11 @@ fn test_silu_functional_cpu() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let grad_slice = input.grad().unwrap().as_slice().to_vec();
+    let grad_slice = input
+        .grad()
+        .expect("invariant: SiLU input requires grad")
+        .as_slice()
+        .to_vec();
 
     // Gradient parity checks: sigmoid(x) * (1 + x * (1 - sigmoid(x)))
     assert_silu_grads("functional_backward", &grad_slice, &input_data);
