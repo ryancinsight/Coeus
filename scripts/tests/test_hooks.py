@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -147,16 +148,115 @@ class HookInstallationTests(unittest.TestCase):
         self.assertEqual(modes, {f".githooks/{hook}": "100755" for hook in HOOKS})
 
 
-class AtlasRuntimePinTests(unittest.TestCase):
-    """The workflow checks out the Atlas revision these tests pin."""
+def _workflow_scalar(text: str) -> str:
+    """Plain or quoted YAML scalar with its trailing comment removed."""
+    text = re.split(r"\s#", text.strip(), maxsplit=1)[0].strip()
+    if text.startswith("#"):
+        return ""
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
+        return text[1:-1]
+    return text
 
-    def test_workflow_checks_out_the_revision_the_tests_pin(self) -> None:
-        workflow = (REPOSITORY / ".github" / "workflows" / "ci.yml").read_text(
-            encoding="utf-8"
+
+def _workflow_value(items: list[tuple[int, str]], at: int, indent: int):
+    """Parse the block mapping or sequence of mappings starting at `items[at]`.
+
+    A reader for the subset of YAML that `ci.yml` uses: block mappings,
+    block sequences, plain/quoted scalars, `|`/`>` block scalars (kept
+    opaque) and inline flow values (kept as text). Comment-only and blank
+    lines are dropped, so a commented-out key is not a key. The test runs in
+    the Format job before any dependency install, where no YAML library is
+    guaranteed, so the reader lives here instead of importing one.
+    """
+    if items[at][1].startswith("- "):
+        sequence = []
+        while at < len(items) and items[at][0] == indent and items[at][1].startswith("- "):
+            rest = items[at][1][2:]
+            items[at] = (indent + 2, rest)
+            if re.match(r"[\w.-]+:(\s|$)", rest):
+                value, at = _workflow_value(items, at, indent + 2)
+            else:
+                value, at = _workflow_scalar(rest), at + 1
+            sequence.append(value)
+        return sequence, at
+    mapping = {}
+    while at < len(items) and items[at][0] == indent:
+        match = re.fullmatch(r"([\w.-]+):(?:\s+(.*))?", items[at][1])
+        if match is None:
+            raise ValueError(f"unsupported workflow line: {items[at][1]!r}")
+        key, rest = match.group(1), _workflow_scalar(match.group(2) or "")
+        at += 1
+        if rest in ("|", ">", "|-", ">-", "|+", ">+"):
+            while at < len(items) and items[at][0] > indent:
+                at += 1
+            mapping[key] = ""
+        elif rest == "" and at < len(items) and items[at][0] > indent:
+            mapping[key], at = _workflow_value(items, at, items[at][0])
+        else:
+            mapping[key] = rest
+    return mapping, at
+
+
+def _workflow_mapping(text: str) -> dict:
+    items = [
+        (len(line) - len(line.lstrip(" ")), line.strip())
+        for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    mapping, end = _workflow_value(items, 0, 0)
+    if end != len(items):
+        raise ValueError(f"unparsed workflow line: {items[end][1]!r}")
+    return mapping
+
+
+class AtlasRuntimePinTests(unittest.TestCase):
+    """The workflow pins the revision these tests pin and checks it out.
+
+    The parsed `ci.yml` must satisfy three things: the workflow `env`
+    `ATLAS_RUNTIME_REVISION` equals the revision pinned here; in the `format`
+    and `tests` jobs exactly one `actions/checkout` step fetches
+    `ryancinsight/atlas`, at that env value or at the pinned revision itself;
+    and the one step in each of those jobs that sets `ATLAS_HOOK_RUNTIME`
+    points it at that checkout's `scripts/`. The three runtime files are
+    separately held by blob hash in `LockHookTests`.
+    """
+
+    CHECKOUT_JOBS = ("format", "tests")
+    ENV_REFERENCE = "${{ env.ATLAS_RUNTIME_REVISION }}"
+
+    def test_workflow_pins_and_checks_out_the_tested_revision(self) -> None:
+        workflow = _workflow_mapping(
+            (REPOSITORY / ".github" / "workflows" / "ci.yml").read_text(
+                encoding="utf-8"
+            )
         )
-        self.assertIn(
-            f"ATLAS_RUNTIME_REVISION: {ATLAS_RUNTIME_REVISION}\n", workflow
+        self.assertEqual(
+            workflow["env"]["ATLAS_RUNTIME_REVISION"], ATLAS_RUNTIME_REVISION
         )
+        for job_id in self.CHECKOUT_JOBS:
+            job = workflow["jobs"][job_id]
+            self.assertNotIn("ATLAS_RUNTIME_REVISION", job.get("env", {}), job_id)
+            steps = job["steps"]
+            checkouts = [
+                step["with"]
+                for step in steps
+                if step.get("uses", "").startswith("actions/checkout@")
+                and step.get("with", {}).get("repository") == "ryancinsight/atlas"
+            ]
+            self.assertEqual(len(checkouts), 1, job_id)
+            self.assertIn(
+                checkouts[0]["ref"], (self.ENV_REFERENCE, ATLAS_RUNTIME_REVISION), job_id
+            )
+            runtimes = [
+                step["env"]["ATLAS_HOOK_RUNTIME"]
+                for step in steps
+                if "ATLAS_HOOK_RUNTIME" in step.get("env", {})
+            ]
+            self.assertEqual(
+                runtimes,
+                ["${{ github.workspace }}/" + checkouts[0]["path"] + "/scripts"],
+                job_id,
+            )
 
 
 class LockHookTests(unittest.TestCase):
