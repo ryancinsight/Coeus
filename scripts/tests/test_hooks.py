@@ -215,10 +215,11 @@ class HookInstallationTests(unittest.TestCase):
 
 
 class AtlasRuntimeFetchTests(unittest.TestCase):
-    """The runtime fetch authenticates when it can and fails closed when not.
+    """The runtime fetch sends no credential and raises typed errors.
 
     Every case drives the real `urllib` stack against loopback sockets, except
-    the validator comparison, which needs only an unconnected connection.
+    `test_exceptions_outside_the_typed_kinds_propagate`, whose opener raises
+    directly.
     """
 
     # A 302 whose `Location` a test fills in.
@@ -286,8 +287,8 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
                 outcome = error
         return outcome, received
 
-    # The headers of an unauthenticated request: the two the fetch sets, the
-    # three `urllib` and `http.client` add.
+    # The headers of a request that carries no credential: the two the fetch
+    # sets, the three `urllib` and `http.client` add.
     REQUEST_HEADERS = ("accept", "accept-encoding", "connection", "host", "user-agent")
 
     @staticmethod
@@ -301,6 +302,18 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
             self.assertIn(part, str(error))
         self.assertIsInstance(error.__cause__, cause)
         return error, received
+
+    def test_exceptions_outside_the_typed_kinds_propagate(self) -> None:
+        for failure in (KeyError("k"), RuntimeError("r"), TypeError("t")):
+            with self.subTest(failure=type(failure).__name__):
+
+                def opener(request, timeout):
+                    raise failure
+
+                # `AtlasRuntimeFetchError` is a `RuntimeError`, so identity decides.
+                with self.assertRaises(type(failure)) as raised:
+                    fetch_atlas_runtime_file("process_tree.py", opener)
+                self.assertIs(raised.exception, failure)
 
     def test_request_names_the_pinned_file_and_carries_no_credential(self) -> None:
         reply = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\npayload"
