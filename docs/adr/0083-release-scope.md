@@ -10,6 +10,10 @@ Revised 2026-11-13: adds the three seam exits and the `oversized_files`
 standing target, because the ladder must prove every seam the scope names and
 state a conformance target.
 
+Revised 2026-11-16: the `M-tensor-stack` milestone closed with its nine exits
+green at `7db0beba`, so the scope below is delivered; the proposal that
+follows it is recorded in [ADR 0085](0085-release-scope.md).
+
 ## Context
 
 Coeus is the Atlas differentiation substrate: strided tensors, kernels,
@@ -101,7 +105,8 @@ Each follows the recommended option; the user's veto redirects it.
 
 ## Consequences
 
-- Items carry `milestone: M-tensor-stack`; feature items name the exit they serve.
+- Items carried `milestone: M-tensor-stack` while the ladder was open; feature
+  items named the exit they served.
 - The milestone closes when its exits pass at a fetched default commit; the
   1.0.0 release stays gated on release authority.
 - This record is rewritten in place when scope changes.

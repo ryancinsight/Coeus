@@ -8,32 +8,16 @@ verification, tightening, feature}.
 <a id="milestone-ladder"></a>
 ## Milestone ladder
 
-Scope and non-goals: [ADR 0083](docs/adr/0083-release-scope.md). Every open
-item below carries `milestone: M-tensor-stack`.
-
-<a id="M-tensor-stack"></a>
-## M-tensor-stack — Compare tensors in Python and train and fit models on the CPU stack
-
-- version: 1.0.0; needs: none.
-- outcome: a Python user compares tensors with operators and gets elementwise masks, and a Rust user multiplies matrices, trains a classifier and fits nonlinear models through the same tensor, autograd, nn and optim stack.
-- exit: compare tensors with Python operators and get masks: `cargo nextest run -p coeus-python --no-tests=fail -E 'binary_id(=coeus-python::binding_ops) & test(=operations::elementwise::test_comparison_operators_return_masks)'`.
-- exit: run a Python comparison example that asserts its own result: `cargo run -p coeus-python --example python_comparison_operators`.
-- exit: multiply matrices through the ops surface and check the product: `cargo run -p coeus-ops --example book_matmul`.
-- exit: train a classifier through autograd, nn and optim and check its accuracy: `cargo run -p coeus-optim --example mlp_classifier`.
-- exit: fit a nonlinear decay model and recover its parameters: `cargo nextest run -p coeus-optim --no-tests=fail -E 'test(=least_squares::tests::double_precision::decay_model_recovers_known_parameters)'`.
-- exit: fit a batch of independent problems and recover each minimum: `cargo nextest run -p coeus-optim --no-tests=fail -E 'test(=least_squares::tests::double_precision::batched_linear_problems_recover_independent_minima)'`.
-- exit: allocate, fill and read back device storage through the `HephaestusProvider` seam: `cargo nextest run -p coeus-accelerator --no-tests=fail -E 'test(=storage::tests::backend_routes_allocation_by_initialization_contract)'`.
-- exit: average gradients across two workers through the `Communicator` seam: `cargo nextest run -p coeus-dist --no-tests=fail -E 'binary_id(=coeus-dist::dist_ops) & test(=local::collectives::test_gradient_synchronization)'`.
-- exit: differentiate an FFT energy through the Apollo wrappers and match the Parseval gradient: `cargo nextest run -p coeus-fft --no-tests=fail -E 'binary_id(=coeus-fft::fft) & test(=fft_energy_gradient_matches_parseval_oracle)'`.
-- Exits 1 and 2 do not exist at `dde904709ddbc04d215c3d6a834f0475a45339f9`; the feature item serving them writes both. Exits 3 to 9 pass there (delivered capabilities).
-- Runner: exits 1 and 2 need an interpreter-capable host. CI's native tests exclude `coeus-python` because its `extension-module` build leaves libpython unlinked (`.github/workflows/ci.yml:178-182`); run them on a host whose build links libpython, such as the Windows development host. Exits 5 to 9 are nextest tests that the CI native-test job runs; exits 3 and 4 run with `cargo run`.
-- standing: no open `correctness` item; the conformance scan's installed-state assertions pass; the scan's `oversized_files` count for Coeus is at or below 7 (14 in `scripts/conformance-baseline.json` at meta `e0f893530eb2efe3de5918471bb2d18ad8cb2279`); the SemVer gate, the publish dry run, and the README, example and book builds pass.
-- non-goals: crates.io publication and PyPI upload without release authority; new model families; Python API beyond comparison operators; sparse kernels in `coeus-sparse`; new `coeus-dist` transports; ROCm staggered kernels; hardware-hosted CUDA and Metal staggered evidence as a gate.
+The `M-tensor-stack` milestone closed with its nine exits green at
+`7db0beba`; its block is deleted. The scope that follows is proposed in
+[ADR 0085](docs/adr/0085-release-scope.md). No ladder is drafted until that
+proposal is answered, so the repository takes only non-feature items; the open
+items carry no milestone until then.
 
 <a id="atlas-coeus-backend-045"></a>
 ## ATLAS-COEUS-BACKEND-045 — Unseal ComputeBackend and unify matmul (residual)
 
-- Status: todo (matmul unification landed); priority: architecture; milestone: M-tensor-stack; [minor] [arch].
+- Status: todo (matmul unification landed); priority: architecture; [minor] [arch].
 - Outcome: matmul reaches every provider through one generic dispatch; no vendor crate carries a matmul kernel. Delivered: `ComputeBackend` unsealed, `coeus-accelerator::matmul` added over `DenseProductOps`, `CudaBackend`/`WgpuBackend` migrated, `MatmulProvider<f32>` declared for Metal/ROCm.
 - Residual 1 (external blocker): `HephaestusBackend<P>` still lacks `PoolOps`/`UnfoldFoldOps`, so it does not satisfy `BackendOps<f32>` for Metal/ROCm; re-open trigger is a `PoolOps<D,T>`/`UnfoldFoldOps<D,T>` seam landing upstream in `hephaestus-core`. ~2.8k pool + ~0.9k-1.0k unfold/fold lines per vendor crate stay forked until then.
 - Residual 2: device-side equivalence of the provider matmul kernel against the deleted consumer kernel needs a GPU-capable CI run (no adapter on the development host).
@@ -43,7 +27,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-bytemuck-residue"></a>
 ## COEUS-BYTEMUCK-RESIDUE — one concept, two markers
 
-- Status: todo; priority: architecture; milestone: M-tensor-stack; [patch].
+- Status: todo; priority: architecture; [patch].
 - Finding: `coeus_core::Scalar` carries both `bytemuck::Pod` and Eunomia's `Pod` as supertraits. Eunomia is the stack's datatype law and owns this concept; bytemuck is retained only because `Scalar::has_zero_bit_pattern`'s default body calls `bytemuck::bytes_of`.
 - Acceptance: move that body to `eunomia::layout::bytes_of` and drop the bytemuck supertrait, so one marker states the contract.
 - Scope: the supertrait is public surface, so removing it is `[major]` for anyone implementing `Scalar` outside the workspace — check the blast radius first.
@@ -52,7 +36,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-ci-hook-scope-2026-09-24"></a>
 ## COEUS-CI-HOOK-SCOPE-2026-09-24 — Keep hook-only CI within the fast path
 
-- Status: todo; integrator: coeus-hook-ci; priority: verification; milestone: M-tensor-stack; [patch].
+- Status: todo; integrator: coeus-hook-ci; priority: verification; [patch].
 - Outcome: hook contract changes always report the required `Tests` status without installing Rust or compiling the workspace; Rust, manifest, lockfile, toolchain, test, and workflow changes retain native and doctest coverage.
 - Scope: `.github/workflows/ci.yml`, `scripts/ci_scope.py`, its value-semantic tests, and this item; non-goal: changing `.githooks/**` or hook behavior.
 - Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
@@ -61,7 +45,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-device-test-build-cost"></a>
 ## COEUS-DEVICE-TEST-BUILD-COST — Attribute device test compilation
 
-- Status: todo; priority: verification; milestone: M-tensor-stack; [patch].
+- Status: todo; priority: verification; [patch].
 - Outcome: bound device-test compilation while preserving the full scalar/backend matrix.
 - Scope: CPU test placement and monomorphization in existing integration harnesses; no assertion, scalar, workload or runtime-budget reduction.
 - Evidence: ownership RED compilation took 13m06s while native execution took 7.965s; `wgpu_ops` rustc was the last compiler in the integrated attempt and also instantiates CPU-only scalar matrices.
@@ -71,7 +55,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-autograd-l1-provider-001"></a>
 ## COEUS-AUTOGRAD-L1-PROVIDER-001 — Collect hosted evidence for the provider-owned L1 loss
 
-- Status: todo (implementation + local verification complete); priority: verification; milestone: M-tensor-stack; [patch] [arch].
+- Status: todo (implementation + local verification complete); priority: verification; [patch] [arch].
 - Outcome: L1 forward/backward compose provider `sub`/`abs`/`mean_axis`/`sign`/`mul`/`neg`; no host-resident `Vec<T>`. Already true in the merged implementation.
 - Residual: hosted WGPU/CUDA/ROCm/Metal evidence remains pending before this child can close; the pre-1.0 `L1LossNode` representation change (`diffs: Vec<T>` → provider-resident `Tensor<T,B>`) needs the package's next SemVer review.
 - Local evidence: focused Clippy, Nextest 3/3, doctests (autograd 16/16, nn 8/8 with 2 intentionally ignored), formatting, residue scan, diff hygiene pass.
@@ -80,7 +64,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-autograd-lp-norm-provider-001"></a>
 ## COEUS-AUTOGRAD-LP-NORM-PROVIDER-001 — Collect doctest/SemVer evidence for provider-owned Lp norms
 
-- Status: todo; priority: verification; milestone: M-tensor-stack; [major] [arch].
+- Status: todo; priority: verification; [major] [arch].
 - Outcome: `norm_p`/`norm_p_axis` perform provider-resident forward/backward (CPU via Leto `PowfOp`, WGPU/CUDA/ROCm/Metal via Hephaestus scalar-strided `PowOp`) — already merged (`4b915102`, `d775cd90`, provider blocker resolved in `cd36ee64`).
 - Residual: collect workspace-doctest evidence against the delivered revision, and run SemVer against the intended baseline (existing published-0.9.0 comparison found three pre-existing cumulative-scan/fusion breaks unrelated to this item; classify Lp-norm-specific breaks separately).
 - Evidence so far: `cd36ee64` records passing locked provider checks, provider Clippy, Hephaestus regressions, and backend-parity run `31052471989` for WGPU/CUDA/ROCm/Metal.
@@ -90,7 +74,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-benchmark-manifest-g043"></a>
 ## COEUS-BENCHMARK-MANIFEST-G043 — Close remaining partial rows in the every-family evidence manifest
 
-- Status: todo; priority: verification; milestone: M-tensor-stack; [patch].
+- Status: todo; priority: verification; [patch].
 - Outcome: every implemented NN family has a non-partial Criterion and Python-differential disposition in `crates/coeus-nn/benches/nn_bench/evidence.tsv`.
 - Evidence: Criterion lane complete (0 partial, via #593/#594/#596/#597: 52 new run benches; consistency check 2/2). Python lane still partial on 4 rows: conv, dropout, regularization, rnn.
 - Acceptance: the manifest consistency check passes with zero partial rows, or each remaining partial row has a recorded reason (no comparable Burn/PyTorch API) rather than a silent gap.
@@ -100,28 +84,28 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-staggered-vendor-wiring"></a>
 ## COEUS-STAGGERED-VENDOR-WIRING — Bind the remaining vendor backends for StaggeredPairOps
 
-- Status: todo; priority: tightening; milestone: M-tensor-stack; [minor].
+- Status: todo; priority: tightening; [minor].
 - Outcome: bind `StaggeredPairOps<f32>` for CUDA and Metal through the existing provider-owned kernels and shared staggered dispatch.
 - CUDA: `coeus-cuda` already uses the Hephaestus CUDA provider with no Cutile/`cuda-bindings` dependency; add the missing provider/backend binding without duplicating dispatch.
 - Metal: `HephaestusBackend<MetalProvider>` already uses the generic bridge; add `StaggeredProvider` for `MetalProvider` to obtain its existing generic implementation.
 - Blocked (external): ROCm requires upstream staggered kernels in Hephaestus (`CudaStaggered3DOps`/`MetalStaggered3DOps` exist upstream; ROCm does not).
 - Acceptance: exercise the shared gradient/divergence, axis, adjoint, and invalid-grid oracles on real CUDA and Apple Metal devices; preserve typed acquisition failures.
 
-<a id="coeus-python-comparison-dunders"></a>
-## COEUS-PYTHON-COMPARISON-DUNDERS — Add tensor comparison dunders with autograd-aware semantics
+<a id="coeus-release-1-0-0-001"></a>
+## COEUS-RELEASE-1-0-0-001 — Release Coeus 1.0.0
 
-- Status: todo; priority: feature; milestone: M-tensor-stack; [minor].
-- Outcome: `PyTensor` implements `__lt__`/`__le__`/`__gt__`/`__ge__`/`__eq__`/`__ne__`, mirroring the existing scalar-arithmetic dunder pattern (`binop_dispatch` discriminator).
-- Evidence: verified absent — no comparison dunder is defined anywhere under `crates/coeus-python/src`; current binding tests avoid the gap by extracting scalars via `.item()`.
-- Acceptance: comparisons return a boolean or mask tensor matching `coeus_ops`'s existing `Eq`/`Ne`/`Lt`/`Gt`/`Le`/`Ge` element-wise semantics; binding test coverage replaces the `.item()` workaround.
-- Exit: serves both `M-tensor-stack` exits for Python comparison operators: the binding test `operations::elementwise::test_comparison_operators_return_masks` and the example `python_comparison_operators`; neither exists at the base.
-- Non-goal: new autograd kernels — comparisons are non-differentiable, matching PyTorch.
-- Next step: route through the existing `BinaryOp` comparison variants and the `binop_dispatch` discriminator pattern from `COEUS-MS-404`.
+- Status: blocked; priority: verification; [major]; owner: root.
+- Blocker: release authority. Re-open trigger: the user grants release authority for the 1.0.0 release.
+- Outcome: the workspace version becomes 1.0.0, the changelog records the milestone's delivered surface, and the release tag carries the published artifacts.
+- Closing commit: `7db0beba` closes `M-tensor-stack`; its nine exits pass there and the `oversized_files` standing target holds at seven files.
+- Scope: the workspace version fields, `CHANGELOG.md`, the release tag and the publish pipelines; no source change.
+- Acceptance: the SemVer gate and the publish dry run pass at the release commit, the crates.io and PyPI publications succeed under OIDC, and the tag resolves the release notes.
+- Links: [ADR 0083](docs/adr/0083-release-scope.md), [ADR 0085](docs/adr/0085-release-scope.md).
 
 <a id="ms-445-python-release-wheels"></a>
 ## MS-445 — Python release wheels
 
-- Status: blocked; priority: verification; milestone: M-tensor-stack; [patch]; owner: root.
+- Status: blocked; priority: verification; [patch]; owner: root.
 - Blocker: release authority; publication is a non-goal of the 1.0 ladder ([ADR 0083](docs/adr/0083-release-scope.md)). Re-open trigger: the user grants release authority after the milestone closes.
 - Outcome: a GitHub Release tagged `coeus-python-v<version>` builds locked Linux/Windows/macOS wheels for CPython 3.9-3.13, installs and imports each as `pycoeus`, attests and attaches artifacts, then publishes to the `coeus-python` PyPI project through OIDC.
 - Delivered: the release workflow (`.github/workflows/python-release.yml`) and distribution contract are implemented; GitHub environment `pypi` accepts only `coeus-python-v*` tags; a locked CPython 3.13 wheel builds, installs, and imports as `pycoeus`.
@@ -131,7 +115,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-registry-package-1"></a>
 ## COEUS-REGISTRY-PACKAGE-1 — Publish reusable crates through Trusted Publishing
 
-- Status: blocked; priority: verification; milestone: M-tensor-stack; [patch]; owner: root.
+- Status: blocked; priority: verification; [patch]; owner: root.
 - Blocker: release authority; publication is a non-goal of the 1.0 ladder ([ADR 0083](docs/adr/0083-release-scope.md)). Re-open trigger: the user grants release authority after the milestone closes.
 - Outcome: Coeus's publishable Rust crates (currently all `publish = false` or unset) release to crates.io in dependency order via OIDC trusted publishing.
 - Delivered: Moirai/Mnemosyne/Themis imports bind to their published packages (no `rev =` pin — verified in `Cargo.toml`); the exact external lock graph is refreshed after the Apollo/Hephaestus/Moirai/Mnemosyne merges it depended on.
@@ -141,7 +125,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-gradcheck-generic-scalar"></a>
 ## COEUS-GRADCHECK-GENERIC-SCALAR — Generic finite-difference gradcheck over f32/f64
 
-- Status: todo; priority: verification; milestone: M-tensor-stack; [patch]; owner: unclaimed.
+- Status: todo; priority: verification; [patch]; owner: unclaimed.
 - Outcome: the finite-difference gradient-check harness is one generic function/macro instantiated per scalar type (f32 and f64), each with its own analytically derived tolerance, not an f64-only harness.
 - Scope: coeus-autograd's gradcheck test infrastructure.
 - Acceptance: existing f64 gradcheck coverage still passes; f32 instantiation runs with an f32-appropriate tolerance derived from step size and precision.
@@ -150,7 +134,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-gradcheck-missing-ops"></a>
 ## COEUS-GRADCHECK-MISSING-OPS — Fill finite-difference gradient-check gaps
 
-- Status: todo; priority: verification; milestone: M-tensor-stack; [minor]; owner: unclaimed.
+- Status: todo; priority: verification; [minor]; owner: unclaimed.
 - Outcome: every differentiable op has a finite-difference gradient-check test (depends on COEUS-GRADCHECK-GENERIC-SCALAR landing first).
 - Scope: add/sub/div/remainder/maximum/minimum/neg, all pooling ops, conv1d/conv3d/conv_transpose1d/2d/3d, fold/unfold, cross_entropy, ctc, dropout (mask-fixed), embedding, sparse_matmul/sparse_matmul_coo, transpose_2d, index_put, rotate_half, linear_interpolation.
 - Needs: COEUS-GRADCHECK-GENERIC-SCALAR.
@@ -160,7 +144,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-existence-only-nn-tests"></a>
 ## COEUS-EXISTENCE-ONLY-NN-TESTS — Value-semantic nn test assertions
 
-- Status: todo; priority: verification; milestone: M-tensor-stack; [patch]; owner: unclaimed.
+- Status: todo; priority: verification; [patch]; owner: unclaimed.
 - Outcome: nn tests assert value-semantic correctness against an analytical reference, not existence/shape only.
 - Scope: `coeus-nn` batch_norm tests (`batch_norm.rs:5-15,35-37,143-145`), `nn_normalization_tests.rs` (group/instance norm), attention `tests.rs:52-75,181-200`.
 - Acceptance: each listed test asserts a computed numeric value against a derived reference, not only `Ok`/shape.
@@ -169,7 +153,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
 
-- Status: todo; priority: tightening; milestone: M-tensor-stack; [patch]; owner: unclaimed.
+- Status: todo; priority: tightening; [patch]; owner: unclaimed.
 - Outcome: one generic entry point for elementwise op bindings instead of 28 duplicated wrappers.
 - Scope: `coeus-python/src/ops/elementwise.rs` vs `pytensor.rs`.
 - Acceptance: one shared dispatch path; binding-level pytest suite still passes.
@@ -178,7 +162,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-oversized-files"></a>
 ## COEUS-OVERSIZED-FILES — Split files past the 500-line target
 
-- Status: todo; priority: tightening; milestone: M-tensor-stack; [patch]; owner: unclaimed.
+- Status: todo; priority: tightening; [patch]; owner: unclaimed.
 - Outcome: the files over 500 lines are split into leaf modules by operation family; 7 remain.
 - Delivered: `coeus-python/src/tensor/pyimpl/pytensor.rs` (985 lines) is now `pytensor/{mod,construct,protocol,arithmetic,unary,reduction,shape,indexing,compare,inplace,cast,grad}.rs`, largest 152, one `#[pymethods]` section per file (pyo3's `multiple-pymethods` feature); `coeus-ops/src/shape/einsum.rs` (688 lines) is now `einsum/{mod,dispatch,subscript,binary,ternary,single}.rs` plus its `tests`. Seven further files are split by operation family: `coeus-autograd/tests/cache_benchmarks.rs` (720 lines) is now `cache_benchmarks/benches/{mod,graphs,plans,lookup}.rs`; `coeus-autograd/tests/autograd/gradcheck/activation.rs` (658) is now `activation/{mod,smooth,elementwise,branch}.rs`; `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity/elementwise.rs` (616) is now `parity/elementwise/{mod,binary,activations,inplace,buffer,unary}.rs`; `coeus-autograd/src/ops/nn/pool.rs` (610) is now `pool/{mod,max,avg,adaptive}.rs`; `coeus-autograd/tests/autograd/gradcheck/losses.rs` (594) is now `losses/{mod,regression,classification,ranking,similarity}.rs`; `coeus-nn/benches/nn_bench/provider/normalization_forward.rs` (583) keeps six benchmarks and moves the rest to `normalization_forward/extended.rs`; `coeus-optim/src/least_squares/tests.rs` (562) keeps the test bodies and moves the problem fixtures to `tests/fixtures.rs`. The scan now reports 7 oversized files, at the milestone's ceiling.
 - Residual: `coeus-ops/src/backend_ops/traits/conv.rs` (646 lines) holds the `ConvOps` trait, whose twelve rank-specific default methods carry long signatures, rustdoc and ratcheted `too_many_arguments` expectations; moving them out of the trait changes the public contract, so it waits for a request-struct migration. `coeus-autograd/src/ops/interpolation.rs` (543), `coeus-nn/benches/nn_bench/provider/pooling_interpolation.rs` (529), `coeus-autograd/src/ops/linalg.rs` (522), `coeus-core/tests/core_ops/policy/dependency_policy.rs` (510), `coeus-ops/src/resize.rs` (502) and `coeus-ops/tests/alloc_budget.rs` (501) remain.
@@ -189,7 +173,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-accelerator-padops-adoption"></a>
 ## COEUS-ACCELERATOR-PADOPS-ADOPTION — Adopt hephaestus's PadOps<D, T> seam
 
-- Status: blocked; priority: architecture; milestone: M-tensor-stack; [patch]; owner: unclaimed.
+- Status: blocked; priority: architecture; [patch]; owner: unclaimed.
 - Outcome: `coeus-accelerator` consumes hephaestus-core's `PadOps<D, T>` seam once merged, instead of any local padding duplication.
 - Blocker: hephaestus PadOps seam not yet merged upstream (re-open trigger: hephaestus-core PadOps<D,T> lands).
 - Scope: `coeus-accelerator` padding call sites.
@@ -198,7 +182,7 @@ item below carries `milestone: M-tensor-stack`.
 <a id="coeus-gradcheck-generic-instantiation"></a>
 ## COEUS-GRADCHECK-GENERIC-INSTANTIATION — Generic-instantiation gradcheck coverage
 
-- Status: todo; priority: verification; milestone: M-tensor-stack; [patch]; owner: unclaimed.
+- Status: todo; priority: verification; [patch]; owner: unclaimed.
 - Outcome: every finite-difference check in `crates/coeus-autograd/tests/autograd/gradcheck/` runs at both `f64` (sensitivity oracle) and `f32` (instantiation coverage, per `standards`: Generic Instantiation Coverage), plus FD coverage for the ops that had none.
 - Delivered: `mod.rs`'s shared fixtures (`Sampler`, `tensor`, `weighting`, `weighted`) are generic over `GradcheckScalar` (`Float + leto_ops::Scalar + coeus_cpu::RealScalar` plus the `CpuAddressableStorage` bound gradcheck itself needs); the module doc states the two-role f64/f32 rationale. New FD coverage, each a generic fn instantiated at both types from a single `#[test]`: `add`/`sub`/`div`/`remainder`/`maximum`/`minimum`/`neg` (`arithmetic.rs`); `max_pool1d/2d/3d`/`avg_pool1d/2d/3d` (`pooling.rs`, via `coeus-nn` `Module` layers, new dev-dependency); `conv1d`/`conv3d`/`conv_transpose1d/2d/3d`/`unfold1d/2d`/`fold1d/2d` (`conv.rs`, via `coeus-nn` `Module` layers). Converted to dual-instantiation: `normalization.rs`, `core_ops.rs`, `attention.rs`.
 - Remaining: (1) convert the 4 remaining existing check files (`activation`, `losses`, `reduction`, `shape`) to dual-instantiation; (2) FD coverage still missing: `ctc`, `dropout` (fixed mask), `sparse_matmul(_coo)`, `transpose_2d`, `index_put`, `rotate_half`, `linear_interpolation` (`cross_entropy` and `embedding` already have coverage in `losses.rs`).
