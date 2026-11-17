@@ -154,12 +154,80 @@ fn test_transformer_decoder_layer() {
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
-    assert!(tgt.grad().is_some());
-    assert!(memory.grad().is_some());
+    let tgt_grad = tgt
+        .grad()
+        .expect("invariant: decoder layer gives its target a gradient");
+    let memory_grad = memory
+        .grad()
+        .expect("invariant: decoder layer gives its memory a gradient");
+    assert_eq!(tgt_grad.shape(), &[batch, seq_tgt, d_model]);
+    assert_eq!(memory_grad.shape(), &[batch, seq_src, d_model]);
     for (i, p) in params.iter().enumerate() {
+        let grad = p
+            .grad()
+            .unwrap_or_else(|| panic!("DecoderLayer parameter {i} has no gradient"));
         assert!(
-            p.grad().is_some(),
-            "DecoderLayer parameter {i} has no gradient"
+            grad.as_slice().iter().all(|value| value.is_finite()),
+            "DecoderLayer parameter {i} gradient must be finite"
+        );
+    }
+
+    // Central differences on sum(output), reusing the same layer weights and
+    // perturbing each input independently.
+    let evaluate = |tgt_data: &[f64], mem_data: &[f64]| -> f64 {
+        let probe_tgt = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice_on(
+                [batch, seq_tgt, d_model],
+                tgt_data,
+                &backend,
+            )
+            .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
+        let probe_mem = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice_on(
+                [batch, seq_src, d_model],
+                mem_data,
+                &backend,
+            )
+            .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
+        layer
+            .forward_decoder(&probe_tgt, &probe_mem)
+            .expect("invariant: probe forward succeeds")
+            .tensor
+            .as_slice()
+            .iter()
+            .sum::<f64>()
+    };
+    let tgt_data = vec![1.0_f64; batch * seq_tgt * d_model];
+    let mem_data = vec![1.0_f64; batch * seq_src * d_model];
+    let step = 1e-6_f64;
+    for index in [0, 7, 31] {
+        let mut plus = tgt_data.clone();
+        plus[index] += step;
+        let mut minus = tgt_data.clone();
+        minus[index] -= step;
+        let numeric = (evaluate(&plus, &mem_data) - evaluate(&minus, &mem_data)) / (2.0 * step);
+        let analytic = tgt_grad.as_slice()[index];
+        assert!(
+            (analytic - numeric).abs() <= 1e-5,
+            "decoder layer tgt grad[{index}]: analytic {analytic} vs numeric {numeric}"
+        );
+    }
+    for index in [0, 13, 63] {
+        let mut plus = mem_data.clone();
+        plus[index] += step;
+        let mut minus = mem_data.clone();
+        minus[index] -= step;
+        let numeric = (evaluate(&tgt_data, &plus) - evaluate(&tgt_data, &minus)) / (2.0 * step);
+        let analytic = memory_grad.as_slice()[index];
+        assert!(
+            (analytic - numeric).abs() <= 1e-5,
+            "decoder layer memory grad[{index}]: analytic {analytic} vs numeric {numeric}"
         );
     }
 }
@@ -206,14 +274,76 @@ fn test_transformer_decoder() {
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
-    assert!(tgt.grad().is_some());
-    assert!(memory.grad().is_some());
+    let tgt_grad = tgt
+        .grad()
+        .expect("invariant: decoder stack gives its target a gradient");
+    let memory_grad = memory
+        .grad()
+        .expect("invariant: decoder stack gives its memory a gradient");
+    assert_eq!(tgt_grad.shape(), &[batch, seq_tgt, d_model]);
+    assert_eq!(memory_grad.shape(), &[batch, seq_src, d_model]);
     for (i, p) in params.iter().enumerate() {
+        let grad = p
+            .grad()
+            .unwrap_or_else(|| panic!("Decoder stack parameter {i} has no gradient"));
         assert!(
-            p.grad().is_some(),
-            "Decoder stack parameter {i} has no gradient"
+            grad.as_slice().iter().all(|value| value.is_finite()),
+            "Decoder stack parameter {i} gradient must be finite"
         );
     }
+
+    let tgt_data = vec![1.0_f64; batch * seq_tgt * d_model];
+    let mem_data = vec![1.0_f64; batch * seq_src * d_model];
+    assert_gradient_matches_central_differences(
+        "decoder stack tgt",
+        &tgt_data,
+        tgt_grad.as_slice(),
+        &[0, 7, 31],
+        &|data| {
+            let probe = Var::new(
+                Tensor::<f64, MoiraiBackend>::from_slice_on(
+                    [batch, seq_tgt, d_model],
+                    data,
+                    &backend,
+                )
+                .expect("invariant: test backend operation succeeds"),
+                false,
+            )
+            .expect("invariant: test backend operation succeeds");
+            decoder
+                .forward_decoder(&probe, &memory)
+                .expect("invariant: probe forward succeeds")
+                .tensor
+                .as_slice()
+                .iter()
+                .sum::<f64>()
+        },
+    );
+    assert_gradient_matches_central_differences(
+        "decoder stack memory",
+        &mem_data,
+        memory_grad.as_slice(),
+        &[0, 13, 63],
+        &|data| {
+            let probe = Var::new(
+                Tensor::<f64, MoiraiBackend>::from_slice_on(
+                    [batch, seq_src, d_model],
+                    data,
+                    &backend,
+                )
+                .expect("invariant: test backend operation succeeds"),
+                false,
+            )
+            .expect("invariant: test backend operation succeeds");
+            decoder
+                .forward_decoder(&tgt, &probe)
+                .expect("invariant: probe forward succeeds")
+                .tensor
+                .as_slice()
+                .iter()
+                .sum::<f64>()
+        },
+    );
 }
 
 #[test]
@@ -282,12 +412,56 @@ fn test_transformer_seq2seq() {
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
 
-    assert!(src.grad().is_some());
-    assert!(tgt.grad().is_some());
+    let src_grad = src
+        .grad()
+        .expect("invariant: seq2seq transformer gives its source a gradient");
+    let tgt_grad = tgt
+        .grad()
+        .expect("invariant: seq2seq transformer gives its target a gradient");
+    assert_eq!(src_grad.shape(), &[batch, seq_src, d_model]);
+    assert_eq!(tgt_grad.shape(), &[batch, seq_tgt, d_model]);
     for (i, p) in params.iter().enumerate() {
+        let grad = p
+            .grad()
+            .unwrap_or_else(|| panic!("Seq2Seq Transformer parameter {i} has no gradient"));
         assert!(
-            p.grad().is_some(),
-            "Seq2Seq Transformer parameter {i} has no gradient"
+            grad.as_slice().iter().all(|value| value.is_finite()),
+            "Seq2Seq Transformer parameter {i} gradient must be finite"
+        );
+    }
+
+    // The all-ones source is numerically singular for this stack: central
+    // differences of sum(output) do not converge as the step shrinks (the
+    // observed values and the missing oracle are recorded in gap_audit.md).
+    // Pin the gradient contract that is independent of that oracle.
+    for (label, grad) in [("src", src_grad.as_slice()), ("tgt", tgt_grad.as_slice())] {
+        assert!(
+            grad.iter().all(|value| value.is_finite()),
+            "seq2seq {label} gradient must be finite"
+        );
+    }
+}
+
+/// Check selected gradient entries against central differences of a scalar
+/// forward reduction, perturbing one input while holding the other fixed.
+fn assert_gradient_matches_central_differences(
+    label: &str,
+    baseline: &[f64],
+    analytic_grad: &[f64],
+    indices: &[usize],
+    evaluate: &impl Fn(&[f64]) -> f64,
+) {
+    let step = 1e-6_f64;
+    for &index in indices {
+        let mut plus = baseline.to_vec();
+        plus[index] += step;
+        let mut minus = baseline.to_vec();
+        minus[index] -= step;
+        let numeric = (evaluate(&plus) - evaluate(&minus)) / (2.0 * step);
+        let analytic = analytic_grad[index];
+        assert!(
+            (analytic - numeric).abs() <= 1e-5,
+            "{label} grad[{index}]: analytic {analytic} vs numeric {numeric}"
         );
     }
 }
