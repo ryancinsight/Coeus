@@ -7,9 +7,10 @@ use coeus_tensor::Tensor;
 
 type B = coeus_core::MoiraiBackend;
 
-/// Assert a normalization layer's affine gradients from the fixture geometry:
-/// each channel receives one upstream unit per element of its group, and the
-/// per-channel weight gradients sum to zero within each group.
+/// Check a parameter-gradient entry against a central difference. `evaluate`
+/// installs the perturbed parameter list into the module and returns the
+/// scalar forward reduction; `Module::parameters` returns copies, so the
+/// perturbed value must be loaded rather than mutated behind the module.
 fn assert_norm_affine_gradients(
     weight_grad: &Tensor<f64, B>,
     bias_grad: &Tensor<f64, B>,
@@ -247,38 +248,6 @@ fn test_instancenorm2d_forward_backward() {
 }
 
 #[test]
-fn test_sequential_chaining() {
-    let backend = B::default();
-    let mut seq = Sequential::<f64, B>::new();
-    seq.add(
-        Linear::new(4, 3, true).expect("invariant: the fixture's layer dimensions are non-zero"),
-    );
-    seq.add(
-        Linear::new(3, 2, true).expect("invariant: the fixture's layer dimensions are non-zero"),
-    );
-
-    let input = Var::new(
-        Tensor::ones_on([2, 4], &backend).expect("invariant: test backend operation succeeds"),
-        true,
-    )
-    .expect("invariant: test backend operation succeeds");
-    let output = seq.forward(&input).expect("valid Sequential input");
-
-    assert_eq!(output.tensor.shape(), &[2, 2]);
-
-    let loss = coeus_autograd::sum(&output).expect("invariant: test operation succeeds");
-    loss.backward()
-        .expect("invariant: valid autograd fixture completes backward");
-
-    assert!(input.grad().is_some());
-    let params = seq.parameters();
-    assert_eq!(params.len(), 4); // 2 weights + 2 biases
-    for p in &params {
-        assert!(p.grad().is_some());
-    }
-}
-
-#[test]
 fn test_binary_cross_entropy_loss() {
     let backend = B::default();
     let pred = Var::new(
@@ -392,33 +361,5 @@ fn test_huber_loss() {
     }
 }
 
-#[test]
-fn test_static_sequential_chaining() {
-    let backend = B::default();
-    let model: StaticSeq<Linear<f64, B>, Linear<f64, B>> = Linear::<f64, B>::new(4, 3, true)
-        .expect("invariant: the fixture's layer dimensions are non-zero")
-        .append(
-            Linear::<f64, B>::new(3, 2, true)
-                .expect("invariant: the fixture's layer dimensions are non-zero"),
-        );
-
-    let input = Var::new(
-        Tensor::ones_on([2, 4], &backend).expect("invariant: test backend operation succeeds"),
-        true,
-    )
-    .expect("invariant: test backend operation succeeds");
-    let output = model.forward(&input).expect("valid StaticSeq input");
-
-    assert_eq!(output.tensor.shape(), &[2, 2]);
-
-    let loss = coeus_autograd::sum(&output).expect("invariant: test operation succeeds");
-    loss.backward()
-        .expect("invariant: valid autograd fixture completes backward");
-
-    assert!(input.grad().is_some());
-    let params = model.parameters();
-    assert_eq!(params.len(), 4); // 2 weights + 2 biases
-    for p in &params {
-        assert!(p.grad().is_some());
-    }
-}
+#[path = "nn_new_ops_tests/sequential.rs"]
+mod sequential;
