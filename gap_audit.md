@@ -39,3 +39,15 @@ Re-open trigger: the artifact reappears (add a pre-test cleanup or a `.gitignore
 zero gradient, which is correct pending the upstream capability.
 Owning item: none in this repo (upstream Eunomia capability gap).
 Re-open trigger: Eunomia exposes `digamma`, then wire the CPU/Leto backward path.
+
+## Seq2Seq all-ones gradient has no convergent finite-difference oracle
+
+`test_transformer_seq2seq` perturbs one `src` element of its all-ones fixture
+and recomputes `sum(output)`. Central differences do not converge as the step
+shrinks: numeric -1.64e4 at h=1e-3, -2.29e5 at h=1e-4, -3.08e7 at h=1e-6 and
+-3.50e9 at h=1e-8, while `src.grad()[0]` is -1.166e11. The gradient cannot be
+pinned to an independent oracle at this fixture, so the test asserts only its
+shape and finiteness; pinning the observed value would certify an unverified
+number.
+Re-open trigger: a well-conditioned fixture with a convergent finite-difference
+oracle, or a diagnosed cause for the singularity in the seq2seq forward/backward.

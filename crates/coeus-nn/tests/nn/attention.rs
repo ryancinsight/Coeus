@@ -84,8 +84,9 @@ fn test_mha_backward_gradients_exist() {
 
     let mha = MultiHeadAttention::<f64, coeus_core::MoiraiBackend, 2, NullMask>::new(4, true)
         .expect("valid two-head backward fixture");
+    let input_data = [0.1_f64, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
     let input = Var::new(
-        Tensor::from_slice(vec![1, 2, 4], &[0.1f64, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+        Tensor::from_slice(vec![1, 2, 4], &input_data)
             .expect("invariant: test backend operation succeeds"),
         true,
     )
@@ -94,15 +95,68 @@ fn test_mha_backward_gradients_exist() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    assert!(mha.w_q.grad().is_some());
-    assert!(mha.w_k.grad().is_some());
-    assert!(mha.w_v.grad().is_some());
-    assert!(mha.w_o.grad().is_some());
-    assert!(mha.b_q.as_ref().unwrap().grad().is_some());
-    assert!(mha.b_k.as_ref().unwrap().grad().is_some());
-    assert!(mha.b_v.as_ref().unwrap().grad().is_some());
-    assert!(mha.b_o.as_ref().unwrap().grad().is_some());
+    let input_grad = input
+        .grad()
+        .expect("invariant: multi-head attention gives its input a gradient");
+    assert_eq!(input_grad.shape(), &[1, 2, 4]);
+
+    // The output projection is y = h W_o + b_o. With upstream ones on the
+    // [1, 2, 4] output, dL/db_o is the token count of the broadcast.
+    let b_o_grad = mha
+        .b_o
+        .as_ref()
+        .expect("invariant: the two-head fixture uses biases")
+        .grad()
+        .expect("invariant: output projection bias receives a gradient");
+    assert_eq!(b_o_grad.shape(), &[4]);
+    for (index, &value) in b_o_grad.as_slice().iter().enumerate() {
+        assert!(
+            (value - 2.0).abs() <= 1e-12,
+            "MHA b_o grad[{index}] = {value}, expected 2.0"
+        );
+    }
+    let projection_grads = [
+        mha.w_q.grad().expect("w_q gradient"),
+        mha.w_k.grad().expect("w_k gradient"),
+        mha.w_v.grad().expect("w_v gradient"),
+        mha.w_o.grad().expect("w_o gradient"),
+    ];
+    for grad in projection_grads {
+        assert!(
+            grad.as_slice().iter().all(|value| value.is_finite()),
+            "MHA projection gradients must be finite"
+        );
+    }
+
+    // The input gradient is checked against central differences on sum(y),
+    // recomputing the forward with the same module weights and a perturbed
+    // input.
+    let evaluate = |data: &[f64]| -> f64 {
+        let probe = Var::new(
+            Tensor::from_slice(vec![1, 2, 4], data)
+                .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
+        mha.forward(&probe)
+            .expect("invariant: probe forward succeeds")
+            .tensor
+            .as_slice()
+            .iter()
+            .sum::<f64>()
+    };
+    let step = 1e-6_f64;
+    for (index, &analytic) in input_grad.as_slice().iter().enumerate() {
+        let mut plus = input_data;
+        plus[index] += step;
+        let mut minus = input_data;
+        minus[index] -= step;
+        let numeric = (evaluate(&plus) - evaluate(&minus)) / (2.0 * step);
+        assert!(
+            (analytic - numeric).abs() <= 1e-5,
+            "MHA input grad[{index}]: analytic {analytic} vs numeric {numeric}"
+        );
+    }
 }
 
 #[test]
