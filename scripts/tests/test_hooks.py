@@ -32,6 +32,7 @@ import os
 import re
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -492,6 +493,45 @@ class AtlasRuntimeFetchTests(unittest.TestCase):
             with self.subTest(cause=cause.__name__, reply=reply):
                 error, _ = self._assert_typed_failure(reply, cause)
                 self.assertIn("unauthenticated", str(error))
+
+    def test_tls_handshake_failure_is_typed_with_its_ssl_cause(self) -> None:
+        # HTTPS against a loopback listener that answers in plaintext fails in
+        # the handshake: urllib wraps ssl.SSLError in URLError, an OSError, so
+        # the fetch's typed connect-phase arm handles it. The opener reaches
+        # https:// directly; `_fetch` would rewrite the URL to plain http.
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        reply = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+        for token in (None, self.SECRET):
+            with self.subTest(authenticated=token is not None):
+                with self._local_server(reply) as (port, _):
+                    def open_tls(request, timeout):
+                        self.assertEqual(timeout, 30)
+                        url = request.full_url.replace(
+                            ATLAS_RUNTIME_BASE, f"https://127.0.0.1:{port}"
+                        )
+                        local = urllib.request.Request(url, headers=request.headers)
+                        for key, value in request.unredirected_hdrs.items():
+                            local.add_unredirected_header(key, value)
+                        return opener.open(local, timeout=5)
+
+                    error = None
+                    try:
+                        fetch_atlas_runtime_file(
+                            "process_tree.py", self._environment_token(token), open_tls
+                        )
+                    except AtlasRuntimeFetchError as raised:
+                        error = raised
+                self.assertIsInstance(error, AtlasRuntimeFetchError)
+                for part in ("process_tree.py", ATLAS_RUNTIME_REVISION, "URLError"):
+                    self.assertIn(part, str(error))
+                if token is None:
+                    self.assertIn("unauthenticated", str(error))
+                    self.assertIsInstance(error.__cause__, urllib.error.URLError)
+                    self.assertIsInstance(error.__cause__.reason, ssl.SSLError)
+                else:
+                    self.assertTrue(str(error).endswith("URLError, authenticated"))
+                    self.assertIsNone(error.__cause__)
+                    self._assert_token_absent(error, token)
 
     def test_declared_sizes_never_size_a_read(self) -> None:
         # CPython 3.13.3 raises `OverflowError` or `MemoryError` from an
