@@ -57,7 +57,6 @@ fn test_cosine_similarity_forward_and_backward() {
             numeric
         );
     }
-    assert!(x2.grad().is_some(), "cosine x2 grad");
     // The second operand's gradient is checked against the same central
     // finite-difference reference on sum(cos), with the first operand held
     // fixed.
@@ -280,5 +279,17 @@ fn test_triplet_margin_with_distance_loss() {
 
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(anchor.grad().is_some(), "triplet anchor grad");
+    let anchor_grad = anchor
+        .grad()
+        .expect("invariant: triplet margin gives its anchor a gradient");
+    assert_eq!(anchor_grad.shape(), &[2]);
+    // d/da mean(|a - positive|) = sign(a - positive) / 2 = [-0.5, -0.5] and
+    // d/da mean(|a - negative|) = sign(a - negative) / 2 = [-0.5, -0.5].
+    // The active hinge subtracts them, so the anchor gradient cancels.
+    for (index, &value) in anchor_grad.as_slice().iter().enumerate() {
+        assert!(
+            value.abs() <= 1e-12,
+            "triplet anchor grad[{index}] = {value}, expected 0.0"
+        );
+    }
 }

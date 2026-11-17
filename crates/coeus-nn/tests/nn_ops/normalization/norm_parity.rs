@@ -324,11 +324,31 @@ where
         );
     }
 
-    // Verify backward propagates to weight and bias.
+    // Verify the affine gradients against the normalized fixture. With
+    // upstream ones and four elements in the single channel, dL/dbias = 4 and
+    // dL/dweight = sum(xhat) = 0 (the fixture is symmetric about its mean).
     out.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(bn.weight.grad().is_some(), "weight grad must exist");
-    assert!(bn.bias.grad().is_some(), "bias grad must exist");
+    let weight_grad = bn
+        .weight
+        .grad()
+        .expect("invariant: batch norm gives its weight a gradient");
+    let bias_grad = bn
+        .bias
+        .grad()
+        .expect("invariant: batch norm gives its bias a gradient");
+    assert_eq!(weight_grad.shape(), &[1]);
+    assert_eq!(bias_grad.shape(), &[1]);
+    assert!(
+        (weight_grad.as_slice()[0] - 0.0).abs() <= 1e-12,
+        "bn weight grad = {}, expected 0.0",
+        weight_grad.as_slice()[0]
+    );
+    assert!(
+        (bias_grad.as_slice()[0] - 4.0).abs() <= 1e-12,
+        "bn bias grad = {}, expected 4.0",
+        bias_grad.as_slice()[0]
+    );
 }
 
 #[test]

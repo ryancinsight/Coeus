@@ -164,6 +164,15 @@ items carry no milestone until then.
 - Acceptance: each listed op has a passing FD gradcheck against its analytical Jacobian within the derived tolerance.
 - Next step: work the list in dependency-free batches (e.g. arithmetic ops first, since they share the harness shape).
 
+<a id="coeus-existence-only-nn-residual"></a>
+## COEUS-EXISTENCE-ONLY-NN-RESIDUAL — Convert the remaining nn gradient-existence assertions
+
+- Status: todo; priority: verification; [patch]; owner: unclaimed.
+- Outcome: every remaining `grad().is_some()` assertion in `coeus-nn` tests asserts a computed value against a derived reference.
+- Evidence: at `34eb3216`, `git grep -n 'grad()\.is_some()' -- 'crates/coeus-nn/tests/**'` finds 25 sites: `nn_ops/tensor/nn_new_ops_tests.rs` (16), `nn_ops/recurrent/nn_sequential_tests.rs` (4), `nn_ops/losses/nn_loss/distance/extended.rs` (2), `nn_ops/normalization/norm_parity.rs` (2), `nn_ops/normalization/nn_norm_tests/softmax.rs` (1). These are outside the families closed by the earlier item.
+- Acceptance: each listed site asserts a value-semantic gradient against an analytical or finite-difference reference; a site whose fixture has no convergent oracle is recorded in `gap_audit.md` with a re-open trigger.
+- Next step: convert the small families (distance/extra, softmax, norm parity) first, then the group-norm/instance-norm and sequential suites.
+
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
 
