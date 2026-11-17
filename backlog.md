@@ -42,16 +42,6 @@ items carry no milestone until then.
 - Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
 - Evidence: PR #409 Tests job `107824618717` ended with runner exit 143 after unconditionally entering the 45-minute native job on a hook-only change.
 
-<a id="coeus-hook-fetch-tls-test"></a>
-## COEUS-HOOK-FETCH-TLS-TEST — Test the runtime fetch's connect-phase failures, TLS included
-
-- Status: todo; priority: verification; needs: none; milestone: none (no ladder; ADR 0085); [patch]; basis: 261df8cb79a54be143e8bd8200e0718911e0c7b1.
-- Outcome: a test pins that a TLS handshake failure while fetching a pinned Atlas runtime file ends as `AtlasRuntimeFetchError`, with a token set and without, and that no test leaves `urllib.error.URLError` (the wrapper `urllib` puts around every connect-phase failure) unexercised.
-- Evidence (read at the basis): `fetch_atlas_runtime_file` (`scripts/tests/test_hooks.py:104`) types a connect-phase failure only through `except (OSError, http.client.HTTPException, ValueError)`. `git grep -n -i 'ssl\|certificate\|URLError' origin/main -- scripts/tests/test_hooks.py` prints nothing. The loopback matrix covers `HTTPError`, `HTTPException`, `ValueError`, `TimeoutError`; `_fetch` rewrites the URL to plain `http://127.0.0.1`, so no case reaches TLS. Probe, CPython 3.13.12: an `https://` request to a loopback listener that answers in plaintext raises `URLError` (an `OSError`) whose `reason` is an `ssl.SSLError`. Source: delivery residual of #658.
-- Scope: `scripts/tests/test_hooks.py`; `fetch_atlas_runtime_file` itself is unchanged.
-- Acceptance: with `urlopen` opening `https://127.0.0.1:<port>` against such a listener, unauthenticated, `__cause__` is a `URLError` whose `reason` is an `ssl.SSLError` and the message names file, revision, `URLError` and `unauthenticated`; with a token the message ends `URLError, authenticated` and `__cause__` is `None`. A mutant that re-raises `URLError` from that clause fails both cases; both pass on CPython 3.13.3 and 3.13.12.
-- Next step: add the two cases beside `test_transport_failures_are_typed_with_their_cause`, passing `urlopen` a callable that bypasses `_fetch`'s `http` rewrite.
-
 <a id="coeus-hook-runtime-pin-test"></a>
 ## COEUS-HOOK-RUNTIME-PIN-TEST — Test that CI pins one Atlas checkout at the tested revision
 
@@ -145,25 +135,6 @@ items carry no milestone until then.
 - Residual: exact-head provider CI on the release-preparation branch, then publish in dependency order through Trusted Publishing (engineering_gates: publish pipelines).
 - Next step: run the hosted gate on the release branch, then execute the publish sequence.
 
-<a id="coeus-gradcheck-generic-scalar"></a>
-## COEUS-GRADCHECK-GENERIC-SCALAR — Generic finite-difference gradcheck over f32/f64
-
-- Status: todo; priority: verification; [patch]; owner: unclaimed.
-- Outcome: the finite-difference gradient-check harness is one generic function/macro instantiated per scalar type (f32 and f64), each with its own analytically derived tolerance, not an f64-only harness.
-- Scope: coeus-autograd's gradcheck test infrastructure.
-- Acceptance: existing f64 gradcheck coverage still passes; f32 instantiation runs with an f32-appropriate tolerance derived from step size and precision.
-- Next step: parameterize the harness's step size and tolerance by `T::EPSILON`, add the f32 instantiation.
-
-<a id="coeus-gradcheck-missing-ops"></a>
-## COEUS-GRADCHECK-MISSING-OPS — Fill finite-difference gradient-check gaps
-
-- Status: todo; priority: verification; [minor]; owner: unclaimed.
-- Outcome: every differentiable op has a finite-difference gradient-check test (depends on COEUS-GRADCHECK-GENERIC-SCALAR landing first).
-- Scope: add/sub/div/remainder/maximum/minimum/neg, all pooling ops, conv1d/conv3d/conv_transpose1d/2d/3d, fold/unfold, cross_entropy, ctc, dropout (mask-fixed), embedding, sparse_matmul/sparse_matmul_coo, transpose_2d, index_put, rotate_half, linear_interpolation.
-- Needs: COEUS-GRADCHECK-GENERIC-SCALAR.
-- Acceptance: each listed op has a passing FD gradcheck against its analytical Jacobian within the derived tolerance.
-- Next step: work the list in dependency-free batches (e.g. arithmetic ops first, since they share the harness shape).
-
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
 
@@ -193,12 +164,3 @@ items carry no milestone until then.
 - Scope: `coeus-accelerator` padding call sites.
 - Acceptance: coeus-accelerator padding routes through the upstream seam; no duplicated padding logic remains locally.
 
-<a id="coeus-gradcheck-generic-instantiation"></a>
-## COEUS-GRADCHECK-GENERIC-INSTANTIATION — Generic-instantiation gradcheck coverage
-
-- Status: todo; priority: verification; [patch]; owner: unclaimed.
-- Outcome: every finite-difference check in `crates/coeus-autograd/tests/autograd/gradcheck/` runs at both `f64` (sensitivity oracle) and `f32` (instantiation coverage, per `standards`: Generic Instantiation Coverage), plus FD coverage for the ops that had none.
-- Delivered: `mod.rs`'s shared fixtures (`Sampler`, `tensor`, `weighting`, `weighted`) are generic over `GradcheckScalar` (`Float + leto_ops::Scalar + coeus_cpu::RealScalar` plus the `CpuAddressableStorage` bound gradcheck itself needs); the module doc states the two-role f64/f32 rationale. New FD coverage, each a generic fn instantiated at both types from a single `#[test]`: `add`/`sub`/`div`/`remainder`/`maximum`/`minimum`/`neg` (`arithmetic.rs`); `max_pool1d/2d/3d`/`avg_pool1d/2d/3d` (`pooling.rs`, via `coeus-nn` `Module` layers, new dev-dependency); `conv1d`/`conv3d`/`conv_transpose1d/2d/3d`/`unfold1d/2d`/`fold1d/2d` (`conv.rs`, via `coeus-nn` `Module` layers). Converted to dual-instantiation: `normalization.rs`, `core_ops.rs`, `attention.rs`.
-- Remaining: (1) convert the 4 remaining existing check files (`activation`, `losses`, `reduction`, `shape`) to dual-instantiation; (2) FD coverage still missing: `ctc`, `dropout` (fixed mask), `sparse_matmul(_coo)`, `transpose_2d`, `index_put`, `rotate_half`, `linear_interpolation` (`cross_entropy` and `embedding` already have coverage in `losses.rs`).
-- Acceptance: every listed op has a generic FD check instantiated at both types; all 11 existing files are dual-instantiated; a check that fails at `f32` under gradcheck's own derived `ε^(2/3)` bound is root-caused, never given a widened tolerance.
-- Next step: convert `activation.rs` next (largest remaining, ~50 tests) then `losses`/`reduction`/`shape`, each its own PR; then the remaining missing-coverage ops as dependency-ordered per-family PRs.
