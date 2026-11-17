@@ -164,15 +164,6 @@ items carry no milestone until then.
 - Acceptance: each listed op has a passing FD gradcheck against its analytical Jacobian within the derived tolerance.
 - Next step: work the list in dependency-free batches (e.g. arithmetic ops first, since they share the harness shape).
 
-<a id="coeus-existence-only-nn-tests"></a>
-## COEUS-EXISTENCE-ONLY-NN-TESTS — Value-semantic nn test assertions
-
-- Status: todo; priority: verification; [patch]; owner: unclaimed.
-- Outcome: nn tests assert value-semantic correctness against an analytical reference, not existence/shape only.
-- Scope: every `coeus-nn` gradient-existence assertion. Delivered: `nn_norm_tests/batch_norm.rs`, `nn_normalization_tests.rs`, `nn_ops/attention/nn_attention_tests/tests.rs` (PR #666), `nn/rope_and_transpose.rs` (PR #669), `nn_ops/activations/nn_activation_tests.rs` (PR #670), `nn_ops/activations/nn_silu_tests.rs` and `nn_ops/activations/nn_mish_tests.rs` (PR #669), `nn_norm_tests/layer_norm.rs` (PR #671), `nn_ops/losses/nn_loss/binary.rs`, `nn_ops/losses/nn_loss/classification.rs`, `nn_ops/losses/nn_loss/distance.rs` and `nn_ops/losses/nn_loss/distance/extended.rs`. Remaining: `nn/attention.rs`, `nn/conv1d.rs`, `nn/conv3d_pool3d.rs`, `nn/log_softmax_cat_split.rs`, `nn_ops/attention/nn_transformer_tests.rs`, `nn_ops/convolution/nn_3d_tests.rs`, `nn_norm_tests/dropout.rs`.
-- Acceptance: each listed test asserts a computed numeric value against a derived reference, not only `Ok`/shape.
-- Next step: convert the remaining gradient-existence assertions in the attention, convolution, log-softmax and dropout fixtures, one family per increment.
-
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
 
