@@ -45,9 +45,10 @@ fn test_softmax_backward_uniform_seed() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
 
-    let g = input.grad().unwrap();
+    let g = input
+        .grad()
+        .expect("invariant: softmax gives its input a gradient");
     assert_eq!(g.shape(), &[1, 3]);
     for &v in g.as_slice() {
         assert!((v - 0.0).abs() < 1e-10);
