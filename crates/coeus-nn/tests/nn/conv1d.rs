@@ -202,7 +202,17 @@ fn test_non_contiguous_cross_entropy() {
     loss_ce
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(logits.grad().is_some());
+    let grad = logits
+        .grad()
+        .expect("invariant: cross entropy gives its logits a gradient");
+    assert_eq!(grad.shape(), &[2, 3]);
+    let expected = mean_cross_entropy_logit_gradient(&[1.0, 2.0, 0.0, 0.0, 2.0, 1.0], &targets);
+    for (index, (&actual, &value)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (actual - value).abs() <= 1e-12,
+            "non-contiguous cross entropy grad[{index}] = {actual}, expected {value}"
+        );
+    }
 }
 
 #[test]
@@ -243,15 +253,48 @@ fn test_sliced_offset_cross_entropy() {
     loss_ce
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(logits.grad().is_some());
-    let grad = logits.grad().unwrap();
+    let grad = logits
+        .grad()
+        .expect("invariant: cross entropy gives its logits a gradient");
 
     loss_ce_cont
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    let grad_cont = logits_cont.grad().unwrap();
+    let grad_cont = logits_cont
+        .grad()
+        .expect("invariant: cross entropy gives its logits a gradient");
     assert_eq!(grad.shape(), &[2, 3]);
     for i in 0..6 {
         assert!((grad.as_slice()[i] - grad_cont.as_slice()[i]).abs() < 1e-7);
     }
+    let expected = mean_cross_entropy_logit_gradient(&[1.0, 2.0, 0.0, 0.0, 2.0, 1.0], &targets);
+    for (index, (&actual, &value)) in grad.as_slice().iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (actual - value).abs() <= 1e-12,
+            "sliced cross entropy grad[{index}] = {actual}, expected {value}"
+        );
+    }
+}
+
+/// Mean-reduced cross-entropy logit gradient of a row-major `[batch, classes]`
+/// fixture: `dL/dz[i, j] = (softmax(z_i)[j] - onehot(j)) / batch`.
+fn mean_cross_entropy_logit_gradient(logits: &[f64], targets: &[usize]) -> Vec<f64> {
+    let classes = logits.len() / targets.len();
+    let batch = targets.len() as f64;
+    let mut gradient = vec![0.0_f64; logits.len()];
+    for (row, &target) in targets.iter().enumerate() {
+        let row_logits = &logits[row * classes..(row + 1) * classes];
+        let row_max = row_logits.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let exponentials: Vec<f64> = row_logits
+            .iter()
+            .map(|&value| (value - row_max).exp())
+            .collect();
+        let sum: f64 = exponentials.iter().sum();
+        for (class, &exponential) in exponentials.iter().enumerate() {
+            let probability = exponential / sum;
+            let indicator = if class == target { 1.0 } else { 0.0 };
+            gradient[row * classes + class] = (probability - indicator) / batch;
+        }
+    }
+    gradient
 }

@@ -32,5 +32,26 @@ fn test_dropout() {
     out_train
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
+    let input_grad = input
+        .grad()
+        .expect("invariant: dropout gives its input a gradient");
+    assert_eq!(input_grad.shape(), &[100]);
+    // Inverted dropout keeps an element with the scale 1 / (1 - p) and zeroes
+    // the dropped ones, so for a unit input the input gradient equals the
+    // forward output elementwise.
+    let mut grad_zero_count = 0;
+    let mut grad_scale_count = 0;
+    for (index, (&grad, &output)) in input_grad.as_slice().iter().zip(o_slice.iter()).enumerate() {
+        assert!(
+            (grad - output).abs() <= 1e-12,
+            "dropout grad[{index}] = {grad}, expected {output}"
+        );
+        if grad == 0.0 {
+            grad_zero_count += 1;
+        } else {
+            grad_scale_count += 1;
+        }
+    }
+    assert_eq!(grad_zero_count, zero_count);
+    assert_eq!(grad_scale_count, scale_count);
 }

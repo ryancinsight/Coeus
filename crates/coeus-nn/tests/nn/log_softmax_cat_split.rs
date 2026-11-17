@@ -40,10 +40,34 @@ fn test_log_softmax_backward() {
         coeus_nn::loss::mse_loss(&log_probs, &target).expect("valid mean squared error inputs");
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    let g = input.grad().unwrap();
+    let g = input
+        .grad()
+        .expect("invariant: log softmax gives its input a gradient");
     assert_eq!(g.shape(), &[1, 3]);
     assert!(g.as_slice().iter().any(|&v| v.abs() > 1e-7));
+
+    // Reference: y = log_softmax(x), p = softmax(x), loss = mean((y - t)^2).
+    // dL/dy = (2/3)(y - t) and dL/dx_k = g_k - p_k * sum_j g_j.
+    let x_data = [1.0_f64, 2.0, 3.0];
+    let target_data = [0.0_f64, 1.0, 0.0];
+    let log_sum_exp: f64 = x_data.iter().map(|&value| value.exp()).sum::<f64>().ln();
+    let mut upstream = [0.0_f64; 3];
+    for index in 0..3 {
+        let log_prob = x_data[index] - log_sum_exp;
+        upstream[index] = (2.0 / 3.0) * (log_prob - target_data[index]);
+    }
+    let upstream_sum: f64 = upstream.iter().sum();
+    let mut expected = [0.0_f64; 3];
+    for index in 0..3 {
+        let probability = (x_data[index] - log_sum_exp).exp();
+        expected[index] = upstream[index] - probability * upstream_sum;
+    }
+    for (index, (&actual, &value)) in g.as_slice().iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (actual - value).abs() <= 1e-12,
+            "log_softmax grad[{index}] = {actual}, expected {value}"
+        );
+    }
 }
 
 #[test]
@@ -81,12 +105,28 @@ fn test_cat_backward_gradient_split() {
     let out = coeus_autograd::cat(&[&a, &b], 1).expect("invariant: test operation succeeds");
     out.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(a.grad().is_some());
-    assert!(b.grad().is_some());
-    let ga = a.grad().unwrap();
-    let gb = b.grad().unwrap();
+    let ga = a
+        .grad()
+        .expect("invariant: concatenation gives its first input a gradient");
+    let gb = b
+        .grad()
+        .expect("invariant: concatenation gives its second input a gradient");
     assert_eq!(ga.shape(), &[2, 3]);
     assert_eq!(gb.shape(), &[2, 4]);
+    // The upstream gradient of the concatenated output is ones, so every input
+    // receives the ones gradient of its own slice.
+    for (index, &value) in ga.as_slice().iter().enumerate() {
+        assert!(
+            (value - 1.0).abs() <= 1e-12,
+            "cat grad a[{index}] = {value}, expected 1.0"
+        );
+    }
+    for (index, &value) in gb.as_slice().iter().enumerate() {
+        assert!(
+            (value - 1.0).abs() <= 1e-12,
+            "cat grad b[{index}] = {value}, expected 1.0"
+        );
+    }
 }
 
 #[test]
