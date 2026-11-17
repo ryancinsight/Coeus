@@ -283,8 +283,98 @@ fn test_cosine_embedding_loss() {
         .expect("invariant: test operation succeeds")
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(x1_g.grad().is_some(), "x1 grad");
-    assert!(x2_g.grad().is_some(), "x2 grad");
+    // Orthogonal unit vectors give cos = 0, so the y = 1 row loss is 1 - cos = 1
+    // with row weight -1:
+    //   dL/dx1 = -(x2 - cos * x1) / (||x1|| * ||x2||) = -[0, 1]
+    //   dL/dx2 = -(x1 - cos * x2) / (||x1|| * ||x2||) = -[1, 0]
+    let x1_grad = x1_g
+        .grad()
+        .expect("invariant: cosine embedding loss gives x1 a gradient");
+    let x2_grad = x2_g
+        .grad()
+        .expect("invariant: cosine embedding loss gives x2 a gradient");
+    assert_eq!(x1_grad.shape(), &[1, 2]);
+    assert_eq!(x2_grad.shape(), &[1, 2]);
+    for (index, (&actual, &expected)) in x1_grad
+        .as_slice()
+        .iter()
+        .zip([0.0, -1.0].iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() <= 1e-12,
+            "cosine_embedding_loss x1 grad[{index}] = {actual}, expected {expected}"
+        );
+    }
+    for (index, (&actual, &expected)) in x2_grad
+        .as_slice()
+        .iter()
+        .zip([-1.0, 0.0].iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() <= 1e-12,
+            "cosine_embedding_loss x2 grad[{index}] = {actual}, expected {expected}"
+        );
+    }
+
+    // ── Backward: the y = -1 hinge row weight is +1 where cos > margin ────
+    // x1 = [1, 0], x2 = [0.6, 0.8]: unit vectors with cos = 0.6 > margin = 0.5,
+    // so the row loss is relu(cos - margin) = 0.1 and the row weight is +1.
+    let x1_h = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[1.0_f64, 0.0])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let x2_h = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([1, 2], &[0.6_f64, 0.8])
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let loss_h = cosine_embedding_loss(&x1_h, &x2_h, &[-1.0_f64], 0.5)
+        .expect("invariant: test operation succeeds");
+    assert!(
+        (loss_h.tensor.as_slice()[0] - 0.1).abs() <= 1e-12,
+        "cosine_embedding_loss y=-1 forward = {}, expected 0.1",
+        loss_h.tensor.as_slice()[0]
+    );
+    loss_h
+        .backward()
+        .expect("invariant: valid autograd fixture completes backward");
+    let x1_h_grad = x1_h
+        .grad()
+        .expect("invariant: cosine embedding loss gives x1 a gradient");
+    let x2_h_grad = x2_h
+        .grad()
+        .expect("invariant: cosine embedding loss gives x2 a gradient");
+    // dL/dx1 = (x2 - cos * x1) / (||x1|| * ||x2||) = [0.6, 0.8] - 0.6 * [1, 0]
+    // dL/dx2 = (x1 - cos * x2) / (||x1|| * ||x2||) = [1, 0] - 0.6 * [0.6, 0.8]
+    let expected_x1 = [0.0, 0.8];
+    for (index, (&actual, &expected)) in x1_h_grad
+        .as_slice()
+        .iter()
+        .zip(expected_x1.iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() <= 1e-12,
+            "cosine_embedding_loss y=-1 x1 grad[{index}] = {actual}, expected {expected}"
+        );
+    }
+    let expected_x2 = [0.64, -0.48];
+    for (index, (&actual, &expected)) in x2_h_grad
+        .as_slice()
+        .iter()
+        .zip(expected_x2.iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() <= 1e-12,
+            "cosine_embedding_loss y=-1 x2 grad[{index}] = {actual}, expected {expected}"
+        );
+    }
 }
 
 #[path = "distance/extended.rs"]

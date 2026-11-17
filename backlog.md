@@ -169,9 +169,9 @@ items carry no milestone until then.
 
 - Status: todo; priority: verification; [patch]; owner: unclaimed.
 - Outcome: nn tests assert value-semantic correctness against an analytical reference, not existence/shape only.
-- Scope: `coeus-nn` batch_norm tests (`batch_norm.rs:5-15,35-37,143-145`), `nn_normalization_tests.rs` (group/instance norm), attention `tests.rs:52-75,181-200`.
+- Scope: every `coeus-nn` gradient-existence assertion. Delivered: `nn_norm_tests/batch_norm.rs`, `nn_normalization_tests.rs`, `nn_ops/attention/nn_attention_tests/tests.rs` (PR #666), `nn/rope_and_transpose.rs` (PR #669), `nn_ops/activations/nn_activation_tests.rs` (PR #670), `nn_ops/activations/nn_silu_tests.rs` and `nn_ops/activations/nn_mish_tests.rs` (PR #669), `nn_norm_tests/layer_norm.rs` (PR #671), `nn_ops/losses/nn_loss/binary.rs`, `nn_ops/losses/nn_loss/classification.rs`, `nn_ops/losses/nn_loss/distance.rs` and `nn_ops/losses/nn_loss/distance/extended.rs`. Remaining: `nn/attention.rs`, `nn/conv1d.rs`, `nn/conv3d_pool3d.rs`, `nn/log_softmax_cat_split.rs`, `nn_ops/attention/nn_transformer_tests.rs`, `nn_ops/convolution/nn_3d_tests.rs`, `nn_norm_tests/dropout.rs`.
 - Acceptance: each listed test asserts a computed numeric value against a derived reference, not only `Ok`/shape.
-- Next step: derive the analytical reference (e.g. hand-computed normalization on a small fixture) for each listed test group.
+- Next step: convert the remaining gradient-existence assertions in the attention, convolution, log-softmax and dropout fixtures, one family per increment.
 
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings

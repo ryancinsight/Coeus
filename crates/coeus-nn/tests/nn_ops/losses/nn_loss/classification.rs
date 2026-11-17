@@ -31,10 +31,12 @@ fn test_nll_loss() {
 
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(log_probs.grad().is_some());
 
     // Check gradients: -1 / N at target index, 0 elsewhere
-    let grad = log_probs.grad().unwrap();
+    let grad = log_probs
+        .grad()
+        .expect("invariant: negative log likelihood gives log-probabilities a gradient");
+    assert_eq!(grad.shape(), &[3, 3]);
     let grad_slice = grad.as_slice();
     for (i, &target) in targets.iter().enumerate() {
         for j in 0..3 {
