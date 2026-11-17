@@ -111,9 +111,41 @@ fn test_batchnorm3d_forward_and_backward() {
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(input.grad().is_some());
-    assert!(bn.weight.grad().is_some());
-    assert!(bn.bias.grad().is_some());
+    let input_grad = input
+        .grad()
+        .expect("invariant: batch norm gives its input a gradient");
+    let weight_grad = bn
+        .weight
+        .grad()
+        .expect("invariant: batch norm gives its weight a gradient");
+    let bias_grad = bn
+        .bias
+        .grad()
+        .expect("invariant: batch norm gives its bias a gradient");
+    assert_eq!(input_grad.shape(), &[1, 2, 2, 2, 2]);
+    assert_eq!(weight_grad.shape(), &[2]);
+    assert_eq!(bias_grad.shape(), &[2]);
+    // Each channel has 8 constant elements, so xhat = 0 and y = beta = 0.
+    // With upstream ones: dL/dbeta_c = 8, dL/dgamma_c = sum(xhat) = 0, and
+    // dL/dx = 0 because every element equals its channel mean.
+    for (index, &value) in bias_grad.as_slice().iter().enumerate() {
+        assert!(
+            (value - 8.0).abs() <= 1e-12,
+            "batchnorm3d bias grad[{index}] = {value}, expected 8.0"
+        );
+    }
+    for (index, &value) in weight_grad.as_slice().iter().enumerate() {
+        assert!(
+            value.abs() <= 1e-12,
+            "batchnorm3d weight grad[{index}] = {value}, expected 0.0"
+        );
+    }
+    for (index, &value) in input_grad.as_slice().iter().enumerate() {
+        assert!(
+            value.abs() <= 1e-12,
+            "batchnorm3d input grad[{index}] = {value}, expected 0.0"
+        );
+    }
 }
 
 #[test]
