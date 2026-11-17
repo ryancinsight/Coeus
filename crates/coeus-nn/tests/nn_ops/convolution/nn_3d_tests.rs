@@ -217,12 +217,40 @@ fn test_batchnorm3d_comprehensive() {
         .expect("invariant: valid autograd fixture completes backward");
 
     // Verify gradients exist on inputs, weight, and bias
-    assert!(input.grad().is_some());
-    assert!(bn.weight.grad().is_some());
-    assert!(bn.bias.grad().is_some());
-
-    let w_grad = bn.weight.grad().unwrap();
-    let b_grad = bn.bias.grad().unwrap();
+    let input_grad = input
+        .grad()
+        .expect("invariant: batch norm gives its input a gradient");
+    let w_grad = bn
+        .weight
+        .grad()
+        .expect("invariant: batch norm gives its weight a gradient");
+    let b_grad = bn
+        .bias
+        .grad()
+        .expect("invariant: batch norm gives its bias a gradient");
+    assert_eq!(input_grad.shape(), &[1, 2, 2, 2, 2]);
     assert_eq!(w_grad.shape(), &[2]);
     assert_eq!(b_grad.shape(), &[2]);
+    // Each channel has 8 constant elements (the non-contiguous layout skips
+    // the 999 sentinels), so xhat = 0 and y = beta = 0. With upstream ones:
+    // dL/dbeta_c = 8, dL/dgamma_c = sum(xhat) = 0, and dL/dx = 0 because every
+    // element equals its channel mean.
+    for (index, &value) in b_grad.as_slice().iter().enumerate() {
+        assert!(
+            (value - 8.0).abs() <= 1e-12,
+            "batchnorm3d bias grad[{index}] = {value}, expected 8.0"
+        );
+    }
+    for (index, &value) in w_grad.as_slice().iter().enumerate() {
+        assert!(
+            value.abs() <= 1e-12,
+            "batchnorm3d weight grad[{index}] = {value}, expected 0.0"
+        );
+    }
+    for (index, &value) in input_grad.as_slice().iter().enumerate() {
+        assert!(
+            value.abs() <= 1e-12,
+            "batchnorm3d input grad[{index}] = {value}, expected 0.0"
+        );
+    }
 }
