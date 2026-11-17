@@ -58,6 +58,37 @@ fn test_cosine_similarity_forward_and_backward() {
         );
     }
     assert!(x2.grad().is_some(), "cosine x2 grad");
+    // The second operand's gradient is checked against the same central
+    // finite-difference reference on sum(cos), with the first operand held
+    // fixed.
+    let analytic_x2: Vec<f64> = x2.grad().expect("cosine x2 grad").as_slice().to_vec();
+    let forward_sum_x2 = |d: &[f64]| -> f64 {
+        let xv = Var::new(
+            Tensor::<f64, MoiraiBackend>::from_slice([2, 2], d)
+                .expect("invariant: test backend operation succeeds"),
+            false,
+        )
+        .expect("invariant: test backend operation succeeds");
+        cosine_similarity(&x1, &xv, 1, 1e-12)
+            .expect("invariant: test operation succeeds")
+            .tensor
+            .as_slice()
+            .iter()
+            .sum::<f64>()
+    };
+    for i in 0..x2_data.len() {
+        let mut dp = x2_data.clone();
+        dp[i] += h;
+        let mut dm = x2_data.clone();
+        dm[i] -= h;
+        let numeric = (forward_sum_x2(&dp) - forward_sum_x2(&dm)) / (2.0 * h);
+        assert!(
+            (analytic_x2[i] - numeric).abs() < 1e-5,
+            "cosine dx2[{i}]: analytic {} vs numeric {}",
+            analytic_x2[i],
+            numeric
+        );
+    }
 }
 
 #[test]

@@ -45,7 +45,30 @@ fn test_binary_cross_entropy() {
     // Backward
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(pred.grad().is_some());
+    let pred_grad = pred
+        .grad()
+        .expect("invariant: binary cross entropy gives pred a gradient");
+    assert_eq!(pred_grad.shape(), &[4]);
+    // dL/dpred = -(t/p - (1-t)/(1-p)) / n with p = clamp(pred, eps, 1-eps).
+    // The fixture stays inside the clamp interval, so p = pred:
+    // p = 0.1 (t = 0), 0.9 (t = 1), 0.8 (t = 1), 0.2 (t = 0).
+    let expected_grad = [
+        (1.0 / 0.9) / 4.0,
+        -(1.0 / 0.9) / 4.0,
+        -(1.0 / 0.8) / 4.0,
+        (1.0 / 0.8) / 4.0,
+    ];
+    for (index, (&actual, &expected)) in pred_grad
+        .as_slice()
+        .iter()
+        .zip(expected_grad.iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() <= 1e-12,
+            "binary_cross_entropy grad[{index}] = {actual}, expected {expected}"
+        );
+    }
 }
 
 #[test]
@@ -114,7 +137,97 @@ fn test_huber_loss() {
 
     loss.backward()
         .expect("invariant: valid autograd fixture completes backward");
-    assert!(pred.grad().is_some());
+    let pred_grad = pred
+        .grad()
+        .expect("invariant: huber loss gives pred a gradient");
+    assert_eq!(pred_grad.shape(), &[3]);
+    // dL/dpred = (|z| <= delta ? z : sign(z) * delta) / n with z = pred - target.
+    // z = [-0.5, 2.0, -1.0] and delta = 1.0: the first and third elements are
+    // in the quadratic region, the second one in the linear region.
+    let expected_grad = [-0.5 / 3.0, 1.0 / 3.0, -1.0 / 3.0];
+    for (index, (&actual, &expected)) in pred_grad
+        .as_slice()
+        .iter()
+        .zip(expected_grad.iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() <= 1e-12,
+            "huber_loss grad[{index}] = {actual}, expected {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_huber_loss_regions() {
+    // delta = 1.5 separates the classical Huber definition from the smooth-L1
+    // alternative: the quadratic branch is 0.5 * z^2 and the linear branch is
+    // delta * |z| - 0.5 * delta^2.
+    // z = pred - target = [-0.5, 2.0, -1.0]; |z| <= 1.5 holds for the first and
+    // the third element, the second one takes the linear branch.
+    // Forward: 0.5 * 0.25 = 0.125, 1.5 * 2.0 - 0.5 * 2.25 = 1.875,
+    //          0.5 * 1.0 = 0.5; mean = 2.5 / 3.
+    // Backward: z / n in the quadratic region, sign(z) * delta / n in the
+    // linear region.
+    let pred_data = [1.0_f64, 4.0, -2.0];
+    let target_data = [1.5_f64, 2.0, -1.0];
+    let delta = 1.5_f64;
+
+    let pred = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &pred_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+    let target = Var::new(
+        Tensor::<f64, MoiraiBackend>::from_slice([3], &target_data)
+            .expect("invariant: test backend operation succeeds"),
+        true,
+    )
+    .expect("invariant: test backend operation succeeds");
+
+    let loss = huber_loss(&pred, &target, delta)
+        .expect("invariant: matching non-empty shapes and positive finite delta");
+    assert_eq!(loss.tensor.shape(), &[1]);
+    let expected_loss = (0.125 + 1.875 + 0.5) / 3.0;
+    let loss_val = loss.tensor.as_slice()[0];
+    assert!(
+        (loss_val - expected_loss).abs() <= 1e-12,
+        "huber_loss regions forward = {loss_val}, expected {expected_loss}"
+    );
+
+    loss.backward()
+        .expect("invariant: valid autograd fixture completes backward");
+    let pred_grad = pred
+        .grad()
+        .expect("invariant: huber loss gives pred a gradient");
+    let target_grad = target
+        .grad()
+        .expect("invariant: huber loss gives target a gradient");
+    let expected_grad = [-0.5 / 3.0, 1.5 / 3.0, -1.0 / 3.0];
+    for (index, (&actual, &expected)) in pred_grad
+        .as_slice()
+        .iter()
+        .zip(expected_grad.iter())
+        .enumerate()
+    {
+        assert!(
+            (actual - expected).abs() <= 1e-12,
+            "huber_loss regions grad[{index}] = {actual}, expected {expected}"
+        );
+    }
+    for (index, (&actual, &expected)) in target_grad
+        .as_slice()
+        .iter()
+        .zip(expected_grad.iter())
+        .enumerate()
+    {
+        assert!(
+            (actual + expected).abs() <= 1e-12,
+            "huber_loss regions target grad[{index}] = {actual}, expected {}",
+            -expected
+        );
+    }
 }
 
 #[test]
