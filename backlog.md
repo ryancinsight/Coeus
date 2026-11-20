@@ -105,12 +105,6 @@ items carry no milestone until then.
 - Acceptance: exercise the shared gradient/divergence, axis, adjoint, and invalid-grid oracles on real CUDA and Apple Metal devices; preserve typed acquisition failures.
 
 <a id="coeus-release-1-0-0-001"></a>
-## COEUS-REGISTRY-013 — Align the published CPU provider cohort
-
-- [major] Ship the eight packages in [ADR 0086](docs/adr/0086-registry-provider-cohort.md)
-  at 0.13.0. Verify the first CPU upload and the full dependency closure
-  with a registry-only consumer before certifying the RITK prerequisite.
-
 ## COEUS-RELEASE-1-0-0-001 — Release Coeus 1.0.0
 
 - Status: blocked; priority: verification; [major]; owner: root.
