@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.14.0] - Aequitas 0.5 provider migration
+
+### Breaking
+
+- [major] Use the single Leto 0.52 array boundary in the CPU tensor and
+  optimizer cohort. Match Apollo FFT 0.31 and Hephaestus 0.30 when
+  exchanging arrays or device values with Coeus. See
+  [ADR 0086](docs/adr/0086-registry-provider-cohort.md).
+
 ## [0.13.0] - Unreleased
 
 ### Breaking
