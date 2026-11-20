@@ -45,3 +45,12 @@ consumer verifies a typed Leto view, rejects a short input buffer, and
 obtains the exact derivative 6 for x² at x = 3.
 [Coeus #681](https://github.com/ryancinsight/coeus/pull/681)
 and [Coeus release run](https://github.com/ryancinsight/coeus/actions/runs/44660251129).
+
+## Aequitas 0.5 provider revision
+
+Coeus 0.14 advances the eight issued CPU packages together. The FFT
+bridge uses Apollo 0.31, and the array and device boundaries use Leto
+0.52 and Hephaestus 0.30. Retain the exact-version publication cohort
+and verify that published package resolution has a single Aequitas 0.5
+and Eunomia 0.12.1. The backend contracts and numerical tests continue
+to apply.

@@ -60,7 +60,7 @@ jobs:
       dispatch-package: ${{ inputs.package }}
       dispatch-version: ${{ inputs.version }}
 
-  # Version-change publishing (ADR 0068) is limited to the approved 0.13.0
+  # Version-change publishing (ADR 0068) is limited to the approved 0.14.0
   # CPU cohort on pushes to main and the daily schedule.
   publish-pending:
     if: github.event_name == 'push' || github.event_name == 'schedule'
@@ -71,4 +71,4 @@ jobs:
     with:
       rust-toolchain: 1.97.0
       semver-baseline-source: locked-registry
-      cohort-json: '{"coeus-core":"0.13.0","coeus-cpu":"0.13.0","coeus-tensor":"0.13.0","coeus-sparse":"0.13.0","coeus-ops":"0.13.0","coeus-autograd":"0.13.0","coeus-nn":"0.13.0","coeus-optim":"0.13.0"}'
+      cohort-json: '{"coeus-core":"0.14.0","coeus-cpu":"0.14.0","coeus-tensor":"0.14.0","coeus-sparse":"0.14.0","coeus-ops":"0.14.0","coeus-autograd":"0.14.0","coeus-nn":"0.14.0","coeus-optim":"0.14.0"}'
