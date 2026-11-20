@@ -36,3 +36,12 @@ publish Tensor, Sparse and Ops, Autograd, and NN and Optim in dependency
 order. Check registry checksums and the release revision. Run a fresh
 registry consumer that crosses the Leto, CPU backend, and Autograd
 boundaries and asserts its computed values.
+
+Core and CPU are published from the #681 merge. Tensor, Sparse, Ops,
+Autograd, NN, and Optim are published from the #683 merge using the
+archived-lock API checks. All eight archives match their crates.io
+SHA-256 checksums and source revisions. A fresh registry-only Rust 1.95
+consumer verifies a typed Leto view, rejects a short input buffer, and
+obtains the exact derivative 6 for x² at x = 3.
+[Coeus #681](https://github.com/ryancinsight/coeus/pull/681)
+and [Coeus release run](https://github.com/ryancinsight/coeus/actions/runs/44660251129).
