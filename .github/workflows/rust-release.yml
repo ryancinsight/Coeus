@@ -60,13 +60,15 @@ jobs:
       dispatch-package: ${{ inputs.package }}
       dispatch-version: ${{ inputs.version }}
 
-  # Version-change publishing (ADR 0068): pushes to main and the daily
-  # schedule publish every package whose manifest version crates.io lacks.
+  # Version-change publishing (ADR 0068) is limited to the approved 0.13.0
+  # CPU cohort on pushes to main and the daily schedule.
   publish-pending:
     if: github.event_name == 'push' || github.event_name == 'schedule'
-    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
+    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@f90b48f6785c3235b805977da878eba5f9140c92
     permissions:
       contents: write # creates the release tags
       id-token: write # OIDC trusted publishing; no stored registry token.
     with:
       rust-toolchain: 1.97.0
+      semver-baseline-source: locked-registry
+      cohort-json: '{"coeus-core":"0.13.0","coeus-cpu":"0.13.0","coeus-tensor":"0.13.0","coeus-sparse":"0.13.0","coeus-ops":"0.13.0","coeus-autograd":"0.13.0","coeus-nn":"0.13.0","coeus-optim":"0.13.0"}'

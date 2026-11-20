@@ -1,6 +1,18 @@
 # Changelog
 
-## [Unreleased]
+## [0.13.0] - Unreleased
+
+### Breaking
+
+- [major] Move the public scalar and array types to Eunomia 0.12.1 and Leto
+  0.51.0. Align direct provider dependencies with Apollo FFT 0.30.0,
+  Hephaestus 0.29.0, and Hermes SIMD 0.10.0. Consumers exchanging these
+  types across crate boundaries must update the providers and Coeus together.
+  See [ADR 0086](docs/adr/0086-registry-provider-cohort.md).
+
+### Added
+
+- Publish the CPU backend for the first time as `coeus-cpu 0.13.0`.
 
 ### Changed
 
