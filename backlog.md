@@ -27,11 +27,11 @@ items carry no milestone until then.
 <a id="coeus-physical-autodiff"></a>
 ## COEUS-PHYSICAL-AUTODIFF [minor] [arch] — Preserve physical dimensions through reverse mode
 
-- Status: implemented and verified locally; priority: correctness; target: next approved minor cohort.
+- Status: merged in PR #685; priority: correctness; target: Rust 0.15.0.
 - Scope: opt-in Rust adapter for one homogeneous input field and one scalar objective.
 - Acceptance: canonical dimension quotient, coordinate chain rule, affine and interval arithmetic, compile-time rejection, independent objectives and feature-off compatibility.
-- Evidence: both feature modes have workspace Rust verification on macOS under [ADR 0087](docs/adr/0087-physical-quantity-autodiff.md). The TCP fixture and framework parity regressions have independent fixes.
-- Next step: review the local candidate and verification results before release qualification.
+- Evidence: both feature modes pass hosted checks on the merged revision under [ADR 0087](docs/adr/0087-physical-quantity-autodiff.md). The TCP fixture and framework parity regressions have independent fixes.
+- Next step: qualify the candidate using the [0.15.0 release checklist](checklist.md) and review the results before authorizing publication.
 
 <a id="atlas-coeus-backend-045"></a>
 ## ATLAS-COEUS-BACKEND-045 — Unseal ComputeBackend and unify matmul (residual)
