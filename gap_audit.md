@@ -4,6 +4,17 @@ Risks nobody is actively fixing. A risk with a planned fix is a backlog item
 instead (see `backlog.md`); a closed risk's residue lives in its ADR or PR,
 not here.
 
+## Physical derivative qualification
+
+Raw Coeus computes numerical derivatives in the coordinates supplied to its
+graph. Its default finite-difference step is also coordinate dependent.
+A 2 L reciprocal pressure model returns the analytical derivative and
+requires model-based normalization for the default numerical check. See
+the [physical autodiff proposal](docs/adr/0087-physical-quantity-autodiff.md)
+for the reference and typed boundary.
+Re-open trigger: a change to the default step policy or a requirement for
+physical-coordinate step selection.
+
 ## CUDA context creation failure remains unclassified
 
 Consumer run `87532469-ce04-4b9a-8225-f53e7ea000a2` fails in `cuCtxCreate_v2`

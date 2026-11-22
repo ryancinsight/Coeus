@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [minor] The opt-in `coeus-autograd/physical-units` feature returns
+  dimension-checked gradients for scalar objectives over canonical SI
+  quantities, including affine temperature coordinates. See
+  [ADR 0087](docs/adr/0087-physical-quantity-autodiff.md).
+
+### Fixed
+
+- [patch] Keep the remote socket open during the dial-side TCP handshake
+  error test so macOS reaches the intended write failure.
+
+- [patch] Verify the documented inclusive clamp subgradient with a
+  PyTorch piecewise reference across the scalar clamp convention change.
+
+- [patch] Verify the MLX linear loss with per-element dot-product and
+  mean-square roundoff bounds, and evaluate the MLX base-two exponential
+  reference using its public power operation.
+
 ## [0.14.0] - Aequitas 0.5 provider migration
 
 ### Breaking

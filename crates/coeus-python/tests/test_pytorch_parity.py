@@ -4009,6 +4009,13 @@ def test_vector_norm_l2_matches_pytorch() -> None:
     )
 
 
+def _torch_clamp_with_inclusive_subgradient(x, lower: float, upper: float):
+    # PyTorch 2.14 changed scalar clamp's subgradient at equality to zero.
+    # Let PyTorch differentiate the equivalent piecewise function with the
+    # linear branch selected at both ends, as Coeus specifies.
+    return torch.where(x < lower, lower, torch.where(x > upper, upper, x))
+
+
 @pytest.mark.skipif(not hasattr(pycoeus, "clamp"), reason="pycoeus.clamp not available")
 def test_clamp_matches_pytorch() -> None:
     """torch.clamp(x, min=-1.0, max=2.0) vs pycoeus.clamp(x, -1.0, 2.0)."""
@@ -4018,9 +4025,11 @@ def test_clamp_matches_pytorch() -> None:
     got.backward()
     t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
     exp_t = torch.clamp(t, min=-1.0, max=2.0)
-    exp_t.sum().backward()
+    expected_grad, = torch.autograd.grad(
+        _torch_clamp_with_inclusive_subgradient(t, -1.0, 2.0).sum(), t
+    )
     _allclose("clamp_fwd", list(got.data), exp_t.detach().tolist())
-    _allclose("clamp_bwd", list(x_pyc.grad), t.grad.tolist())
+    assert list(x_pyc.grad) == expected_grad.tolist()
 
 
 @pytest.mark.skipif(not hasattr(pycoeus, "outer"), reason="pycoeus.outer not available")
@@ -4826,16 +4835,28 @@ def test_trunc_matches_pytorch() -> None:
 
 
 def test_clamp_boundary_matches_pytorch() -> None:
-    """Gradient is 1 at x==min and x==max (inclusive boundary per PyTorch convention)."""
-    data = [-1.0, 0.5, 2.0]  # x[0]=min, x[2]=max
-    x_pyc = pycoeus.Tensor(data, [3], requires_grad=True)
-    out_pyc = pycoeus.clamp(x_pyc, -1.0, 2.0)
+    """Check inclusive Coeus subgradients at and one float from each bound."""
+    lower, upper = -1.0, 2.0
+    data = [
+        math.nextafter(lower, -math.inf),
+        lower,
+        math.nextafter(lower, math.inf),
+        0.5,
+        math.nextafter(upper, -math.inf),
+        upper,
+        math.nextafter(upper, math.inf),
+    ]
+    x_pyc = pycoeus.Tensor(data, [len(data)], requires_grad=True)
+    out_pyc = pycoeus.clamp(x_pyc, lower, upper)
     out_pyc.backward()
     t = torch.tensor(data, dtype=torch.float64, requires_grad=True)
-    out_t = torch.clamp(t, min=-1.0, max=2.0)
-    out_t.sum().backward()
-    _allclose("clamp_boundary_fwd", list(out_pyc.data), out_t.detach().tolist())
-    _allclose("clamp_boundary_bwd", list(x_pyc.grad), t.grad.tolist())
+    expected_grad, = torch.autograd.grad(
+        _torch_clamp_with_inclusive_subgradient(t, lower, upper).sum(), t
+    )
+    _allclose("clamp_boundary_fwd", list(out_pyc.data), torch.clamp(t, lower, upper).tolist())
+    assert expected_grad.tolist() == [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]
+    assert list(x_pyc.grad) == expected_grad.tolist()
+
 
 # ---------------------------------------------------------------------------
 # var / std parity (tracked autograd via composition)

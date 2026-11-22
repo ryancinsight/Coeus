@@ -5,18 +5,9 @@ use coeus_core::{FloatOps, Scalar};
 use coeus_tensor::Tensor;
 use std::sync::Arc;
 
-// Gradient of clamp is 1 inside [min, max] and 0 outside.  This is the
-// straight-through estimator for the STE variant; for exact grad it is the
-// indicator function.  Here we implement the indicator (standard definition):
-//
-//   d/dx clamp(x, lo, hi) = 1_{lo ≤ x ≤ hi}
-//
-// which means: gradient passes through unchanged where the input is inside the
-// clamp bounds, and is zeroed where x < lo or x > hi.
-//
-// Implementation via two ReluGrad applications on shifted inputs (zero-copy
-// composition of existing backend primitives, no new kernel needed):
-//   inside = ReluGrad(x - lo) * ReluGrad(hi - x)
+// The interior derivative is one and the exterior derivative is zero.
+// Coeus selects the interior slope as the subgradient at both kinks, so
+// the backward mask is the indicator of the closed interval [min, max].
 
 /// Autograd node for element-wise clamp.
 pub struct ClampNode<T: Scalar, B: coeus_ops::BackendOps<T> + Default> {
@@ -60,8 +51,7 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 
             // 1_{lo <= x} = 1 - 1_{x < lo} = 1 - ReluGrad(lo - x).
             // At the kink x = lo: (lo - x) = 0, ReluGrad(0) = 0 (strict),
-            // so the indicator evaluates to 1 — matching PyTorch's
-            // `aten::clamp_backward_kernel` which is `[min, max]` inclusive.
+            // so the indicator evaluates to 1 at the lower endpoint.
             let lo_t = Tensor::full_on(shape, self.min_val, &backend)?;
             let lo_minus_x = coeus_ops::sub(&lo_t, &self.input_tensor, &backend)?;
             let mask_lt_lo =
@@ -90,8 +80,8 @@ impl<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default> BackwardNode<T
 
 /// Tracked element-wise clamp: `y = clamp(x, min_val, max_val)`.
 ///
-/// Gradient is the indicator `1_{min_val ≤ x ≤ max_val}` — passes through
-/// where input is in range, zeroed at saturated positions.
+/// Backward passes the gradient through the closed interval
+/// `[min_val, max_val]`, including the selected subgradient of one at both endpoints.
 #[inline]
 pub fn clamp<T: Scalar + FloatOps, B: coeus_ops::BackendOps<T> + Default>(
     a: &Var<T, B>,

@@ -4,7 +4,7 @@ name: CI
 # documentation compile in separate jobs to retain their existing cache and
 # time budgets. Pull requests restore caches; only main updates them.
 #
-# The native suite runs as three nextest --partition shards over the shared
+# Each physical-units mode runs in three nextest shards over the shared
 # sccache backend (see the `tests` job): each shard compiles with mostly
 # hits on a warm cache and the partition only divides seconds of execution
 # plus per-shard setup. The `test` aggregator preserves the required "Tests"
@@ -137,9 +137,7 @@ jobs:
   # timeout below admits a cold compile instead of timing out legitimate
   # cache-seeding runs.
   tests:
-    # Static name: the matrix context is unavailable in `name`, and GitHub
-    # appends the shard value itself ("Tests (1)" ...).
-    name: Tests
+    name: Native tests (physical-units ${{ matrix.physical_units }}, shard ${{ matrix.shard }})
     needs: changed_scope
     if: always()
     runs-on: ubuntu-latest
@@ -148,7 +146,9 @@ jobs:
       fail-fast: true
       matrix:
         shard: [1, 2, 3]
+        physical_units: [disabled, enabled]
     env:
+      PHYSICAL_UNITS_ARGS: ${{ matrix.physical_units == 'enabled' && '--features coeus-autograd/physical-units' || '' }}
       # Content-keyed compiler cache (mozilla-actions/sccache-action, GHA
       # backend): sccache hashes source content plus compiler flags, so it
       # stays safe across the workspace-crate freshness hazard that ruled
@@ -168,7 +168,7 @@ jobs:
         if: always()
         run: test -n "${{ needs.changed_scope.outputs.test_path }}"
       - name: Atlas hook runtime
-        if: needs.changed_scope.outputs.test_path == 'hook-only' && matrix.shard == 1
+        if: needs.changed_scope.outputs.test_path == 'hook-only' && matrix.shard == 1 && matrix.physical_units == 'disabled'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ryancinsight/atlas
@@ -177,7 +177,7 @@ jobs:
           sparse-checkout: scripts
           persist-credentials: false
       - name: Hook-contract tests
-        if: needs.changed_scope.outputs.test_path == 'hook-only' && matrix.shard == 1
+        if: needs.changed_scope.outputs.test_path == 'hook-only' && matrix.shard == 1 && matrix.physical_units == 'disabled'
         # The job-level wrapper names sccache, which only the native path
         # installs below; the lock-regeneration test runs cargo without it.
         # Runs on shard 1 only: one invocation covers the hook suite.
@@ -213,13 +213,19 @@ jobs:
       # and not here. `python-release.yml` owns that crate's verification.
       - name: Native tests
         if: needs.changed_scope.outputs.test_path == 'native'
-        run: cargo nextest run --locked --workspace --exclude coeus-python --exclude coeus-wgpu --partition count:${{ matrix.shard }}/3
+        run: |
+          read -r -a features <<< "$PHYSICAL_UNITS_ARGS"
+          args=(--locked --workspace --exclude coeus-python --exclude coeus-wgpu
+                --partition count:${{ matrix.shard }}/3 "${features[@]}")
+          cargo nextest run --no-run "${args[@]}"
+          timeout 60s cargo nextest run "${args[@]}"
 
-      # Shares the `test` profile compile above, so this costs only its own
-      # doctest binaries. Runs on shard 1 only: one invocation covers them.
+      # Reuse the test-profile build from shard 1 in each feature mode.
       - name: Documentation tests
         if: needs.changed_scope.outputs.test_path == 'native' && matrix.shard == 1
-        run: cargo test --locked --doc --workspace --exclude coeus-python --exclude coeus-wgpu
+        run: |
+          read -r -a features <<< "$PHYSICAL_UNITS_ARGS"
+          cargo test --locked --doc --workspace --exclude coeus-python --exclude coeus-wgpu "${features[@]}"
 
       - name: sccache stats
         if: always() && needs.changed_scope.outputs.test_path == 'native'
@@ -274,3 +280,11 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc --locked --workspace --no-deps
+
+      - name: Clippy with physical-units enabled
+        run: cargo clippy --locked --workspace --all-targets --features coeus-autograd/physical-units -- -D warnings
+
+      - name: Documentation with physical-units enabled
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --locked --workspace --no-deps --features coeus-autograd/physical-units

@@ -437,6 +437,7 @@ dependencies = [
 name = "coeus-autograd"
 version = "0.14.0"
 dependencies = [
+ "aequitas",
  "apollo-fft",
  "coeus-core",
  "coeus-cpu",
@@ -449,6 +450,8 @@ dependencies = [
  "mnemosyne-memory",
  "smallvec",
  "thiserror 2.0.21",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

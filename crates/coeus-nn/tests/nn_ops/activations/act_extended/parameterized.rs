@@ -142,11 +142,7 @@ fn leaky_relu_kink_at_zero_returns_slope() {
     assert_close_slice("leaky_relu_kink_dx", grad.as_slice(), &expected_grad, 1e-12);
 }
 
-// ── Clamp subgradient at x = min and x = max (documented contract parity vs PyTorch) ──
-
-/// PyTorch's `aten::clamp_backward_kernel` returns `1` at both boundaries
-/// `x == min` and `x == max` (the indicator `1_{lo <= x <= hi}` is inclusive
-/// on both ends). Coeus' `ClampNode::backward` must agree at the kink.
+/// Coeus selects the interior slope of one at both clamp endpoints.
 #[test]
 fn clamp_kink_at_boundary_returns_one() {
     let lo = -1.0_f64;
@@ -159,13 +155,13 @@ fn clamp_kink_at_boundary_returns_one() {
     )
     .expect("invariant: test backend operation succeeds");
     let output = coeus_autograd::clamp(&input, lo, hi).expect("invariant: test operation succeeds");
-    // Forward at the boundary is unchanged (clamp(x, x, x) = x).
+    // Clamp leaves a value equal to either bound unchanged.
     assert_close_slice("clamp_kink_out", output.tensor.as_slice(), &data, 1e-12);
     output
         .backward()
         .expect("invariant: valid autograd fixture completes backward");
     let grad = input.grad().expect("clamp requires grad");
-    // Backward at both kink positions must be 1 per PyTorch convention.
+    // Both endpoints select the interior slope.
     let expected_grad = vec![1.0_f64, 1.0_f64];
     assert_close_slice("clamp_kink_dx", grad.as_slice(), &expected_grad, 1e-12);
 }
