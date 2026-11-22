@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [minor] The opt-in `coeus-autograd/physical-units` feature returns
+  dimension-checked gradients for scalar objectives over canonical SI
+  quantities, including affine temperature coordinates. See
+  [ADR 0087](docs/adr/0087-physical-quantity-autodiff.md).
+
 ## [0.14.0] - Aequitas 0.5 provider migration
 
 ### Breaking

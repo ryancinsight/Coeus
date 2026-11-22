@@ -14,6 +14,14 @@ The `M-tensor-stack` milestone closed with its nine exits green at
 proposal is answered, so the repository takes only non-feature items; the open
 items carry no milestone until then.
 
+<a id="coeus-physical-autodiff"></a>
+## COEUS-PHYSICAL-AUTODIFF [minor] [arch] — Preserve physical dimensions through reverse mode
+
+- Status: in verification; priority: correctness; target: next approved minor cohort.
+- Scope: opt-in Rust adapter for one homogeneous input field and one scalar objective.
+- Acceptance: canonical dimension quotient, coordinate chain rule, affine and interval arithmetic, compile-time rejection, independent objectives and feature-off compatibility.
+- Next step: run the workspace gates with physical units enabled and disabled under [ADR 0087](docs/adr/0087-physical-quantity-autodiff.md).
+
 <a id="atlas-coeus-backend-045"></a>
 ## ATLAS-COEUS-BACKEND-045 — Unseal ComputeBackend and unify matmul (residual)
 

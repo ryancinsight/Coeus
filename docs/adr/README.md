@@ -87,3 +87,4 @@
 | [0084](0084-moirai-provider-contract-012.md) | Advance the Moirai provider contract to 0.12.0 | Accepted |
 | [0085](0085-release-scope.md) | Coeus next-major release scope | Proposed |
 | [0086](0086-registry-provider-cohort.md) | Coeus 0.13.0 registry provider cohort | Accepted |
+| [0087](0087-physical-quantity-autodiff.md) | Physical quantities in Coeus automatic differentiation | Accepted |

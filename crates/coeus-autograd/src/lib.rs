@@ -31,6 +31,8 @@ pub mod node;
 pub mod ops;
 /// Named trainable parameter carrier.
 pub mod parameter;
+#[cfg(feature = "physical-units")]
+pub mod physical;
 /// The differentiable variable type.
 pub mod var;
 
