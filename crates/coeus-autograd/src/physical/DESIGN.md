@@ -83,6 +83,7 @@ in the tested coordinates. For `P(V)=C/V` the exact secant at endpoints
 numerical problem. Recover the SI slope using `P₀/V₀` and retain the
 raw-coordinate reproduction.
 
-After approval, run exact workspace feature-on and feature-off gates,
-including Rustdoc, formatting, strict Clippy, clean consumer resolution
-and hosted compatibility tests. Qualify release versions separately.
+Verify each candidate with the workspace feature enabled and disabled.
+Run Rustdoc, formatting, strict Clippy, locked resolution and an API
+comparison against the base revision. Hosted compatibility and clean
+published-consumer resolution belong to release qualification.
