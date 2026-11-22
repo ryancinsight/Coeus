@@ -15,14 +15,6 @@ for the reference and typed boundary.
 Re-open trigger: a change to the default step policy or a requirement for
 physical-coordinate step selection.
 
-## macOS workspace verification baseline
-
-Python framework parity gives the same four failures on main and both
-physical-units settings with CPython 3.13.13, MLX 0.32.4 and PyTorch 2.15.0.
-MLX linear loss exceeds its absolute bound, the MLX `exp2` oracle is absent,
-and two PyTorch clamp tests disagree at the endpoints.
-Re-open trigger: qualification against these Python framework versions.
-
 ## CUDA context creation failure remains unclassified
 
 Consumer run `87532469-ce04-4b9a-8225-f53e7ea000a2` fails in `cuCtxCreate_v2`

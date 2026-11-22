@@ -17,6 +17,10 @@
 - [patch] Verify the documented inclusive clamp subgradient with a
   PyTorch piecewise reference across the scalar clamp convention change.
 
+- [patch] Verify the MLX linear loss with per-element dot-product and
+  mean-square roundoff bounds, and evaluate the MLX base-two exponential
+  reference using its public power operation.
+
 ## [0.14.0] - Aequitas 0.5 provider migration
 
 ### Breaking
