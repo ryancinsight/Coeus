@@ -328,7 +328,9 @@ fn dial_side_handshake_failure_names_the_dialled_peer() {
 
     let peer_listener = std::net::TcpListener::bind(LOOPBACK).unwrap();
     let peer_address = peer_listener.local_addr().unwrap();
-    let acceptor = thread::spawn(move || peer_listener.accept().map(drop));
+    // Keep the peer socket live through dial-side setup. Dropping it here
+    // can close both directions before TCP_NODELAY is set on macOS.
+    let acceptor = thread::spawn(move || peer_listener.accept());
 
     let runtime = TcpMesh::runtime(0).unwrap();
     let listener = TcpMesh::bind(&runtime, 0, LOOPBACK).unwrap();
@@ -342,7 +344,7 @@ fn dial_side_handshake_failure_names_the_dialled_peer() {
         MeshDeadlines::DEFAULT.with_setup(Duration::from_secs(10)),
         dial_with_write_half_closed,
     );
-    acceptor.join().unwrap().unwrap();
+    let (_peer_stream, _) = acceptor.join().unwrap().unwrap();
 
     match outcome {
         Err(TcpMeshError::StreamSetup {

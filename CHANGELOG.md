@@ -9,6 +9,11 @@
   quantities, including affine temperature coordinates. See
   [ADR 0087](docs/adr/0087-physical-quantity-autodiff.md).
 
+### Fixed
+
+- [patch] Keep the remote socket open during the dial-side TCP handshake
+  error test so macOS reaches the intended write failure.
+
 ## [0.14.0] - Aequitas 0.5 provider migration
 
 ### Breaking

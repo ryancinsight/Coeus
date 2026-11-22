@@ -17,18 +17,11 @@ physical-coordinate step selection.
 
 ## macOS workspace verification baseline
 
-On main `4196389a`, the dial-side TCP handshake test fails in 9 of 200
-repetitions on arm64 macOS. Its peer may close before the dialler sets
-`TCP_NODELAY`, so the reported setup step is `NoDelay`. The test expects
-`Handshake`, which runs after that call. The opt-in physical-units
-workspace verification observes the same failure.
-
 Python framework parity gives the same four failures on main and both
 physical-units settings with CPython 3.13.13, MLX 0.32.4 and PyTorch 2.15.0.
 MLX linear loss exceeds its absolute bound, the MLX `exp2` oracle is absent,
 and two PyTorch clamp tests disagree at the endpoints.
-Re-open trigger: qualification of the TCP test on macOS or qualification
-against these Python framework versions.
+Re-open trigger: qualification against these Python framework versions.
 
 ## CUDA context creation failure remains unclassified
 
