@@ -41,7 +41,9 @@ for the proof, accepted operations, failure behavior and verification.
 
 ## Compatibility
 
-The additive API is a candidate for the next approved minor cohort.
+The additive API targets the 0.15.0 Rust CPU cohort under
+[ADR 0086](0086-registry-provider-cohort.md).
 Existing Coeus callers and provider APIs keep their current behavior.
-Verify the shared provider identity and hosted checks before qualification.
+Verify the published API baseline and provider identity using the
+[release checklist](../../checklist.md).
 Domain-specific migrations and Python bindings need their own acceptance.
