@@ -1,5 +1,15 @@
 # Coeus Development Backlog
 
+<a id="coeus-stable-qualification"></a>
+## COEUS-STABLE-QUALIFICATION — coeus stable-release qualification [patch] — todo
+- priority: verification; basis: `cc1961f51f12`.
+- Outcome: Qualify the physical-autodiff cohort and settle the meaning of the local tensor milestone. Follow the [release scope](docs/adr/0083-release-scope.md) and `M-tensor-stack`. See the [proposed decision](docs/adr/0088-external-reference-qualification.md).
+- Representative manifest `coeus-core 0.14.0`. Target 1.0.0. Index coverage at review: 8/15 publish-enabled workspace versions.
+- [ ] [patch] Follow the existing 0.15.0 candidate in [PR #686](https://github.com/ryancinsight/coeus/pull/686). Verify the physical-gradient quotient, affine coordinate chain rule, and feature-off build against released Aequitas, then check the exact package cohort.
+- [ ] [arch] Review the proposed external-oracle protocol alongside accepted ADR 0083 and proposed ADR 0085. Record which additional operations require provider designs before scheduling implementation.
+- [ ] [major] Re-run the nine local tensor exits on a candidate and satisfy the owned Atlas tensor, AD, graph and distributed obligations with reference and native-device evidence. Keep the next-major proposal under its separate approval.
+- [ ] [patch] Attach exact-revision evidence for the local exits and this member’s [Atlas qualification criteria](https://github.com/ryancinsight/atlas/blob/17b0124a7548ad81e817284afc5cb115c1d1bc78/docs/parity/repositories.json).
+
 Open-work queue only. Delivered items are compacted away at the commit/PR that
 closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,

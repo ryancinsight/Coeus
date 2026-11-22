@@ -88,3 +88,4 @@
 | [0085](0085-release-scope.md) | Coeus next-major release scope | Proposed |
 | [0086](0086-registry-provider-cohort.md) | Coeus 0.13.0 registry provider cohort | Accepted |
 | [0087](0087-physical-quantity-autodiff.md) | Physical quantities in Coeus automatic differentiation | Accepted |
+| [0088](0088-external-reference-qualification.md) | Extend external reference qualification for the Atlas stable stack | Proposed |
