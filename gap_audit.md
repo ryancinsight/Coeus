@@ -11,7 +11,8 @@ graph. Its default finite-difference step is also coordinate dependent.
 A 2 L reciprocal pressure model returns the analytical derivative and
 requires model-based normalization for the default numerical check. See
 the [physical autodiff decision](docs/adr/0087-physical-quantity-autodiff.md)
-for the reference and typed boundary.
+for the reference and typed boundary. The opt-in adapter ships in
+0.15.0 and passes fresh Rust 1.95 consumer checks in both feature modes.
 Re-open trigger: a change to the default step policy or a requirement for
 physical-coordinate step selection.
 
