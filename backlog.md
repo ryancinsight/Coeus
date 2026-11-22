@@ -1,5 +1,15 @@
 # Coeus Development Backlog
 
+<a id="coeus-stable-qualification"></a>
+## COEUS-STABLE-QUALIFICATION — coeus stable-release qualification [patch] — todo
+- priority: verification; basis: `0f69d4a812e0`.
+- Outcome: Qualify the physical-autodiff cohort and settle the meaning of the local tensor milestone. Follow the [release scope](docs/adr/0083-release-scope.md) and `M-tensor-stack`. See the [proposed decision](docs/adr/0088-external-reference-qualification.md).
+- Representative manifest `coeus-core 0.15.0`. Target 1.0.0. The current release plan selects eight CPU packages. Seven other publish-enabled workspace packages need separate qualification.
+- [x] [patch] The eight CPU packages are published at 0.15.0. A clean registry consumer verified gradients with physical units enabled and disabled on Rust 1.95. The [release checklist](checklist.md) records archive checksums and the source revision.
+- [ ] [arch] Review the proposed external-oracle protocol alongside accepted ADR 0083 and proposed ADR 0085. Record which additional operations require provider designs before scheduling implementation.
+- [ ] [major] Re-run the nine local tensor exits on a candidate and satisfy the owned Atlas tensor, AD, graph and distributed obligations with reference and native-device evidence. Keep the next-major proposal under its separate approval.
+- [ ] [patch] Attach exact-revision evidence for the local exits and this member’s [Atlas qualification criteria](https://github.com/ryancinsight/atlas/blob/17b0124a7548ad81e817284afc5cb115c1d1bc78/docs/parity/repositories.json).
+
 Open-work queue only. Delivered items are compacted away at the commit/PR that
 closed them (`git log --grep='^Item:'` or the cited PR); this file never
 restates their play-by-play. Priority is one of {correctness, architecture,
@@ -13,15 +23,6 @@ The `M-tensor-stack` milestone closed with its nine exits green at
 [ADR 0085](docs/adr/0085-release-scope.md). No ladder is drafted until that
 proposal is answered, so the repository takes only non-feature items; the open
 items carry no milestone until then.
-
-<a id="coeus-physical-autodiff"></a>
-## COEUS-PHYSICAL-AUTODIFF [minor] [arch] — Preserve physical dimensions through reverse mode
-
-- Status: merged in PR #685; priority: correctness; target: Rust 0.15.0.
-- Scope: opt-in Rust adapter for one homogeneous input field and one scalar objective.
-- Acceptance: canonical dimension quotient, coordinate chain rule, affine and interval arithmetic, compile-time rejection, independent objectives and feature-off compatibility.
-- Evidence: both feature modes pass hosted checks on the merged revision under [ADR 0087](docs/adr/0087-physical-quantity-autodiff.md). The TCP fixture and framework parity regressions have independent fixes.
-- Next step: qualify the candidate using the [0.15.0 release checklist](checklist.md) and review the results before authorizing publication.
 
 <a id="atlas-coeus-backend-045"></a>
 ## ATLAS-COEUS-BACKEND-045 — Unseal ComputeBackend and unify matmul (residual)
