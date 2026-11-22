@@ -32,7 +32,7 @@ eunomia = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
 coeus-nn = { path = "../coeus-nn", default-features = false }
-coeus-cpu = { version = "0.14.0", path = "../coeus-cpu" }
+coeus-cpu = { version = "0.15.0", path = "../coeus-cpu" }
 
 [lints]
 workspace = true

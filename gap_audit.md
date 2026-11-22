@@ -10,7 +10,7 @@ Raw Coeus computes numerical derivatives in the coordinates supplied to its
 graph. Its default finite-difference step is also coordinate dependent.
 A 2 L reciprocal pressure model returns the analytical derivative and
 requires model-based normalization for the default numerical check. See
-the [physical autodiff proposal](docs/adr/0087-physical-quantity-autodiff.md)
+the [physical autodiff decision](docs/adr/0087-physical-quantity-autodiff.md)
 for the reference and typed boundary.
 Re-open trigger: a change to the default step policy or a requirement for
 physical-coordinate step selection.
