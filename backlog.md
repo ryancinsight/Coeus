@@ -136,14 +136,17 @@ items carry no milestone until then.
 - Non-goal: Python binding behavior changes.
 
 <a id="coeus-registry-package-1"></a>
-## COEUS-REGISTRY-PACKAGE-1 — Publish reusable crates through Trusted Publishing
+## COEUS-REGISTRY-PACKAGE-1 [patch] — Qualify automatic publication for coeus-cpu
 
-- Status: blocked; priority: verification; [patch]; owner: root.
-- Blocker: release authority; publication is a non-goal of the 1.0 ladder ([ADR 0083](docs/adr/0083-release-scope.md)). Re-open trigger: the user grants release authority after the milestone closes.
-- Outcome: Coeus's publishable Rust crates (currently all `publish = false` or unset) release to crates.io in dependency order via OIDC trusted publishing.
-- Delivered: Moirai/Mnemosyne/Themis imports bind to their published packages (no `rev =` pin — verified in `Cargo.toml`); the exact external lock graph is refreshed after the Apollo/Hephaestus/Moirai/Mnemosyne merges it depended on.
-- Residual: exact-head provider CI on the release-preparation branch, then publish in dependency order through Trusted Publishing (engineering_gates: publish pipelines).
-- Next step: run the hosted gate on the release branch, then execute the publish sequence.
+- The 0.15.0 release workflow's crates.io token received HTTP 403 when it
+  reached `coeus-cpu`. Publishing that crate from the exact merge revision
+  with the existing Cargo credential unblocked the remaining automatic
+  uploads. The same failure occurred in 0.14.0.
+  [Release run](https://github.com/ryancinsight/Coeus/actions/runs/45060488822)
+- Inspect the `coeus-cpu` Trusted Publisher registration for the
+  `ryancinsight/Coeus` repository, `rust-release.yml` workflow, and
+  `crates-io` environment before the next cohort. Qualify the automatic
+  route on the next authorized release.
 
 <a id="coeus-python-elementwise-dedup"></a>
 ## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
