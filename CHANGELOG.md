@@ -14,6 +14,9 @@
 - [patch] Keep the remote socket open during the dial-side TCP handshake
   error test so macOS reaches the intended write failure.
 
+- [patch] Verify the documented inclusive clamp subgradient with a
+  PyTorch piecewise reference across the scalar clamp convention change.
+
 ## [0.14.0] - Aequitas 0.5 provider migration
 
 ### Breaking
