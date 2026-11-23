@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- [major] The WGPU, CUDA, Metal and ROCm adapters share published Hephaestus Core 0.32.0. Consumers that pass Hephaestus devices or buffers into Coeus must select the matching 0.32 backend and Core crates together.
+
 ## [0.15.0] - Physical quantity autodiff
 
 ### Added

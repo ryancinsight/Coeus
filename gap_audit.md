@@ -1,5 +1,9 @@
 # Coeus Gap Audit
 
+## Verified downstream provider migration
+
+A new external Cargo project resolved the consuming package without a pre-existing lock or provider overrides. Its registry graph includes `hephaestus-core 0.32.0`, `hephaestus-cuda 0.32.0`, `hephaestus-metal 0.32.0`, `hephaestus-rocm 0.32.0`, `hephaestus-wgpu 0.32.0`. The committed lock passes 182 executed tests covering tensor, storage and accelerator execution contracts (0 tests excluded or skipped in that run). The workspace and all targets compile against one published Core. Native Metal device acquisition was required. On this macOS host the ROCm and CUDA device-dependent cases can return after the availability check. The Linux ROCm release checks cover SDK compilation and adapterless behavior. Native AMD and NVIDIA execution remains a separate V1 gate. [Metal release](https://github.com/ryancinsight/hephaestus/releases/tag/crate-hephaestus-metal-v0.32.0) and [ROCm release](https://github.com/ryancinsight/hephaestus/releases/tag/crate-hephaestus-rocm-v0.32.0).
+
 ## Incremental release baseline
 
 Reviewed [coeus-core 0.15.0](crates/coeus-core/Cargo.toml) at [f560da2521b4](https://github.com/ryancinsight/coeus/tree/f560da2521b4bd6be8186db10c7e00b802fcfddf). The exact version appears in the [registry](https://crates.io/crates/coeus-core/0.15.0).

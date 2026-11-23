@@ -32,9 +32,7 @@ keywords = ["tensor", "autodiff", "gpu", "machine-learning", "simd"]
 categories = ["science", "mathematics", "data-structures"]
 
 [workspace.dependencies]
-# First-party providers remain Git-sourced for standalone and CI resolution.
-# The Atlas stack overlay redirects these exact sources to one local checkout
-# during development, so a worktree never creates a second package identity.
+# Cargo.lock records the exact Git revisions for Moirai, Mnemosyne, Hermes and Apollo.
 moirai = { package = "moirai-runtime", git = "https://github.com/ryancinsight/Moirai.git", version = "0.12.0", features = ["melinoe"] }
 moirai-async = { git = "https://github.com/ryancinsight/Moirai.git", version = "0.12.0" }
 # Mnemosyne's current default carries the portable WebAssembly backend.
@@ -44,8 +42,8 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0
 eunomia = { version = "0.12.1", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
 # Keep the Leto source aligned with the current Hephaestus provider graph.
-leto = { git = "https://github.com/ryancinsight/leto.git", version = "0.52.0" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = "0.52.0" }
+leto = { version = "0.52.0" }
+leto-ops = { version = "0.52.0" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.31.0", default-features = false }
 
 # ── Numerical ──
@@ -55,14 +53,13 @@ bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
 # than rustfft or a Coeus-local array dependency.
 smallvec   = "1.13"
 rkyv       = { version = "0.8.17", features = ["bytecheck", "std"] }
-# Accelerator providers remain Git-sourced and lockfile-pinned.
-# Provider-owned fusion is merged; Cargo.lock records the provider revision.
-hephaestus-wgpu = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.30.0" }
-hephaestus-core = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.30.0" }
-hephaestus-cuda = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.30.0", default-features = false }
-hephaestus-rocm = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.30.0" }
-hephaestus-metal = { git = "https://github.com/ryancinsight/hephaestus.git", version = "0.30.0" }
-themis = { package = "themis-topology", git = "https://github.com/ryancinsight/themis.git", version = "0.11.0" }
+# All four accelerator adapters share the published hephaestus-core device traits.
+hephaestus-wgpu = { version = "0.32.0" }
+hephaestus-core = { version = "0.32.0" }
+hephaestus-cuda = { version = "0.32.0", default-features = false }
+hephaestus-rocm = { version = "0.32.0" }
+hephaestus-metal = { version = "0.32.0" }
+themis = { package = "themis-topology", version = "0.11.0" }
 
 # ── Error ──
 thiserror = "2"
