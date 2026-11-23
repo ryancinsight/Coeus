@@ -2,13 +2,15 @@
 
 <a id="coeus-stable-qualification"></a>
 ## COEUS-STABLE-QUALIFICATION — coeus stable-release qualification [patch] — todo
-- priority: verification; basis: `0f69d4a812e0`.
-- Outcome: Qualify the physical-autodiff cohort and settle the meaning of the local tensor milestone. Follow the [release scope](docs/adr/0083-release-scope.md) and `M-tensor-stack`. See the [proposed decision](docs/adr/0088-external-reference-qualification.md).
+- priority: verification; basis: `f560da2521b4`.
+- Outcome: Qualify the physical-autodiff cohort and settle the meaning of the local tensor milestone. Follow the [release scope](docs/adr/0083-release-scope.md) and `M-tensor-stack`. See the [proposed decision](docs/adr/0088-external-reference-qualification.md). Planning targets for `coeus-core` are 0.15.1 if CPU repairs are needed, then 0.16.0 if reviewed additions are needed, then 1.0.0. Verification alone can advance the current version.
 - Representative manifest `coeus-core 0.15.0`. Target 1.0.0. The current release plan selects eight CPU packages. Seven other publish-enabled workspace packages need separate qualification.
 - [x] [patch] The eight CPU packages are published at 0.15.0. A clean registry consumer verified gradients with physical units enabled and disabled on Rust 1.95. The [release checklist](checklist.md) records archive checksums and the source revision.
 - [ ] [arch] Review the proposed external-oracle protocol alongside accepted ADR 0083 and proposed ADR 0085. Record which additional operations require provider designs before scheduling implementation.
 - [ ] [major] Re-run the nine local tensor exits on a candidate and satisfy the owned Atlas tensor, AD, graph and distributed obligations with reference and native-device evidence. Keep the next-major proposal under its separate approval.
-- [ ] [patch] Attach exact-revision evidence for the local exits and this member’s [Atlas qualification criteria](https://github.com/ryancinsight/atlas/blob/17b0124a7548ad81e817284afc5cb115c1d1bc78/docs/parity/repositories.json).
+- [ ] [patch] **0.15.1 if CPU repairs are needed.** Use the released eight-package CPU cohort as the comparator. Re-run the physical-gradient quotient with units enabled and the ordinary gradient with units disabled in a fresh caller. [Source and baseline](gap_audit.md#incremental-release-baseline).
+- [ ] [minor] **0.16.0 if reviewed additions are needed.** After the external-reference decision, select one owned tensor family, map its operators and shapes to the reference, then compare forward values and gradients on each claimed device. Record unsupported routes and the seven separately qualified packages.
+- [ ] [major] **1.0.0-beta.1 → 1.0.0-rc.1 → 1.0.0.** Freeze the supported surface at beta. The nine tensor exits and owned Atlas evidence identify the same candidate and feature graph. A next-major proposal stays with its own decision. Repeat the applicable exits on the exact RC before stable promotion. Attach exact-revision evidence for the local exits and this member’s [Atlas qualification criteria](https://github.com/ryancinsight/atlas/blob/17b0124a7548ad81e817284afc5cb115c1d1bc78/docs/parity/repositories.json).
 
 Open-work queue only. Delivered items are compacted away at the commit/PR that
 closed them (`git log --grep='^Item:'` or the cited PR); this file never

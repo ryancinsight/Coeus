@@ -1,5 +1,11 @@
 # Coeus Gap Audit
 
+## Incremental release baseline
+
+Reviewed [coeus-core 0.15.0](crates/coeus-core/Cargo.toml) at [f560da2521b4](https://github.com/ryancinsight/coeus/tree/f560da2521b4bd6be8186db10c7e00b802fcfddf). The exact version appears in the [registry](https://crates.io/crates/coeus-core/0.15.0).
+
+The next [patch] checkpoint uses [physical units](crates/coeus-autograd/tests/physical_units.rs). [Target version and acceptance criteria](backlog.md#coeus-stable-qualification).
+
 Risks nobody is actively fixing. A risk with a planned fix is a backlog item
 instead (see `backlog.md`); a closed risk's residue lives in its ADR or PR,
 not here.
