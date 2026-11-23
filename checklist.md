@@ -19,3 +19,5 @@ Target: Rust 0.15.0 ([minor], [ADR 0087](docs/adr/0087-physical-quantity-autodif
 | [coeus-autograd](https://crates.io/crates/coeus-autograd/0.15.0) | `c0846877604bc81b0b26279fc48eeb8ea3aae201388db6e88e50eab059c1a23e` |
 | [coeus-nn](https://crates.io/crates/coeus-nn/0.15.0) | `fa954647ed6d853cb907944dc196c4d53e35bfb7eae97046a6d701002edb8962` |
 | [coeus-optim](https://crates.io/crates/coeus-optim/0.15.0) | `6e43f696c8bb8f6dcc169a2e605638df8ad0242de23cd17a94c56e778ad077d8` |
+
+The next CPU compatibility and external-reference checkpoints are on the [versioned stable-release checklist](backlog.md#coeus-stable-qualification).
