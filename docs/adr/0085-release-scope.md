@@ -8,6 +8,8 @@ milestone's nine exits passed at the fetched default commit `7db0beba`, so the
 record proposes the scope that follows it and takes effect when the user
 accepts it; the user's veto redirects the proposal.
 
+- Revised 2026-11-24: the `Scalar` supertrait drop leaves the 2.0.0 scope and is delivered in the 0.x line as a breaking pre-1.0 change, because `Scalar` is sealed (no outside implementor to migrate) and Coeus#695 ships it under Unreleased in the changelog; evidence CHANGELOG.md:5, Cargo.toml:24 (0.15.0) and ADR 0068.
+
 ## Context
 
 Coeus is the Atlas differentiation substrate: strided tensors, kernels,
@@ -42,10 +44,17 @@ Python API beyond the comparison operators.
 The next major is **2.0.0**, and it carries one milestone,
 `M-provider-surface`, whose outcome is a single vendor-neutral provider
 surface: the pool and unfold/fold operations reach the Metal and ROCm
-backends through the `HephaestusProvider` seam instead of per-vendor forks,
-and `coeus_core::Scalar` states its layout contract through Eunomia's marker
-alone. Both parts are breaking changes to public surface, which is what the
+backends through the `HephaestusProvider` seam instead of per-vendor forks.
+That seam change is a breaking change to public surface, which is what the
 major version admits.
+
+The `coeus_core::Scalar` marker change (Eunomia's `Pod` as the only layout
+marker) is not 2.0.0 work. It is delivered in the 0.x line as a breaking
+change, which Cargo treats as incompatible across a 0.x minor bump, and ships
+with the next breaking 0.x version beside the Unreleased Hephaestus 0.32
+change (CHANGELOG.md:5-7). `Scalar` is sealed, so no outside crate implements
+it; the break reaches only generic code that relied on `T: Scalar` implying
+`bytemuck::Pod` ([ADR 0068](0068-coeus-eunomia-device-layout.md)).
 
 The scope of every shipped crate follows. Classification is **delivered** (on
 the default branch, witness given), **in scope** (required before 2.0 and
@@ -100,8 +109,11 @@ items can land in a 2.x minor).
 Each follows the recommended option; the user's veto redirects it.
 
 1. The next major is 2.0.0 with one milestone, `M-provider-surface`, rather
-   than a 1.1 minor: the remaining public-surface changes are breaking, and a
-   milestone must carry a capability a user can exercise end to end.
+   than a 1.1 minor: the provider-seam change is breaking, and a milestone
+   must carry a capability a user can exercise end to end. The `Scalar` marker
+   change is outside this choice: it is already delivered as a breaking 0.x
+   change, and until its release the user can still hold that release or
+   have the change reverted.
 2. The milestone waits for the upstream Hephaestus pool and unfold/fold seam.
    The alternative, forking the kernels into the Metal and ROCm backends
    again, is rejected: it keeps the duplication the item exists to remove.
@@ -110,14 +122,15 @@ Each follows the recommended option; the user's veto redirects it.
 
 ## Alternatives
 
-- Ship the residual convergence as 1.x patches: rejected; the `Scalar`
-  supertrait removal and the provider seam change public surface and need the
-  major version.
+- Ship the residual convergence as 1.x patches: rejected; the provider seam
+  changes public surface and needs the major version.
 - Declare 2.0.0 with no milestone because no capability is missing: rejected;
   a version without an exercised capability gives the ladder nothing to
   check.
-- Fold the `Scalar` marker change into a later major: rejected; it shares the
-  provider-surface theme and the same outside-implementor migration.
+- Hold the `Scalar` marker change for 2.0.0: rejected; `Scalar` is sealed, so
+  no implementor migration exists to batch with the provider seam, and the
+  change reaches only generic code that relied on the implied
+  `bytemuck::Pod` bound.
 
 ## Consequences
 

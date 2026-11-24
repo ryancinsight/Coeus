@@ -16,7 +16,9 @@ use std::ops::Rem;
 ///   `FloatElement`, and integer `f64` conversion on `IntegerTarget`.
 ///   Backend `Scalar` traits must extend—not redeclare—this vocabulary.
 /// - `Rem<Output=Self>` is per-Scalar (not on `NumericElement`).
-/// - Sealed via `eunomia::private::Sealed`.
+/// - Sealed: `NumericElement` and `CpuUnaryDispatch` each require a `Sealed`
+///   trait declared in a crate-private module, so no downstream crate
+///   implements `Scalar`.
 ///
 /// # Examples
 ///
