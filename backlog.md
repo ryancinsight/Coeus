@@ -59,17 +59,6 @@ items carry no milestone until then.
 - Filed with them, each named unread or enforced: step `env` set on the checkout step instead of the test step (F1), key case (F2), a later checkout into the same path (F3), `github-server-url` (F5).
 - Rule: no sentence says the test enforces a case it does not read; each docstring, test name, `ci.yml` and PR sentence is checked against a mutant before it is written.
 
-<a id="coeus-hook-fetch-docstring"></a>
-## COEUS-HOOK-FETCH-DOCSTRING — Reflow and correct the fetch docstring
-
-- Status: todo; priority: verification; [patch]; basis: 3c8b71ae4f14bd94b25d62f6196f3049787b2224.
-- Outcome: the `fetch_atlas_runtime_file` docstring in `scripts/tests/test_hooks.py` reads as reflowed paragraphs, and its redirect claim names both tests that pin it: `test_redirect_to_another_origin_never_receives_the_token` (`:771`) and `test_same_origin_redirect_drops_the_token` (`:785`).
-- Evidence: at the basis `:153` (54 columns) and `:160` (22 columns) end a line mid-sentence and `:172` runs 110 columns. `:166-167` says the token reaches no redirect target and cites one test ("tested for a redirect to another port"); the second test pins the same-origin case.
-- Scope: the docstring only. `:177` (90 columns) is code after the docstring and outside the rule. No file here configures a Python line length (`crates/coeus-python/pyproject.toml` has no formatter section), so 88 columns is this item's rule, the Black and Ruff default (recalled, not a repository setting).
-- Acceptance: from the repository root `python3 -c "import ast;s=open('scripts/tests/test_hooks.py',encoding='utf-8').read();f=next(n for n in ast.walk(ast.parse(s)) if getattr(n,'name','')=='fetch_atlas_runtime_file');d=f.body[0];L=s.splitlines()[d.lineno-1:d.end_lineno];t=' '.join(ast.get_docstring(f).split());bad=[d.lineno+i for i,l in enumerate(L) if len(l)>88 or l.strip() and len(l)<60 and i+1<len(L) and L[i+1].strip().strip(chr(34))];raise SystemExit(bool(bad) or not all(n in t for n in ('test_redirect_to_another_origin_never_receives_the_token','test_same_origin_redirect_drops_the_token')) or 'tested for a redirect to another port' in t)"` exits 0 (`python` where `python3` is absent); at the basis it exits 1. It reads the docstring's source lines through the one holding the closing quotes and fails on: a line above 88 columns; a line under 60 columns followed by another line of the same paragraph (a blank line or a line holding only the closing quotes ends a paragraph); a missing test name or the one-test phrase, both read after whitespace is collapsed. It rejects a textwrap reflow alone, deleting the parenthetical alone, both names beside the old phrase, closing quotes appended to a 103-column last line, and a 20-column line before a final line that ends in the quotes.
-- Needs: none.
-- Next step: reflow the `Raises` and token paragraphs and cite both redirect tests by name.
-
 <a id="coeus-lockfile-test-tempdir"></a>
 ## COEUS-LOCKFILE-TEST-TEMPDIR — Build lockfile fixtures outside the checkout
 
