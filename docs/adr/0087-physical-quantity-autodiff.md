@@ -70,4 +70,4 @@ Target: Rust 0.15.0 ([minor]). The released CPU cohort comes from `0f69d4a812e08
 | [coeus-nn](https://crates.io/crates/coeus-nn/0.15.0) | `fa954647ed6d853cb907944dc196c4d53e35bfb7eae97046a6d701002edb8962` |
 | [coeus-optim](https://crates.io/crates/coeus-optim/0.15.0) | `6e43f696c8bb8f6dcc169a2e605638df8ad0242de23cd17a94c56e778ad077d8` |
 
-The next CPU compatibility and external-reference checkpoints are on the [versioned stable-release checklist](../../backlog.md#coeus-stable-qualification).
+The next CPU compatibility and external-reference checkpoints are on the [stable-release qualification item](../../backlog.md#coeus-stable-qualification).
