@@ -1,22 +1,22 @@
 # Coeus Development Backlog
 
+Open-work queue only. Delivered items are compacted away at the commit/PR that
+closed them (`git log --grep='^Item:'` or the cited PR); this file never
+restates their play-by-play. Priority is one of {correctness, architecture,
+verification, tightening, feature}.
+
 <a id="coeus-stable-qualification"></a>
 ## COEUS-STABLE-QUALIFICATION — coeus stable-release qualification [patch] — todo
 - priority: verification; basis: `f560da2521b4`.
 - Outcome: Qualify the physical-autodiff cohort and settle the meaning of the local tensor milestone. Follow the [release scope](docs/adr/0083-release-scope.md) and `M-tensor-stack`. See the [proposed decision](docs/adr/0088-external-reference-qualification.md). Planning targets for `coeus-core` are 0.15.1 if CPU repairs are needed, then 0.16.0 if reviewed additions are needed, then 1.0.0. Verification alone can advance the current version. Use Hephaestus 0.32.0 for the [verified downstream contract](gap_audit.md#verified-downstream-provider-migration).
 - Representative manifest `coeus-core 0.15.0`. Target 1.0.0. The current release plan selects eight CPU packages. Seven other publish-enabled workspace packages need separate qualification.
-- [x] [patch] The eight CPU packages are published at 0.15.0. A clean registry consumer verified gradients with physical units enabled and disabled on Rust 1.95. The [release checklist](checklist.md) records archive checksums and the source revision.
+- [x] [patch] The eight CPU packages are published at 0.15.0. A clean registry consumer verified gradients with physical units enabled and disabled on Rust 1.95. The [release record](docs/adr/0087-physical-quantity-autodiff.md#release-record) holds archive checksums and the source revision.
 - [ ] [arch] Review the proposed external-oracle protocol alongside accepted ADR 0083 and proposed ADR 0085. Record which additional operations require provider designs before scheduling implementation.
 - [ ] [major] Re-run the nine local tensor exits on a candidate and satisfy the owned Atlas tensor, AD, graph and distributed obligations with reference and native-device evidence. Keep the next-major proposal under its separate approval.
 - [ ] [patch] **0.15.1 if CPU repairs are needed.** Use the released eight-package CPU cohort as the comparator. Re-run the physical-gradient quotient with units enabled and the ordinary gradient with units disabled in a fresh caller. [Source and baseline](gap_audit.md#incremental-release-baseline).
 - [ ] [minor] **0.16.0 if reviewed additions are needed.** After the external-reference decision, select one owned tensor family, map its operators and shapes to the reference, then compare forward values and gradients on each claimed device. Record unsupported routes and the seven separately qualified packages.
 - [x] [patch] Verify Hephaestus 0.32.0 through the real consumer and independent dependency resolution. [Executed coverage](gap_audit.md#verified-downstream-provider-migration).
 - [ ] [major] **1.0.0-beta.1 → 1.0.0-rc.1 → 1.0.0.** Freeze the supported surface at beta. The nine tensor exits and owned Atlas evidence identify the same candidate and feature graph. A next-major proposal stays with its own decision. Repeat the applicable exits on the exact RC before stable promotion. Attach exact-revision evidence for the local exits and this member’s [Atlas qualification criteria](https://github.com/ryancinsight/atlas/blob/17b0124a7548ad81e817284afc5cb115c1d1bc78/docs/parity/repositories.json). Require complete implementations and passing product-path acceptance for all critical features.
-
-Open-work queue only. Delivered items are compacted away at the commit/PR that
-closed them (`git log --grep='^Item:'` or the cited PR); this file never
-restates their play-by-play. Priority is one of {correctness, architecture,
-verification, tightening, feature}.
 
 <a id="milestone-ladder"></a>
 ## Milestone ladder
@@ -46,27 +46,40 @@ items carry no milestone until then.
 - Scope: the supertrait is public surface, so removing it is `[major]` for anyone implementing `Scalar` outside the workspace — check the blast radius first.
 - Next step: enumerate `Scalar` implementors outside the workspace (if any), then land the swap.
 
-<a id="coeus-ci-hook-scope-2026-09-24"></a>
-## COEUS-CI-HOOK-SCOPE-2026-09-24 — Keep hook-only CI within the fast path
-
-- Status: todo; integrator: coeus-hook-ci; priority: verification; [patch].
-- Outcome: hook contract changes always report the required `Tests` status without installing Rust or compiling the workspace; Rust, manifest, lockfile, toolchain, test, and workflow changes retain native and doctest coverage.
-- Scope: `.github/workflows/ci.yml`, `scripts/ci_scope.py`, its value-semantic tests, and this item; non-goal: changing `.githooks/**` or hook behavior.
-- Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
-- Evidence: PR #409 Tests job `107824618717` ended with runner exit 143 after unconditionally entering the 45-minute native job on a hook-only change.
-
 <a id="coeus-hook-runtime-pin-test"></a>
 ## COEUS-HOOK-RUNTIME-PIN-TEST — Test that CI pins one Atlas checkout at the tested revision
 
 - Status: todo; priority: verification; [patch]; basis: 779c14b7.
 - Outcome: a parse-based test of `.github/workflows/ci.yml` fails when the `format` or `tests` job does not hold one Atlas checkout at the revision `scripts/tests/test_hooks.py` pins, with `ATLAS_HOOK_RUNTIME` pointing at it. Its docstring, test name and the `ci.yml` comment state exactly what it enforces and list what it does not read.
-- Needs: COEUS-HOOK-RUNTIME-FETCH (the pinned-checkout CI change).
+- Needs: none.
 - Scope: `scripts/tests/test_hooks.py`, the `ci.yml` comment on `ATLAS_RUNTIME_REVISION`.
 - Prior attempt: `refs/pull/652/head` (178 test lines, three reviewed FAILs, whose witness IDs below are defined in the round 2 and 3 verdict comments on PR #652). No YAML library is imported by any script here and the Format job installs none; its small block-mapping reader failed on the cases below.
 - Acceptance, each a mutant of `ci.yml` alone that the test fails, or a case the docstring and `ci.yml` comment name as unread: step `env` setting the revision name on the checkout step (R5c, T4); a second checkout of `RyanCinsight/atlas`, `${{ github.repository_owner }}/atlas`, or `uses: Actions/checkout` (R4b, R4c, R4d, T6); job `env` by alias (R2b); revision edited, old line kept as a comment, both refs set to another SHA (M6-M8); runtime value, checkout path, runtime removed, second runtime step, tests-job runtime (C1-C4, T3).
 - Block scalars, the round-3 survivors (each AtlasRuntimePinTests-passing at that head): a second atlas checkout with `uses: >-` (N36 format, N36t tests), with a repository expression (N36b, N36bt); `env: >-` and `with: >-` holding an expression that evaluates to a mapping, on the checkout step, the tests-job checkout step and the format job (N37, N37t, N37j, N38). Controls that fail: the one-line forms N37p, N38p.
 - Filed with them, each named unread or enforced: step `env` set on the checkout step instead of the test step (F1), key case (F2), a later checkout into the same path (F3), `github-server-url` (F5).
 - Rule: no sentence says the test enforces a case it does not read; each docstring, test name, `ci.yml` and PR sentence is checked against a mutant before it is written.
+
+<a id="coeus-hook-fetch-docstring"></a>
+## COEUS-HOOK-FETCH-DOCSTRING — Reflow and correct the fetch docstring
+
+- Status: todo; priority: verification; [patch]; basis: 3c8b71ae4f14bd94b25d62f6196f3049787b2224.
+- Outcome: the `fetch_atlas_runtime_file` docstring in `scripts/tests/test_hooks.py` reads as reflowed paragraphs, and its redirect claim names both tests that pin it: `test_redirect_to_another_origin_never_receives_the_token` (`:771`) and `test_same_origin_redirect_drops_the_token` (`:785`).
+- Evidence: at the basis `:153` (54 columns) and `:160` (22 columns) end a line mid-sentence and `:172` runs 110 columns. `:166-167` says the token reaches no redirect target and cites one test ("tested for a redirect to another port"); the second test pins the same-origin case.
+- Scope: the docstring only. `:177` (90 columns) is code after the docstring and outside the rule. No file here configures a Python line length (`crates/coeus-python/pyproject.toml` has no formatter section), so 88 columns is this item's rule, the Black and Ruff default (recalled, not a repository setting).
+- Acceptance: from the repository root `python3 -c "import ast;s=open('scripts/tests/test_hooks.py',encoding='utf-8').read();f=next(n for n in ast.walk(ast.parse(s)) if getattr(n,'name','')=='fetch_atlas_runtime_file');d=f.body[0];L=s.splitlines()[d.lineno-1:d.end_lineno];t=' '.join(ast.get_docstring(f).split());bad=[d.lineno+i for i,l in enumerate(L) if len(l)>88 or l.strip() and len(l)<60 and i+1<len(L) and L[i+1].strip().strip(chr(34))];raise SystemExit(bool(bad) or not all(n in t for n in ('test_redirect_to_another_origin_never_receives_the_token','test_same_origin_redirect_drops_the_token')) or 'tested for a redirect to another port' in t)"` exits 0 (`python` where `python3` is absent); at the basis it exits 1. It reads the docstring's source lines through the one holding the closing quotes and fails on: a line above 88 columns; a line under 60 columns followed by another line of the same paragraph (a blank line or a line holding only the closing quotes ends a paragraph); a missing test name or the one-test phrase, both read after whitespace is collapsed. It rejects a textwrap reflow alone, deleting the parenthetical alone, both names beside the old phrase, closing quotes appended to a 103-column last line, and a 20-column line before a final line that ends in the quotes.
+- Needs: none.
+- Next step: reflow the `Raises` and token paragraphs and cite both redirect tests by name.
+
+<a id="coeus-lockfile-test-tempdir"></a>
+## COEUS-LOCKFILE-TEST-TEMPDIR — Build lockfile fixtures outside the checkout
+
+- Status: todo; priority: verification; [patch]; basis: 3c8b71ae4f14bd94b25d62f6196f3049787b2224.
+- Outcome: the two `scripts/tests/test_lockfile.py` tests that build a git dependency and a local registry create their fixture trees outside the checkout.
+- Evidence: `:72` and `:175` call `tempfile.TemporaryDirectory(dir=Path(__file__).parent)`, so each run writes a git repository, a registry index and an archive under `scripts/tests/`. The `:173-174` comment attributes the full-path need to a libgit2 failure on the shortened Windows profile path "on the CI host"; the only CI step that runs this file is `Lockfile tool contracts` in the `format` job (`ci.yml:99-123`, `python3 -m unittest discover -s scripts/tests -v`, `ubuntu-latest`), so that premise is unreproduced.
+- Scope: those two tests; the `:173-174` comment is corrected to what is reproduced.
+- Acceptance: a committed test in `test_lockfile.py` runs the two build tests with `tempfile.TemporaryDirectory` replaced by a recorder. `setUp` runs as written, including its `cargo generate-lockfile --offline` call, so the test needs cargo like the file's other tests. A call made from a test body (not `setUp`, not another file) records `Path(dir or tempfile.gettempdir()).resolve()` and raises there, before the body's git, registry or cargo calls. The test asserts both roots are recorded and none `is_relative_to` the repository root (`Path(__file__).resolve().parents[2]`). At the basis both roots are `scripts/tests` and the test fails. It runs in the `ci.yml:123` step above.
+- Needs: none.
+- Next step: root both fixtures in the system temp directory, resolved with `Path.resolve()` as `:73` and `:176` do, then add the recorder test.
 
 <a id="coeus-device-test-build-cost"></a>
 ## COEUS-DEVICE-TEST-BUILD-COST — Attribute device test compilation
@@ -141,6 +154,9 @@ items carry no milestone until then.
 <a id="coeus-registry-package-1"></a>
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Qualify automatic publication for coeus-cpu
 
+- Status: blocked; priority: verification; [patch]; owner: unclaimed.
+- Blocker: inspecting the `coeus-cpu` Trusted Publisher registration needs a signed-in crates.io owner of that crate, and the automatic route is qualified only by a release run. Re-open trigger: the owner inspects the registration, or release authority for the next cohort is granted.
+- Evidence: the log of [job 137328612002](https://github.com/ryancinsight/Coeus/actions/runs/45060488822/job/137328612002) reads ``the remote server responded with an error (status 403 Forbidden): The provided access token is not valid for crate `coeus-cpu` ``. The 0.14.0 log is not read.
 - The 0.15.0 release workflow's crates.io token received HTTP 403 when it
   reached `coeus-cpu`. Publishing that crate from the exact merge revision
   with the existing Cargo credential unblocked the remaining automatic
