@@ -31,9 +31,6 @@ delivered areas:
   vendor crate until the upstream seam lands.
 - `COEUS-ACCELERATOR-PADOPS-ADOPTION`: the same upstream seam, reached
   through the pad-ops contract.
-- `COEUS-BYTEMUCK-RESIDUE`: `coeus_core::Scalar` carries both `bytemuck::Pod`
-  and Eunomia's `Pod`; removing the bytemuck supertrait changes public surface
-  and is a breaking change for outside implementors.
 - The remaining items are verification, architecture and tightening work with
   no user-visible capability gap.
 
@@ -60,7 +57,7 @@ items can land in a 2.x minor).
 | Package | Area | Status | Witness |
 | --- | --- | --- | --- |
 | `coeus-core` | `Scalar`/`Float`, strided `Layout`, `Storage`, `ComputeBackend`, sequential and Moirai CPU backends | delivered | `src/{dtype,layout,storage,backend}` |
-| `coeus-core` | `Scalar` supertrait set reduced to Eunomia's marker | in scope | `M-provider-surface`; item `COEUS-BYTEMUCK-RESIDUE` |
+| `coeus-core` | `Scalar` supertrait set reduced to Eunomia's marker | delivered | `src/dtype/traits/scalar.rs`; [ADR 0068](0068-coeus-eunomia-device-layout.md) |
 | `coeus-tensor` | `Tensor<T, B>` with copy-on-write, views, broadcasting, rkyv checkpointing | delivered | `src/{tensor,views,broadcast,checkpoint}.rs` |
 | `coeus-ops` | elementwise, matmul, reductions, convolution, pooling, embedding, interpolation, attention, fused expressions | delivered | `src/{unary,binary,matmul,reduction,fuse}`; exit `book_matmul` |
 | `coeus-autograd` | tape-based reverse mode over `Var<T, B>`, gradcheck harness | delivered | `src/{var,backward,node,gradcheck}.rs` |

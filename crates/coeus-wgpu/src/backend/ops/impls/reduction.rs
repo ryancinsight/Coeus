@@ -12,7 +12,6 @@ where
     T: WgpuScalar
         + leto_ops::Scalar
         + DialectScalar<Wgsl>
-        + bytemuck::Pod
         + OpIdentity<SumOp>
         + IdentityToken<SumOp, Wgsl>
         + OpIdentity<ProdOp>
@@ -33,7 +32,7 @@ where
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
 unsafe impl<T> coeus_ops::ReductionOps<T> for WgpuBackend
 where
-    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl> + bytemuck::Pod,
+    T: WgpuScalar + leto_ops::Scalar + DialectScalar<Wgsl>,
     WgpuBackend: ReductionProvider<T>,
 {
     #[inline]

@@ -37,15 +37,6 @@ items carry no milestone until then.
 - Residual 3: `cargo semver-checks` reports a pre-existing major break in `coeus-accelerator` against the published 0.10.0 baseline (five associated types added since publish) — needs a version decision before the next release; unrelated to this item's own change.
 - Links: [ADR 0066](adr/0066-computebackend-unseal-matmul.md).
 
-<a id="coeus-bytemuck-residue"></a>
-## COEUS-BYTEMUCK-RESIDUE — one concept, two markers
-
-- Status: todo; priority: architecture; [patch].
-- Finding: `coeus_core::Scalar` carries both `bytemuck::Pod` and Eunomia's `Pod` as supertraits. Eunomia is the stack's datatype law and owns this concept; bytemuck is retained only because `Scalar::has_zero_bit_pattern`'s default body calls `bytemuck::bytes_of`.
-- Acceptance: move that body to `eunomia::layout::bytes_of` and drop the bytemuck supertrait, so one marker states the contract.
-- Scope: the supertrait is public surface, so removing it is `[major]` for anyone implementing `Scalar` outside the workspace — check the blast radius first.
-- Next step: enumerate `Scalar` implementors outside the workspace (if any), then land the swap.
-
 <a id="coeus-hook-runtime-pin-test"></a>
 ## COEUS-HOOK-RUNTIME-PIN-TEST — Test that CI pins one Atlas checkout at the tested revision
 
