@@ -47,7 +47,6 @@ leto-ops = { version = "0.52.0" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.31.0", default-features = false }
 
 # ── Numerical ──
-bytemuck   = { version = "1.13", features = ["derive", "extern_crate_std"] }
 # ndarray is intentionally absent: coeus implements its own tensor/array stack
 # (coeus-tensor). FFT integration routes through Atlas-owned Apollo APIs rather
 # than rustfft or a Coeus-local array dependency.

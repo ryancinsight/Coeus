@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [major] `coeus_core::Scalar` no longer extends `bytemuck::Pod`; Eunomia's `Pod` is its only layout marker, and the workspace drops its `bytemuck` dependency. `Scalar` is sealed, so no downstream crate implements it. The next breaking 0.x release carries the break. Generic code that passes `T: Scalar` to a `bytemuck::Pod`-bounded API adds `T: bytemuck::Pod` beside it, since every shipped scalar still implements it. Code that took byte views through the implied bound uses `eunomia::layout` (`bytes_of`, `cast_slice`, `pod_read_unaligned`) with a direct `eunomia` dependency compatible with 0.12.1, because `coeus_core` re-exports neither `eunomia::Pod` nor `eunomia::layout`; `bytemuck::pod_collect_to_vec` has no Eunomia counterpart, so decode with `chunks_exact(size_of::<T>())` mapped through `pod_read_unaligned`. See [ADR 0068](docs/adr/0068-coeus-eunomia-device-layout.md).
+
 - [major] The WGPU, CUDA, Metal and ROCm adapters share published Hephaestus Core 0.32.0. Consumers that pass Hephaestus devices or buffers into Coeus must select the matching 0.32 backend and Core crates together.
 
 ## [0.15.0] - Physical quantity autodiff

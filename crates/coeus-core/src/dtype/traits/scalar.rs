@@ -1,15 +1,14 @@
 use super::CpuUnaryDispatch;
-use bytemuck::Pod;
-use eunomia::{NumericElement, Pod as EunomiaPod};
+use eunomia::{NumericElement, Pod};
 use std::ops::Rem;
 
 /// Base numeric trait for all tensor element types.
 ///
 /// # Safety / Design
-/// - `Pod` enables zero-copy byte transmutation (bytemuck).
-/// - `EunomiaPod` is the canonical device-buffer layout contract consumed by
-///   Hephaestus; keeping it on `Scalar` prevents backend seams from accepting
-///   a host-only numeric type that cannot cross a device boundary.
+/// - `Pod` is Eunomia's byte-layout contract: it enables zero-copy host byte
+///   transmutation and is the device-buffer layout Hephaestus consumes, so a
+///   backend seam cannot accept a numeric type that cannot cross a device
+///   boundary.
 /// - `NumericElement` is the eunomia SSOT element vocabulary (constants
 ///   `ZERO`/`ONE`/etc., `abs`/`sqrt`/`is_finite`/`is_nan`/`to_f64`/
 ///   `try_from_count`, plus `Add`/`Sub`/`Mul`/`Div`/`Assigns`/`Copy`/`Send`/`Sync`/
@@ -17,7 +16,9 @@ use std::ops::Rem;
 ///   `FloatElement`, and integer `f64` conversion on `IntegerTarget`.
 ///   Backend `Scalar` traits must extend—not redeclare—this vocabulary.
 /// - `Rem<Output=Self>` is per-Scalar (not on `NumericElement`).
-/// - Sealed via `eunomia::private::Sealed`.
+/// - Sealed: `NumericElement` and `CpuUnaryDispatch` each require a `Sealed`
+///   trait declared in a crate-private module, so no downstream crate
+///   implements `Scalar`.
 ///
 /// # Examples
 ///
@@ -39,16 +40,16 @@ use std::ops::Rem;
 /// f32::axpy_slice(2.0, &a, &mut acc);
 /// assert_eq!(acc, [12.0, 14.0, 16.0]); // 10 + 2*[1,2,3]
 /// ```
-pub trait Scalar:
-    NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem<Output = Self> + Clone
-{
+pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output = Self> + Clone {
     /// Return whether every byte in this value's representation is zero.
     ///
     /// Accelerator fills use this representation-level predicate to select a
     /// byte-clear operation without changing signed-zero or NaN payload bits.
     #[inline]
     fn has_zero_bit_pattern(&self) -> bool {
-        bytemuck::bytes_of(self).iter().all(|&byte| byte == 0)
+        eunomia::layout::bytes_of(self)
+            .iter()
+            .all(|&byte| byte == 0)
     }
 
     /// Scalar square root.

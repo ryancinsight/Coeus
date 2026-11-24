@@ -18,7 +18,6 @@ coeus-ops    = { workspace = true, default-features = false }
 coeus-accelerator = { workspace = true }
 leto         = { workspace = true }
 leto-ops     = { workspace = true }
-bytemuck     = { workspace = true }
 thiserror    = { workspace = true }
 eunomia     = { workspace = true }
 hephaestus-cuda = { workspace = true }

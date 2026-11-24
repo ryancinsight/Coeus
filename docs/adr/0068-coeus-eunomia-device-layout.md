@@ -1,8 +1,10 @@
 # ADR 0068: Bind Coeus scalar storage to Eunomia device layout
 
-Status: Accepted (retroactive)
+Status: Accepted
 
-Date: 2026-09-03
+Date: 2026-09-03 (recorded retroactively as built)
+
+- Revised 2026-11-24: `Scalar` drops its `bytemuck::Pod` supertrait, leaving Eunomia's `Pod` as its only layout marker, because a second marker stated one contract twice and every host byte view has an `eunomia::layout` form; evidence Coeus#695, item `COEUS-BYTEMUCK-RESIDUE`, and `git grep -n bytemuck` matching only Cargo.lock outside Markdown.
 
 Board item: `COEUS-SEMVER-BUDGET-IDENTITY-2026-09-03`
 
@@ -16,18 +18,37 @@ family boundary when Coeus was resolved against Hephaestus revision `076fe32`:
 elementwise, reductions, scans, convolution, matmul, pooling, random
 initialization, rotate-half, and sliding-window dispatch.
 
-The two marker traits describe related but distinct contracts. `bytemuck::Pod`
-remains the host and existing Coeus byte-layout contract; Eunomia's `Pod` is
-the first-party device-layout contract. Keeping both on the scalar seam makes
-the cross-device invariant explicit without a conversion wrapper or a
-backend-specific implementation.
+Eunomia's `Pod` and `layout` module own the stack's byte-layout vocabulary
+(`bytes_of`, `cast_slice`, `pod_read_unaligned`), so the host byte views Coeus
+needs are expressible through the same marker the provider boundary requires.
+A second marker adds no information: every shipped scalar satisfies both, and
+the only host use of `bytemuck` was `Scalar::has_zero_bit_pattern` plus the
+checkpoint payload casts.
 
 ## Decision
 
-Extend the sealed `coeus_core::Scalar` trait with `eunomia::Pod`. All shipped
-scalar implementations already satisfy the Eunomia marker, so the change
-preserves the available scalar set while making device-buffer validity a
-compile-time property of the canonical numeric seam.
+Extend the sealed `coeus_core::Scalar` trait with `eunomia::Pod` as its only
+layout marker. All shipped scalar implementations already satisfy the Eunomia
+marker, so the change preserves the available scalar set while making
+device-buffer validity a compile-time property of the canonical numeric seam.
+Host byte views (`Scalar::has_zero_bit_pattern`, checkpoint encode and decode)
+use `eunomia::layout`. `Scalar` is sealed: its supertraits `NumericElement`
+(Eunomia) and `CpuUnaryDispatch` (coeus-core) each require a `Sealed` trait
+declared in a crate-private `private` module, which no downstream crate can
+name, so no downstream crate implements `Scalar`. The only source break is
+for code that relied on `T: Scalar` implying `bytemuck::Pod`.
+
+Migration for that code, carried by the next breaking 0.x release:
+
+- Add `T: bytemuck::Pod` beside `T: Scalar` where `T` reaches a
+  `bytemuck::Pod`-bounded API; every shipped scalar still implements it.
+- Take byte views through `eunomia::layout` (`bytes_of`, `cast_slice`,
+  `pod_read_unaligned`) with a direct `eunomia` dependency compatible with
+  0.12.1; `coeus_core` re-exports neither `eunomia::Pod` nor
+  `eunomia::layout`.
+- `bytemuck::pod_collect_to_vec` has no Eunomia counterpart; decode with
+  `chunks_exact(size_of::<T>())` mapped through `pod_read_unaligned`, as
+  checkpoint decode does.
 
 Use Eunomia's native layout functions in Hephaestus test buffers. Do not
 reinterpret Eunomia layout values through a second marker vocabulary in the
@@ -44,14 +65,19 @@ families that receive Coeus scalars.
 - Add a downstream adapter from bytemuck to Eunomia: rejected because the
   marker traits are unsafe layout contracts, not runtime-convertible values;
   an adapter would hide the missing proof and duplicate the provider seam.
+- Retain `bytemuck::Pod` as a second `Scalar` supertrait: rejected because
+  Eunomia owns the datatype law, `bytes_of` and `cast_slice` have
+  `eunomia::layout` forms, and checkpoint decode replaces
+  `pod_collect_to_vec` with per-element `pod_read_unaligned`; two markers
+  state one contract twice.
 - Change Hephaestus back to bytemuck: rejected because Eunomia owns the Atlas
   numeric and device-layout vocabulary and the provider contract already uses
   it.
 
 ## Invariants
 
-- Every `Scalar` value used by the Hephaestus bridge satisfies both the host
-  byte-layout and first-party device-layout contracts.
+- Every `Scalar` value used by the Hephaestus bridge satisfies Eunomia's
+  `Pod`, the one marker for host byte views and first-party device layout.
 - Provider dispatch remains generic and monomorphized; no trait object,
   conversion buffer, host round trip, or fallback path is introduced.
 - Device COW detachment remains an on-device copy and does not add a download.

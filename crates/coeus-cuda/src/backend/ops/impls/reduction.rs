@@ -11,7 +11,6 @@ unsafe impl<T> ReductionProvider<T> for CudaBackend
 where
     T: CudaScalar
         + DialectScalar<CudaC>
-        + bytemuck::Pod
         + OpIdentity<SumOp>
         + IdentityToken<SumOp, CudaC>
         + OpIdentity<ProdOp>
@@ -32,7 +31,7 @@ where
 // SAFETY: Overwrite methods initialize every logical output on success; accumulation methods require initialized outputs.
 unsafe impl<T> coeus_ops::ReductionOps<T> for CudaBackend
 where
-    T: CudaScalar + DialectScalar<CudaC> + bytemuck::Pod,
+    T: CudaScalar + DialectScalar<CudaC>,
     CudaBackend: ReductionProvider<T>,
 {
     #[inline]

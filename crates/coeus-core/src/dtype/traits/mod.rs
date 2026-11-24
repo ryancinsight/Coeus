@@ -2,12 +2,11 @@
 // Sealed trait hierarchy for numeric scalar types used in tensors.
 //
 // Design notes:
-// - `Scalar` is the base: Copy + bytemuck::Pod + eunomia::Pod + Send + Sync +
-//   'static
+// - `Scalar` is the base: Copy + eunomia::Pod + Send + Sync + 'static
 // - `Float` extends Scalar with transcendental and rounding ops
 // - `Int` extends Scalar with bitwise and modular ops
 // - All traits are sealed (private Sealed supertrait) for monomorphization
-// - bytemuck::Pod and eunomia::Pod guarantee safe host/device byte layouts
+// - eunomia::Pod guarantees safe host/device byte layouts
 
 mod cpu_dispatch;
 mod float;

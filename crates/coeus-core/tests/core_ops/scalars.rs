@@ -8,3 +8,5 @@ mod scalar_dot_scale;
 mod scalar_index_conversion;
 #[path = "scalars/scalar_total_ops.rs"]
 mod scalar_total_ops;
+#[path = "scalars/scalar_zero_bit_pattern.rs"]
+mod scalar_zero_bit_pattern;
