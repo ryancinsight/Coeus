@@ -147,15 +147,6 @@ items carry no milestone until then.
   `crates-io` environment before the next cohort. Qualify the automatic
   route on the next authorized release.
 
-<a id="coeus-python-elementwise-dedup"></a>
-## COEUS-PYTHON-ELEMENTWISE-DEDUP — Consolidate duplicated Python elementwise bindings
-
-- Status: todo; priority: tightening; [patch]; owner: unclaimed.
-- Outcome: one generic entry point for elementwise op bindings instead of 28 duplicated wrappers.
-- Scope: `coeus-python/src/ops/elementwise.rs` vs `pytensor.rs`.
-- Acceptance: one shared dispatch path; binding-level pytest suite still passes.
-- Next step: extract the common per-op call pattern into a macro or generic helper (pytensor.rs is already the split target: 933 lines, see COEUS-OVERSIZED-FILES).
-
 <a id="coeus-oversized-files"></a>
 ## COEUS-OVERSIZED-FILES — Split files past the 500-line target
 
