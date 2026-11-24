@@ -144,34 +144,33 @@ def fetch_atlas_runtime_file(
 ) -> bytes:
     """Fetch one runtime file at `ATLAS_RUNTIME_REVISION`.
 
-    Hosted CI checks the pinned revision out and never calls this. A local run
-    reaches the hosting API, which admits 60 unauthenticated requests per hour
-    per client address; a token raises the quota.
+    Hosted CI checks the pinned revision out and never calls this. A local run reaches
+    the hosting API, which admits 60 unauthenticated requests per hour per client
+    address; a token raises the quota.
 
-    Raises `AtlasRuntimeFetchError` naming file, revision and authentication
-    state for: a token an HTTP header cannot carry, whose message also names
-    the variable that held it (before any request); an
-    HTTP status; an `OSError`; an `http.client.HTTPException`; a `ValueError`
-    (malformed redirect `Location`, a body above `ATLAS_RUNTIME_MAX_BYTES`, a
-    redirect `urllib` followed to a non-HTTP(S) URL such as ftp, refused
-    unread). Other exceptions propagate. A malformed redirect `Location`
-    leaves no socket open: `urllib` abandons the first-hop response, which
-    the fetch closes through the exception's traceback. The body is read in
-    64 KiB steps, so a
-    declared length or chunk size never sizes a read: five oversized witnesses
-    raise `OverflowError` or `MemoryError` from an unbounded read on CPython
+    Raises `AtlasRuntimeFetchError` naming file, revision and authentication state for:
+    a token an HTTP header cannot carry, whose message also names the variable that held
+    it (before any request); an HTTP status; an `OSError`; an
+    `http.client.HTTPException`; a `ValueError` (malformed redirect `Location`, a body
+    above `ATLAS_RUNTIME_MAX_BYTES`, a redirect `urllib` followed to a non-HTTP(S) URL
+    such as ftp, refused unread). Other exceptions propagate. A malformed redirect
+    `Location` leaves no socket open: `urllib` abandons the first-hop response, which
+    the fetch closes through the exception's traceback. The body is read in 64 KiB
+    steps, so a declared length or chunk size never sizes a read: five oversized
+    witnesses raise `OverflowError` or `MemoryError` from an unbounded read on CPython
     3.13.3.
 
-    The token is validated first, so no `http.client` header error echoes it,
-    and is an unredirected header: `urllib` copies it to no redirect target
-    (tested for a redirect to another port). With a token set the message
-    carries no text the server chose: it names file, revision, authentication
-    state and the failure kind (the exception type name, or `HTTP` and the
-    status code). `__cause__` is the original `ValueError`, scrubbed of its
-    arguments, notes and chain, when the failure is exactly a `ValueError`, and
-    `None` otherwise; its traceback names code lines only. Without a token the message carries the server text
-    and the original cause. Not held: the traceback's frame locals hold the
-    token, which a local-variable dump shows.
+    The token is validated first, so no `http.client` header error echoes it, and is an
+    unredirected header: `urllib` copies it to no redirect target.
+    `test_redirect_to_another_origin_never_receives_the_token` pins a redirect to
+    another port and `test_same_origin_redirect_drops_the_token` a redirect to a path on
+    the same origin. With a token set the message carries no text the server chose: it
+    names file, revision, authentication state and the failure kind (the exception type
+    name, or `HTTP` and the status code). `__cause__` is the original `ValueError`,
+    scrubbed of its arguments, notes and chain, when the failure is exactly a
+    `ValueError`, and `None` otherwise; its traceback names code lines only. Without a
+    token the message carries the server text and the original cause. Not held: the
+    traceback's frame locals hold the token, which a local-variable dump shows.
     """
 
     state = "authenticated" if token is not None else "unauthenticated (set GITHUB_TOKEN)"
