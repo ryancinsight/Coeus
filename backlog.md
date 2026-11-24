@@ -46,27 +46,40 @@ items carry no milestone until then.
 - Scope: the supertrait is public surface, so removing it is `[major]` for anyone implementing `Scalar` outside the workspace — check the blast radius first.
 - Next step: enumerate `Scalar` implementors outside the workspace (if any), then land the swap.
 
-<a id="coeus-ci-hook-scope-2026-09-24"></a>
-## COEUS-CI-HOOK-SCOPE-2026-09-24 — Keep hook-only CI within the fast path
-
-- Status: todo; integrator: coeus-hook-ci; priority: verification; [patch].
-- Outcome: hook contract changes always report the required `Tests` status without installing Rust or compiling the workspace; Rust, manifest, lockfile, toolchain, test, and workflow changes retain native and doctest coverage.
-- Scope: `.github/workflows/ci.yml`, `scripts/ci_scope.py`, its value-semantic tests, and this item; non-goal: changing `.githooks/**` or hook behavior.
-- Acceptance: hook-only, mixed, and native selections are tested; the hook path runs existing hook-contract tests; native path keeps both Nextest and doctests.
-- Evidence: PR #409 Tests job `107824618717` ended with runner exit 143 after unconditionally entering the 45-minute native job on a hook-only change.
-
 <a id="coeus-hook-runtime-pin-test"></a>
 ## COEUS-HOOK-RUNTIME-PIN-TEST — Test that CI pins one Atlas checkout at the tested revision
 
 - Status: todo; priority: verification; [patch]; basis: 779c14b7.
 - Outcome: a parse-based test of `.github/workflows/ci.yml` fails when the `format` or `tests` job does not hold one Atlas checkout at the revision `scripts/tests/test_hooks.py` pins, with `ATLAS_HOOK_RUNTIME` pointing at it. Its docstring, test name and the `ci.yml` comment state exactly what it enforces and list what it does not read.
-- Needs: COEUS-HOOK-RUNTIME-FETCH (the pinned-checkout CI change).
+- Needs: none.
 - Scope: `scripts/tests/test_hooks.py`, the `ci.yml` comment on `ATLAS_RUNTIME_REVISION`.
 - Prior attempt: `refs/pull/652/head` (178 test lines, three reviewed FAILs, whose witness IDs below are defined in the round 2 and 3 verdict comments on PR #652). No YAML library is imported by any script here and the Format job installs none; its small block-mapping reader failed on the cases below.
 - Acceptance, each a mutant of `ci.yml` alone that the test fails, or a case the docstring and `ci.yml` comment name as unread: step `env` setting the revision name on the checkout step (R5c, T4); a second checkout of `RyanCinsight/atlas`, `${{ github.repository_owner }}/atlas`, or `uses: Actions/checkout` (R4b, R4c, R4d, T6); job `env` by alias (R2b); revision edited, old line kept as a comment, both refs set to another SHA (M6-M8); runtime value, checkout path, runtime removed, second runtime step, tests-job runtime (C1-C4, T3).
 - Block scalars, the round-3 survivors (each AtlasRuntimePinTests-passing at that head): a second atlas checkout with `uses: >-` (N36 format, N36t tests), with a repository expression (N36b, N36bt); `env: >-` and `with: >-` holding an expression that evaluates to a mapping, on the checkout step, the tests-job checkout step and the format job (N37, N37t, N37j, N38). Controls that fail: the one-line forms N37p, N38p.
 - Filed with them, each named unread or enforced: step `env` set on the checkout step instead of the test step (F1), key case (F2), a later checkout into the same path (F3), `github-server-url` (F5).
 - Rule: no sentence says the test enforces a case it does not read; each docstring, test name, `ci.yml` and PR sentence is checked against a mutant before it is written.
+
+<a id="coeus-hook-fetch-docstring"></a>
+## COEUS-HOOK-FETCH-DOCSTRING — Reflow and correct the fetch docstring
+
+- Status: todo; priority: verification; [patch]; basis: 3c8b71ae4f14bd94b25d62f6196f3049787b2224.
+- Outcome: the `fetch_atlas_runtime_file` docstring in `scripts/tests/test_hooks.py` reads as reflowed paragraphs, and its redirect claim names every redirect case the suite pins.
+- Evidence: at the basis `:153` (54 columns) and `:160` (22 columns) end a line mid-sentence and `:172` runs 110 columns. `:166-167` says the token reaches no redirect target and cites one test ("tested for a redirect to another port"); `test_same_origin_redirect_drops_the_token` (`:785`) also pins the same-origin case beside `test_redirect_to_another_origin_never_receives_the_token` (`:771`).
+- Scope: the docstring of `fetch_atlas_runtime_file` only; no behavior change.
+- Acceptance: a docstring-shape check over that function (no line above 88 columns, no line under 60 columns that is followed by another line of its paragraph) exits 0, and `grep -c 'tested for a redirect to another port' scripts/tests/test_hooks.py` prints 0. At the basis the check exits 1 and lists `:153`, `:160`, `:172`, and the count is 1.
+- Needs: none.
+- Next step: reflow the `Raises` and token paragraphs and cite both redirect tests by name.
+
+<a id="coeus-lockfile-test-tempdir"></a>
+## COEUS-LOCKFILE-TEST-TEMPDIR — Build lockfile fixtures outside the checkout
+
+- Status: todo; priority: verification; [patch]; basis: 3c8b71ae4f14bd94b25d62f6196f3049787b2224.
+- Outcome: the two `scripts/tests/test_lockfile.py` tests that build a git dependency and a local registry create their fixture trees outside the checkout, at a long-form path.
+- Evidence: `:72` and `:175` call `tempfile.TemporaryDirectory(dir=Path(__file__).parent)`, so each run writes a git repository, a registry index and an archive under `scripts/tests/`. `:173-174` gives a reason for `:175` only (libgit2 cannot initialize a registry cache through the shortened Windows profile path on the CI host); `:72` gives none. That a deep checkout path then exceeds MAX_PATH is not reproduced.
+- Scope: those two tests; the `:173-174` constraint stays.
+- Acceptance: `grep -c 'dir=Path(__file__)' scripts/tests/test_lockfile.py` prints 0 (2 at the basis), and `python3 -B -m unittest scripts.tests.test_lockfile` passes on the Windows CI host.
+- Needs: none.
+- Next step: root both fixtures in a temp directory resolved to its long form, replace the one-sided comment with the shared reason, and run both tests on the CI host.
 
 <a id="coeus-device-test-build-cost"></a>
 ## COEUS-DEVICE-TEST-BUILD-COST — Attribute device test compilation
