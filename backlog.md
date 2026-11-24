@@ -5,7 +5,7 @@
 - priority: verification; basis: `f560da2521b4`.
 - Outcome: Qualify the physical-autodiff cohort and settle the meaning of the local tensor milestone. Follow the [release scope](docs/adr/0083-release-scope.md) and `M-tensor-stack`. See the [proposed decision](docs/adr/0088-external-reference-qualification.md). Planning targets for `coeus-core` are 0.15.1 if CPU repairs are needed, then 0.16.0 if reviewed additions are needed, then 1.0.0. Verification alone can advance the current version. Use Hephaestus 0.32.0 for the [verified downstream contract](gap_audit.md#verified-downstream-provider-migration).
 - Representative manifest `coeus-core 0.15.0`. Target 1.0.0. The current release plan selects eight CPU packages. Seven other publish-enabled workspace packages need separate qualification.
-- [x] [patch] The eight CPU packages are published at 0.15.0. A clean registry consumer verified gradients with physical units enabled and disabled on Rust 1.95. The [release checklist](checklist.md) records archive checksums and the source revision.
+- [x] [patch] The eight CPU packages are published at 0.15.0. A clean registry consumer verified gradients with physical units enabled and disabled on Rust 1.95. The [release record](docs/adr/0087-physical-quantity-autodiff.md#release-record) holds archive checksums and the source revision.
 - [ ] [arch] Review the proposed external-oracle protocol alongside accepted ADR 0083 and proposed ADR 0085. Record which additional operations require provider designs before scheduling implementation.
 - [ ] [major] Re-run the nine local tensor exits on a candidate and satisfy the owned Atlas tensor, AD, graph and distributed obligations with reference and native-device evidence. Keep the next-major proposal under its separate approval.
 - [ ] [patch] **0.15.1 if CPU repairs are needed.** Use the released eight-package CPU cohort as the comparator. Re-run the physical-gradient quotient with units enabled and the ordinary gradient with units disabled in a fresh caller. [Source and baseline](gap_audit.md#incremental-release-baseline).
@@ -141,6 +141,8 @@ items carry no milestone until then.
 <a id="coeus-registry-package-1"></a>
 ## COEUS-REGISTRY-PACKAGE-1 [patch] — Qualify automatic publication for coeus-cpu
 
+- Status: blocked; priority: verification; [patch]; owner: unclaimed.
+- Blocker: inspecting the `coeus-cpu` Trusted Publisher registration needs a signed-in crates.io owner of that crate, and the automatic route is qualified only by a release run. Re-open trigger: the owner inspects the registration, or release authority for the next cohort is granted.
 - The 0.15.0 release workflow's crates.io token received HTTP 403 when it
   reached `coeus-cpu`. Publishing that crate from the exact merge revision
   with the existing Cargo credential unblocked the remaining automatic
