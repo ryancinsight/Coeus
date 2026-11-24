@@ -246,3 +246,30 @@ assert (t - u).data == [2.0, -3.0, 2.0, -2.0, -9.0, -5.5]
 "#,
     );
 }
+
+#[test]
+fn test_generated_unary_free_and_method_bindings() {
+    run_script(
+        r#"
+import pycoeus
+
+groups = [
+    ([
+        "exp", "log", "erf", "erfc", "tan", "atan", "asinh", "expm1",
+        "log1p", "sinh", "cosh", "log2", "log10", "exp2", "abs", "sqrt",
+        "recip", "sign", "floor", "ceil", "round", "trunc", "sin", "cos",
+    ], [0.5, 1.0, 2.0, 3.0]),
+    (["asin", "acos", "atanh"], [0.25, 0.5, 0.75]),
+    (["acosh"], [1.25, 2.0, 3.0]),
+]
+
+for names, values in groups:
+    tensor = pycoeus.Tensor(values, [len(values)])
+    for name in names:
+        from_module = getattr(pycoeus, name)(tensor).data
+        from_method = getattr(tensor, name)().data
+        assert len(from_module) == len(values), name
+        assert from_module == from_method, name
+"#,
+    );
+}
