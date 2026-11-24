@@ -43,9 +43,10 @@ hermes-simd = { git = "https://github.com/ryancinsight/hermes.git", version = "0
 # Keep the Eunomia source aligned with the current Hephaestus provider graph.
 eunomia = { git = "https://github.com/ryancinsight/eunomia", version = "0.12.0", default-features = false }
 # Shared non-differentiable array substrate (layout/storage/views/CPU kernels).
-# Keep the Leto source aligned with the current Hephaestus provider graph.
-leto = { git = "https://github.com/ryancinsight/leto.git", version = ">=0.47.1, <0.51.0" }
-leto-ops = { git = "https://github.com/ryancinsight/leto.git", version = ">=0.47.0, <0.51.0" }
+# Keep the Leto source aligned with the local Atlas checkout so the provider
+# graph resolves a single crate identity instead of mixed git revisions.
+leto = { version = "0.50.0", path = "../leto/crates/leto" }
+leto-ops = { version = "0.50.0", path = "../leto/crates/leto-ops" }
 apollo-fft = { git = "https://github.com/ryancinsight/apollo.git", version = "0.29.0", default-features = false }
 
 # ── Numerical ──
@@ -194,3 +195,14 @@ struct_field_names = "allow"  # 2 (2 production)
 unnecessary_trailing_comma = "allow"  # 2 (0 production)
 range_plus_one = "allow"  # 1 (0 production)
 redundant_else = "allow"  # 1 (0 production)
+
+# Single Atlas Leto source identity: redirect every git-sourced
+# `leto`/`leto-ops` edge to the local checkout so the graph carries one
+# crate ID standalone, matching the in-tree overlay (cf. CFDrs).
+[patch."https://github.com/ryancinsight/leto"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+
+[patch."https://github.com/ryancinsight/leto.git"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
