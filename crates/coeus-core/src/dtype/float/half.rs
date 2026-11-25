@@ -275,6 +275,6 @@ macro_rules! impl_scalar_float_half {
 }
 
 // F16: largest finite = 65504.0, smallest positive normal = 2^-14
-impl_scalar_float_half!(F16, F16(0x7BFF), F16(0x0040));
+impl_scalar_float_half!(F16, F16(0x7BFF), F16::MIN_POSITIVE);
 // Bf16: largest finite ≈ 3.3895e38, smallest positive normal = 2^-126
 impl_scalar_float_half!(Bf16, Bf16(0x7F7F), Bf16(0x0080));
