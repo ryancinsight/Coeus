@@ -24,15 +24,16 @@ pub mod shape;
 pub mod var_ops;
 
 pub use activation::{
-    abs, acos, acosh, asin, asinh, atan, atanh, ceil, celu, clamp, cos, cosh, elu, erf, erfc, exp,
-    exp2, expm1, floor, gelu, gelu_tanh, hardshrink, hardsigmoid, hardswish, hardtanh, leaky_relu,
-    lgamma_forward, log, log10, log1p, log2, mish, neg, pack_pairs, pow, prelu, recip, relu, round,
-    selu, sigmoid, sign, silu, sin, sinh, softplus, softshrink, softsign, sqrt, tan, tanh,
-    threshold, trunc,
+    abs, acos, acosh, asin, asinh, atan, atanh, bessel_j0, bessel_j1, ceil, celu, clamp, cos, cosh,
+    elu, erf, erfc, exp, exp2, expm1, floor, gelu, gelu_tanh, hardshrink, hardsigmoid, hardswish,
+    hardtanh, leaky_relu, lgamma, lgamma_forward, log, log10, log1p, log2, mish, neg, pack_pairs,
+    pow, prelu, recip, relu, round, selu, sigmoid, sign, silu, sin, sinc, sinh, softplus,
+    softshrink, softsign, sqrt, tan, tanh, threshold, trunc,
 };
 pub use arithmetic::{
-    add, div, eq, ge, gt, le, lt, maximum, mean, mean_axis, minimum, mul, nanmean, nansum, ne,
-    remainder, scalar_add, scalar_div, scalar_mul, scalar_sub, sub, sum, sum_axis,
+    add, atan2, div, eq, ge, gt, hypot, le, logsumexp_tracked, lt, maximum, mean, mean_axis,
+    minimum, mul, nanmean, nansum, ne, pow_tensor, remainder, scalar_add, scalar_div, scalar_mul,
+    scalar_sub, sub, sum, sum_axis,
 };
 pub use reduction::{
     log_sum_exp, max_axis, min_axis, norm, norm_p, norm_p_axis, prod, sort, std_dev, std_dev_axis,

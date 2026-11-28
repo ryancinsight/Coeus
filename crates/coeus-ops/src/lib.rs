@@ -49,19 +49,21 @@ pub mod sparse;
 pub mod unary;
 
 pub use unary::{
-    abs, abs_assign, acos, acosh, asin, asinh, atan, atanh, causal_softmax, ceil, ceil_assign, cos,
-    cos_assign, cosh, elementwise_unary, elementwise_unary_assign, elementwise_unary_to, elu,
-    elu_assign, erf, erfc, exp, exp2, exp_assign, expm1, floor, floor_assign, gelu, gelu_assign,
-    gelu_tanh, gelu_tanh_assign, glu, leaky_relu, leaky_relu_assign, lgamma, log, log10, log1p,
-    log2, log_assign, log_softmax_axis, masked_softmax, mish, mish_assign, neg, neg_assign,
-    pow_scalar, recip, recip_assign, relu, relu_assign, round, round_assign, sigmoid,
-    sigmoid_assign, sign, sign_assign, silu, silu_assign, sin, sin_assign, sinh, softplus,
-    softplus_assign, sqrt, sqrt_assign, tan, tanh, tanh_assign, trunc, trunc_assign,
+    abs, abs_assign, acos, acosh, asin, asinh, atan, atanh, bessel_j0, bessel_j1, bessel_k0,
+    causal_softmax, ceil, ceil_assign, cos, cos_assign, cosh, digamma, elementwise_unary,
+    elementwise_unary_assign, elementwise_unary_to, elu, elu_assign, erf, erfc, exp, exp2,
+    exp_assign, expm1, floor, floor_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu,
+    leaky_relu, leaky_relu_assign, lgamma, log, log10, log1p, log2, log_assign, log_softmax_axis,
+    masked_softmax, mish, mish_assign, neg, neg_assign, pow_scalar, recip, recip_assign, relu,
+    relu_assign, round, round_assign, sigmoid, sigmoid_assign, sign, sign_assign, silu,
+    silu_assign, sin, sin_assign, sinc, sinh, softplus, softplus_assign, sqrt, sqrt_assign, tan,
+    tanh, tanh_assign, trunc, trunc_assign,
 };
 
 pub use binary::{
-    add, add_assign, div, div_assign, elementwise_binary, elementwise_binary_to, eq, ge, gt, le,
-    lt, mul, mul_assign, ne, sub, sub_assign,
+    add, add_assign, atan2, clamp_tensor, div, div_assign, elementwise_binary,
+    elementwise_binary_to, eq, ge, gt, hypot, le, logsumexp, logsumexp_axis, lt, maximum, minimum,
+    mul, mul_assign, ne, pow_tensor, sub, sub_assign,
 };
 pub use embedding::{embedding, embedding_backward, embedding_backward_with_padding_idx};
 pub use interpolation::{

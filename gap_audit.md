@@ -31,14 +31,27 @@ Mitigation: keep built extensions out of `tests/`; the canonical module is the
 site-packages install.
 Re-open trigger: the artifact reappears (add a pre-test cleanup or a `.gitignore`/CI check if it recurs).
 
-## G-049 residual: `gammaln` backward blocked on upstream `digamma`
+## G-049 residual: `gammaln` backward — resolved via provider `digamma`
 
-`d/dx lgamma(x) = digamma(x)`, and Eunomia (pinned `0.8.0`) does not expose
-`digamma` yet — verified absent from the workspace. Python raises
-`NotImplementedError` for grad-tracked `gammaln` inputs rather than a fake or
-zero gradient, which is correct pending the upstream capability.
-Owning item: none in this repo (upstream Eunomia capability gap).
-Re-open trigger: Eunomia exposes `digamma`, then wire the CPU/Leto backward path.
+`d/dx lgamma(x) = digamma(x)`. Eunomia now exposes `FloatElement::digamma`,
+so the backward is no longer blocked: `coeus-ops::digamma` evaluates the
+scalar provider function on the host (the provider opcode layer has no
+`Digamma` kernel, same placement as `atan2`), and the tracked
+`coeus_autograd::lgamma` composes `grad_out * digamma(x)`.
+`lgamma_forward` and its Python binding entry point are unchanged and stay
+forward-only; new Rust code uses the differentiable `lgamma`. Finite-difference
+gradcheck coverage lives in `gradcheck/new_ops.rs`
+(`lgamma_backward_matches_finite_differences`, f32+f64).
+
+## K-001 residual: `bessel_k1` absent from the provider surface
+
+`coeus-ops::bessel_k0` is forward-only. The derivative is
+`d/dx K₀(x) = −K₁(x)`, and Eunomia exposes `bessel_j0`/`bessel_j1`/
+`bessel_k0` but no `bessel_k1`, so a tracked node would need an invented
+kernel. Re-open trigger: Eunomia gains `bessel_k1`, then add the tracked
+wrapper with the `-K₁` backward and a finite-difference gradcheck.
+Forward value coverage: `bessel_k0_matches_reference_and_rejects_nonpositive`
+(1e-6 against the documented A&S error bound).
 
 ## Seq2Seq all-ones gradient has no convergent finite-difference oracle
 

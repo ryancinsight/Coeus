@@ -251,6 +251,9 @@ pub use relu::{selu, SeluOp};
 pub use sigmoid::{sigmoid, SigmoidOp};
 pub use silu::{mish, silu, softplus, MishOp, SiluOp, SoftplusOp};
 pub use tanh_act::{tanh, TanhOp};
+pub use trig::special::{
+    bessel_j0, bessel_j1, lgamma, sinc, BesselJ0Op, BesselJ1Op, LgammaOp, SincOp,
+};
 pub use trig::{
     acos, acosh, asin, asinh, atan, atanh, cos, cosh, erf, erfc, exp, exp2, expm1, lgamma_forward,
     log, log10, log1p, log2, sin, sinh, tan, AcosOp, AcoshOp, AsinOp, AsinhOp, AtanOp, AtanhOp,

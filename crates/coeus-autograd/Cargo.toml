@@ -17,13 +17,13 @@ coeus-tensor = { workspace = true }
 coeus-ops    = { workspace = true, default-features = false }
 coeus-sparse = { workspace = true }
 apollo-fft   = { workspace = true }
+eunomia      = { workspace = true }
 leto-ops     = { workspace = true }
 mnemosyne    = { workspace = true }
 smallvec     = { workspace = true }
 thiserror    = { workspace = true }
 
 [dev-dependencies]
-eunomia = { workspace = true }
 coeus-nn = { path = "../coeus-nn", default-features = false }
 coeus-cpu = { version = "0.14.0", path = "../coeus-cpu" }
 

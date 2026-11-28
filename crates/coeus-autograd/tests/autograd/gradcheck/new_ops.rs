@@ -6,8 +6,9 @@
 
 use super::{tensor, weighted, weighting, GradcheckScalar, Sampler};
 use coeus_autograd::{
-    ctc_loss, dropout, embedding, gradcheck, index_put, linear_interpolation, rotate_half,
-    sparse_matmul, sparse_matmul_coo, transpose_2d, Var,
+    atan2, bessel_j0, bessel_j1, ctc_loss, dropout, embedding, gradcheck, hypot, index_put, lgamma,
+    linear_interpolation, logsumexp_tracked, pow_tensor, rotate_half, sinc, sparse_matmul,
+    sparse_matmul_coo, transpose_2d, Var,
 };
 use coeus_core::MoiraiBackend;
 use coeus_ops::Replicate;
@@ -298,4 +299,167 @@ fn embedding_case<T: GradcheckScalar>() {
 fn embedding_backward_matches_finite_differences() {
     embedding_case::<f64>();
     embedding_case::<f32>();
+}
+
+fn hypot_case<T: GradcheckScalar>() {
+    // Both operands stay away from the joint origin: `hypot` has a conical
+    // singularity at (0, 0) where no finite difference converges.
+    let a = tensor::<T>(&[4], 0.47);
+    let b = tensor::<T>(&[4], 0.53);
+    let w = weighting::<T>(&[4]);
+    gradcheck(&[a, b], |v| {
+        weighted(
+            &hypot(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("hypot backward must match central differences");
+}
+
+#[test]
+fn hypot_backward_matches_finite_differences() {
+    hypot_case::<f64>();
+    hypot_case::<f32>();
+}
+
+fn atan2_case<T: GradcheckScalar>() {
+    // The (0, 0) input is undefined (`NaN` forward); the sampler offsets keep
+    // every lane in a smooth quadrant.
+    let y = tensor::<T>(&[4], 0.59);
+    let x = tensor::<T>(&[4], 0.61);
+    let w = weighting::<T>(&[4]);
+    gradcheck(&[y, x], |v| {
+        weighted(
+            &atan2(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("atan2 backward must match central differences");
+}
+
+#[test]
+fn atan2_backward_matches_finite_differences() {
+    atan2_case::<f64>();
+    atan2_case::<f32>();
+}
+
+fn pow_tensor_case<T: GradcheckScalar>() {
+    // Positive bases only: a negative base with a fractional exponent is NaN
+    // forward, and no finite difference converges there.
+    let base = Sampler::positive(1.67).tensor::<T>(&[4]);
+    let exponent = Sampler::positive(0.71).tensor::<T>(&[4]);
+    let w = weighting::<T>(&[4]);
+    gradcheck(&[base, exponent], |v| {
+        weighted(
+            &pow_tensor(&v[0], &v[1]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("pow_tensor backward must match central differences");
+}
+
+#[test]
+fn pow_tensor_backward_matches_finite_differences() {
+    pow_tensor_case::<f64>();
+    pow_tensor_case::<f32>();
+}
+
+fn sinc_case<T: GradcheckScalar>() {
+    // Positive inputs only: the removable singularity is at the origin and
+    // the signed sampler straddles it, so the central difference would
+    // straddle a patched point. The patch itself is pinned by the unit test
+    // in `coeus-ops`.
+    let x = Sampler::positive(0.73).tensor::<T>(&[4]);
+    let w = weighting::<T>(&[4]);
+    gradcheck(&[x], |v| {
+        weighted(
+            &sinc(&v[0]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("sinc backward must match central differences");
+}
+
+#[test]
+fn sinc_backward_matches_finite_differences() {
+    sinc_case::<f64>();
+    sinc_case::<f32>();
+}
+
+fn lgamma_case<T: GradcheckScalar>() {
+    // Positive inputs only: non-positive integers are poles of `lgamma`
+    // where the forward is infinite and no difference converges.
+    let x = Sampler::positive(1.79).tensor::<T>(&[4]);
+    let w = weighting::<T>(&[4]);
+    gradcheck(&[x], |v| {
+        weighted(
+            &lgamma(&v[0]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("lgamma backward must match central differences");
+}
+
+#[test]
+fn lgamma_backward_matches_finite_differences() {
+    lgamma_case::<f64>();
+    lgamma_case::<f32>();
+}
+
+fn logsumexp_tracked_case<T: GradcheckScalar>() {
+    let x = tensor::<T>(&[2, 3], 0.83);
+    let w = weighting::<T>(&[1]);
+    gradcheck(&[x], |v| {
+        weighted(
+            &logsumexp_tracked(&v[0]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("logsumexp_tracked backward must match central differences");
+}
+
+#[test]
+fn logsumexp_tracked_backward_matches_finite_differences() {
+    logsumexp_tracked_case::<f64>();
+    logsumexp_tracked_case::<f32>();
+}
+
+fn bessel_j0_case<T: GradcheckScalar + eunomia::RealField>() {
+    // J₀ is entire, so the signed sampler is safe everywhere.
+    let x = tensor::<T>(&[4], 0.89);
+    let w = weighting::<T>(&[4]);
+    gradcheck(&[x], |v| {
+        weighted(
+            &bessel_j0(&v[0]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("bessel_j0 backward must match central differences");
+}
+
+#[test]
+fn bessel_j0_backward_matches_finite_differences() {
+    bessel_j0_case::<f64>();
+    bessel_j0_case::<f32>();
+}
+
+fn bessel_j1_case<T: GradcheckScalar + eunomia::RealField>() {
+    // Positive inputs only: the analytic slope at the origin is patched to
+    // exactly 1/2, and the central difference straddling the patched point
+    // would compare against the unpatched quotient form.
+    let x = Sampler::positive(0.97).tensor::<T>(&[4]);
+    let w = weighting::<T>(&[4]);
+    gradcheck(&[x], |v| {
+        weighted(
+            &bessel_j1(&v[0]).expect("invariant: test operation succeeds"),
+            &w,
+        )
+    })
+    .expect("bessel_j1 backward must match central differences");
+}
+
+#[test]
+fn bessel_j1_backward_matches_finite_differences() {
+    bessel_j1_case::<f64>();
+    bessel_j1_case::<f32>();
 }

@@ -1,10 +1,13 @@
 // ── Unary ops module ──
 
 mod activation;
+mod bessel;
+mod digamma;
 mod kernel;
 /// Element-wise math functions (exp, log, sin, cos, sqrt, abs, neg, etc.).
 pub mod math;
 mod power;
+mod sinc;
 
 pub use activation::{
     causal_softmax, elu, elu_assign, gelu, gelu_assign, gelu_tanh, gelu_tanh_assign, glu,
@@ -12,6 +15,8 @@ pub use activation::{
     relu_assign, sigmoid, sigmoid_assign, silu, silu_assign, softplus, softplus_assign, tanh,
     tanh_assign,
 };
+pub use bessel::{bessel_j0, bessel_j1, bessel_k0};
+pub use digamma::digamma;
 pub use kernel::{elementwise_unary, elementwise_unary_assign, elementwise_unary_to};
 pub use math::{
     abs, abs_assign, acos, acosh, asin, asinh, atan, atanh, ceil, ceil_assign, cos, cos_assign,
@@ -20,3 +25,4 @@ pub use math::{
     sin, sin_assign, sinh, sqrt, sqrt_assign, tan, trunc, trunc_assign,
 };
 pub use power::pow_scalar;
+pub use sinc::sinc;
