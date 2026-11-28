@@ -171,7 +171,8 @@ class CargoResolutionTests(unittest.TestCase):
         self.assertIn(f"failed to remove repository drive {drive}", str(failure.exception))
 
     def test_uncached_optional_package_fails_only_all_features(self) -> None:
-        # The resolved root gives the index and download URLs one canonical path.
+        # On Windows the temp directory can be an 8.3 short path; resolve()
+        # expands it before the root is embedded in the file URLs below.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             index = root / "index"
