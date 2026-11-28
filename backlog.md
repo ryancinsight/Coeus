@@ -50,17 +50,6 @@ items carry no milestone until then.
 - Filed with them, each named unread or enforced: step `env` set on the checkout step instead of the test step (F1), key case (F2), a later checkout into the same path (F3), `github-server-url` (F5).
 - Rule: no sentence says the test enforces a case it does not read; each docstring, test name, `ci.yml` and PR sentence is checked against a mutant before it is written.
 
-<a id="coeus-lockfile-test-tempdir"></a>
-## COEUS-LOCKFILE-TEST-TEMPDIR — Build lockfile fixtures outside the checkout
-
-- Status: todo; priority: verification; [patch]; basis: 3c8b71ae4f14bd94b25d62f6196f3049787b2224.
-- Outcome: the two `scripts/tests/test_lockfile.py` tests that build a git dependency and a local registry create their fixture trees outside the checkout.
-- Evidence: `:72` and `:175` call `tempfile.TemporaryDirectory(dir=Path(__file__).parent)`, so each run writes a git repository, a registry index and an archive under `scripts/tests/`. The `:173-174` comment attributes the full-path need to a libgit2 failure on the shortened Windows profile path "on the CI host"; the only CI step that runs this file is `Lockfile tool contracts` in the `format` job (`ci.yml:99-123`, `python3 -m unittest discover -s scripts/tests -v`, `ubuntu-latest`), so that premise is unreproduced.
-- Scope: those two tests; the `:173-174` comment is corrected to what is reproduced.
-- Acceptance: a committed test in `test_lockfile.py` runs the two build tests with `tempfile.TemporaryDirectory` replaced by a recorder. `setUp` runs as written, including its `cargo generate-lockfile --offline` call, so the test needs cargo like the file's other tests. A call made from a test body (not `setUp`, not another file) records `Path(dir or tempfile.gettempdir()).resolve()` and raises there, before the body's git, registry or cargo calls. The test asserts both roots are recorded and none `is_relative_to` the repository root (`Path(__file__).resolve().parents[2]`). At the basis both roots are `scripts/tests` and the test fails. It runs in the `ci.yml:123` step above.
-- Needs: none.
-- Next step: root both fixtures in the system temp directory, resolved with `Path.resolve()` as `:73` and `:176` do, then add the recorder test.
-
 <a id="coeus-device-test-build-cost"></a>
 ## COEUS-DEVICE-TEST-BUILD-COST — Attribute device test compilation
 

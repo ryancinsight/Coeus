@@ -13,6 +13,7 @@ import tempfile
 import tarfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SPEC = importlib.util.spec_from_file_location(
     "lockfile", Path(__file__).resolve().parents[1] / "lockfile.py"
@@ -69,7 +70,7 @@ class CargoResolutionTests(unittest.TestCase):
     def test_cold_git_cache_hydrates_without_changing_the_lock(self) -> None:
         # A local Git dependency exercises the same checkout/cache boundary as
         # hosted first-party dependencies without requiring a network service.
-        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+        with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             dependency = root / "dependency"
             (dependency / "src").mkdir(parents=True)
@@ -170,9 +171,9 @@ class CargoResolutionTests(unittest.TestCase):
         self.assertIn(f"failed to remove repository drive {drive}", str(failure.exception))
 
     def test_uncached_optional_package_fails_only_all_features(self) -> None:
-        # Use a full workspace path: libgit2 cannot initialize a registry cache
-        # through the shortened Windows user-profile path on the CI host.
-        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+        # On Windows the temp directory can be an 8.3 short path; resolve()
+        # expands it before the root is embedded in the file URLs below.
+        with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             index = root / "index"
             (index / "op" / "ti").mkdir(parents=True)
@@ -237,6 +238,38 @@ class CargoResolutionTests(unittest.TestCase):
                         os.environ.pop(name, None)
                     else:
                         os.environ[name] = value
+
+
+    def test_build_fixtures_are_rooted_outside_the_checkout(self) -> None:
+        checkout = Path(__file__).resolve().parents[2]
+        real_directory = tempfile.TemporaryDirectory
+        roots: list[Path] = []
+
+        class FixtureRooted(Exception):
+            """Raised at the first fixture directory so the body builds nothing."""
+
+        def recorder(suffix=None, prefix=None, dir=None, **options):
+            caller = sys._getframe(1)
+            if (
+                Path(caller.f_code.co_filename).resolve() != Path(__file__).resolve()
+                or not caller.f_code.co_name.startswith("test_")
+            ):
+                return real_directory(suffix, prefix, dir, **options)
+            roots.append(Path(dir or tempfile.gettempdir()).resolve())
+            raise FixtureRooted
+
+        # setUp has already run with the real constructor, cargo call included.
+        bodies = (
+            CargoResolutionTests.test_cold_git_cache_hydrates_without_changing_the_lock,
+            CargoResolutionTests.test_uncached_optional_package_fails_only_all_features,
+        )
+        with mock.patch.object(tempfile, "TemporaryDirectory", recorder):
+            for body in bodies:
+                with self.assertRaises(FixtureRooted):
+                    body(self)
+        self.assertEqual(len(roots), len(bodies))
+        for root in roots:
+            self.assertFalse(root.is_relative_to(checkout), f"{root} lies inside {checkout}")
 
 
 class CommandDeadlineTests(unittest.TestCase):
